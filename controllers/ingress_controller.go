@@ -18,7 +18,9 @@ package controllers
 
 import (
 	"context"
+	"time"
 
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,17 +47,28 @@ type IngressReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.8.3/pkg/reconcile
 func (r *IngressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
-	// your logic here
+	logger.V(1).Info("request")
 
-	return ctrl.Result{}, nil
+	ing := new(networkingv1.Ingress)
+	if err := r.Get(ctx, req.NamespacedName, ing); err != nil {
+		logger.Error(err, "get", "name", req.NamespacedName)
+		return ctrl.Result{Requeue: false}, err
+	}
+
+	logger.Info("get", "uid", ing.GetUID(), "ingress", ing)
+
+	return ctrl.Result{
+		Requeue:      true,
+		RequeueAfter: time.Second * 5,
+	}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *IngressReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		// Uncomment the following line adding a pointer to an instance of the controlled resource as an argument
-		// For().
+		For(&networkingv1.Ingress{}).
 		Complete(r)
 }
