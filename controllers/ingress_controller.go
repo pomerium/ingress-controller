@@ -18,19 +18,34 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	networkingv1 "k8s.io/api/networking/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const (
+	retryDuration = time.Second * 30
+)
+
+type ConfigReconciler interface {
+	// Upsert should update or create the pomerium routes corresponding to this ingress
+	Upsert(ctx context.Context, ing *networkingv1.Ingress, tlsSecrets []*TLSSecret) error
+	// Delete should delete pomerium routes corresponding to this ingress name
+	Delete(ctx context.Context, namespacedName types.NamespacedName) error
+}
+
 // IngressReconciler reconciles a Ingress object
 type IngressReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	ConfigReconciler
 }
 
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
@@ -48,27 +63,43 @@ type IngressReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.8.3/pkg/reconcile
 func (r *IngressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
+	ing, tlsSecrets, err := fetchIngress(ctx, r.Client, req.NamespacedName)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: retryDuration,
+			}, fmt.Errorf("fetch ingress and related resources: %w", err)
+		}
+		logger.Info("not found", "name", req.NamespacedName)
+		if err := r.ConfigReconciler.Delete(ctx, req.NamespacedName); err != nil {
+			return ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: retryDuration,
+			}, fmt.Errorf("deleting: %w", err)
+		}
+		return ctrl.Result{
+			Requeue: false,
+		}, nil
 
-	logger.V(1).Info("request")
-
-	ing := new(networkingv1.Ingress)
-	if err := r.Get(ctx, req.NamespacedName, ing); err != nil {
-		logger.Error(err, "get", "name", req.NamespacedName)
-		return ctrl.Result{Requeue: false}, err
 	}
 
-	logger.Info("get", "uid", ing.GetUID(), "ingress", ing)
-
+	if err := r.ConfigReconciler.Upsert(ctx, ing, tlsSecrets); err != nil {
+		return ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: retryDuration,
+		}, fmt.Errorf("upsert: %w", err)
+	}
+	logger.Info("updated", "uid", ing.UID, "version", ing.ResourceVersion)
 	return ctrl.Result{
-		Requeue:      true,
-		RequeueAfter: time.Second * 5,
+		Requeue:      false,
+		RequeueAfter: 0,
 	}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *IngressReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		// Uncomment the following line adding a pointer to an instance of the controlled resource as an argument
 		For(&networkingv1.Ingress{}).
 		Complete(r)
 }

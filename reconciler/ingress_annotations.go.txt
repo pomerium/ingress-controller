@@ -1,0 +1,79 @@
+package reconciler
+
+import (
+	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/structpb"
+	networkingv1 "k8s.io/api/networking/v1"
+	"github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+)
+
+var (
+	supportedAnnotations = []string{
+		"allowed_users",
+		"allowed_groups",
+		""
+	}
+)
+// applyAnnotations applies ingress annotations to a route
+func applyAnnotations(
+	r *pomerium.Route,
+	ing *networkingv1.Ingress,
+	prefix string,
+) error {	
+	_ = &pomerium.Route{
+		Name:                 "",
+		From:                 "",
+		To:                   []string{},
+		LoadBalancingWeights: []uint32{},
+		Redirect: &pomerium.RouteRedirect{
+			HttpsRedirect:  new(bool),
+			SchemeRedirect: new(string),
+			HostRedirect:   new(string),
+			PortRedirect:   new(uint32),
+			PathRedirect:   new(string),
+			PrefixRewrite:  new(string),
+			ResponseCode:   new(int32),
+			StripQuery:     new(bool),
+		},
+		AllowedUsers:                     []string{},
+		AllowedGroups:                    []string{},
+		AllowedDomains:                   []string{},
+		AllowedIdpClaims:                 map[string]*structpb.ListValue{},
+		Prefix:                           prefix,
+		Path:                             "",
+		Regex:                            "",
+		PrefixRewrite:                    prefix,
+		RegexRewritePattern:              "",
+		RegexRewriteSubstitution:         "",
+		CorsAllowPreflight:               false,
+		AllowPublicUnauthenticatedAccess: false,
+		AllowAnyAuthenticatedUser:        false,
+		Timeout:                          &durationpb.Duration{},
+		IdleTimeout:                      &durationpb.Duration{},
+		AllowWebsockets:                  false,
+		AllowSpdy:                        false,
+		TlsSkipVerify:                    false,
+		TlsServerName:                    "",
+		TlsCustomCa:                      "",
+		TlsCustomCaFile:                  "",
+		TlsClientCert:                    "",
+		TlsClientKey:                     "",
+		TlsClientCertFile:                "",
+		TlsClientKeyFile:                 "",
+		TlsDownstreamClientCa:            "",
+		TlsDownstreamClientCaFile:        "",
+		SetRequestHeaders:                map[string]string{},
+		RemoveRequestHeaders:             []string{},
+		SetResponseHeaders:               map[string]string{},
+		RewriteResponseHeaders:           []*pomerium.RouteRewriteHeader{},
+		PreserveHostHeader:               false,
+		PassIdentityHeaders:              false,
+		KubernetesServiceAccountToken:    "",
+		EnableGoogleCloudServerlessAuthentication: false,
+		Policies:  []*pomerium.Policy{},
+		Id:        "",
+	}
+	return nil
+}
+
