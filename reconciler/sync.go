@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -80,6 +81,8 @@ func (r *ConfigReconciler) getConfig(ctx context.Context) (*pomerium.Config, err
 }
 
 func (r *ConfigReconciler) saveConfig(ctx context.Context, cfg *pomerium.Config) error {
+	fmt.Println(protojson.Format(cfg))
+
 	any := protoutil.NewAny(cfg)
 	if _, err := r.Put(ctx, &databroker.PutRequest{
 		Record: &databroker.Record{

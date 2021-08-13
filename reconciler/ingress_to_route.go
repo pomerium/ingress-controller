@@ -13,9 +13,12 @@ import (
 // ingressToRoute converts Ingress object into Pomerium Route
 func ingressToRoute(ing *networkingv1.Ingress) ([]*pb.Route, error) {
 	tmpl := &pb.Route{
-		Name:                      ing.Name,
-		Id:                        string(ing.GetUID()),
-		AllowAnyAuthenticatedUser: true,
+		Name: ing.Name,
+		Id:   string(ing.GetUID()),
+	}
+
+	if err := applyAnnotations(tmpl, ing.Annotations, "ingress.pomerium.io"); err != nil {
+		return nil, fmt.Errorf("annotations: %w", err)
 	}
 
 	var routes []*pb.Route
