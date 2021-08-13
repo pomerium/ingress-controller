@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/envoyproxy/go-control-plane v0.9.9 // indirect
+	github.com/gosimple/slug v1.10.0 // indirect
 	github.com/onsi/ginkgo v1.16.1
 	github.com/onsi/gomega v1.11.0
 	github.com/pomerium/pomerium v0.15.1-0.20210810012516-e38682d02460

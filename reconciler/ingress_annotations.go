@@ -90,8 +90,6 @@ func applyAnnotations(
 		return err
 	}
 
-	fmt.Println(string(data))
-
 	return (&protojson.UnmarshalOptions{
 		DiscardUnknown: false,
 	}).Unmarshal(data, r)

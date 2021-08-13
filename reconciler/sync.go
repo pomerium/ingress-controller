@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -30,12 +31,17 @@ type ConfigReconciler struct {
 }
 
 // Upsert should update or create the pomerium routes corresponding to this ingress
-func (r *ConfigReconciler) Upsert(ctx context.Context, ing *networkingv1.Ingress, tlsSecrets []*controllers.TLSSecret) error {
+func (r *ConfigReconciler) Upsert(
+	ctx context.Context,
+	ing *networkingv1.Ingress,
+	tlsSecrets []*controllers.TLSSecret,
+	sm map[types.NamespacedName]*corev1.Service,
+) error {
 	cfg, err := r.getConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("get config: %w", err)
 	}
-	if err := upsertRecords(cfg, ing, tlsSecrets); err != nil {
+	if err := upsertRecords(cfg, ing, tlsSecrets, sm); err != nil {
 		return fmt.Errorf("deleting pomerium config records: %w", err)
 	}
 	if err := r.saveConfig(ctx, cfg); err != nil {

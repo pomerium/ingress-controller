@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,7 +37,7 @@ const (
 
 type ConfigReconciler interface {
 	// Upsert should update or create the pomerium routes corresponding to this ingress
-	Upsert(ctx context.Context, ing *networkingv1.Ingress, tlsSecrets []*TLSSecret) error
+	Upsert(ctx context.Context, ing *networkingv1.Ingress, tlsSecrets []*TLSSecret, services map[types.NamespacedName]*corev1.Service) error
 	// Delete should delete pomerium routes corresponding to this ingress name
 	Delete(ctx context.Context, namespacedName types.NamespacedName) error
 }
@@ -63,7 +64,7 @@ type IngressReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.8.3/pkg/reconcile
 func (r *IngressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	ing, tlsSecrets, err := fetchIngress(ctx, r.Client, req.NamespacedName)
+	ing, tlsSecrets, services, err := fetchIngress(ctx, r.Client, req.NamespacedName)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return ctrl.Result{
@@ -84,7 +85,7 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	}
 
-	if err := r.ConfigReconciler.Upsert(ctx, ing, tlsSecrets); err != nil {
+	if err := r.ConfigReconciler.Upsert(ctx, ing, tlsSecrets, services); err != nil {
 		return ctrl.Result{
 			Requeue:      true,
 			RequeueAfter: retryDuration,

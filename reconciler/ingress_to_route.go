@@ -5,25 +5,46 @@ import (
 	"fmt"
 	"net/url"
 
-	pb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/gosimple/slug"
 	"google.golang.org/protobuf/proto"
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/types"
+
+	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
-// ingressToRoute converts Ingress object into Pomerium Route
-func ingressToRoute(ing *networkingv1.Ingress) ([]*pb.Route, error) {
-	tmpl := &pb.Route{
-		Name: ing.Name,
-		Id:   string(ing.GetUID()),
+type serviceMap map[types.NamespacedName]*corev1.Service
+
+func (sm serviceMap) getPortByName(name types.NamespacedName, port string) (int32, error) {
+	svc, ok := sm[name]
+	if !ok {
+		return 0, fmt.Errorf("service %s was not pre-fetched, this is a bug", name.String())
 	}
+
+	for _, servicePort := range svc.Spec.Ports {
+		if servicePort.Name == port {
+			return servicePort.Port, nil
+		}
+	}
+
+	return 0, fmt.Errorf("could not find port %s on service %s", port, name.String())
+}
+
+// ingressToRoute converts Ingress object into Pomerium Route
+func ingressToRoute(ing *networkingv1.Ingress, sm serviceMap) (routeList, error) {
+	tmpl := &pb.Route{}
 
 	if err := applyAnnotations(tmpl, ing.Annotations, "ingress.pomerium.io"); err != nil {
 		return nil, fmt.Errorf("annotations: %w", err)
 	}
 
-	var routes []*pb.Route
+	tmpl.Name = fmt.Sprintf("%s-%s", ing.Namespace, ing.Name)
+	tmpl.Id = string(ing.GetUID())
+
+	routes := make(routeList, 0, len(ing.Spec.Rules))
 	for _, rule := range ing.Spec.Rules {
-		r, err := ruleToRoute(rule, tmpl, ing.Namespace)
+		r, err := ruleToRoute(rule, tmpl, ing.Namespace, sm)
 		if err != nil {
 			return nil, err
 		}
@@ -33,7 +54,7 @@ func ingressToRoute(ing *networkingv1.Ingress) ([]*pb.Route, error) {
 	return routes, nil
 }
 
-func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, namespace string) ([]*pb.Route, error) {
+func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, namespace string, sm serviceMap) ([]*pb.Route, error) {
 	if rule.Host == "" {
 		return nil, errors.New("host is required")
 	}
@@ -42,50 +63,78 @@ func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, namespace string
 		return nil, errors.New("rules.http is required")
 	}
 
-	out := make([]*pb.Route, 0, len(rule.HTTP.Paths))
-	for i, p := range rule.HTTP.Paths {
+	routes := make(routeList, 0, len(rule.HTTP.Paths))
+	for _, p := range rule.HTTP.Paths {
 		r := proto.Clone(tmpl).(*pb.Route)
 		r.From = (&url.URL{Scheme: "https", Host: rule.Host}).String()
-		if err := pathToRoute(r, namespace, p); err != nil {
+		if err := pathToRoute(r, namespace, p, sm); err != nil {
 			return nil, err
 		}
-		r.Name = fmt.Sprintf("%s-%d", r.Name, i)
-		r.Id = fmt.Sprintf("%s-%d", r.Id, i)
-		out = append(out, r)
+		routes = append(routes, r)
 	}
-	return out, nil
+
+	// https://kubernetes.io/docs/concepts/services-networking/ingress/#multiple-matches
+	// envoy matches according to the order routes are present in the configuration
+	routes.Sort()
+
+	return routes, nil
 }
 
-func pathToRoute(r *pb.Route, namespace string, p networkingv1.HTTPIngressPath) error {
-	if err := addTo(r, namespace, p); err != nil {
+func pathToRoute(r *pb.Route, namespace string, p networkingv1.HTTPIngressPath, sm serviceMap) error {
+	// https://kubernetes.io/docs/concepts/services-networking/ingress/#path-types
+	// Paths that do not include an explicit pathType will fail validation.
+	if p.PathType == nil {
+		return fmt.Errorf("pathType is required")
+	}
+
+	switch *p.PathType {
+	case networkingv1.PathTypeImplementationSpecific:
+		return fmt.Errorf("pathType %s unsupported, please explicitly choose between %s or %s",
+			networkingv1.PathTypeImplementationSpecific,
+			networkingv1.PathTypePrefix,
+			networkingv1.PathTypeExact,
+		)
+	case networkingv1.PathTypePrefix:
+		r.Prefix = p.Path
+	case networkingv1.PathTypeExact:
+		r.Path = p.Path
+	default:
+		// shouldn't get there as apiserver should not allow this
+		return fmt.Errorf("unknown pathType %s", *p.PathType)
+	}
+
+	pathSlug := slug.Make(p.Path)
+	if pathSlug != "" {
+		r.Name = fmt.Sprintf("%s-%s", r.Name, pathSlug)
+		r.Id = fmt.Sprintf("%s-%s", r.Id, pathSlug)
+	}
+
+	svcURL, err := getServiceURL(namespace, p, sm)
+	if err != nil {
 		return fmt.Errorf("backend: %w", err)
 	}
 
-	if err := addPathRules(r, p); err != nil {
-		return fmt.Errorf("path rules: %w", err)
-	}
-
+	r.To = []string{svcURL.String()}
 	return nil
 }
 
-func addPathRules(r *pb.Route, p networkingv1.HTTPIngressPath) error {
-	// TODO: implement
-	return nil
-}
-
-func addTo(r *pb.Route, namespace string, p networkingv1.HTTPIngressPath) error {
+func getServiceURL(namespace string, p networkingv1.HTTPIngressPath, sm serviceMap) (*url.URL, error) {
 	svc := p.Backend.Service
 	if svc == nil {
-		return errors.New("service is missing")
+		return nil, errors.New("service is missing")
 	}
 
+	port := svc.Port.Number
 	if svc.Port.Name != "" {
-		return errors.New("port names unsupported")
-	} else if svc.Port.Number <= 0 {
-		return fmt.Errorf("invalid port number %d", svc.Port.Number)
+		var err error
+		port, err = sm.getPortByName(types.NamespacedName{Namespace: namespace, Name: svc.Name}, svc.Port.Name)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	// Ingress v1 only supports plaintext http destinations
-	r.To = []string{(&url.URL{Scheme: "http", Host: fmt.Sprintf("%s.%s:%d", svc.Name, namespace, svc.Port.Number)}).String()}
-	return nil
+	return &url.URL{
+		Scheme: "http",
+		Host:   fmt.Sprintf("%s.%s:%d", svc.Name, namespace, port),
+	}, nil
 }

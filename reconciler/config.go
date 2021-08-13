@@ -6,50 +6,41 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
+	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 
 	"github.com/pomerium/ingress-controller/controllers"
 )
 
-func routeMap(routes []*pomerium.Route) (map[string]*pomerium.Route, error) {
-	m := make(map[string]*pomerium.Route)
-	for _, r := range routes {
-		if _, exists := m[r.Id]; exists {
-			return nil, fmt.Errorf("duplicate route id=%q", r.Id)
-		}
-		m[r.Id] = r
-	}
-	return m, nil
-}
-
-func routeList(routeMap map[string]*pomerium.Route) []*pomerium.Route {
-	routes := make([]*pomerium.Route, 0, len(routeMap))
-	for _, r := range routeMap {
-		routes = append(routes, r)
-	}
-	return routes
-}
-
-func upsertRecords(cfg *pomerium.Config, ing *networkingv1.Ingress, tlsSecrets []*controllers.TLSSecret) error {
-	ingRoutes, err := ingressToRoute(ing)
+func upsertRecords(cfg *pb.Config, ing *networkingv1.Ingress, tlsSecrets []*controllers.TLSSecret, sm serviceMap) error {
+	ingRoutes, err := ingressToRoute(ing, sm)
 	if err != nil {
 		return fmt.Errorf("parsing ingress: %w", err)
 	}
-	ingRouteMap, err := routeMap(ingRoutes)
+	ingRoutes = append(ingRoutes, debugRoute())
+
+	ingRouteMap, err := ingRoutes.toMap()
 	if err != nil {
 		return fmt.Errorf("indexing new routes: %w", err)
 	}
-	routeMap, err := routeMap(cfg.Routes)
+	routeMap, err := routeList(cfg.Routes).toMap()
 	if err != nil {
 		return fmt.Errorf("indexing current config routes: %w", err)
 	}
-	for id, r := range ingRouteMap {
-		routeMap[id] = r
-	}
-	cfg.Routes = routeList(routeMap)
+	routeMap.merge(ingRouteMap)
+	cfg.Routes = ingRouteMap.toList()
 	return nil
 }
 
-func deleteRecords(cfg *pomerium.Config, namespacedName types.NamespacedName) error {
+func deleteRecords(cfg *pb.Config, namespacedName types.NamespacedName) error {
 	return nil
+}
+
+func debugRoute() *pb.Route {
+	return &pb.Route{
+		Name:                      "envoy-admin",
+		Id:                        "envoy-admin",
+		From:                      "https://envoy-admin.localhost.pomerium.io",
+		To:                        []string{"http://localhost:9901/"},
+		AllowAnyAuthenticatedUser: true,
+	}
 }
