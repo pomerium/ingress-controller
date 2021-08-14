@@ -32,15 +32,22 @@ func upsertRecords(cfg *pb.Config, ing *networkingv1.Ingress, tlsSecrets []*cont
 }
 
 func deleteRecords(cfg *pb.Config, namespacedName types.NamespacedName) error {
+	rm, err := routeList(cfg.Routes).toMap()
+	if err != nil {
+		return err
+	}
+	rm.removeName(namespacedName)
+	cfg.Routes = rm.toList()
 	return nil
 }
 
 func debugRoute() *pb.Route {
-	return &pb.Route{
-		Name:                      "envoy-admin",
-		Id:                        "envoy-admin",
-		From:                      "https://envoy-admin.localhost.pomerium.io",
+	r := &pb.Route{
+		From:                      "https://envoy.localhost.pomerium.io",
 		To:                        []string{"http://localhost:9901/"},
+		Prefix:                    "/",
 		AllowAnyAuthenticatedUser: true,
 	}
+	setRouteNameID(r, types.NamespacedName{Name: "admin", Namespace: "internal-envoy"}, "/")
+	return r
 }

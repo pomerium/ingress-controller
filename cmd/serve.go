@@ -98,8 +98,9 @@ func (s *serveCmd) setupLogger() {
 		level = zapcore.DebugLevel
 	}
 	opts := zap.Options{
-		Development: s.debug,
-		Level:       level,
+		Development:     s.debug,
+		Level:           level,
+		StacktraceLevel: zapcore.DPanicLevel,
 	}
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 }

@@ -39,12 +39,9 @@ func ingressToRoute(ing *networkingv1.Ingress, sm serviceMap) (routeList, error)
 		return nil, fmt.Errorf("annotations: %w", err)
 	}
 
-	tmpl.Name = fmt.Sprintf("%s-%s", ing.Namespace, ing.Name)
-	tmpl.Id = string(ing.GetUID())
-
 	routes := make(routeList, 0, len(ing.Spec.Rules))
 	for _, rule := range ing.Spec.Rules {
-		r, err := ruleToRoute(rule, tmpl, ing.Namespace, sm)
+		r, err := ruleToRoute(rule, tmpl, types.NamespacedName{Namespace: ing.Namespace, Name: ing.Name}, sm)
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +51,7 @@ func ingressToRoute(ing *networkingv1.Ingress, sm serviceMap) (routeList, error)
 	return routes, nil
 }
 
-func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, namespace string, sm serviceMap) ([]*pb.Route, error) {
+func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, name types.NamespacedName, sm serviceMap) ([]*pb.Route, error) {
 	if rule.Host == "" {
 		return nil, errors.New("host is required")
 	}
@@ -67,7 +64,7 @@ func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, namespace string
 	for _, p := range rule.HTTP.Paths {
 		r := proto.Clone(tmpl).(*pb.Route)
 		r.From = (&url.URL{Scheme: "https", Host: rule.Host}).String()
-		if err := pathToRoute(r, namespace, p, sm); err != nil {
+		if err := pathToRoute(r, name, p, sm); err != nil {
 			return nil, err
 		}
 		routes = append(routes, r)
@@ -80,7 +77,7 @@ func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, namespace string
 	return routes, nil
 }
 
-func pathToRoute(r *pb.Route, namespace string, p networkingv1.HTTPIngressPath, sm serviceMap) error {
+func pathToRoute(r *pb.Route, name types.NamespacedName, p networkingv1.HTTPIngressPath, sm serviceMap) error {
 	// https://kubernetes.io/docs/concepts/services-networking/ingress/#path-types
 	// Paths that do not include an explicit pathType will fail validation.
 	if p.PathType == nil {
@@ -103,18 +100,30 @@ func pathToRoute(r *pb.Route, namespace string, p networkingv1.HTTPIngressPath, 
 		return fmt.Errorf("unknown pathType %s", *p.PathType)
 	}
 
-	pathSlug := slug.Make(p.Path)
-	if pathSlug != "" {
-		r.Name = fmt.Sprintf("%s-%s", r.Name, pathSlug)
-		r.Id = fmt.Sprintf("%s-%s", r.Id, pathSlug)
-	}
+	setRouteNameID(r, name, p.Path)
 
-	svcURL, err := getServiceURL(namespace, p, sm)
+	svcURL, err := getServiceURL(name.Namespace, p, sm)
 	if err != nil {
 		return fmt.Errorf("backend: %w", err)
 	}
 
 	r.To = []string{svcURL.String()}
+	return nil
+}
+
+func setRouteNameID(r *pb.Route, name types.NamespacedName, path string) error {
+	id, err := (&routeID{Name: name.Name, Namespace: name.Namespace, Path: path}).Marshal()
+	if err != nil {
+		return err
+	}
+	r.Id = id
+
+	r.Name = fmt.Sprintf("%s-%s", name.Namespace, name.Name)
+	pathSlug := slug.Make(path)
+	if pathSlug != "" {
+		r.Name = fmt.Sprintf("%s-%s", r.Name, pathSlug)
+	}
+
 	return nil
 }
 
