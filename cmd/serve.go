@@ -14,14 +14,14 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/pomerium/ingress-controller/controllers"
-	"github.com/pomerium/ingress-controller/reconciler"
 	pomeriumgrpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+
+	"github.com/pomerium/ingress-controller/controllers"
+	"github.com/pomerium/ingress-controller/pomerium"
 )
 
 const (
@@ -52,7 +52,7 @@ type serveCmd struct {
 
 	cobra.Command
 	manager.Manager
-	controllers.ConfigReconciler
+	controllers.PomeriumReconciler
 }
 
 func ServeCommand() *cobra.Command {
@@ -106,38 +106,17 @@ func (s *serveCmd) setupLogger() {
 }
 
 func (s *serveCmd) setupController() error {
-	cfg, err := ctrl.GetConfig()
-	if err != nil {
-		return fmt.Errorf("get k8s api config: %w", err)
-	}
-	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+	mgr, err := controllers.NewIngressController(ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     s.metricsAddr,
 		Port:                   9443,
 		HealthProbeBindAddress: s.probeAddr,
 		LeaderElection:         s.enableLeaderElection,
-		LeaderElectionID:       "996e99b1.networking.k8s.io",
-	})
+		LeaderElectionID:       "996e99b1.pomerium.io",
+	}, s.PomeriumReconciler)
 	if err != nil {
-		return fmt.Errorf("unable to start manager: %w", err)
+		return err
 	}
-
-	if err = (&controllers.IngressReconciler{
-		Client:           mgr.GetClient(),
-		Scheme:           mgr.GetScheme(),
-		ConfigReconciler: s.ConfigReconciler,
-	}).SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("unable to create controller: %w", err)
-	}
-	//+kubebuilder:scaffold:builder
-
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		return fmt.Errorf("unable to set up health check: %w", err)
-	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		return fmt.Errorf("unable to set up ready check: %w", err)
-	}
-
 	s.Manager = mgr
 	return nil
 }
@@ -147,7 +126,7 @@ func (s *serveCmd) setupConfigReconciler() error {
 	if err != nil {
 		return fmt.Errorf("databroker connection: %w", err)
 	}
-	s.ConfigReconciler = &reconciler.ConfigReconciler{
+	s.PomeriumReconciler = &pomerium.ConfigReconciler{
 		DataBrokerServiceClient: databroker.NewDataBrokerServiceClient(dbc),
 	}
 	return nil

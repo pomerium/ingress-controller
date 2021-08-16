@@ -9,6 +9,7 @@ require (
 	github.com/onsi/gomega v1.11.0
 	github.com/pomerium/pomerium v0.15.1-0.20210810012516-e38682d02460
 	github.com/spf13/cobra v1.2.1
+	github.com/stretchr/testify v1.7.0 // indirect
 	go.uber.org/zap v1.19.0 // indirect
 	google.golang.org/grpc v1.39.1
 	google.golang.org/protobuf v1.27.1

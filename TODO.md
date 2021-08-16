@@ -1,0 +1,7 @@
+- monitor referenced secret & service for changes
+- config transformation tests
+- record ingress state change events
+- envoy config validation
+- watch only specific namespace(s)
+- run against k8s ingress conformance tests
+- test with cert-manager
