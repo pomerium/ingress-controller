@@ -25,12 +25,15 @@ type Registry interface {
 
 type registry map[Key]map[Key]bool
 
+// ObjectKey returns a registry key for a given kubernetes object
+// the object must be properly initialized (GVK, name, namespace)
 func ObjectKey(obj client.Object) Key {
 	name := types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
 	return Key{kind, name}
 }
 
+// Add registers dependency between x and y
 func (r registry) Add(x, y Key) {
 	r.add(x, y)
 	r.add(y, x)
@@ -67,7 +70,7 @@ func (r registry) Deps(x Key) []Key {
 	return keys
 }
 
-// Deps returns list of objects that are dependent
+// DepsOfKind returns list of objects that are dependent and are of a particular kind
 func (r registry) DepsOfKind(x Key, kind string) []Key {
 	rx := r[x]
 	keys := make([]Key, 0, len(rx))

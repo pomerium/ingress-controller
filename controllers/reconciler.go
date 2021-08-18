@@ -22,6 +22,7 @@ type Controller struct {
 	client.Client
 	PomeriumReconciler
 	Registry
+	ingressKind string
 }
 
 // PomeriumReconciler updates pomerium configuration based on provided network resources
@@ -60,7 +61,7 @@ func (r *Controller) deleteIngress(ctx context.Context, name types.NamespacedNam
 	if err := r.PomeriumReconciler.Delete(ctx, name); err != nil {
 		return err
 	}
-	r.Registry.DeleteCascade(Key{"Ingress", name})
+	r.Registry.DeleteCascade(Key{r.ingressKind, name})
 	return nil
 }
 
@@ -89,17 +90,23 @@ func (r *Controller) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
+	gvk, err := apiutil.GVKForObject(&networkingv1.Ingress{}, mgr.GetScheme())
+	if err != nil {
+		return fmt.Errorf("cannot get ingress kind: %w", err)
+	}
+	r.ingressKind = gvk.Kind
+
 	for _, obj := range []client.Object{
 		&corev1.Service{},
 		&corev1.Secret{},
 	} {
-		gvk, err := apiutil.GVKForObject(obj, mgr.GetScheme())
+		gvk, err = apiutil.GVKForObject(obj, mgr.GetScheme())
 		if err != nil {
 			return fmt.Errorf("cannot get object kind: %w", err)
 		}
 		if err := c.Watch(
 			&source.Kind{Type: obj},
-			handler.EnqueueRequestsFromMapFunc(getDependantIngressFn(r.Registry, gvk.Kind))); err != nil {
+			handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(gvk.Kind))); err != nil {
 			return err
 		}
 	}
@@ -109,10 +116,10 @@ func (r *Controller) SetupWithManager(mgr ctrl.Manager) error {
 
 // getDependantIngressFn returns for a given object kind (i.e. a secret) a function
 // that would return ingress objects keys that depend from this object
-func getDependantIngressFn(r Registry, kind string) func(a client.Object) []reconcile.Request {
+func (r Controller) getDependantIngressFn(kind string) func(a client.Object) []reconcile.Request {
 	return func(a client.Object) []reconcile.Request {
 		name := types.NamespacedName{Name: a.GetName(), Namespace: a.GetNamespace()}
-		deps := r.DepsOfKind(Key{Kind: kind, NamespacedName: name}, "Ingress")
+		deps := r.DepsOfKind(Key{Kind: kind, NamespacedName: name}, r.ingressKind)
 		reqs := make([]reconcile.Request, 0, len(deps))
 		for _, k := range deps {
 			reqs = append(reqs, reconcile.Request{NamespacedName: k.NamespacedName})
