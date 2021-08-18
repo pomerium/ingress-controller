@@ -1,4 +1,7 @@
-- monitor referenced secret & service for changes
+- support TLS certs
+
+* monitor referenced secret & service for changes
+
 - config transformation tests
 - record ingress state change events
 - envoy config validation

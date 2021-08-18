@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 
+	"github.com/pomerium/ingress-controller/model"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 )
@@ -20,7 +21,7 @@ func NewIngressController(opts ctrl.Options, pcr PomeriumReconciler) (ctrl.Manag
 	if err = (&Controller{
 		PomeriumReconciler: pcr,
 		Client:             mgr.GetClient(),
-		Registry:           NewRegistry(),
+		Registry:           model.NewRegistry(),
 	}).SetupWithManager(mgr); err != nil {
 		return nil, fmt.Errorf("unable to create controller: %w", err)
 	}

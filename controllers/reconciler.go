@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	certmanagerv1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -15,13 +16,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"github.com/pomerium/ingress-controller/model"
 )
 
 // ResourceWatcher watches a given resource to update
 type Controller struct {
 	client.Client
 	PomeriumReconciler
-	Registry
+	model.Registry
 	ingressKind string
 }
 
@@ -29,7 +32,7 @@ type Controller struct {
 // it is not expected to be thread safe
 type PomeriumReconciler interface {
 	// Upsert should update or create the pomerium routes corresponding to this ingress
-	Upsert(ctx context.Context, ing *networkingv1.Ingress, tlsSecrets []*corev1.Secret, services map[types.NamespacedName]*corev1.Service) error
+	Upsert(ctx context.Context, ic *model.IngressConfig) error
 	// Delete should delete pomerium routes corresponding to this ingress name
 	Delete(ctx context.Context, namespacedName types.NamespacedName) error
 }
@@ -38,7 +41,7 @@ type PomeriumReconciler interface {
 // move the current state of the cluster closer to the desired state.
 func (r *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	ing, tlsSecrets, services, err := fetchIngress(ctx, r.Client, req.NamespacedName)
+	ic, err := fetchIngress(ctx, r.Client, req.NamespacedName)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return ctrl.Result{Requeue: true}, fmt.Errorf("fetch ingress and related resources: %w", err)
@@ -50,10 +53,10 @@ func (r *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{Requeue: false}, nil
 	}
 
-	if err := r.upsertIngress(ctx, ing, tlsSecrets, services); err != nil {
+	if err := r.upsertIngress(ctx, ic); err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("upsert: %w", err)
 	}
-	logger.Info("updated", "uid", ing.UID, "version", ing.ResourceVersion, "deps", r.Registry.Deps(ObjectKey(ing)))
+	logger.Info("updated", "deps", r.Registry.Deps(model.ObjectKey(ic.Ingress)))
 	return ctrl.Result{Requeue: false}, nil
 }
 
@@ -61,23 +64,16 @@ func (r *Controller) deleteIngress(ctx context.Context, name types.NamespacedNam
 	if err := r.PomeriumReconciler.Delete(ctx, name); err != nil {
 		return err
 	}
-	r.Registry.DeleteCascade(Key{r.ingressKind, name})
+	r.Registry.DeleteCascade(model.Key{Kind: r.ingressKind, NamespacedName: name})
 	return nil
 }
 
-func (r *Controller) upsertIngress(ctx context.Context, ing *networkingv1.Ingress, secrets []*corev1.Secret, services map[types.NamespacedName]*corev1.Service) error {
-	if err := r.PomeriumReconciler.Upsert(ctx, ing, secrets, services); err != nil {
+func (r *Controller) upsertIngress(ctx context.Context, ic *model.IngressConfig) error {
+	if err := r.PomeriumReconciler.Upsert(ctx, ic); err != nil {
 		return fmt.Errorf("upsert: %w", err)
 	}
 
-	ingKey := ObjectKey(ing)
-	for _, s := range secrets {
-		r.Registry.Add(ingKey, ObjectKey(s))
-	}
-	for _, s := range services {
-		r.Registry.Add(ingKey, ObjectKey(s))
-	}
-
+	ic.UpdateDependencies(r.Registry)
 	return nil
 }
 
@@ -90,7 +86,12 @@ func (r *Controller) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	gvk, err := apiutil.GVKForObject(&networkingv1.Ingress{}, mgr.GetScheme())
+	scheme := mgr.GetScheme()
+	if err := certmanagerv1.AddToScheme(scheme); err != nil {
+		return fmt.Errorf("registering cert-manager types: %w", err)
+	}
+
+	gvk, err := apiutil.GVKForObject(&networkingv1.Ingress{}, scheme)
 	if err != nil {
 		return fmt.Errorf("cannot get ingress kind: %w", err)
 	}
@@ -99,8 +100,9 @@ func (r *Controller) SetupWithManager(mgr ctrl.Manager) error {
 	for _, obj := range []client.Object{
 		&corev1.Service{},
 		&corev1.Secret{},
+		&certmanagerv1.Certificate{},
 	} {
-		gvk, err = apiutil.GVKForObject(obj, mgr.GetScheme())
+		gvk, err = apiutil.GVKForObject(obj, scheme)
 		if err != nil {
 			return fmt.Errorf("cannot get object kind: %w", err)
 		}
@@ -119,7 +121,7 @@ func (r *Controller) SetupWithManager(mgr ctrl.Manager) error {
 func (r Controller) getDependantIngressFn(kind string) func(a client.Object) []reconcile.Request {
 	return func(a client.Object) []reconcile.Request {
 		name := types.NamespacedName{Name: a.GetName(), Namespace: a.GetNamespace()}
-		deps := r.DepsOfKind(Key{Kind: kind, NamespacedName: name}, r.ingressKind)
+		deps := r.DepsOfKind(model.Key{Kind: kind, NamespacedName: name}, r.ingressKind)
 		reqs := make([]reconcile.Request, 0, len(deps))
 		for _, k := range deps {
 			reqs = append(reqs, reconcile.Request{NamespacedName: k.NamespacedName})

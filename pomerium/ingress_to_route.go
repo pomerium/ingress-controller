@@ -7,41 +7,24 @@ import (
 
 	"github.com/gosimple/slug"
 	"google.golang.org/protobuf/proto"
-	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/pomerium/ingress-controller/model"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
-type serviceMap map[types.NamespacedName]*corev1.Service
-
-func (sm serviceMap) getPortByName(name types.NamespacedName, port string) (int32, error) {
-	svc, ok := sm[name]
-	if !ok {
-		return 0, fmt.Errorf("service %s was not pre-fetched, this is a bug", name.String())
-	}
-
-	for _, servicePort := range svc.Spec.Ports {
-		if servicePort.Name == port {
-			return servicePort.Port, nil
-		}
-	}
-
-	return 0, fmt.Errorf("could not find port %s on service %s", port, name.String())
-}
-
 // ingressToRoute converts Ingress object into Pomerium Route
-func ingressToRoute(ing *networkingv1.Ingress, sm serviceMap) (routeList, error) {
+func ingressToRoute(ic *model.IngressConfig) (routeList, error) {
 	tmpl := &pb.Route{}
 
-	if err := applyAnnotations(tmpl, ing.Annotations, "ingress.pomerium.io"); err != nil {
+	if err := applyAnnotations(tmpl, ic.Ingress.Annotations, "ingress.pomerium.io"); err != nil {
 		return nil, fmt.Errorf("annotations: %w", err)
 	}
 
-	routes := make(routeList, 0, len(ing.Spec.Rules))
-	for _, rule := range ing.Spec.Rules {
-		r, err := ruleToRoute(rule, tmpl, types.NamespacedName{Namespace: ing.Namespace, Name: ing.Name}, sm)
+	routes := make(routeList, 0, len(ic.Ingress.Spec.Rules))
+	for _, rule := range ic.Ingress.Spec.Rules {
+		r, err := ruleToRoute(rule, tmpl, types.NamespacedName{Namespace: ic.Ingress.Namespace, Name: ic.Ingress.Name}, ic)
 		if err != nil {
 			return nil, err
 		}
@@ -51,7 +34,7 @@ func ingressToRoute(ing *networkingv1.Ingress, sm serviceMap) (routeList, error)
 	return routes, nil
 }
 
-func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, name types.NamespacedName, sm serviceMap) ([]*pb.Route, error) {
+func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, name types.NamespacedName, ic *model.IngressConfig) ([]*pb.Route, error) {
 	if rule.Host == "" {
 		return nil, errors.New("host is required")
 	}
@@ -64,7 +47,7 @@ func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, name types.Names
 	for _, p := range rule.HTTP.Paths {
 		r := proto.Clone(tmpl).(*pb.Route)
 		r.From = (&url.URL{Scheme: "https", Host: rule.Host}).String()
-		if err := pathToRoute(r, name, p, sm); err != nil {
+		if err := pathToRoute(r, name, p, ic); err != nil {
 			return nil, err
 		}
 		routes = append(routes, r)
@@ -77,7 +60,7 @@ func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, name types.Names
 	return routes, nil
 }
 
-func pathToRoute(r *pb.Route, name types.NamespacedName, p networkingv1.HTTPIngressPath, sm serviceMap) error {
+func pathToRoute(r *pb.Route, name types.NamespacedName, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) error {
 	// https://kubernetes.io/docs/concepts/services-networking/ingress/#path-types
 	// Paths that do not include an explicit pathType will fail validation.
 	if p.PathType == nil {
@@ -102,7 +85,7 @@ func pathToRoute(r *pb.Route, name types.NamespacedName, p networkingv1.HTTPIngr
 
 	setRouteNameID(r, name, p.Path)
 
-	svcURL, err := getServiceURL(name.Namespace, p, sm)
+	svcURL, err := getServiceURL(name.Namespace, p, ic)
 	if err != nil {
 		return fmt.Errorf("backend: %w", err)
 	}
@@ -127,7 +110,7 @@ func setRouteNameID(r *pb.Route, name types.NamespacedName, path string) error {
 	return nil
 }
 
-func getServiceURL(namespace string, p networkingv1.HTTPIngressPath, sm serviceMap) (*url.URL, error) {
+func getServiceURL(namespace string, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) (*url.URL, error) {
 	svc := p.Backend.Service
 	if svc == nil {
 		return nil, errors.New("service is missing")
@@ -136,7 +119,7 @@ func getServiceURL(namespace string, p networkingv1.HTTPIngressPath, sm serviceM
 	port := svc.Port.Number
 	if svc.Port.Name != "" {
 		var err error
-		port, err = sm.getPortByName(types.NamespacedName{Namespace: namespace, Name: svc.Name}, svc.Port.Name)
+		port, err = ic.GetServicePortByName(types.NamespacedName{Namespace: namespace, Name: svc.Name}, svc.Port.Name)
 		if err != nil {
 			return nil, err
 		}

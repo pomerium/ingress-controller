@@ -9,10 +9,9 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
-	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/pomerium/ingress-controller/model"
 	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -30,17 +29,12 @@ type ConfigReconciler struct {
 }
 
 // Upsert should update or create the pomerium routes corresponding to this ingress
-func (r *ConfigReconciler) Upsert(
-	ctx context.Context,
-	ing *networkingv1.Ingress,
-	tlsSecrets []*corev1.Secret,
-	sm map[types.NamespacedName]*corev1.Service,
-) error {
+func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) error {
 	cfg, err := r.getConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("get config: %w", err)
 	}
-	if err := upsertRecords(cfg, ing, tlsSecrets, sm); err != nil {
+	if err := upsertRoutes(cfg, ic); err != nil {
 		return fmt.Errorf("deleting pomerium config records: %w", err)
 	}
 	if err := r.saveConfig(ctx, cfg); err != nil {
@@ -100,15 +94,3 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, cfg *pomerium.Config)
 	}
 	return nil
 }
-
-/*
-func parseTLSSecret(secret *corev1.Secret) (*TLSSecret, error) {
-	if secret.Type != corev1.SecretTypeTLS {
-		return nil, fmt.Errorf("expected type %s, got %s", corev1.SecretTypeTLS, secret.Type)
-	}
-	return &TLSSecret{
-		Key:  secret.Data[corev1.TLSPrivateKeyKey],
-		Cert: secret.Data[corev1.TLSCertKey],
-	}, nil
-}
-*/

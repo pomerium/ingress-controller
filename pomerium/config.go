@@ -3,15 +3,14 @@ package pomerium
 import (
 	"fmt"
 
-	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/pomerium/ingress-controller/model"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
-func upsertRecords(cfg *pb.Config, ing *networkingv1.Ingress, tlsSecrets []*corev1.Secret, sm serviceMap) error {
-	ingRoutes, err := ingressToRoute(ing, sm)
+func upsertRoutes(cfg *pb.Config, ic *model.IngressConfig) error {
+	ingRoutes, err := ingressToRoute(ic)
 	if err != nil {
 		return fmt.Errorf("parsing ingress: %w", err)
 	}
