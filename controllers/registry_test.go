@@ -21,6 +21,7 @@ func TestRegistry(t *testing.T) {
 
 	assert.ElementsMatch(t, []controllers.Key{b, c}, r.Deps(a))
 	assert.ElementsMatch(t, []controllers.Key{a}, r.Deps(b))
+	assert.ElementsMatch(t, []controllers.Key{a}, r.DepsOfKind(b, "a"))
 	assert.ElementsMatch(t, []controllers.Key{a, d}, r.Deps(c))
 	r.DeleteCascade(c)
 	assert.ElementsMatch(t, []controllers.Key{b}, r.Deps(a))

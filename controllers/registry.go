@@ -1,9 +1,8 @@
 package controllers
 
 import (
-	"sync"
-
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Key struct {
@@ -19,11 +18,18 @@ type Registry interface {
 	Add(x, y Key)
 	// Deps returns list of dependencies given object key has
 	Deps(x Key) []Key
+	DepsOfKind(x Key, kind string) []Key
 	// DeleteCascade deletes key x and also any dependent keys that do not have other dependencies
 	DeleteCascade(x Key)
 }
 
 type registry map[Key]map[Key]bool
+
+func ObjectKey(obj client.Object) Key {
+	name := types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
+	kind := obj.GetObjectKind().GroupVersionKind().Kind
+	return Key{kind, name}
+}
 
 func (r registry) Add(x, y Key) {
 	r.add(x, y)
@@ -61,6 +67,18 @@ func (r registry) Deps(x Key) []Key {
 	return keys
 }
 
+// Deps returns list of objects that are dependent
+func (r registry) DepsOfKind(x Key, kind string) []Key {
+	rx := r[x]
+	keys := make([]Key, 0, len(rx))
+	for k := range rx {
+		if k.Kind == kind {
+			keys = append(keys, k)
+		}
+	}
+	return keys
+}
+
 func (r registry) DeleteCascade(x Key) {
 	for k := range r[x] {
 		r.del(x, k)
@@ -68,29 +86,6 @@ func (r registry) DeleteCascade(x Key) {
 	}
 }
 
-type safeRegistry struct {
-	sync.RWMutex
-	registry
-}
-
-func (sr *safeRegistry) Add(x, y Key) {
-	sr.Lock()
-	defer sr.Unlock()
-	sr.registry.Add(x, y)
-}
-
-func (sr *safeRegistry) Deps(x Key) []Key {
-	sr.RLock()
-	defer sr.RUnlock()
-	return sr.registry.Deps(x)
-}
-
-func (sr *safeRegistry) DeleteCascade(x Key) {
-	sr.Lock()
-	defer sr.Unlock()
-	sr.registry.DeleteCascade(x)
-}
-
 func NewRegistry() Registry {
-	return &safeRegistry{registry: make(registry)}
+	return make(registry)
 }

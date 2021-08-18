@@ -13,7 +13,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/pomerium/ingress-controller/controllers"
 	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -34,7 +33,7 @@ type ConfigReconciler struct {
 func (r *ConfigReconciler) Upsert(
 	ctx context.Context,
 	ing *networkingv1.Ingress,
-	tlsSecrets []*controllers.TLSSecret,
+	tlsSecrets []*corev1.Secret,
 	sm map[types.NamespacedName]*corev1.Service,
 ) error {
 	cfg, err := r.getConfig(ctx)
@@ -101,3 +100,15 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, cfg *pomerium.Config)
 	}
 	return nil
 }
+
+/*
+func parseTLSSecret(secret *corev1.Secret) (*TLSSecret, error) {
+	if secret.Type != corev1.SecretTypeTLS {
+		return nil, fmt.Errorf("expected type %s, got %s", corev1.SecretTypeTLS, secret.Type)
+	}
+	return &TLSSecret{
+		Key:  secret.Data[corev1.TLSPrivateKeyKey],
+		Cert: secret.Data[corev1.TLSCertKey],
+	}, nil
+}
+*/
