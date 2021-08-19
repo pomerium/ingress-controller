@@ -10,7 +10,7 @@ import (
 )
 
 func upsertRoutes(cfg *pb.Config, ic *model.IngressConfig) error {
-	ingRoutes, err := ingressToRoute(ic)
+	ingRoutes, err := ingressToRoutes(ic)
 	if err != nil {
 		return fmt.Errorf("parsing ingress: %w", err)
 	}

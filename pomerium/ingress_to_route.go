@@ -14,8 +14,8 @@ import (
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
-// ingressToRoute converts Ingress object into Pomerium Route
-func ingressToRoute(ic *model.IngressConfig) (routeList, error) {
+// ingressToRoutes converts Ingress object into Pomerium Route
+func ingressToRoutes(ic *model.IngressConfig) (routeList, error) {
 	tmpl := &pb.Route{}
 
 	if err := applyAnnotations(tmpl, ic.Ingress.Annotations, "ingress.pomerium.io"); err != nil {
@@ -127,6 +127,6 @@ func getServiceURL(namespace string, p networkingv1.HTTPIngressPath, ic *model.I
 
 	return &url.URL{
 		Scheme: "http",
-		Host:   fmt.Sprintf("%s.%s:%d", svc.Name, namespace, port),
+		Host:   fmt.Sprintf("%s.%s.svc.cluster.local:%d", svc.Name, namespace, port),
 	}, nil
 }

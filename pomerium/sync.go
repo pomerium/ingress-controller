@@ -107,6 +107,7 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, cfg *pomerium.Config,
 	}
 
 	logger.Info("new pomerium config applied")
+	// TODO: rm
 	fmt.Println(protojson.Format(cfg))
 
 	return nil

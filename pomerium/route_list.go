@@ -3,7 +3,6 @@ package pomerium
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"sort"
 
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -36,10 +35,13 @@ func (routes routeList) Sort()         { sort.Sort(routes) }
 func (routes routeList) Len() int      { return len(routes) }
 func (routes routeList) Swap(i, j int) { routes[i], routes[j] = routes[j], routes[i] }
 func (routes routeList) Less(i, j int) bool {
-	pathLen := func(r *pb.Route) float64 {
-		return math.Max(float64(len(r.Path)), float64(len(r.Prefix)))
+	routePath := func(r *pb.Route) string {
+		if r.Path != "" {
+			return r.Path
+		}
+		return r.Prefix
 	}
-	return pathLen(routes[i]) < pathLen(routes[j])
+	return routePath(routes[i]) < routePath(routes[j])
 }
 
 func (routes routeList) toMap() (routeMap, error) {

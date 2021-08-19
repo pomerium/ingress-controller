@@ -50,10 +50,6 @@ func (r registry) add(x, y Key) {
 
 func (r registry) del(x, y Key) {
 	rx := r[x]
-	if len(rx) == 0 {
-		delete(r, x)
-		return
-	}
 	delete(rx, y)
 	if len(rx) == 0 {
 		delete(r, x)
