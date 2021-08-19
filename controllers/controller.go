@@ -2,12 +2,13 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
-	certmanagerv1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -20,12 +21,14 @@ import (
 	"github.com/pomerium/ingress-controller/model"
 )
 
-// ResourceWatcher watches a given resource to update
+// Controller watches ingress and related resources for updates and reconciles with pomerium
 type Controller struct {
 	client.Client
 	PomeriumReconciler
 	model.Registry
 	ingressKind string
+	secretKind  string
+	serviceKind string
 }
 
 // PomeriumReconciler updates pomerium configuration based on provided network resources
@@ -41,10 +44,12 @@ type PomeriumReconciler interface {
 // move the current state of the cluster closer to the desired state.
 func (r *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	ic, err := fetchIngress(ctx, r.Client, req.NamespacedName)
+	ic, err := r.fetchIngress(ctx, req.NamespacedName)
 	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return ctrl.Result{Requeue: true}, fmt.Errorf("fetch ingress and related resources: %w", err)
+		if !r.isIngressNotFound(err) {
+			logger.Error(err, "obtaining ingress related resources", "deps",
+				r.Registry.Deps(model.Key{Kind: r.ingressKind, NamespacedName: req.NamespacedName}))
+			return ctrl.Result{Requeue: true}, fmt.Errorf("fetch ingress related resources: %w", err)
 		}
 		logger.Info("not found")
 		if err := r.deleteIngress(ctx, req.NamespacedName); err != nil {
@@ -87,27 +92,27 @@ func (r *Controller) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	scheme := mgr.GetScheme()
-	if err := certmanagerv1.AddToScheme(scheme); err != nil {
-		return fmt.Errorf("registering cert-manager types: %w", err)
-	}
-
-	gvk, err := apiutil.GVKForObject(&networkingv1.Ingress{}, scheme)
-	if err != nil {
-		return fmt.Errorf("cannot get ingress kind: %w", err)
-	}
-	r.ingressKind = gvk.Kind
-
-	for _, obj := range []client.Object{
-		&corev1.Service{},
-		&corev1.Secret{},
-		&certmanagerv1.Certificate{},
+	for _, o := range []struct {
+		client.Object
+		kind  *string
+		watch bool
+	}{
+		{&networkingv1.Ingress{}, &r.ingressKind, false},
+		{&corev1.Secret{}, &r.secretKind, true},
+		{&corev1.Service{}, &r.serviceKind, true},
 	} {
-		gvk, err = apiutil.GVKForObject(obj, scheme)
+		gvk, err := apiutil.GVKForObject(o.Object, scheme)
 		if err != nil {
-			return fmt.Errorf("cannot get object kind: %w", err)
+			return fmt.Errorf("cannot get kind: %w", err)
 		}
+		*o.kind = gvk.Kind
+
+		if !o.watch {
+			continue
+		}
+
 		if err := c.Watch(
-			&source.Kind{Type: obj},
+			&source.Kind{Type: o.Object},
 			handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(gvk.Kind))); err != nil {
 			return err
 		}
@@ -128,4 +133,11 @@ func (r Controller) getDependantIngressFn(kind string) func(a client.Object) []r
 		}
 		return reqs
 	}
+}
+
+func (r Controller) isIngressNotFound(err error) bool {
+	if status := apierrors.APIStatus(nil); errors.As(err, &status) {
+		return status.Status().Reason == metav1.StatusReasonNotFound && status.Status().Kind == r.ingressKind
+	}
+	return false
 }

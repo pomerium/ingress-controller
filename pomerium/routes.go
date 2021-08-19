@@ -29,7 +29,7 @@ func upsertRoutes(cfg *pb.Config, ic *model.IngressConfig) error {
 	return nil
 }
 
-func deleteRecords(cfg *pb.Config, namespacedName types.NamespacedName) error {
+func deleteRoutes(cfg *pb.Config, namespacedName types.NamespacedName) error {
 	rm, err := routeList(cfg.Routes).toMap()
 	if err != nil {
 		return err

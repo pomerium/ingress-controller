@@ -47,14 +47,27 @@ func (ic *IngressConfig) GetServicePortByName(name types.NamespacedName, port st
 	return 0, fmt.Errorf("could not find port %s on service %s", port, name.String())
 }
 
-/*
-func parseTLSSecret(secret *corev1.Secret) (*TLSSecret, error) {
-	if secret.Type != corev1.SecretTypeTLS {
-		return nil, fmt.Errorf("expected type %s, got %s", corev1.SecretTypeTLS, secret.Type)
-	}
-	return &TLSSecret{
-		Key:  secret.Data[corev1.TLSPrivateKeyKey],
-		Cert: secret.Data[corev1.TLSCertKey],
-	}, nil
+type TLSCert struct {
+	Key  []byte
+	Cert []byte
 }
-*/
+
+func (ic *IngressConfig) ParseTLSCerts() ([]*TLSCert, error) {
+	certs := make([]*TLSCert, 0, len(ic.Ingress.Spec.TLS))
+
+	for _, tls := range ic.Ingress.Spec.TLS {
+		secret := ic.Secrets[types.NamespacedName{Namespace: ic.Ingress.Namespace, Name: tls.SecretName}]
+		if secret == nil {
+			return nil, fmt.Errorf("tls.secretName=%s, but the secret wasn't fetched. this is a bug", tls.SecretName)
+		}
+		if secret.Type != corev1.SecretTypeTLS {
+			return nil, fmt.Errorf("tls.secretName=%s, expected type %s, got %s", tls.SecretName, corev1.SecretTypeTLS, secret.Type)
+		}
+		certs = append(certs, &TLSCert{
+			Key:  secret.Data[corev1.TLSPrivateKeyKey],
+			Cert: secret.Data[corev1.TLSCertKey],
+		})
+	}
+
+	return certs, nil
+}
