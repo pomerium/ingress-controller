@@ -10,6 +10,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -26,6 +27,7 @@ type Controller struct {
 	client.Client
 	PomeriumReconciler
 	model.Registry
+	record.EventRecorder
 	ingressKind string
 	secretKind  string
 	serviceKind string
@@ -59,8 +61,10 @@ func (r *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if err := r.upsertIngress(ctx, ic); err != nil {
+		r.EventRecorder.Event(ic.Ingress, corev1.EventTypeWarning, "UpdatePomeriumConfig", err.Error())
 		return ctrl.Result{Requeue: true}, fmt.Errorf("upsert: %w", err)
 	}
+	r.EventRecorder.Event(ic.Ingress, corev1.EventTypeNormal, "PomeriumConfigUpdated", "updated pomerium configuration")
 	logger.Info("updated", "deps", r.Registry.Deps(model.ObjectKey(ic.Ingress)))
 	return ctrl.Result{Requeue: false}, nil
 }
