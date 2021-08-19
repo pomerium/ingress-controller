@@ -137,7 +137,10 @@ func (r Controller) getDependantIngressFn(kind string) func(a client.Object) []r
 
 func (r Controller) isIngressNotFound(err error) bool {
 	if status := apierrors.APIStatus(nil); errors.As(err, &status) {
-		return status.Status().Reason == metav1.StatusReasonNotFound && status.Status().Kind == r.ingressKind
+		s := status.Status()
+		return s.Reason == metav1.StatusReasonNotFound &&
+			s.Details != nil &&
+			s.Details.Kind == r.ingressKind
 	}
 	return false
 }

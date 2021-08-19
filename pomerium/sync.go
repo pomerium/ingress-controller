@@ -1,6 +1,7 @@
 package pomerium
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
@@ -10,6 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/pomerium/ingress-controller/model"
 	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -30,7 +32,7 @@ type ConfigReconciler struct {
 
 // Upsert should update or create the pomerium routes corresponding to this ingress
 func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) error {
-	cfg, err := r.getConfig(ctx)
+	cfg, prevBytes, err := r.getConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("get config: %w", err)
 	}
@@ -40,7 +42,7 @@ func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) 
 	if err := upsertCerts(cfg, ic); err != nil {
 		return fmt.Errorf("updating certs: %w", err)
 	}
-	if err := r.saveConfig(ctx, cfg); err != nil {
+	if err := r.saveConfig(ctx, cfg, prevBytes); err != nil {
 		return fmt.Errorf("updating pomerium config: %w", err)
 	}
 	return nil
@@ -48,20 +50,23 @@ func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) 
 
 // Delete should delete pomerium routes corresponding to this ingress name
 func (r *ConfigReconciler) Delete(ctx context.Context, namespacedName types.NamespacedName) error {
-	cfg, err := r.getConfig(ctx)
+	cfg, prevBytes, err := r.getConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("get pomerium config: %w", err)
 	}
 	if err := deleteRoutes(cfg, namespacedName); err != nil {
 		return fmt.Errorf("deleting pomerium config records %s: %w", namespacedName.String(), err)
 	}
-	if err := r.saveConfig(ctx, cfg); err != nil {
+	if err := removeUnusedCerts(cfg); err != nil {
+		return fmt.Errorf("removing unused certs: %w", err)
+	}
+	if err := r.saveConfig(ctx, cfg, prevBytes); err != nil {
 		return fmt.Errorf("updating pomerium config: %w", err)
 	}
 	return nil
 }
 
-func (r *ConfigReconciler) getConfig(ctx context.Context) (*pomerium.Config, error) {
+func (r *ConfigReconciler) getConfig(ctx context.Context) (*pomerium.Config, []byte, error) {
 	cfg := new(pomerium.Config)
 	any := protoutil.NewAny(cfg)
 	var hdr metadata.MD
@@ -70,22 +75,27 @@ func (r *ConfigReconciler) getConfig(ctx context.Context) (*pomerium.Config, err
 		Id:   configID,
 	}, grpc.Header(&hdr))
 	if status.Code(err) == codes.NotFound {
-		return &pomerium.Config{}, nil
+		return &pomerium.Config{}, nil, nil
 	} else if err != nil {
-		return nil, fmt.Errorf("get pomerium config: %w", err)
+		return nil, nil, fmt.Errorf("get pomerium config: %w", err)
 	}
 
 	if err := resp.GetRecord().GetData().UnmarshalTo(cfg); err != nil {
-		return nil, fmt.Errorf("unmarshal current config: %w", err)
+		return nil, nil, fmt.Errorf("unmarshal current config: %w", err)
 	}
 
-	return cfg, nil
+	return cfg, resp.GetRecord().GetData().GetValue(), nil
 }
 
-func (r *ConfigReconciler) saveConfig(ctx context.Context, cfg *pomerium.Config) error {
-	fmt.Println(protojson.Format(cfg))
-
+func (r *ConfigReconciler) saveConfig(ctx context.Context, cfg *pomerium.Config, prevBytes []byte) error {
+	logger := log.FromContext(ctx)
 	any := protoutil.NewAny(cfg)
+
+	if bytes.Equal(prevBytes, any.GetValue()) {
+		logger.Info("no changes in pomerium config")
+		return nil
+	}
+
 	if _, err := r.Put(ctx, &databroker.PutRequest{
 		Record: &databroker.Record{
 			Type: any.GetTypeUrl(),
@@ -95,5 +105,9 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, cfg *pomerium.Config)
 	}); err != nil {
 		return err
 	}
+
+	logger.Info("new pomerium config applied")
+	fmt.Println(protojson.Format(cfg))
+
 	return nil
 }
