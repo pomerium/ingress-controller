@@ -1,0 +1,11 @@
+domain: networking.k8s.io
+layout:
+- go.kubebuilder.io/v3
+projectName: ingress-controller
+repo: github.com/pomerium/ingress-controller
+resources:
+- controller: true
+  domain: networking.k8s.io
+  kind: Ingress
+  version: v1
+version: "3"
