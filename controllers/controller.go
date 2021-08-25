@@ -9,6 +9,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -22,15 +23,21 @@ import (
 	"github.com/pomerium/ingress-controller/model"
 )
 
+const (
+	IngressClassDefault = "ingressclass.kubernetes.io/is-default-class"
+)
+
 // Controller watches ingress and related resources for updates and reconciles with pomerium
 type Controller struct {
 	client.Client
 	PomeriumReconciler
 	model.Registry
 	record.EventRecorder
-	ingressKind string
-	secretKind  string
-	serviceKind string
+	*runtime.Scheme
+	ingressKind      string
+	secretKind       string
+	serviceKind      string
+	ingressClassKind string
 }
 
 // PomeriumReconciler updates pomerium configuration based on provided network resources
@@ -65,7 +72,7 @@ func (r *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{Requeue: true}, fmt.Errorf("upsert: %w", err)
 	}
 	r.EventRecorder.Event(ic.Ingress, corev1.EventTypeNormal, "PomeriumConfigUpdated", "updated pomerium configuration")
-	logger.Info("updated", "deps", r.Registry.Deps(model.ObjectKey(ic.Ingress)))
+	logger.Info("updated", "deps", r.Registry.Deps(r.objectKey(ic.Ingress)))
 	return ctrl.Result{Requeue: false}, nil
 }
 
@@ -82,8 +89,38 @@ func (r *Controller) upsertIngress(ctx context.Context, ic *model.IngressConfig)
 		return fmt.Errorf("upsert: %w", err)
 	}
 
-	ic.UpdateDependencies(r.Registry)
+	r.updateDependencies(ic)
 	return nil
+}
+
+// ObjectKey returns a registry key for a given kubernetes object
+// the object must be properly initialized (GVK, name, namespace)
+func (r *Controller) objectKey(obj client.Object) model.Key {
+	name := types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
+	gvk, err := apiutil.GVKForObject(obj, r.Scheme)
+	if err != nil {
+		panic(err)
+	}
+	kind := gvk.Kind
+	if kind == "" {
+		panic("no kind available for object")
+	}
+	return model.Key{Kind: kind, NamespacedName: name}
+}
+
+func (r *Controller) updateDependencies(ic *model.IngressConfig) {
+	ingKey := r.objectKey(ic.Ingress)
+	r.DeleteCascade(ingKey)
+
+	for _, s := range ic.Secrets {
+		r.Add(ingKey, r.objectKey(s))
+	}
+	for _, s := range ic.Services {
+		r.Add(ingKey, r.objectKey(s))
+	}
+	for _, crt := range ic.Certs {
+		r.Add(ingKey, r.objectKey(crt))
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager
@@ -95,17 +132,18 @@ func (r *Controller) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	scheme := mgr.GetScheme()
+	r.Scheme = mgr.GetScheme()
 	for _, o := range []struct {
 		client.Object
 		kind  *string
 		watch bool
 	}{
 		{&networkingv1.Ingress{}, &r.ingressKind, false},
+		{&networkingv1.IngressClass{}, &r.ingressClassKind, true},
 		{&corev1.Secret{}, &r.secretKind, true},
 		{&corev1.Service{}, &r.serviceKind, true},
 	} {
-		gvk, err := apiutil.GVKForObject(o.Object, scheme)
+		gvk, err := apiutil.GVKForObject(o.Object, r.Scheme)
 		if err != nil {
 			return fmt.Errorf("cannot get kind: %w", err)
 		}

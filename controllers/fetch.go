@@ -54,7 +54,7 @@ func (r *Controller) fetchIngressServices(ctx context.Context, namespace string,
 			name := types.NamespacedName{Name: svc.Name, Namespace: namespace}
 			if err := r.Client.Get(ctx, name, service); err != nil {
 				if apierrors.IsNotFound(err) {
-					r.Registry.Add(model.ObjectKey(ingress), model.Key{Kind: r.serviceKind, NamespacedName: name})
+					r.Registry.Add(r.objectKey(ingress), model.Key{Kind: r.serviceKind, NamespacedName: name})
 				}
 
 				return nil, fmt.Errorf("rule host=%s path=%s refers to service %s.%s port %s, failed to get service information: %w",
@@ -80,7 +80,7 @@ func (r *Controller) fetchIngressSecrets(ctx context.Context, namespace string, 
 
 		if err := r.Client.Get(ctx, name, secret); err != nil {
 			if apierrors.IsNotFound(err) {
-				r.Registry.Add(model.ObjectKey(ingress), model.Key{Kind: r.secretKind, NamespacedName: name})
+				r.Registry.Add(r.objectKey(ingress), model.Key{Kind: r.secretKind, NamespacedName: name})
 			}
 			return nil, fmt.Errorf("get secret %s: %w", name.String(), err)
 		}

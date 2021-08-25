@@ -17,21 +17,6 @@ type IngressConfig struct {
 	Certs    map[types.NamespacedName]*certmanagerv1.Certificate
 }
 
-func (c *IngressConfig) UpdateDependencies(r Registry) {
-	ingKey := ObjectKey(c.Ingress)
-	r.DeleteCascade(ingKey)
-
-	for _, s := range c.Secrets {
-		r.Add(ingKey, ObjectKey(s))
-	}
-	for _, s := range c.Services {
-		r.Add(ingKey, ObjectKey(s))
-	}
-	for _, c := range c.Certs {
-		r.Add(ingKey, ObjectKey(c))
-	}
-}
-
 func (ic *IngressConfig) GetServicePortByName(name types.NamespacedName, port string) (int32, error) {
 	svc, ok := ic.Services[name]
 	if !ok {

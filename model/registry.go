@@ -2,7 +2,6 @@ package model
 
 import (
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Key struct {
@@ -24,14 +23,6 @@ type Registry interface {
 }
 
 type registry map[Key]map[Key]bool
-
-// ObjectKey returns a registry key for a given kubernetes object
-// the object must be properly initialized (GVK, name, namespace)
-func ObjectKey(obj client.Object) Key {
-	name := types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
-	kind := obj.GetObjectKind().GroupVersionKind().Kind
-	return Key{kind, name}
-}
 
 // Add registers dependency between x and y
 func (r registry) Add(x, y Key) {
