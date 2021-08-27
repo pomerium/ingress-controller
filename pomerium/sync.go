@@ -84,6 +84,8 @@ func (r *ConfigReconciler) getConfig(ctx context.Context) (*pomerium.Config, []b
 		return nil, nil, fmt.Errorf("unmarshal current config: %w", err)
 	}
 
+	fmt.Println("<=", protojson.Format(cfg))
+
 	return cfg, resp.GetRecord().GetData().GetValue(), nil
 }
 
@@ -108,7 +110,7 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, cfg *pomerium.Config,
 
 	logger.Info("new pomerium config applied")
 	// TODO: rm
-	fmt.Println(protojson.Format(cfg))
+	fmt.Println("=>", protojson.Format(cfg))
 
 	return nil
 }

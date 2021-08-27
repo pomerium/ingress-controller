@@ -1,8 +1,9 @@
 package model
 
 import (
+	"sync"
+
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Key struct {
@@ -23,23 +24,29 @@ type Registry interface {
 	DeleteCascade(x Key)
 }
 
-type registry map[Key]map[Key]bool
+type registryItems map[Key]map[Key]bool
 
-// ObjectKey returns a registry key for a given kubernetes object
-// the object must be properly initialized (GVK, name, namespace)
-func ObjectKey(obj client.Object) Key {
-	name := types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
-	kind := obj.GetObjectKind().GroupVersionKind().Kind
-	return Key{kind, name}
+type registry struct {
+	sync.RWMutex
+	items registryItems
+}
+
+func NewRegistry() Registry {
+	return &registry{
+		items: make(registryItems),
+	}
 }
 
 // Add registers dependency between x and y
-func (r registry) Add(x, y Key) {
-	r.add(x, y)
-	r.add(y, x)
+func (r *registry) Add(x, y Key) {
+	r.Lock()
+	defer r.Unlock()
+
+	r.items.add(x, y)
+	r.items.add(y, x)
 }
 
-func (r registry) add(x, y Key) {
+func (r registryItems) add(x, y Key) {
 	rx := r[x]
 	if rx == nil {
 		rx = make(map[Key]bool)
@@ -48,7 +55,7 @@ func (r registry) add(x, y Key) {
 	rx[y] = true
 }
 
-func (r registry) del(x, y Key) {
+func (r registryItems) del(x, y Key) {
 	rx := r[x]
 	delete(rx, y)
 	if len(rx) == 0 {
@@ -57,8 +64,11 @@ func (r registry) del(x, y Key) {
 }
 
 // Deps returns list of objects that are dependent
-func (r registry) Deps(x Key) []Key {
-	rx := r[x]
+func (r *registry) Deps(x Key) []Key {
+	r.RLock()
+	defer r.RUnlock()
+
+	rx := r.items[x]
 	keys := make([]Key, 0, len(rx))
 	for k := range rx {
 		keys = append(keys, k)
@@ -67,8 +77,11 @@ func (r registry) Deps(x Key) []Key {
 }
 
 // DepsOfKind returns list of objects that are dependent and are of a particular kind
-func (r registry) DepsOfKind(x Key, kind string) []Key {
-	rx := r[x]
+func (r *registry) DepsOfKind(x Key, kind string) []Key {
+	r.RLock()
+	defer r.RUnlock()
+
+	rx := r.items[x]
 	keys := make([]Key, 0, len(rx))
 	for k := range rx {
 		if k.Kind == kind {
@@ -78,13 +91,12 @@ func (r registry) DepsOfKind(x Key, kind string) []Key {
 	return keys
 }
 
-func (r registry) DeleteCascade(x Key) {
-	for k := range r[x] {
-		r.del(x, k)
-		r.del(k, x)
-	}
-}
+func (r *registry) DeleteCascade(x Key) {
+	r.Lock()
+	defer r.Unlock()
 
-func NewRegistry() Registry {
-	return make(registry)
+	for k := range r.items[x] {
+		r.items.del(x, k)
+		r.items.del(k, x)
+	}
 }

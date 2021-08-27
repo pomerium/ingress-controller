@@ -43,6 +43,7 @@ type serveCmd struct {
 	metricsAddr          string
 	enableLeaderElection bool
 	probeAddr            string
+	ingressClassName     string
 
 	databrokerServiceURL string
 	sharedSecret         string
@@ -70,6 +71,7 @@ func (s *serveCmd) setupFlags() {
 	flags := s.PersistentFlags()
 	flags.StringVar(&s.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flags.StringVar(&s.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flags.StringVar(&s.ingressClassName, "ingress-class-name", "pomerium.io/ingress-controller", "IngressClass controller name")
 	flags.BoolVar(&s.enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")

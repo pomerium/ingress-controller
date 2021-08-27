@@ -18,10 +18,12 @@ func NewIngressController(opts ctrl.Options, pcr PomeriumReconciler) (ctrl.Manag
 		return nil, fmt.Errorf("unable to start manager: %w", err)
 	}
 
-	if err = (&Controller{
+	registry := model.NewRegistry()
+
+	if err = (&IngressController{
 		PomeriumReconciler: pcr,
 		Client:             mgr.GetClient(),
-		Registry:           model.NewRegistry(),
+		Registry:           registry,
 		EventRecorder:      mgr.GetEventRecorderFor("Ingress"),
 	}).SetupWithManager(mgr); err != nil {
 		return nil, fmt.Errorf("unable to create controller: %w", err)
