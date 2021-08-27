@@ -13,21 +13,16 @@ import (
 	"github.com/pomerium/ingress-controller/model"
 )
 
-func (r *Controller) fetchIngress(
+func (r *IngressController) fetchIngress(
 	ctx context.Context,
-	namespacedName types.NamespacedName,
+	ingress *networkingv1.Ingress,
 ) (*model.IngressConfig, error) {
-	ingress := new(networkingv1.Ingress)
-	if err := r.Client.Get(ctx, namespacedName, ingress); err != nil {
-		return nil, fmt.Errorf("get %s: %w", namespacedName.String(), err)
-	}
-
-	secrets, err := r.fetchIngressSecrets(ctx, namespacedName.Namespace, ingress)
+	secrets, err := r.fetchIngressSecrets(ctx, ingress)
 	if err != nil {
 		return nil, fmt.Errorf("tls: %w", err)
 	}
 
-	svc, err := r.fetchIngressServices(ctx, namespacedName.Namespace, ingress)
+	svc, err := r.fetchIngressServices(ctx, ingress)
 	if err != nil {
 		return nil, fmt.Errorf("services: %w", err)
 	}
@@ -39,7 +34,7 @@ func (r *Controller) fetchIngress(
 }
 
 // fetchIngressServices returns list of services referred from named port in the ingress path backend spec
-func (r *Controller) fetchIngressServices(ctx context.Context, namespace string, ingress *networkingv1.Ingress) (map[types.NamespacedName]*corev1.Service, error) {
+func (r *IngressController) fetchIngressServices(ctx context.Context, ingress *networkingv1.Ingress) (map[types.NamespacedName]*corev1.Service, error) {
 	sm := make(map[types.NamespacedName]*corev1.Service)
 	for _, rule := range ingress.Spec.Rules {
 		if rule.HTTP == nil {
@@ -51,14 +46,14 @@ func (r *Controller) fetchIngressServices(ctx context.Context, namespace string,
 				continue
 			}
 			service := new(corev1.Service)
-			name := types.NamespacedName{Name: svc.Name, Namespace: namespace}
+			name := types.NamespacedName{Name: svc.Name, Namespace: ingress.Namespace}
 			if err := r.Client.Get(ctx, name, service); err != nil {
 				if apierrors.IsNotFound(err) {
 					r.Registry.Add(r.objectKey(ingress), model.Key{Kind: r.serviceKind, NamespacedName: name})
 				}
 
 				return nil, fmt.Errorf("rule host=%s path=%s refers to service %s.%s port %s, failed to get service information: %w",
-					rule.Host, p.Path, namespace, svc.Name, svc.Port.Name, err)
+					rule.Host, p.Path, ingress.Namespace, svc.Name, svc.Port.Name, err)
 			}
 			sm[name] = service
 		}
@@ -66,7 +61,7 @@ func (r *Controller) fetchIngressServices(ctx context.Context, namespace string,
 	return sm, nil
 }
 
-func (r *Controller) fetchIngressSecrets(ctx context.Context, namespace string, ingress *networkingv1.Ingress) (
+func (r *IngressController) fetchIngressSecrets(ctx context.Context, ingress *networkingv1.Ingress) (
 	map[types.NamespacedName]*corev1.Secret,
 	error,
 ) {
@@ -76,7 +71,7 @@ func (r *Controller) fetchIngressSecrets(ctx context.Context, namespace string, 
 			return nil, errors.New("tls.secretName is mandatory")
 		}
 		secret := new(corev1.Secret)
-		name := types.NamespacedName{Namespace: namespace, Name: tls.SecretName}
+		name := types.NamespacedName{Namespace: ingress.Namespace, Name: tls.SecretName}
 
 		if err := r.Client.Get(ctx, name, secret); err != nil {
 			if apierrors.IsNotFound(err) {

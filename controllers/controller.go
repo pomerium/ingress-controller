@@ -2,13 +2,12 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -24,20 +23,32 @@ import (
 )
 
 const (
-	IngressClassDefault = "ingressclass.kubernetes.io/is-default-class"
+	IngressClassDefaultAnnotationKey = "ingressclass.kubernetes.io/is-default-class"
 )
 
-// Controller watches ingress and related resources for updates and reconciles with pomerium
-type Controller struct {
-	client.Client
-	PomeriumReconciler
-	model.Registry
-	record.EventRecorder
+// IngressController watches ingress and related resources for updates and reconciles with pomerium
+type IngressController struct {
+	// IngressClassControllerName to watch in the IngressClass.spec.controller
+	IngressClassControllerName string
+
+	// Scheme keeps track between objects and their group/version/kinds
 	*runtime.Scheme
+	// Client is k8s apiserver client proxied thru controller-runtime,
+	// that also embeds object cache
+	client.Client
+
+	// PomeriumReconciler updates Pomerium service configuration
+	PomeriumReconciler
+	// Registry keeps track of dependencies between k8s objects
+	model.Registry
+	// EventRecorder provides means to add events to Ingress objects, that are visible via kubectl describe
+	record.EventRecorder
+
+	// object Kinds are frequently used, do not change and are cached
 	ingressKind      string
+	ingressClassKind string
 	secretKind       string
 	serviceKind      string
-	ingressClassKind string
 }
 
 // PomeriumReconciler updates pomerium configuration based on provided network resources
@@ -51,51 +62,64 @@ type PomeriumReconciler interface {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *IngressController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	ic, err := r.fetchIngress(ctx, req.NamespacedName)
-	if err != nil {
-		if !r.isIngressNotFound(err) {
-			logger.Error(err, "obtaining ingress related resources", "deps",
-				r.Registry.Deps(model.Key{Kind: r.ingressKind, NamespacedName: req.NamespacedName}))
-			return ctrl.Result{Requeue: true}, fmt.Errorf("fetch ingress related resources: %w", err)
+	logger.Info("Reconcile")
+
+	ingress := new(networkingv1.Ingress)
+	if err := r.Client.Get(ctx, req.NamespacedName, ingress); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return ctrl.Result{Requeue: true}, fmt.Errorf("get ingress: %w", err)
 		}
-		logger.Info("not found")
-		if err := r.deleteIngress(ctx, req.NamespacedName); err != nil {
-			return ctrl.Result{Requeue: true}, fmt.Errorf("deleting: %w", err)
-		}
-		return ctrl.Result{Requeue: false}, nil
+		logger.Info("gone")
+		return r.deleteIngress(ctx, req.NamespacedName)
 	}
 
-	if err := r.upsertIngress(ctx, ic); err != nil {
+	managing, err := r.isManaging(ctx, ingress)
+	if err != nil {
+		return ctrl.Result{Requeue: true}, fmt.Errorf("get ingressClass info: %w", err)
+	}
+
+	logger.Info("got ingress", "managing", managing, "version", ingress.GetResourceVersion())
+	if !managing {
+		return r.deleteIngress(ctx, req.NamespacedName)
+	}
+
+	ic, err := r.fetchIngress(ctx, ingress)
+	if err != nil {
+		logger.Error(err, "obtaining ingress related resources", "deps",
+			r.Registry.Deps(model.Key{Kind: r.ingressKind, NamespacedName: req.NamespacedName}))
+		return ctrl.Result{Requeue: true}, fmt.Errorf("fetch ingress related resources: %w", err)
+	}
+
+	return r.upsertIngress(ctx, ic)
+}
+
+func (r *IngressController) deleteIngress(ctx context.Context, name types.NamespacedName) (ctrl.Result, error) {
+	if err := r.PomeriumReconciler.Delete(ctx, name); err != nil {
+		return ctrl.Result{Requeue: true}, fmt.Errorf("deleting ingress: %w", err)
+	}
+	log.FromContext(ctx).Info("ingress deleted")
+	r.Registry.DeleteCascade(model.Key{Kind: r.ingressKind, NamespacedName: name})
+	return ctrl.Result{}, nil
+}
+
+func (r *IngressController) upsertIngress(ctx context.Context, ic *model.IngressConfig) (ctrl.Result, error) {
+	if err := r.PomeriumReconciler.Upsert(ctx, ic); err != nil {
 		r.EventRecorder.Event(ic.Ingress, corev1.EventTypeWarning, "UpdatePomeriumConfig", err.Error())
 		return ctrl.Result{Requeue: true}, fmt.Errorf("upsert: %w", err)
 	}
-	r.EventRecorder.Event(ic.Ingress, corev1.EventTypeNormal, "PomeriumConfigUpdated", "updated pomerium configuration")
-	logger.Info("updated", "deps", r.Registry.Deps(r.objectKey(ic.Ingress)))
-	return ctrl.Result{Requeue: false}, nil
-}
-
-func (r *Controller) deleteIngress(ctx context.Context, name types.NamespacedName) error {
-	if err := r.PomeriumReconciler.Delete(ctx, name); err != nil {
-		return err
-	}
-	r.Registry.DeleteCascade(model.Key{Kind: r.ingressKind, NamespacedName: name})
-	return nil
-}
-
-func (r *Controller) upsertIngress(ctx context.Context, ic *model.IngressConfig) error {
-	if err := r.PomeriumReconciler.Upsert(ctx, ic); err != nil {
-		return fmt.Errorf("upsert: %w", err)
-	}
 
 	r.updateDependencies(ic)
-	return nil
+	r.EventRecorder.Event(ic.Ingress, corev1.EventTypeNormal, "PomeriumConfigUpdated", "updated pomerium configuration")
+	log.FromContext(ctx).Info("upsertIngress", "deps", r.Deps(r.objectKey(ic.Ingress)), "spec", ic.Ingress.Spec)
+
+	return ctrl.Result{}, nil
 }
 
 // ObjectKey returns a registry key for a given kubernetes object
 // the object must be properly initialized (GVK, name, namespace)
-func (r *Controller) objectKey(obj client.Object) model.Key {
+func (r *IngressController) objectKey(obj client.Object) model.Key {
 	name := types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
 	gvk, err := apiutil.GVKForObject(obj, r.Scheme)
 	if err != nil {
@@ -108,7 +132,7 @@ func (r *Controller) objectKey(obj client.Object) model.Key {
 	return model.Key{Kind: kind, NamespacedName: name}
 }
 
-func (r *Controller) updateDependencies(ic *model.IngressConfig) {
+func (r *IngressController) updateDependencies(ic *model.IngressConfig) {
 	ingKey := r.objectKey(ic.Ingress)
 	r.DeleteCascade(ingKey)
 
@@ -118,13 +142,32 @@ func (r *Controller) updateDependencies(ic *model.IngressConfig) {
 	for _, s := range ic.Services {
 		r.Add(ingKey, r.objectKey(s))
 	}
-	for _, crt := range ic.Certs {
-		r.Add(ingKey, r.objectKey(crt))
+}
+
+func (r *IngressController) isManaging(ctx context.Context, ing *networkingv1.Ingress) (bool, error) {
+	icl := new(networkingv1.IngressClassList)
+	if err := r.Client.List(ctx, icl); err != nil {
+		return false, err
 	}
+
+	var className string
+	if ing.Spec.IngressClassName != nil {
+		className = *ing.Spec.IngressClassName
+	}
+
+	for _, ic := range icl.Items {
+		if className == ic.Name {
+			return true, nil
+		}
+		if strings.ToLower(ic.Annotations[IngressClassDefaultAnnotationKey]) == "true" {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // SetupWithManager sets up the controller with the Manager
-func (r *Controller) SetupWithManager(mgr ctrl.Manager) error {
+func (r *IngressController) SetupWithManager(mgr ctrl.Manager) error {
 	c, err := ctrl.NewControllerManagedBy(mgr).
 		For(&networkingv1.Ingress{}).
 		Build(r)
@@ -136,12 +179,12 @@ func (r *Controller) SetupWithManager(mgr ctrl.Manager) error {
 	for _, o := range []struct {
 		client.Object
 		kind  *string
-		watch bool
+		mapFn func(string) func(client.Object) []reconcile.Request
 	}{
-		{&networkingv1.Ingress{}, &r.ingressKind, false},
-		{&networkingv1.IngressClass{}, &r.ingressClassKind, true},
-		{&corev1.Secret{}, &r.secretKind, true},
-		{&corev1.Service{}, &r.serviceKind, true},
+		{&networkingv1.Ingress{}, &r.ingressKind, nil},
+		{&networkingv1.IngressClass{}, &r.ingressClassKind, r.watchIngressClass},
+		{&corev1.Secret{}, &r.secretKind, r.getDependantIngressFn},
+		{&corev1.Service{}, &r.serviceKind, r.getDependantIngressFn},
 	} {
 		gvk, err := apiutil.GVKForObject(o.Object, r.Scheme)
 		if err != nil {
@@ -149,13 +192,13 @@ func (r *Controller) SetupWithManager(mgr ctrl.Manager) error {
 		}
 		*o.kind = gvk.Kind
 
-		if !o.watch {
+		if nil == o.mapFn {
 			continue
 		}
 
 		if err := c.Watch(
 			&source.Kind{Type: o.Object},
-			handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(gvk.Kind))); err != nil {
+			handler.EnqueueRequestsFromMapFunc(o.mapFn(gvk.Kind))); err != nil {
 			return fmt.Errorf("watching %s: %w", gvk.String(), err)
 		}
 	}
@@ -165,7 +208,9 @@ func (r *Controller) SetupWithManager(mgr ctrl.Manager) error {
 
 // getDependantIngressFn returns for a given object kind (i.e. a secret) a function
 // that would return ingress objects keys that depend from this object
-func (r Controller) getDependantIngressFn(kind string) func(a client.Object) []reconcile.Request {
+func (r *IngressController) getDependantIngressFn(kind string) func(a client.Object) []reconcile.Request {
+	logger := log.FromContext(context.Background()).WithValues("kind", kind)
+
 	return func(a client.Object) []reconcile.Request {
 		name := types.NamespacedName{Name: a.GetName(), Namespace: a.GetNamespace()}
 		deps := r.DepsOfKind(model.Key{Kind: kind, NamespacedName: name}, r.ingressKind)
@@ -173,16 +218,31 @@ func (r Controller) getDependantIngressFn(kind string) func(a client.Object) []r
 		for _, k := range deps {
 			reqs = append(reqs, reconcile.Request{NamespacedName: k.NamespacedName})
 		}
+		logger.Info("watch", "name", fmt.Sprintf("%s/%s", a.GetNamespace(), a.GetName()), "deps", reqs)
 		return reqs
 	}
 }
 
-func (r Controller) isIngressNotFound(err error) bool {
-	if status := apierrors.APIStatus(nil); errors.As(err, &status) {
-		s := status.Status()
-		return s.Reason == metav1.StatusReasonNotFound &&
-			s.Details != nil &&
-			s.Details.Kind == r.ingressKind
+func (r *IngressController) watchIngressClass(string) func(a client.Object) []reconcile.Request {
+	logger := log.FromContext(context.Background())
+
+	return func(a client.Object) []reconcile.Request {
+		il := new(networkingv1.IngressList)
+		err := r.Client.List(context.Background(), il)
+		if err != nil {
+			logger.Error(err, "list")
+			return nil
+		}
+		deps := make([]reconcile.Request, 0, len(il.Items))
+		for i := range il.Items {
+			deps = append(deps, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      il.Items[i].Name,
+					Namespace: il.Items[i].Namespace,
+				},
+			})
+		}
+		logger.Info("watch", "deps", deps, "ingressClass", a.GetName())
+		return deps
 	}
-	return false
 }

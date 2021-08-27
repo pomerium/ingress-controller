@@ -3,7 +3,6 @@ package model
 import (
 	"fmt"
 
-	certmanagerv1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -14,7 +13,6 @@ type IngressConfig struct {
 	*networkingv1.Ingress
 	Secrets  map[types.NamespacedName]*corev1.Secret
 	Services map[types.NamespacedName]*corev1.Service
-	Certs    map[types.NamespacedName]*certmanagerv1.Certificate
 }
 
 func (ic *IngressConfig) GetServicePortByName(name types.NamespacedName, port string) (int32, error) {
