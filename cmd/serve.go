@@ -18,7 +18,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	pomeriumgrpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -29,11 +28,11 @@ import (
 
 const (
 	defaultGRPCTimeout = time.Minute
+	leaseDuration      = time.Second * 30 // time.Hour * 24 * 30 * 12
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme = runtime.NewScheme()
 )
 
 func init() {
@@ -43,19 +42,17 @@ func init() {
 }
 
 type serveCmd struct {
-	metricsAddr          string
-	enableLeaderElection bool
-	probeAddr            string
-	ingressClassName     string
+	metricsAddr      string
+	webhookPort      int
+	probeAddr        string
+	ingressClassName string
 
 	databrokerServiceURL string
 	sharedSecret         string
-	tlsCA                string
 
 	debug bool
 
 	cobra.Command
-	manager.Manager
 	controllers.PomeriumReconciler
 }
 
@@ -72,12 +69,10 @@ func ServeCommand() *cobra.Command {
 
 func (s *serveCmd) setupFlags() {
 	flags := s.PersistentFlags()
+	flags.IntVar(&s.webhookPort, "webhook-port", 9443, "webhook port")
 	flags.StringVar(&s.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flags.StringVar(&s.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flags.StringVar(&s.ingressClassName, "ingress-class-name", "pomerium.io/ingress-controller", "IngressClass controller name")
-	flags.BoolVar(&s.enableLeaderElection, "leader-elect", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
 	flags.StringVar(&s.databrokerServiceURL, "databroker-service-url", "http://localhost:5443",
 		"the databroker service url")
 	flags.StringVar(&s.sharedSecret, "shared-secret", "",
@@ -85,16 +80,24 @@ func (s *serveCmd) setupFlags() {
 	flags.BoolVar(&s.debug, "debug", true, "enable debug logging")
 }
 
-func (c *serveCmd) exec(*cobra.Command, []string) error {
-	c.setupLogger()
+func (s *serveCmd) exec(*cobra.Command, []string) error {
+	s.setupLogger()
+	ctx := ctrl.SetupSignalHandler()
+	dbc, err := s.getDataBrokerConnection(ctx)
+	if err != nil {
+		return fmt.Errorf("databroker connection: %w", err)
+	}
 
-	if err := c.setupConfigReconciler(); err != nil {
-		return err
-	}
-	if err := c.setupController(); err != nil {
-		return err
-	}
-	return c.Manager.Start(c.Context())
+	return runController(ctx,
+		databroker.NewDataBrokerServiceClient(dbc),
+		ctrl.Options{
+			Scheme:                 scheme,
+			MetricsBindAddress:     s.metricsAddr,
+			Port:                   s.webhookPort,
+			HealthProbeBindAddress: s.probeAddr,
+			LeaderElection:         false,
+		},
+	)
 }
 
 func (s *serveCmd) setupLogger() {
@@ -108,33 +111,6 @@ func (s *serveCmd) setupLogger() {
 		StacktraceLevel: zapcore.DPanicLevel,
 	}
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-}
-
-func (s *serveCmd) setupController() error {
-	mgr, err := controllers.NewIngressController(ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     s.metricsAddr,
-		Port:                   9443,
-		HealthProbeBindAddress: s.probeAddr,
-		LeaderElection:         s.enableLeaderElection,
-		LeaderElectionID:       "996e99b1.pomerium.io",
-	}, s.PomeriumReconciler)
-	if err != nil {
-		return err
-	}
-	s.Manager = mgr
-	return nil
-}
-
-func (s *serveCmd) setupConfigReconciler() error {
-	dbc, err := s.getDataBrokerConnection(s.Context())
-	if err != nil {
-		return fmt.Errorf("databroker connection: %w", err)
-	}
-	s.PomeriumReconciler = &pomerium.ConfigReconciler{
-		DataBrokerServiceClient: databroker.NewDataBrokerServiceClient(dbc),
-	}
-	return nil
 }
 
 func (s *serveCmd) getDataBrokerConnection(ctx context.Context) (*grpc.ClientConn, error) {
@@ -151,4 +127,32 @@ func (s *serveCmd) getDataBrokerConnection(ctx context.Context) (*grpc.ClientCon
 		SignedJWTKey:   sharedSecret,
 		RequestTimeout: defaultGRPCTimeout,
 	})
+}
+
+type leadController struct {
+	controllers.PomeriumReconciler
+	databroker.DataBrokerServiceClient
+	ctrl.Options
+}
+
+func (c *leadController) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	return c.DataBrokerServiceClient
+}
+
+func (c *leadController) RunLeased(ctx context.Context) error {
+	mgr, err := controllers.NewIngressController(c.Options, c.PomeriumReconciler)
+	if err != nil {
+		return err
+	}
+	return mgr.Start(ctx)
+}
+
+func runController(ctx context.Context, client databroker.DataBrokerServiceClient, opts ctrl.Options) error {
+	c := &leadController{
+		PomeriumReconciler:      &pomerium.ConfigReconciler{DataBrokerServiceClient: client},
+		DataBrokerServiceClient: client,
+		Options:                 opts,
+	}
+	leaser := databroker.NewLeaser("ingress-controller", leaseDuration, c)
+	return leaser.Run(ctx)
 }
