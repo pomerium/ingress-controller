@@ -19,9 +19,13 @@ package main
 import (
 	"context"
 
+	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+
 	"github.com/pomerium/ingress-controller/cmd"
 )
 
 func main() {
-	cmd.ServeCommand().ExecuteContext(context.Background())
+	_ = cmd.ServeCommand().ExecuteContext(context.Background())
 }

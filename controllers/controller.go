@@ -23,6 +23,7 @@ import (
 )
 
 const (
+	// IngressClassDefaultAnnotationKey see https://kubernetes.io/docs/concepts/services-networking/ingress/#default-ingress-class
 	IngressClassDefaultAnnotationKey = "ingressclass.kubernetes.io/is-default-class"
 )
 

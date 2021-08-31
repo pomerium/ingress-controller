@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
 	"google.golang.org/protobuf/encoding/protojson"
 	"gopkg.in/yaml.v3"
+
+	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 var (

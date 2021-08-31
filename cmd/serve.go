@@ -1,3 +1,4 @@
+// Package cmd implements top level commands
 package cmd
 
 import (
@@ -13,9 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -32,8 +30,7 @@ const (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme = runtime.NewScheme()
 )
 
 func init() {
@@ -50,7 +47,6 @@ type serveCmd struct {
 
 	databrokerServiceURL string
 	sharedSecret         string
-	tlsCA                string
 
 	debug bool
 
@@ -59,6 +55,7 @@ type serveCmd struct {
 	controllers.PomeriumReconciler
 }
 
+// ServeCommand creates command to run ingress controller
 func ServeCommand() *cobra.Command {
 	cmd := serveCmd{
 		Command: cobra.Command{
@@ -85,16 +82,16 @@ func (s *serveCmd) setupFlags() {
 	flags.BoolVar(&s.debug, "debug", true, "enable debug logging")
 }
 
-func (c *serveCmd) exec(*cobra.Command, []string) error {
-	c.setupLogger()
+func (s *serveCmd) exec(*cobra.Command, []string) error {
+	s.setupLogger()
 
-	if err := c.setupConfigReconciler(); err != nil {
+	if err := s.setupConfigReconciler(); err != nil {
 		return err
 	}
-	if err := c.setupController(); err != nil {
+	if err := s.setupController(); err != nil {
 		return err
 	}
-	return c.Manager.Start(c.Context())
+	return s.Manager.Start(s.Context())
 }
 
 func (s *serveCmd) setupLogger() {

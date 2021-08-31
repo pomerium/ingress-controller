@@ -13,11 +13,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/pomerium/ingress-controller/model"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
+
+	"github.com/pomerium/ingress-controller/model"
 )
 
 const (
+	// IngressAnnotationPrefix is default prefix for Pomerium ingress controller annotations
 	IngressAnnotationPrefix = "ingress.pomerium.io"
 	httpSolverLabel         = "acme.cert-manager.io/http01-solver"
 )
@@ -99,7 +101,9 @@ func pathToRoute(r *pb.Route, name types.NamespacedName, p networkingv1.HTTPIngr
 		return fmt.Errorf("unknown pathType %s", *p.PathType)
 	}
 
-	setRouteNameID(r, name, p.Path)
+	if err := setRouteNameID(r, name, p.Path); err != nil {
+		return fmt.Errorf("setRouteNameID: %w", err)
+	}
 
 	svcURL, err := getServiceURL(name.Namespace, p, ic)
 	if err != nil {

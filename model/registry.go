@@ -6,6 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+// Key is dependenciy key
 type Key struct {
 	Kind string
 	types.NamespacedName
@@ -31,6 +32,7 @@ type registry struct {
 	items registryItems
 }
 
+// NewRegistry creates an empty registry safe for concurrent use
 func NewRegistry() Registry {
 	return &registry{
 		items: make(registryItems),
