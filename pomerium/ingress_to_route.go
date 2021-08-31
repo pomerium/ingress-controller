@@ -1,24 +1,36 @@
 package pomerium
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/gosimple/slug"
 	"google.golang.org/protobuf/proto"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/pomerium/ingress-controller/model"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
+const (
+	IngressAnnotationPrefix = "ingress.pomerium.io"
+	httpSolverLabel         = "acme.cert-manager.io/http01-solver"
+)
+
 // ingressToRoutes converts Ingress object into Pomerium Route
-func ingressToRoutes(ic *model.IngressConfig) (routeList, error) {
+func ingressToRoutes(ctx context.Context, ic *model.IngressConfig) (routeList, error) {
 	tmpl := &pb.Route{}
 
-	if err := applyAnnotations(tmpl, ic.Ingress.Annotations, "ingress.pomerium.io"); err != nil {
+	if isHTTP01Solver(ic.Ingress) {
+		log.FromContext(ctx).Info("Ingress is HTTP-01 challenge solver, enabling public unauthenticated access")
+		tmpl.AllowPublicUnauthenticatedAccess = true
+		tmpl.PreserveHostHeader = true
+	} else if err := applyAnnotations(tmpl, ic.Ingress.Annotations, IngressAnnotationPrefix); err != nil {
 		return nil, fmt.Errorf("annotations: %w", err)
 	}
 
@@ -32,6 +44,10 @@ func ingressToRoutes(ic *model.IngressConfig) (routeList, error) {
 	}
 
 	return routes, nil
+}
+
+func isHTTP01Solver(ingress *networkingv1.Ingress) bool {
+	return strings.ToLower(ingress.Labels[httpSolverLabel]) == "true"
 }
 
 func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, name types.NamespacedName, ic *model.IngressConfig) ([]*pb.Route, error) {

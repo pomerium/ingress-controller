@@ -26,3 +26,10 @@ spec:
 
 Use `ingressclass.kubernetes.io/is-default-class: "true"` to mark Pomerium as default controller for your cluster
 and manage `Ingress` resources that do not specify an ingress controller in `ingressClassName`.
+
+# HTTP-01 solvers
+
+In order to use [`http-01`](https://cert-manager.io/docs/configuration/acme/http01/#configuring-the-http01-ingress-solver) ACME challenge solver, the following Pomerium configuration parameters must be set:
+
+- [`AUTOCERT: false`](https://www.pomerium.io/reference/#autocert) (default)
+- [`HTTP_REDIRECT_ADDR: ':80'`](https://www.pomerium.io/reference/#http-redirect-address)

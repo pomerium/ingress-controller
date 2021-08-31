@@ -1,6 +1,7 @@
 package pomerium
 
 import (
+	"context"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -9,8 +10,8 @@ import (
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
-func upsertRoutes(cfg *pb.Config, ic *model.IngressConfig) error {
-	ingRoutes, err := ingressToRoutes(ic)
+func upsertRoutes(ctx context.Context, cfg *pb.Config, ic *model.IngressConfig) error {
+	ingRoutes, err := ingressToRoutes(ctx, ic)
 	if err != nil {
 		return fmt.Errorf("parsing ingress: %w", err)
 	}
@@ -29,7 +30,7 @@ func upsertRoutes(cfg *pb.Config, ic *model.IngressConfig) error {
 	return nil
 }
 
-func deleteRoutes(cfg *pb.Config, namespacedName types.NamespacedName) error {
+func deleteRoutes(ctx context.Context, cfg *pb.Config, namespacedName types.NamespacedName) error {
 	rm, err := routeList(cfg.Routes).toMap()
 	if err != nil {
 		return err
