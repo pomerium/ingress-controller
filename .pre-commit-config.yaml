@@ -9,7 +9,7 @@ repos:
         exclude: "examples/.*"
       - id: check-added-large-files
   - repo: https://github.com/syntaqx/git-hooks
-    rev: v0.0.16
+    rev: v0.0.17
     hooks:
       - id: go-mod-tidy
   - repo: local
