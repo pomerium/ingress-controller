@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sort"
 
-	pb "github.com/pomerium/pomerium/pkg/grpc/config"
-	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
 	"k8s.io/apimachinery/pkg/types"
+
+	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 type routeID struct {
@@ -29,7 +29,7 @@ func (r *routeID) Unmarshal(txt string) error {
 }
 
 type routeList []*pb.Route
-type routeMap map[routeID]*pomerium.Route
+type routeMap map[routeID]*pb.Route
 
 func (routes routeList) Sort()         { sort.Sort(routes) }
 func (routes routeList) Len() int      { return len(routes) }
@@ -68,7 +68,7 @@ func (rm routeMap) removeName(name types.NamespacedName) {
 }
 
 func (rm routeMap) toList() routeList {
-	routes := make([]*pomerium.Route, 0, len(rm))
+	routes := make([]*pb.Route, 0, len(rm))
 	for _, r := range rm {
 		routes = append(routes, r)
 	}

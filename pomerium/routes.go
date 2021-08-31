@@ -6,8 +6,9 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/pomerium/ingress-controller/model"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
+
+	"github.com/pomerium/ingress-controller/model"
 )
 
 func upsertRoutes(ctx context.Context, cfg *pb.Config, ic *model.IngressConfig) error {
@@ -47,6 +48,6 @@ func debugRoute() *pb.Route {
 		Prefix:                    "/",
 		AllowAnyAuthenticatedUser: true,
 	}
-	setRouteNameID(r, types.NamespacedName{Name: "admin", Namespace: "internal-envoy"}, "/")
+	_ = setRouteNameID(r, types.NamespacedName{Name: "admin", Namespace: "internal-envoy"}, "/")
 	return r
 }

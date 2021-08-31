@@ -1,3 +1,4 @@
+// Package pomerium implements logic to convert K8s objects into Pomerium configuration
 package pomerium
 
 import (
@@ -13,10 +14,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/pomerium/ingress-controller/model"
 	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
+
+	"github.com/pomerium/ingress-controller/model"
 )
 
 const (
