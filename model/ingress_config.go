@@ -1,3 +1,4 @@
+// Package model contains common data structures between the controller and pomerium config reconciler
 package model
 
 import (
@@ -15,6 +16,7 @@ type IngressConfig struct {
 	Services map[types.NamespacedName]*corev1.Service
 }
 
+// GetServicePortByName returns service named port
 func (ic *IngressConfig) GetServicePortByName(name types.NamespacedName, port string) (int32, error) {
 	svc, ok := ic.Services[name]
 	if !ok {
@@ -30,11 +32,13 @@ func (ic *IngressConfig) GetServicePortByName(name types.NamespacedName, port st
 	return 0, fmt.Errorf("could not find port %s on service %s", port, name.String())
 }
 
+// TLSCert represents a parsed TLS secret
 type TLSCert struct {
 	Key  []byte
 	Cert []byte
 }
 
+// ParseTLSCerts decodes K8s TLS secret
 func (ic *IngressConfig) ParseTLSCerts() ([]*TLSCert, error) {
 	certs := make([]*TLSCert, 0, len(ic.Ingress.Spec.TLS))
 

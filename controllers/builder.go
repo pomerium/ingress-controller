@@ -1,3 +1,4 @@
+// Package controllers implements ingress controller functions
 package controllers
 
 import (
@@ -8,6 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 )
 
+// NewIngressController creates new controller runtime
 func NewIngressController(opts ctrl.Options, pcr PomeriumReconciler) (ctrl.Manager, error) {
 	cfg, err := ctrl.GetConfig()
 	if err != nil {

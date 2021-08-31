@@ -1,3 +1,4 @@
+// Package cmd implements top level commands
 package cmd
 
 import (
@@ -13,9 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -28,7 +26,7 @@ import (
 
 const (
 	defaultGRPCTimeout = time.Minute
-	leaseDuration      = time.Second * 30 // time.Hour * 24 * 30 * 12
+	leaseDuration      = time.Second * 30
 )
 
 var (
@@ -56,6 +54,7 @@ type serveCmd struct {
 	controllers.PomeriumReconciler
 }
 
+// ServeCommand creates command to run ingress controller
 func ServeCommand() *cobra.Command {
 	cmd := serveCmd{
 		Command: cobra.Command{
