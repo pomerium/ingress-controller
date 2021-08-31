@@ -36,7 +36,7 @@ func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) 
 	if err != nil {
 		return fmt.Errorf("get config: %w", err)
 	}
-	if err := upsertRoutes(cfg, ic); err != nil {
+	if err := upsertRoutes(ctx, cfg, ic); err != nil {
 		return fmt.Errorf("deleting pomerium config records: %w", err)
 	}
 	if err := upsertCerts(cfg, ic); err != nil {
@@ -54,7 +54,7 @@ func (r *ConfigReconciler) Delete(ctx context.Context, namespacedName types.Name
 	if err != nil {
 		return fmt.Errorf("get pomerium config: %w", err)
 	}
-	if err := deleteRoutes(cfg, namespacedName); err != nil {
+	if err := deleteRoutes(ctx, cfg, namespacedName); err != nil {
 		return fmt.Errorf("deleting pomerium config records %s: %w", namespacedName.String(), err)
 	}
 	if err := removeUnusedCerts(cfg); err != nil {
