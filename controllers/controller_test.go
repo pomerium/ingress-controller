@@ -74,6 +74,10 @@ func (m *mockPomeriumReconciler) Delete(ctx context.Context, name types.Namespac
 	return nil
 }
 
+func (m *mockPomeriumReconciler) DeleteAll(ctx context.Context) error {
+	panic("not implemented")
+}
+
 func (s *ControllerTestSuite) EventuallyDeleted(name types.NamespacedName) {
 	s.T().Helper()
 	require.Eventually(s.T(), func() bool {

@@ -141,9 +141,15 @@ func (c *leadController) GetDataBrokerServiceClient() databroker.DataBrokerServi
 func (c *leadController) RunLeased(ctx context.Context) error {
 	mgr, err := controllers.NewIngressController(c.Options, c.PomeriumReconciler)
 	if err != nil {
-		return err
+		return fmt.Errorf("creating controller: %w", err)
 	}
-	return mgr.Start(ctx)
+	if err = c.PomeriumReconciler.DeleteAll(ctx); err != nil {
+		return fmt.Errorf("clear pomerium config on start: %w", err)
+	}
+	if err = mgr.Start(ctx); err != nil {
+		return fmt.Errorf("running controller: %w", err)
+	}
+	return nil
 }
 
 func runController(ctx context.Context, client databroker.DataBrokerServiceClient, opts ctrl.Options) error {
