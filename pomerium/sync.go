@@ -69,6 +69,7 @@ func (r *ConfigReconciler) Delete(ctx context.Context, namespacedName types.Name
 	return nil
 }
 
+// DeleteAll cleans pomerium configuration entirely
 func (r *ConfigReconciler) DeleteAll(ctx context.Context) error {
 	any := protoutil.NewAny(&pomerium.Config{})
 	if _, err := r.Put(ctx, &databroker.PutRequest{
