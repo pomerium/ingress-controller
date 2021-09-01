@@ -64,8 +64,12 @@ test: manifests generate fmt vet ## Run tests.
 
 ##@ Build
 
-build: generate fmt vet ## Build manager binary.
+build: envoy generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
+
+.PHONY: envoy
+envoy:
+	./scripts/get-envoy.bash
 
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go

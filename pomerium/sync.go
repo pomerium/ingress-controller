@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
+	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 
@@ -44,7 +44,7 @@ func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) 
 	if err := upsertCerts(cfg, ic); err != nil {
 		return fmt.Errorf("updating certs: %w", err)
 	}
-	if err := r.saveConfig(ctx, cfg, prevBytes); err != nil {
+	if err := r.saveConfig(ctx, cfg, prevBytes, string(ic.Ingress.UID)); err != nil {
 		return fmt.Errorf("updating pomerium config: %w", err)
 	}
 	return nil
@@ -62,14 +62,16 @@ func (r *ConfigReconciler) Delete(ctx context.Context, namespacedName types.Name
 	if err := removeUnusedCerts(cfg); err != nil {
 		return fmt.Errorf("removing unused certs: %w", err)
 	}
-	if err := r.saveConfig(ctx, cfg, prevBytes); err != nil {
+	if err := r.saveConfig(ctx, cfg, prevBytes,
+		fmt.Sprintf("%s-%s", namespacedName.Namespace, namespacedName.Name),
+	); err != nil {
 		return fmt.Errorf("updating pomerium config: %w", err)
 	}
 	return nil
 }
 
-func (r *ConfigReconciler) getConfig(ctx context.Context) (*pomerium.Config, []byte, error) {
-	cfg := new(pomerium.Config)
+func (r *ConfigReconciler) getConfig(ctx context.Context) (*pb.Config, []byte, error) {
+	cfg := new(pb.Config)
 	any := protoutil.NewAny(cfg)
 	var hdr metadata.MD
 	resp, err := r.Get(ctx, &databroker.GetRequest{
@@ -77,7 +79,7 @@ func (r *ConfigReconciler) getConfig(ctx context.Context) (*pomerium.Config, []b
 		Id:   configID,
 	}, grpc.Header(&hdr))
 	if status.Code(err) == codes.NotFound {
-		return &pomerium.Config{}, nil, nil
+		return &pb.Config{}, nil, nil
 	} else if err != nil {
 		return nil, nil, fmt.Errorf("get pomerium config: %w", err)
 	}
@@ -91,13 +93,17 @@ func (r *ConfigReconciler) getConfig(ctx context.Context) (*pomerium.Config, []b
 	return cfg, resp.GetRecord().GetData().GetValue(), nil
 }
 
-func (r *ConfigReconciler) saveConfig(ctx context.Context, cfg *pomerium.Config, prevBytes []byte) error {
+func (r *ConfigReconciler) saveConfig(ctx context.Context, cfg *pb.Config, prevBytes []byte, id string) error {
 	logger := log.FromContext(ctx)
 	any := protoutil.NewAny(cfg)
 
 	if bytes.Equal(prevBytes, any.GetValue()) {
 		logger.Info("no changes in pomerium config")
 		return nil
+	}
+
+	if err := Validate(ctx, cfg, id); err != nil {
+		return fmt.Errorf("config validation: %w", err)
 	}
 
 	if _, err := r.Put(ctx, &databroker.PutRequest{
