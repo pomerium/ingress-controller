@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -64,6 +65,21 @@ func (r *ConfigReconciler) Delete(ctx context.Context, namespacedName types.Name
 	}
 	if err := r.saveConfig(ctx, cfg, prevBytes); err != nil {
 		return fmt.Errorf("updating pomerium config: %w", err)
+	}
+	return nil
+}
+
+func (r *ConfigReconciler) DeleteAll(ctx context.Context) error {
+	any := protoutil.NewAny(&pomerium.Config{})
+	if _, err := r.Put(ctx, &databroker.PutRequest{
+		Record: &databroker.Record{
+			Type:      any.GetTypeUrl(),
+			Id:        configID,
+			Data:      any,
+			DeletedAt: timestamppb.Now(),
+		},
+	}); err != nil {
+		return err
 	}
 	return nil
 }
