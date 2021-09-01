@@ -59,6 +59,8 @@ type PomeriumReconciler interface {
 	Upsert(ctx context.Context, ic *model.IngressConfig) error
 	// Delete should delete pomerium routes corresponding to this ingress name
 	Delete(ctx context.Context, namespacedName types.NamespacedName) error
+	// DeleteAll wipes the configuration entirely
+	DeleteAll(ctx context.Context) error
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
