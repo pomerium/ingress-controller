@@ -10,11 +10,8 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source
-COPY main.go main.go
-COPY cmd cmd
-COPY pomerium pomerium
-COPY controllers controllers
-COPY model model
+COPY . .
+RUN rm -f pomerium/envoy/bin/* bin/*
 
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 make build
