@@ -222,6 +222,9 @@ func (r *ingressController) getDependantIngressFn(kind string) func(a client.Obj
 	logger := log.FromContext(context.Background()).WithValues("kind", kind)
 
 	return func(a client.Object) []reconcile.Request {
+		if len(r.namespaces) > 0 && !r.namespaces[a.GetNamespace()] {
+			return nil
+		}
 		name := types.NamespacedName{Name: a.GetName(), Namespace: a.GetNamespace()}
 		deps := r.DepsOfKind(model.Key{Kind: kind, NamespacedName: name}, r.ingressKind)
 		reqs := make([]reconcile.Request, 0, len(deps))
