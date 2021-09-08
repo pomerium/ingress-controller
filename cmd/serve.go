@@ -143,7 +143,11 @@ func (c *leadController) GetDataBrokerServiceClient() databroker.DataBrokerServi
 }
 
 func (c *leadController) RunLeased(ctx context.Context) error {
-	mgr, err := controllers.NewIngressController(c.Options, c.PomeriumReconciler, c.namespaces)
+	cfg, err := ctrl.GetConfig()
+	if err != nil {
+		return fmt.Errorf("get k8s api config: %w", err)
+	}
+	mgr, err := controllers.NewIngressController(cfg, c.Options, c.PomeriumReconciler, c.namespaces)
 	if err != nil {
 		return fmt.Errorf("creating controller: %w", err)
 	}

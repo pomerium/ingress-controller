@@ -5,15 +5,12 @@ import (
 	"fmt"
 
 	"github.com/pomerium/ingress-controller/model"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 // NewIngressController creates new controller runtime
-func NewIngressController(opts ctrl.Options, pcr PomeriumReconciler, ns []string) (ctrl.Manager, error) {
-	cfg, err := ctrl.GetConfig()
-	if err != nil {
-		return nil, fmt.Errorf("get k8s api config: %w", err)
-	}
+func NewIngressController(cfg *rest.Config, opts ctrl.Options, pcr PomeriumReconciler, ns []string) (ctrl.Manager, error) {
 	mgr, err := ctrl.NewManager(cfg, opts)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start manager: %w", err)

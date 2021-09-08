@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-logr/zapr"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -201,9 +202,12 @@ func (s *ControllerTestSuite) TearDownSuite() {
 
 func (s *ControllerTestSuite) createTestController(ctx context.Context, namespaces []string) {
 	s.mockPomeriumReconciler = &mockPomeriumReconciler{}
-	mgr, err := controllers.NewIngressController(ctrl.Options{
-		Scheme: s.Environment.Scheme,
-	}, s.mockPomeriumReconciler, namespaces)
+	mgr, err := controllers.NewIngressController(s.Environment.Config,
+		ctrl.Options{
+			Scheme: s.Environment.Scheme,
+		},
+		s.mockPomeriumReconciler,
+		namespaces)
 	s.NoError(err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -286,7 +290,7 @@ func (s *ControllerTestSuite) initialTestObjects(namespace string) (
 		}
 }
 
-func (s *ControllerTestSuite) testIngressClass() {
+func (s *ControllerTestSuite) TestIngressClass() {
 	ctx := context.Background()
 	s.createTestController(ctx, allNamespaces)
 
@@ -328,7 +332,7 @@ func (s *ControllerTestSuite) testIngressClass() {
 
 // TestDependencies verifies that when objects the Ingress depends on change,
 // a configuration reconciliation would happen
-func (s *ControllerTestSuite) testDependencies() {
+func (s *ControllerTestSuite) TestDependencies() {
 	ctx := context.Background()
 	s.createTestController(ctx, allNamespaces)
 
@@ -389,7 +393,7 @@ func (s *ControllerTestSuite) TestNamespaces() {
 		}
 
 		diffFn := func(ic *model.IngressConfig) string {
-			return cmp.Diff(ingress, ic.Ingress)
+			return cmp.Diff(ingress, ic.Ingress, cmpopts.IgnoreTypes(v1.TypeMeta{}))
 		}
 
 		if shouldCreate {
