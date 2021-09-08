@@ -13,7 +13,7 @@ import (
 	"github.com/pomerium/ingress-controller/model"
 )
 
-func (r *IngressController) fetchIngress(
+func (r *ingressController) fetchIngress(
 	ctx context.Context,
 	ingress *networkingv1.Ingress,
 ) (*model.IngressConfig, error) {
@@ -34,7 +34,7 @@ func (r *IngressController) fetchIngress(
 }
 
 // fetchIngressServices returns list of services referred from named port in the ingress path backend spec
-func (r *IngressController) fetchIngressServices(ctx context.Context, ingress *networkingv1.Ingress) (map[types.NamespacedName]*corev1.Service, error) {
+func (r *ingressController) fetchIngressServices(ctx context.Context, ingress *networkingv1.Ingress) (map[types.NamespacedName]*corev1.Service, error) {
 	sm := make(map[types.NamespacedName]*corev1.Service)
 	for _, rule := range ingress.Spec.Rules {
 		if rule.HTTP == nil {
@@ -61,7 +61,7 @@ func (r *IngressController) fetchIngressServices(ctx context.Context, ingress *n
 	return sm, nil
 }
 
-func (r *IngressController) fetchIngressSecrets(ctx context.Context, ingress *networkingv1.Ingress) (
+func (r *ingressController) fetchIngressSecrets(ctx context.Context, ingress *networkingv1.Ingress) (
 	map[types.NamespacedName]*corev1.Secret,
 	error,
 ) {

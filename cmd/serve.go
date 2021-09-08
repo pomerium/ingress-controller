@@ -44,6 +44,7 @@ type serveCmd struct {
 	webhookPort      int
 	probeAddr        string
 	ingressClassName string
+	namespaces       []string
 
 	databrokerServiceURL string
 	sharedSecret         string
@@ -74,6 +75,7 @@ func (s *serveCmd) setupFlags() {
 	flags.StringVar(&s.ingressClassName, "ingress-class-name", "pomerium.io/ingress-controller", "IngressClass controller name")
 	flags.StringVar(&s.databrokerServiceURL, "databroker-service-url", "http://localhost:5443",
 		"the databroker service url")
+	flags.StringArrayVar(&s.namespaces, "namespaces", nil, "namespaces to watch, or none to watch all namespaces")
 	flags.StringVar(&s.sharedSecret, "shared-secret", "",
 		"base64-encoded shared secret for signing JWTs")
 	flags.BoolVar(&s.debug, "debug", true, "enable debug logging")
@@ -96,6 +98,7 @@ func (s *serveCmd) exec(*cobra.Command, []string) error {
 			HealthProbeBindAddress: s.probeAddr,
 			LeaderElection:         false,
 		},
+		s.namespaces,
 	)
 }
 
@@ -132,6 +135,7 @@ type leadController struct {
 	controllers.PomeriumReconciler
 	databroker.DataBrokerServiceClient
 	ctrl.Options
+	namespaces []string
 }
 
 func (c *leadController) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
@@ -139,7 +143,7 @@ func (c *leadController) GetDataBrokerServiceClient() databroker.DataBrokerServi
 }
 
 func (c *leadController) RunLeased(ctx context.Context) error {
-	mgr, err := controllers.NewIngressController(c.Options, c.PomeriumReconciler)
+	mgr, err := controllers.NewIngressController(c.Options, c.PomeriumReconciler, c.namespaces)
 	if err != nil {
 		return fmt.Errorf("creating controller: %w", err)
 	}
@@ -152,11 +156,12 @@ func (c *leadController) RunLeased(ctx context.Context) error {
 	return nil
 }
 
-func runController(ctx context.Context, client databroker.DataBrokerServiceClient, opts ctrl.Options) error {
+func runController(ctx context.Context, client databroker.DataBrokerServiceClient, opts ctrl.Options, namespaces []string) error {
 	c := &leadController{
 		PomeriumReconciler:      &pomerium.ConfigReconciler{DataBrokerServiceClient: client},
 		DataBrokerServiceClient: client,
 		Options:                 opts,
+		namespaces:              namespaces,
 	}
 	leaser := databroker.NewLeaser("ingress-controller", leaseDuration, c)
 	return leaser.Run(ctx)

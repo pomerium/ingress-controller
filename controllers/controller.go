@@ -27,8 +27,8 @@ const (
 	IngressClassDefaultAnnotationKey = "ingressclass.kubernetes.io/is-default-class"
 )
 
-// IngressController watches ingress and related resources for updates and reconciles with pomerium
-type IngressController struct {
+// ingressController watches ingress and related resources for updates and reconciles with pomerium
+type ingressController struct {
 	// IngressClassControllerName to watch in the IngressClass.spec.controller
 	IngressClassControllerName string
 
@@ -44,6 +44,9 @@ type IngressController struct {
 	model.Registry
 	// EventRecorder provides means to add events to Ingress objects, that are visible via kubectl describe
 	record.EventRecorder
+
+	// Namespaces to listen to, nil/empty to listen to all
+	namespaces map[string]bool
 
 	// object Kinds are frequently used, do not change and are cached
 	ingressKind      string
@@ -65,7 +68,7 @@ type PomeriumReconciler interface {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *IngressController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("Reconcile")
 
@@ -98,7 +101,7 @@ func (r *IngressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	return r.upsertIngress(ctx, ic)
 }
 
-func (r *IngressController) deleteIngress(ctx context.Context, name types.NamespacedName) (ctrl.Result, error) {
+func (r *ingressController) deleteIngress(ctx context.Context, name types.NamespacedName) (ctrl.Result, error) {
 	if err := r.PomeriumReconciler.Delete(ctx, name); err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("deleting ingress: %w", err)
 	}
@@ -107,7 +110,7 @@ func (r *IngressController) deleteIngress(ctx context.Context, name types.Namesp
 	return ctrl.Result{}, nil
 }
 
-func (r *IngressController) upsertIngress(ctx context.Context, ic *model.IngressConfig) (ctrl.Result, error) {
+func (r *ingressController) upsertIngress(ctx context.Context, ic *model.IngressConfig) (ctrl.Result, error) {
 	if err := r.PomeriumReconciler.Upsert(ctx, ic); err != nil {
 		r.EventRecorder.Event(ic.Ingress, corev1.EventTypeWarning, "UpdatePomeriumConfig", err.Error())
 		return ctrl.Result{Requeue: true}, fmt.Errorf("upsert: %w", err)
@@ -122,7 +125,7 @@ func (r *IngressController) upsertIngress(ctx context.Context, ic *model.Ingress
 
 // ObjectKey returns a registry key for a given kubernetes object
 // the object must be properly initialized (GVK, name, namespace)
-func (r *IngressController) objectKey(obj client.Object) model.Key {
+func (r *ingressController) objectKey(obj client.Object) model.Key {
 	name := types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
 	gvk, err := apiutil.GVKForObject(obj, r.Scheme)
 	if err != nil {
@@ -135,7 +138,7 @@ func (r *IngressController) objectKey(obj client.Object) model.Key {
 	return model.Key{Kind: kind, NamespacedName: name}
 }
 
-func (r *IngressController) updateDependencies(ic *model.IngressConfig) {
+func (r *ingressController) updateDependencies(ic *model.IngressConfig) {
 	ingKey := r.objectKey(ic.Ingress)
 	r.DeleteCascade(ingKey)
 
@@ -147,10 +150,14 @@ func (r *IngressController) updateDependencies(ic *model.IngressConfig) {
 	}
 }
 
-func (r *IngressController) isManaging(ctx context.Context, ing *networkingv1.Ingress) (bool, error) {
+func (r *ingressController) isManaging(ctx context.Context, ing *networkingv1.Ingress) (bool, error) {
 	icl := new(networkingv1.IngressClassList)
 	if err := r.Client.List(ctx, icl); err != nil {
 		return false, err
+	}
+
+	if len(r.namespaces) > 0 && !r.namespaces[ing.Namespace] {
+		return false, nil
 	}
 
 	var className string
@@ -170,7 +177,7 @@ func (r *IngressController) isManaging(ctx context.Context, ing *networkingv1.In
 }
 
 // SetupWithManager sets up the controller with the Manager
-func (r *IngressController) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 	c, err := ctrl.NewControllerManagedBy(mgr).
 		For(&networkingv1.Ingress{}).
 		Build(r)
@@ -211,7 +218,7 @@ func (r *IngressController) SetupWithManager(mgr ctrl.Manager) error {
 
 // getDependantIngressFn returns for a given object kind (i.e. a secret) a function
 // that would return ingress objects keys that depend from this object
-func (r *IngressController) getDependantIngressFn(kind string) func(a client.Object) []reconcile.Request {
+func (r *ingressController) getDependantIngressFn(kind string) func(a client.Object) []reconcile.Request {
 	logger := log.FromContext(context.Background()).WithValues("kind", kind)
 
 	return func(a client.Object) []reconcile.Request {
@@ -226,7 +233,7 @@ func (r *IngressController) getDependantIngressFn(kind string) func(a client.Obj
 	}
 }
 
-func (r *IngressController) watchIngressClass(string) func(a client.Object) []reconcile.Request {
+func (r *ingressController) watchIngressClass(string) func(a client.Object) []reconcile.Request {
 	logger := log.FromContext(context.Background())
 
 	return func(a client.Object) []reconcile.Request {
