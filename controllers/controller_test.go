@@ -3,13 +3,14 @@ package controllers_test
 import (
 	"context"
 	"fmt"
-	"path/filepath"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/go-logr/zapr"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -35,6 +36,10 @@ var (
 	_ suite.TearDownAllSuite  = &ControllerTestSuite{}
 	_ suite.SetupTestSuite    = &ControllerTestSuite{}
 	_ suite.TearDownTestSuite = &ControllerTestSuite{}
+
+	allNamespaces []string = nil
+
+	cmpOpts = cmpopts.IgnoreTypes(v1.TypeMeta{})
 )
 
 type ControllerTestSuite struct {
@@ -110,12 +115,12 @@ func (s *ControllerTestSuite) diffFn(diffFn func(current *model.IngressConfig) s
 	}
 }
 
-func (s *ControllerTestSuite) EventuallyUpsert(diffFn func(current *model.IngressConfig) string) {
+func (s *ControllerTestSuite) EventuallyUpsert(diffFn func(current *model.IngressConfig) string, msg string) {
 	s.T().Helper()
 	var diff string
 
-	if !assert.Eventually(s.T(), s.diffFn(diffFn, &diff), time.Second, time.Millisecond*50) {
-		s.T().Fatalf("condition never satisfied: %s", diff)
+	if !assert.Eventually(s.T(), s.diffFn(diffFn, &diff), time.Second*30, time.Millisecond*50) {
+		s.T().Fatalf("condition %q never satisfied: %s", msg, diff)
 	}
 }
 
@@ -135,17 +140,18 @@ func (s *ControllerTestSuite) NoError(err error) {
 func (s *ControllerTestSuite) SetupSuite() {
 	s.controllerName = "pomerium.io/ingress-controller"
 
-	s.Environment = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
-		ErrorIfCRDPathMissing: false,
-	}
+	scheme := runtime.NewScheme()
+	s.NoError(clientgoscheme.AddToScheme(scheme))
 
+	useExistingCluster := false
+	s.Environment = &envtest.Environment{
+		Scheme:             scheme,
+		UseExistingCluster: &useExistingCluster,
+	}
 	cfg, err := s.Environment.Start()
 	s.NoError(err)
 	require.NotNil(s.T(), cfg)
-
-	scheme := runtime.NewScheme()
-	s.NoError(clientgoscheme.AddToScheme(scheme))
+	s.T().Logf("API Host: %s", cfg.Host)
 
 	k8sClient, err := client.New(cfg, client.Options{Scheme: scheme})
 	s.NoError(err)
@@ -155,7 +161,6 @@ func (s *ControllerTestSuite) SetupSuite() {
 
 func (s *ControllerTestSuite) SetupTest() {
 	logf.SetLogger(zapr.NewLogger(zaptest.NewLogger(s.T())))
-	s.createTestController()
 }
 
 func (s *ControllerTestSuite) deleteAll() {
@@ -197,19 +202,14 @@ func (s *ControllerTestSuite) TearDownSuite() {
 	s.NoError(s.Environment.Stop())
 }
 
-func (s *ControllerTestSuite) createTestController() {
-	mgr, err := ctrl.NewManager(s.Environment.Config, ctrl.Options{
-		Scheme: s.Environment.Scheme,
-	})
-	s.NoError(err)
-
+func (s *ControllerTestSuite) createTestController(ctx context.Context, namespaces []string) {
 	s.mockPomeriumReconciler = &mockPomeriumReconciler{}
-	err = (&controllers.IngressController{
-		PomeriumReconciler: s.mockPomeriumReconciler,
-		Client:             s.Client,
-		Registry:           model.NewRegistry(),
-		EventRecorder:      mgr.GetEventRecorderFor("Ingress"),
-	}).SetupWithManager(mgr)
+	mgr, err := controllers.NewIngressController(s.Environment.Config,
+		ctrl.Options{
+			Scheme: s.Environment.Scheme,
+		},
+		s.mockPomeriumReconciler,
+		namespaces)
 	s.NoError(err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -221,7 +221,7 @@ func (s *ControllerTestSuite) createTestController() {
 	}()
 }
 
-func (s *ControllerTestSuite) initialTestObjects() (
+func (s *ControllerTestSuite) initialTestObjects(namespace string) (
 	*networkingv1.IngressClass,
 	*networkingv1.Ingress,
 	*corev1.Service,
@@ -230,13 +230,13 @@ func (s *ControllerTestSuite) initialTestObjects() (
 	typePrefix := networkingv1.PathTypePrefix
 	icsName := "pomerium"
 	return &networkingv1.IngressClass{
-			ObjectMeta: v1.ObjectMeta{Name: icsName, Namespace: "default"},
+			ObjectMeta: v1.ObjectMeta{Name: icsName, Namespace: namespace},
 			Spec: networkingv1.IngressClassSpec{
 				Controller: s.controllerName,
 			},
 		},
 		&networkingv1.Ingress{
-			ObjectMeta: v1.ObjectMeta{Name: "ingress", Namespace: "default"},
+			ObjectMeta: v1.ObjectMeta{Name: "ingress", Namespace: namespace},
 			Spec: networkingv1.IngressSpec{
 				IngressClassName: &icsName,
 				TLS: []networkingv1.IngressTLS{{
@@ -267,7 +267,7 @@ func (s *ControllerTestSuite) initialTestObjects() (
 		&corev1.Service{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "service",
-				Namespace: "default",
+				Namespace: namespace,
 			},
 			Spec: corev1.ServiceSpec{
 				Ports: []corev1.ServicePort{{
@@ -282,7 +282,7 @@ func (s *ControllerTestSuite) initialTestObjects() (
 		&corev1.Secret{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "secret",
-				Namespace: "default",
+				Namespace: namespace,
 			},
 			Data: map[string][]byte{
 				corev1.TLSPrivateKeyKey: []byte("A"),
@@ -294,29 +294,30 @@ func (s *ControllerTestSuite) initialTestObjects() (
 
 func (s *ControllerTestSuite) TestIngressClass() {
 	ctx := context.Background()
+	s.createTestController(ctx, allNamespaces)
 
-	ingressClass, ingress, service, _ := s.initialTestObjects()
+	ingressClass, ingress, service, _ := s.initialTestObjects("default")
 	ingress.Spec.TLS = nil
 	ingress.Spec.IngressClassName = nil
 	// ingress should not be picked up for reconciliation as there's no ingress class record
 	s.NoError(s.Client.Create(ctx, ingress))
 	s.NoError(s.Client.Create(ctx, service))
 	s.NeverEqual(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress)
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
 	})
 
 	// create ingress controller spec that is not default
 	s.NoError(s.Client.Create(ctx, ingressClass))
 	s.NeverEqual(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress)
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
 	})
 
 	// mark ingress with ingress class name
 	ingress.Spec.IngressClassName = &ingressClass.Name
 	s.NoError(s.Client.Update(ctx, ingress))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress)
-	})
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
+	}, "set ingressClass to ingress spec")
 
 	// remove ingress class annotation, it should be deleted
 	ingress.Spec.IngressClassName = nil
@@ -327,19 +328,19 @@ func (s *ControllerTestSuite) TestIngressClass() {
 	ingressClass.Annotations = map[string]string{controllers.IngressClassDefaultAnnotationKey: "true"}
 	s.NoError(s.Client.Update(ctx, ingressClass))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress)
-	})
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
+	}, "default ingress class")
 }
 
 // TestDependencies verifies that when objects the Ingress depends on change,
 // a configuration reconciliation would happen
 func (s *ControllerTestSuite) TestDependencies() {
-	ingressClass, ingress, service, secret := s.initialTestObjects()
+	ctx := context.Background()
+	s.createTestController(ctx, allNamespaces)
+
+	ingressClass, ingress, service, secret := s.initialTestObjects("default")
 	svcName := types.NamespacedName{Name: "service", Namespace: "default"}
 	secretName := types.NamespacedName{Name: "secret", Namespace: "default"}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancel()
 
 	for _, obj := range []client.Object{ingress, service, secret} {
 		s.NoError(s.Client.Create(ctx, obj))
@@ -349,16 +350,16 @@ func (s *ControllerTestSuite) TestDependencies() {
 	}
 	s.NoError(s.Client.Create(ctx, ingressClass))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(service, ic.Services[svcName]) +
-			cmp.Diff(secret, ic.Secrets[secretName]) +
-			cmp.Diff(ingress, ic.Ingress)
-	})
+		return cmp.Diff(service, ic.Services[svcName], cmpOpts) +
+			cmp.Diff(secret, ic.Secrets[secretName], cmpOpts) +
+			cmp.Diff(ingress, ic.Ingress, cmpOpts)
+	}, "secret, service, ingress up to date")
 
 	service.Spec.Ports[0].Port = 8080
 	s.NoError(s.Client.Update(ctx, service))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(service, ic.Services[svcName])
-	})
+		return cmp.Diff(service, ic.Services[svcName], cmpOpts)
+	}, "updated port")
 
 	// update secret
 	secret.Data = map[string][]byte{
@@ -367,8 +368,42 @@ func (s *ControllerTestSuite) TestDependencies() {
 	}
 	s.NoError(s.Client.Update(ctx, secret))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(secret, ic.Secrets[secretName])
-	})
+		return cmp.Diff(secret, ic.Secrets[secretName], cmpOpts)
+	}, "updated secret")
+}
+
+// TestNamespaces checks that controller would only
+func (s *ControllerTestSuite) TestNamespaces() {
+	namespaces := map[string]bool{"a": true, "b": false, "c": true, "d": false}
+
+	ctx := context.Background()
+	s.createTestController(ctx, []string{"a", "c"})
+	del := func(obj client.Object) { s.Client.Delete(ctx, obj) }
+
+	ingressClass, _, _, _ := s.initialTestObjects("")
+	s.NoError(s.Client.Create(ctx, ingressClass))
+
+	for ns, shouldCreate := range namespaces {
+		_, ingress, service, secret := s.initialTestObjects(ns)
+		for _, obj := range []client.Object{
+			&corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: ns}},
+			ingress, service, secret,
+		} {
+			s.T().Logf("%s/%s %s", obj.GetNamespace(), obj.GetName(), reflect.TypeOf(obj))
+			s.NoError(s.Client.Create(ctx, obj))
+			defer del(obj)
+		}
+
+		diffFn := func(ic *model.IngressConfig) string {
+			return cmp.Diff(ingress, ic.Ingress, cmpOpts)
+		}
+
+		if shouldCreate {
+			s.EventuallyUpsert(diffFn, ns)
+		} else {
+			s.NeverEqual(diffFn)
+		}
+	}
 }
 
 func TestIngressController(t *testing.T) {
