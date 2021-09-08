@@ -38,6 +38,8 @@ var (
 	_ suite.TearDownTestSuite = &ControllerTestSuite{}
 
 	allNamespaces []string = nil
+
+	cmpOpts = cmpopts.IgnoreTypes(v1.TypeMeta{})
 )
 
 type ControllerTestSuite struct {
@@ -301,20 +303,20 @@ func (s *ControllerTestSuite) TestIngressClass() {
 	s.NoError(s.Client.Create(ctx, ingress))
 	s.NoError(s.Client.Create(ctx, service))
 	s.NeverEqual(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress)
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
 	})
 
 	// create ingress controller spec that is not default
 	s.NoError(s.Client.Create(ctx, ingressClass))
 	s.NeverEqual(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress)
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
 	})
 
 	// mark ingress with ingress class name
 	ingress.Spec.IngressClassName = &ingressClass.Name
 	s.NoError(s.Client.Update(ctx, ingress))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress)
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
 	}, "set ingressClass to ingress spec")
 
 	// remove ingress class annotation, it should be deleted
@@ -326,7 +328,7 @@ func (s *ControllerTestSuite) TestIngressClass() {
 	ingressClass.Annotations = map[string]string{controllers.IngressClassDefaultAnnotationKey: "true"}
 	s.NoError(s.Client.Update(ctx, ingressClass))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress)
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
 	}, "default ingress class")
 }
 
@@ -348,15 +350,15 @@ func (s *ControllerTestSuite) TestDependencies() {
 	}
 	s.NoError(s.Client.Create(ctx, ingressClass))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(service, ic.Services[svcName]) +
-			cmp.Diff(secret, ic.Secrets[secretName]) +
-			cmp.Diff(ingress, ic.Ingress)
+		return cmp.Diff(service, ic.Services[svcName], cmpOpts) +
+			cmp.Diff(secret, ic.Secrets[secretName], cmpOpts) +
+			cmp.Diff(ingress, ic.Ingress, cmpOpts)
 	}, "secret, service, ingress up to date")
 
 	service.Spec.Ports[0].Port = 8080
 	s.NoError(s.Client.Update(ctx, service))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(service, ic.Services[svcName])
+		return cmp.Diff(service, ic.Services[svcName], cmpOpts)
 	}, "updated port")
 
 	// update secret
@@ -366,7 +368,7 @@ func (s *ControllerTestSuite) TestDependencies() {
 	}
 	s.NoError(s.Client.Update(ctx, secret))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(secret, ic.Secrets[secretName])
+		return cmp.Diff(secret, ic.Secrets[secretName], cmpOpts)
 	}, "updated secret")
 }
 
@@ -393,7 +395,7 @@ func (s *ControllerTestSuite) TestNamespaces() {
 		}
 
 		diffFn := func(ic *model.IngressConfig) string {
-			return cmp.Diff(ingress, ic.Ingress, cmpopts.IgnoreTypes(v1.TypeMeta{}))
+			return cmp.Diff(ingress, ic.Ingress, cmpOpts)
 		}
 
 		if shouldCreate {
