@@ -5,54 +5,72 @@ import (
 	"fmt"
 	"strings"
 
+	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"gopkg.in/yaml.v3"
 
 	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 var (
-	allowedAnnotations = func() map[string]bool {
-		ok := []string{
-			"allowed_users",
-			"allowed_groups",
-			"allowed_domains",
-			"allowed_idp_claims",
-			"cors_allow_preflight",
-			"allow_public_unauthenticated_access",
-			"allow_any_authenticated_user",
-			"timeout",
-			"idle_timeout",
-			"allow_websockets",
-			"set_request_headers",
-			"remove_request_headers",
-			"set_response_headers",
-			"rewrite_response_headers",
-			"preserve_host_header",
-			"pass_identity_headers",
-		}
-		out := make(map[string]bool, len(ok))
-		for _, k := range ok {
-			out[k] = true
-		}
-		return out
-	}()
+	baseAnnotations = boolMap([]string{
+		"allowed_users",
+		"allowed_groups",
+		"allowed_domains",
+		"allowed_idp_claims",
+		"cors_allow_preflight",
+		"allow_public_unauthenticated_access",
+		"allow_any_authenticated_user",
+		"timeout",
+		"idle_timeout",
+		"allow_websockets",
+		"set_request_headers",
+		"remove_request_headers",
+		"set_response_headers",
+		"rewrite_response_headers",
+		"preserve_host_header",
+		"pass_identity_headers",
+	})
+	envoyAnnotations = boolMap([]string{
+		"health_checks",
+		"outlier_detection",
+		"lb_config",
+	})
 )
 
-func removeKeyPrefix(src map[string]string, prefix string) (map[string]string, error) {
+func boolMap(keys []string) map[string]bool {
+	out := make(map[string]bool, len(keys))
+	for _, k := range keys {
+		out[k] = true
+	}
+	return out
+}
+
+type keys struct {
+	Base, Envoy map[string]string
+}
+
+func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 	prefix = fmt.Sprintf("%s/", prefix)
-	dst := make(map[string]string)
+	kv := keys{
+		Base:  make(map[string]string),
+		Envoy: make(map[string]string),
+	}
 	for k, v := range src {
 		if !strings.HasPrefix(k, prefix) {
 			continue
 		}
 		k = strings.TrimPrefix(k, prefix)
-		if !allowedAnnotations[k] {
+		if baseAnnotations[k] {
+			kv.Base[k] = v
+		} else if envoyAnnotations[k] {
+			kv.Envoy[k] = v
+		} else {
 			return nil, fmt.Errorf("unknown %s%s", prefix, k)
 		}
-		dst[k] = v
 	}
-	return dst, nil
+	return &kv, nil
 }
 
 func toJSON(src map[string]string) ([]byte, error) {
@@ -78,20 +96,29 @@ func applyAnnotations(
 	annotations map[string]string,
 	prefix string,
 ) error {
-	annotations, err := removeKeyPrefix(annotations, prefix)
+	kv, err := removeKeyPrefix(annotations, prefix)
 	if err != nil {
 		return err
 	}
-	if len(annotations) == 0 {
+
+	if err = unmarshallAnnotations(r, kv.Base); err != nil {
+		return err
+	}
+	r.EnvoyOpts = new(envoy_config_cluster_v3.Cluster)
+	return unmarshallAnnotations(r.EnvoyOpts, kv.Envoy)
+}
+
+func unmarshallAnnotations(m protoreflect.ProtoMessage, kvs map[string]string) error {
+	if len(kvs) == 0 {
 		return nil
 	}
 
-	data, err := toJSON(annotations)
+	data, err := toJSON(kvs)
 	if err != nil {
 		return err
 	}
 
 	return (&protojson.UnmarshalOptions{
 		DiscardUnknown: false,
-	}).Unmarshal(data, r)
+	}).Unmarshal(data, m)
 }
