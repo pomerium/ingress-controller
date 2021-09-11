@@ -13,6 +13,7 @@ import (
 type routeID struct {
 	Name      string `json:"n"`
 	Namespace string `json:"ns"`
+	Host      string `json:"h"`
 	Path      string `json:"p"`
 }
 

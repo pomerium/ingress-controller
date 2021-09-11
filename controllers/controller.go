@@ -59,7 +59,7 @@ type ingressController struct {
 // it is not expected to be thread safe
 type PomeriumReconciler interface {
 	// Upsert should update or create the pomerium routes corresponding to this ingress
-	Upsert(ctx context.Context, ic *model.IngressConfig) error
+	Upsert(ctx context.Context, ic *model.IngressConfig) (changes bool, err error)
 	// Delete should delete pomerium routes corresponding to this ingress name
 	Delete(ctx context.Context, namespacedName types.NamespacedName) error
 	// DeleteAll wipes the configuration entirely
@@ -111,14 +111,17 @@ func (r *ingressController) deleteIngress(ctx context.Context, name types.Namesp
 }
 
 func (r *ingressController) upsertIngress(ctx context.Context, ic *model.IngressConfig) (ctrl.Result, error) {
-	if err := r.PomeriumReconciler.Upsert(ctx, ic); err != nil {
+	changed, err := r.PomeriumReconciler.Upsert(ctx, ic)
+	if err != nil {
 		r.EventRecorder.Event(ic.Ingress, corev1.EventTypeWarning, "UpdatePomeriumConfig", err.Error())
 		return ctrl.Result{Requeue: true}, fmt.Errorf("upsert: %w", err)
 	}
 
 	r.updateDependencies(ic)
-	r.EventRecorder.Event(ic.Ingress, corev1.EventTypeNormal, "PomeriumConfigUpdated", "updated pomerium configuration")
-	log.FromContext(ctx).Info("upsertIngress", "deps", r.Deps(r.objectKey(ic.Ingress)), "spec", ic.Ingress.Spec)
+	if changed {
+		r.EventRecorder.Event(ic.Ingress, corev1.EventTypeNormal, "PomeriumConfigUpdated", "updated pomerium configuration")
+	}
+	log.FromContext(ctx).Info("upsertIngress", "deps", r.Deps(r.objectKey(ic.Ingress)), "spec", ic.Ingress.Spec, "changed", changed)
 
 	return ctrl.Result{}, nil
 }
