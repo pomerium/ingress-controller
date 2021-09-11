@@ -10,8 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DOCKER_CLI_EXPERIMENTAL: "enabled"
-    outputs:
-      tag: ${{ steps.tagName.outputs.tag }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
