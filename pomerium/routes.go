@@ -3,6 +3,7 @@ package pomerium
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"k8s.io/apimachinery/pkg/types"
 
@@ -26,8 +27,9 @@ func upsertRoutes(ctx context.Context, cfg *pb.Config, ic *model.IngressConfig) 
 	if err != nil {
 		return fmt.Errorf("indexing current config routes: %w", err)
 	}
+	routeMap.removeName(types.NamespacedName{Name: ic.Ingress.Name, Namespace: ic.Ingress.Namespace})
 	routeMap.merge(ingRouteMap)
-	cfg.Routes = ingRouteMap.toList()
+	cfg.Routes = routeMap.toList()
 	return nil
 }
 
@@ -48,6 +50,6 @@ func debugRoute() *pb.Route {
 		Prefix:                    "/",
 		AllowAnyAuthenticatedUser: true,
 	}
-	_ = setRouteNameID(r, types.NamespacedName{Name: "admin", Namespace: "internal-envoy"}, "/")
+	_ = setRouteNameID(r, types.NamespacedName{Name: "admin", Namespace: "internal-envoy"}, url.URL{Host: "envoy.localhost.pomerium.io", Path: "/"})
 	return r
 }

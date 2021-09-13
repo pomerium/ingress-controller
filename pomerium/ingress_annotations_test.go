@@ -16,12 +16,17 @@ import (
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
+var (
+	testPPL = `{"allow":{"or":[{"domain":{"is":"pomerium.com"}}]}}`
+)
+
 func TestAnnotations(t *testing.T) {
 	ann := map[string]string{
 		"a/allowed_users":                       `["a"]`,
 		"a/allowed_groups":                      `["a"]`,
 		"a/allowed_domains":                     `["a"]`,
 		"a/allowed_idp_claims":                  `{"key": ["val1", "val2"]}`,
+		"a/policy":                              testPPL,
 		"a/cors_allow_preflight":                "true",
 		"a/allow_public_unauthenticated_access": "false",
 		"a/allow_any_authenticated_user":        "false",
@@ -39,12 +44,6 @@ func TestAnnotations(t *testing.T) {
 	r := new(pb.Route)
 	require.NoError(t, applyAnnotations(r, ann, "a"))
 	require.Empty(t, cmp.Diff(r, &pb.Route{
-		AllowedUsers:   []string{"a"},
-		AllowedGroups:  []string{"a"},
-		AllowedDomains: []string{"a"},
-		AllowedIdpClaims: map[string]*structpb.ListValue{
-			"key": {Values: []*structpb.Value{structpb.NewStringValue("val1"), structpb.NewStringValue("val2")}},
-		},
 		CorsAllowPreflight:               true,
 		AllowPublicUnauthenticatedAccess: false,
 		AllowAnyAuthenticatedUser:        false,
@@ -72,9 +71,18 @@ func TestAnnotations(t *testing.T) {
 				},
 			}},
 		},
+		Policies: []*pb.Policy{{
+			AllowedUsers:   []string{"a"},
+			AllowedGroups:  []string{"a"},
+			AllowedDomains: []string{"a"},
+			AllowedIdpClaims: map[string]*structpb.ListValue{
+				"key": {Values: []*structpb.Value{structpb.NewStringValue("val1"), structpb.NewStringValue("val2")}},
+			},
+		}},
 	}, cmpopts.IgnoreUnexported(
 		pb.Route{},
 		pb.RouteRewriteHeader{},
+		pb.Policy{},
 		structpb.ListValue{},
 		structpb.Value{},
 		durationpb.Duration{},
@@ -83,5 +91,7 @@ func TestAnnotations(t *testing.T) {
 		envoy_config_core_v3.HealthCheck_HttpHealthCheck_{},
 		envoy_config_core_v3.HealthCheck_HttpHealthCheck{},
 		wrapperspb.UInt32Value{},
-	)))
+	),
+		cmpopts.IgnoreFields(pb.Policy{}, "Rego")))
+	require.NotEmpty(t, r.Policies[0].Rego)
 }

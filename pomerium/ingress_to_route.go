@@ -65,7 +65,7 @@ func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, name types.Names
 	for _, p := range rule.HTTP.Paths {
 		r := proto.Clone(tmpl).(*pb.Route)
 		r.From = (&url.URL{Scheme: "https", Host: rule.Host}).String()
-		if err := pathToRoute(r, name, p, ic); err != nil {
+		if err := pathToRoute(r, name, rule.Host, p, ic); err != nil {
 			return nil, err
 		}
 		routes = append(routes, r)
@@ -78,7 +78,7 @@ func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, name types.Names
 	return routes, nil
 }
 
-func pathToRoute(r *pb.Route, name types.NamespacedName, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) error {
+func pathToRoute(r *pb.Route, name types.NamespacedName, host string, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) error {
 	// https://kubernetes.io/docs/concepts/services-networking/ingress/#path-types
 	// Paths that do not include an explicit pathType will fail validation.
 	if p.PathType == nil {
@@ -101,7 +101,7 @@ func pathToRoute(r *pb.Route, name types.NamespacedName, p networkingv1.HTTPIngr
 		return fmt.Errorf("unknown pathType %s", *p.PathType)
 	}
 
-	if err := setRouteNameID(r, name, p.Path); err != nil {
+	if err := setRouteNameID(r, name, url.URL{Host: host, Path: p.Path}); err != nil {
 		return fmt.Errorf("setRouteNameID: %w", err)
 	}
 
@@ -114,15 +114,15 @@ func pathToRoute(r *pb.Route, name types.NamespacedName, p networkingv1.HTTPIngr
 	return nil
 }
 
-func setRouteNameID(r *pb.Route, name types.NamespacedName, path string) error {
-	id, err := (&routeID{Name: name.Name, Namespace: name.Namespace, Path: path}).Marshal()
+func setRouteNameID(r *pb.Route, name types.NamespacedName, u url.URL) error {
+	id, err := (&routeID{Name: name.Name, Namespace: name.Namespace, Host: u.Host, Path: u.Path}).Marshal()
 	if err != nil {
 		return err
 	}
 	r.Id = id
 
-	r.Name = fmt.Sprintf("%s-%s", name.Namespace, name.Name)
-	pathSlug := slug.Make(path)
+	r.Name = slug.Make(fmt.Sprintf("%s %s %s", name.Namespace, name.Name, u.Host))
+	pathSlug := slug.Make(u.Path)
 	if pathSlug != "" {
 		r.Name = fmt.Sprintf("%s-%s", r.Name, pathSlug)
 	}

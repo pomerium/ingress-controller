@@ -11,14 +11,11 @@ import (
 	"gopkg.in/yaml.v3"
 
 	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/policy"
 )
 
 var (
 	baseAnnotations = boolMap([]string{
-		"allowed_users",
-		"allowed_groups",
-		"allowed_domains",
-		"allowed_idp_claims",
 		"cors_allow_preflight",
 		"allow_public_unauthenticated_access",
 		"allow_any_authenticated_user",
@@ -31,6 +28,13 @@ var (
 		"rewrite_response_headers",
 		"preserve_host_header",
 		"pass_identity_headers",
+	})
+	policyAnnotations = boolMap([]string{
+		"allowed_users",
+		"allowed_groups",
+		"allowed_domains",
+		"allowed_idp_claims",
+		"policy",
 	})
 	envoyAnnotations = boolMap([]string{
 		"health_checks",
@@ -48,14 +52,15 @@ func boolMap(keys []string) map[string]bool {
 }
 
 type keys struct {
-	Base, Envoy map[string]string
+	Base, Envoy, Policy map[string]string
 }
 
 func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 	prefix = fmt.Sprintf("%s/", prefix)
 	kv := keys{
-		Base:  make(map[string]string),
-		Envoy: make(map[string]string),
+		Base:   make(map[string]string),
+		Envoy:  make(map[string]string),
+		Policy: make(map[string]string),
 	}
 	for k, v := range src {
 		if !strings.HasPrefix(k, prefix) {
@@ -66,6 +71,8 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 			kv.Base[k] = v
 		} else if envoyAnnotations[k] {
 			kv.Envoy[k] = v
+		} else if policyAnnotations[k] {
+			kv.Policy[k] = v
 		} else {
 			return nil, fmt.Errorf("unknown %s%s", prefix, k)
 		}
@@ -105,7 +112,34 @@ func applyAnnotations(
 		return err
 	}
 	r.EnvoyOpts = new(envoy_config_cluster_v3.Cluster)
-	return unmarshallAnnotations(r.EnvoyOpts, kv.Envoy)
+	if err = unmarshallAnnotations(r.EnvoyOpts, kv.Envoy); err != nil {
+		return err
+	}
+	p := new(pomerium.Policy)
+	r.Policies = []*pomerium.Policy{p}
+	return unmarshallPolicyAnnotations(p, kv.Policy)
+}
+
+func unmarshallPolicyAnnotations(p *pomerium.Policy, kvs map[string]string) error {
+	ppl, hasPPL := kvs["policy"]
+	if hasPPL {
+		delete(kvs, "policy")
+	}
+
+	if err := unmarshallAnnotations(p, kvs); err != nil {
+		return err
+	}
+
+	if !hasPPL {
+		return nil
+	}
+
+	src, err := policy.GenerateRegoFromReader(strings.NewReader(ppl))
+	if err != nil {
+		return fmt.Errorf("parsing policy: %w", err)
+	}
+	p.Rego = []string{src}
+	return nil
 }
 
 func unmarshallAnnotations(m protoreflect.ProtoMessage, kvs map[string]string) error {

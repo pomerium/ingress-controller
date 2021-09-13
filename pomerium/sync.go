@@ -34,21 +34,19 @@ type ConfigReconciler struct {
 }
 
 // Upsert should update or create the pomerium routes corresponding to this ingress
-func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) error {
+func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
 	cfg, prevBytes, err := r.getConfig(ctx)
 	if err != nil {
-		return fmt.Errorf("get config: %w", err)
+		return false, fmt.Errorf("get config: %w", err)
 	}
 	if err := upsertRoutes(ctx, cfg, ic); err != nil {
-		return fmt.Errorf("deleting pomerium config records: %w", err)
+		return false, fmt.Errorf("deleting pomerium config records: %w", err)
 	}
 	if err := upsertCerts(cfg, ic); err != nil {
-		return fmt.Errorf("updating certs: %w", err)
+		return false, fmt.Errorf("updating certs: %w", err)
 	}
-	if err := r.saveConfig(ctx, cfg, prevBytes, string(ic.Ingress.UID)); err != nil {
-		return fmt.Errorf("updating pomerium config: %w", err)
-	}
-	return nil
+
+	return r.saveConfig(ctx, cfg, prevBytes, string(ic.Ingress.UID))
 }
 
 // Delete should delete pomerium routes corresponding to this ingress name
@@ -63,7 +61,7 @@ func (r *ConfigReconciler) Delete(ctx context.Context, namespacedName types.Name
 	if err := removeUnusedCerts(cfg); err != nil {
 		return fmt.Errorf("removing unused certs: %w", err)
 	}
-	if err := r.saveConfig(ctx, cfg, prevBytes,
+	if _, err := r.saveConfig(ctx, cfg, prevBytes,
 		fmt.Sprintf("%s-%s", namespacedName.Namespace, namespacedName.Name),
 	); err != nil {
 		return fmt.Errorf("updating pomerium config: %w", err)
@@ -110,17 +108,17 @@ func (r *ConfigReconciler) getConfig(ctx context.Context) (*pb.Config, []byte, e
 	return cfg, resp.GetRecord().GetData().GetValue(), nil
 }
 
-func (r *ConfigReconciler) saveConfig(ctx context.Context, cfg *pb.Config, prevBytes []byte, id string) error {
+func (r *ConfigReconciler) saveConfig(ctx context.Context, cfg *pb.Config, prevBytes []byte, id string) (bool, error) {
 	logger := log.FromContext(ctx)
 	any := protoutil.NewAny(cfg)
 
 	if bytes.Equal(prevBytes, any.GetValue()) {
-		logger.Info("no changes in pomerium config")
-		return nil
+		logger.V(1).Info("no changes in pomerium config")
+		return false, nil
 	}
 
 	if err := Validate(ctx, cfg, id); err != nil {
-		return fmt.Errorf("config validation: %w", err)
+		return false, fmt.Errorf("config validation: %w", err)
 	}
 
 	if _, err := r.Put(ctx, &databroker.PutRequest{
@@ -130,12 +128,12 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, cfg *pb.Config, prevB
 			Data: any,
 		},
 	}); err != nil {
-		return err
+		return false, err
 	}
 
 	logger.Info("new pomerium config applied")
 	// TODO: rm
 	fmt.Println("=>", protojson.Format(cfg))
 
-	return nil
+	return true, nil
 }

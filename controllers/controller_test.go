@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap/zaptest"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -39,7 +39,7 @@ var (
 
 	allNamespaces []string = nil
 
-	cmpOpts = cmpopts.IgnoreTypes(v1.TypeMeta{})
+	cmpOpts = cmpopts.IgnoreTypes(metav1.TypeMeta{})
 )
 
 type ControllerTestSuite struct {
@@ -61,13 +61,13 @@ type mockPomeriumReconciler struct {
 	lastDelete *types.NamespacedName
 }
 
-func (m *mockPomeriumReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) error {
+func (m *mockPomeriumReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
 	m.Lock()
 	defer m.Unlock()
 
 	m.lastUpsert = ic
 	m.lastDelete = nil
-	return nil
+	return true, nil
 }
 
 func (m *mockPomeriumReconciler) Delete(ctx context.Context, name types.NamespacedName) error {
@@ -230,13 +230,13 @@ func (s *ControllerTestSuite) initialTestObjects(namespace string) (
 	typePrefix := networkingv1.PathTypePrefix
 	icsName := "pomerium"
 	return &networkingv1.IngressClass{
-			ObjectMeta: v1.ObjectMeta{Name: icsName, Namespace: namespace},
+			ObjectMeta: metav1.ObjectMeta{Name: icsName, Namespace: namespace},
 			Spec: networkingv1.IngressClassSpec{
 				Controller: s.controllerName,
 			},
 		},
 		&networkingv1.Ingress{
-			ObjectMeta: v1.ObjectMeta{Name: "ingress", Namespace: namespace},
+			ObjectMeta: metav1.ObjectMeta{Name: "ingress", Namespace: namespace},
 			Spec: networkingv1.IngressSpec{
 				IngressClassName: &icsName,
 				TLS: []networkingv1.IngressTLS{{
@@ -265,7 +265,7 @@ func (s *ControllerTestSuite) initialTestObjects(namespace string) (
 			},
 		},
 		&corev1.Service{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      "service",
 				Namespace: namespace,
 			},
@@ -280,7 +280,7 @@ func (s *ControllerTestSuite) initialTestObjects(namespace string) (
 			Status: corev1.ServiceStatus{},
 		},
 		&corev1.Secret{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      "secret",
 				Namespace: namespace,
 			},
@@ -386,7 +386,7 @@ func (s *ControllerTestSuite) TestNamespaces() {
 	for ns, shouldCreate := range namespaces {
 		_, ingress, service, secret := s.initialTestObjects(ns)
 		for _, obj := range []client.Object{
-			&corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: ns}},
+			&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}},
 			ingress, service, secret,
 		} {
 			s.T().Logf("%s/%s %s", obj.GetNamespace(), obj.GetName(), reflect.TypeOf(obj))
