@@ -27,9 +27,10 @@ func (r *ingressController) fetchIngress(
 		return nil, fmt.Errorf("services: %w", err)
 	}
 	return &model.IngressConfig{
-		Ingress:  ingress,
-		Secrets:  secrets,
-		Services: svc,
+		AnnotationPrefix: r.annotationPrefix,
+		Ingress:          ingress,
+		Secrets:          secrets,
+		Services:         svc,
 	}, nil
 }
 

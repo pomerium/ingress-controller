@@ -43,7 +43,8 @@ type serveCmd struct {
 	metricsAddr      string
 	webhookPort      int
 	probeAddr        string
-	ingressClassName string
+	className        string
+	annotationPrefix string
 	namespaces       []string
 
 	databrokerServiceURL string
@@ -72,7 +73,8 @@ func (s *serveCmd) setupFlags() {
 	flags.IntVar(&s.webhookPort, "webhook-port", 9443, "webhook port")
 	flags.StringVar(&s.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flags.StringVar(&s.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flags.StringVar(&s.ingressClassName, "ingress-class-name", "pomerium.io/ingress-controller", "IngressClass controller name")
+	flags.StringVar(&s.className, "name", controllers.DefaultClassControllerName, "IngressClass controller name")
+	flags.StringVar(&s.annotationPrefix, "prefix", controllers.DefaultAnnotationPrefix, "Ingress annotation prefix")
 	flags.StringVar(&s.databrokerServiceURL, "databroker-service-url", "http://localhost:5443",
 		"the databroker service url")
 	flags.StringArrayVar(&s.namespaces, "namespaces", nil, "namespaces to watch, or none to watch all namespaces")
@@ -89,7 +91,7 @@ func (s *serveCmd) exec(*cobra.Command, []string) error {
 		return fmt.Errorf("databroker connection: %w", err)
 	}
 
-	return runController(ctx,
+	return s.runController(ctx,
 		databroker.NewDataBrokerServiceClient(dbc),
 		ctrl.Options{
 			Scheme:                 scheme,
@@ -97,9 +99,7 @@ func (s *serveCmd) exec(*cobra.Command, []string) error {
 			Port:                   s.webhookPort,
 			HealthProbeBindAddress: s.probeAddr,
 			LeaderElection:         false,
-		},
-		s.namespaces,
-	)
+		})
 }
 
 func (s *serveCmd) setupLogger() {
@@ -135,7 +135,9 @@ type leadController struct {
 	controllers.PomeriumReconciler
 	databroker.DataBrokerServiceClient
 	ctrl.Options
-	namespaces []string
+	namespaces       []string
+	annotationPrefix string
+	className        string
 }
 
 func (c *leadController) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
@@ -147,7 +149,11 @@ func (c *leadController) RunLeased(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("get k8s api config: %w", err)
 	}
-	mgr, err := controllers.NewIngressController(cfg, c.Options, c.PomeriumReconciler, c.namespaces)
+	mgr, err := controllers.NewIngressController(cfg, c.Options, c.PomeriumReconciler,
+		controllers.WithNamespaces(c.namespaces),
+		controllers.WithAnnotationPrefix(c.annotationPrefix),
+		controllers.WithControllerName(c.className),
+	)
 	if err != nil {
 		return fmt.Errorf("creating controller: %w", err)
 	}
@@ -160,12 +166,14 @@ func (c *leadController) RunLeased(ctx context.Context) error {
 	return nil
 }
 
-func runController(ctx context.Context, client databroker.DataBrokerServiceClient, opts ctrl.Options, namespaces []string) error {
+func (s *serveCmd) runController(ctx context.Context, client databroker.DataBrokerServiceClient, opts ctrl.Options) error {
 	c := &leadController{
 		PomeriumReconciler:      &pomerium.ConfigReconciler{DataBrokerServiceClient: client},
 		DataBrokerServiceClient: client,
 		Options:                 opts,
-		namespaces:              namespaces,
+		namespaces:              s.namespaces,
+		className:               s.className,
+		annotationPrefix:        s.annotationPrefix,
 	}
 	leaser := databroker.NewLeaser("ingress-controller", leaseDuration, c)
 	return leaser.Run(ctx)

@@ -22,7 +22,7 @@ Annotate your `Ingress` with
 ingress.pomerium.io/secure_upstream: true
 ```
 
-Additional certificates may be supplied by creating a Kubernetes TLS secret(s) in the same namespaces as `Ingress` resource. Note we do not support file paths or embedded secret references.
+Additional TLS may be supplied by creating a Kubernetes TLS secret(s) in the same namespaces as `Ingress` resource. Note we do not support file paths or embedded secret references.
 
 - [`tls_custom_ca_secret`](https://pomerium.io/reference/#tls-custom-certificate-authority)
 - [`tls_client_secret`](https://pomerium.io/reference/#tls-client-certificate)

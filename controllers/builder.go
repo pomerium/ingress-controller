@@ -9,22 +9,32 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
+const (
+	DefaultAnnotationPrefix    = "ingress.pomerium.io"
+	DefaultClassControllerName = "pomerium.io/ingress-controller"
+)
+
 // NewIngressController creates new controller runtime
-func NewIngressController(cfg *rest.Config, opts ctrl.Options, pcr PomeriumReconciler, ns []string) (ctrl.Manager, error) {
-	mgr, err := ctrl.NewManager(cfg, opts)
+func NewIngressController(cfg *rest.Config, crOpts ctrl.Options, pcr PomeriumReconciler, opts ...option) (ctrl.Manager, error) {
+	mgr, err := ctrl.NewManager(cfg, crOpts)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start manager: %w", err)
 	}
 
 	registry := model.NewRegistry()
-
-	if err = (&ingressController{
+	ic := &ingressController{
+		annotationPrefix:   DefaultAnnotationPrefix,
+		controllerName:     DefaultClassControllerName,
 		PomeriumReconciler: pcr,
 		Client:             mgr.GetClient(),
 		Registry:           registry,
 		EventRecorder:      mgr.GetEventRecorderFor("Ingress"),
-		namespaces:         arrayToMap(ns),
-	}).SetupWithManager(mgr); err != nil {
+	}
+	for _, opt := range opts {
+		opt(ic)
+	}
+
+	if err = ic.SetupWithManager(mgr); err != nil {
 		return nil, fmt.Errorf("unable to create controller: %w", err)
 	}
 

@@ -138,7 +138,7 @@ func (s *ControllerTestSuite) NoError(err error) {
 }
 
 func (s *ControllerTestSuite) SetupSuite() {
-	s.controllerName = "pomerium.io/ingress-controller"
+	s.controllerName = controllers.DefaultClassControllerName
 
 	scheme := runtime.NewScheme()
 	s.NoError(clientgoscheme.AddToScheme(scheme))
@@ -209,7 +209,7 @@ func (s *ControllerTestSuite) createTestController(ctx context.Context, namespac
 			Scheme: s.Environment.Scheme,
 		},
 		s.mockPomeriumReconciler,
-		namespaces)
+		controllers.WithNamespaces(namespaces))
 	s.NoError(err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -306,13 +306,26 @@ func (s *ControllerTestSuite) TestIngressClass() {
 		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
 	})
 
-	// create ingress controller spec that is not default
+	// create ingress class spec that is not default
 	s.NoError(s.Client.Create(ctx, ingressClass))
 	s.NeverEqual(func(ic *model.IngressConfig) string {
 		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
 	})
 
-	// mark ingress with ingress class name
+	// create ingress class that is not ours
+	anotherIngressClass := &networkingv1.IngressClass{
+		ObjectMeta: metav1.ObjectMeta{Name: "another", Namespace: "default"},
+		Spec: networkingv1.IngressClassSpec{
+			Controller: "example.com/ingress-controller",
+		}}
+	s.NoError(s.Client.Create(ctx, anotherIngressClass))
+	ingress.Spec.IngressClassName = &anotherIngressClass.Name
+	s.NoError(s.Client.Update(ctx, ingress))
+	s.NeverEqual(func(ic *model.IngressConfig) string {
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
+	})
+
+	// mark ingress with ingress class name that is ours
 	ingress.Spec.IngressClassName = &ingressClass.Name
 	s.NoError(s.Client.Update(ctx, ingress))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
@@ -330,6 +343,7 @@ func (s *ControllerTestSuite) TestIngressClass() {
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
 		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
 	}, "default ingress class")
+
 }
 
 // TestDependencies verifies that when objects the Ingress depends on change,

@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -29,8 +30,10 @@ const (
 
 // ingressController watches ingress and related resources for updates and reconciles with pomerium
 type ingressController struct {
-	// IngressClassControllerName to watch in the IngressClass.spec.controller
-	IngressClassControllerName string
+	// controllerName to watch in the IngressClass.spec.controller
+	controllerName string
+	// annotationPrefix is a prefix (without /) for Ingress annotations
+	annotationPrefix string
 
 	// Scheme keeps track between objects and their group/version/kinds
 	*runtime.Scheme
@@ -53,6 +56,26 @@ type ingressController struct {
 	ingressClassKind string
 	secretKind       string
 	serviceKind      string
+}
+
+type option func(ic *ingressController)
+
+func WithControllerName(name string) option {
+	return func(ic *ingressController) {
+		ic.controllerName = name
+	}
+}
+
+func WithAnnotationPrefix(prefix string) option {
+	return func(ic *ingressController) {
+		ic.annotationPrefix = prefix
+	}
+}
+
+func WithNamespaces(ns []string) option {
+	return func(ic *ingressController) {
+		ic.namespaces = arrayToMap(ns)
+	}
 }
 
 // PomeriumReconciler updates pomerium configuration based on provided network resources
@@ -169,6 +192,9 @@ func (r *ingressController) isManaging(ctx context.Context, ing *networkingv1.In
 	}
 
 	for _, ic := range icl.Items {
+		if ic.Spec.Controller != r.controllerName {
+			continue
+		}
 		if className == ic.Name {
 			return true, nil
 		}
@@ -243,6 +269,14 @@ func (r *ingressController) watchIngressClass(string) func(a client.Object) []re
 	logger := log.FromContext(context.Background())
 
 	return func(a client.Object) []reconcile.Request {
+		ic, ok := a.(*networkingv1.IngressClass)
+		if !ok {
+			logger.Error(fmt.Errorf("got %s", reflect.TypeOf(a)), "expected IngressClass")
+			return nil
+		}
+		if ic.Spec.Controller != r.controllerName {
+			return nil
+		}
 		il := new(networkingv1.IngressList)
 		err := r.Client.List(context.Background(), il)
 		if err != nil {
