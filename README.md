@@ -8,6 +8,26 @@
 
 ## Command Line Options
 
+## Namespaces
+
+Ingress Controller may either monitor all namespaces (default), or only selected few, provided as a comma separated list to `--namespaces` command line option.
+
+## HTTPS endpoints
+
+`Ingress` spec defines that all communications to the service should happen in cleartext. Pomerium supports HTTPS endpoints, including mTLS.
+
+Annotate your `Ingress` with
+
+```yaml
+ingress.pomerium.io/secure_upstream: true
+```
+
+Additional certificates may be supplied by creating a Kubernetes TLS secret(s) in the same namespaces as `Ingress` resource. Note we do not support file paths or embedded secret references.
+
+- [`tls_custom_ca_secret`](https://pomerium.io/reference/#tls-custom-certificate-authority)
+- [`tls_client_secret`](https://pomerium.io/reference/#tls-client-certificate)
+- [`tls_downstream_client_ca_secret`](https://pomerium.io/reference/#tls-downstream-client-certificate-authority)
+
 ## IngressClass
 
 Create [`IngressClass`](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class)

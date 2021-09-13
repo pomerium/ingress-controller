@@ -1,6 +1,7 @@
 package pomerium
 
 import (
+	"encoding/base64"
 	"testing"
 	"time"
 
@@ -12,7 +13,12 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/pomerium/ingress-controller/model"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
@@ -21,29 +27,68 @@ var (
 )
 
 func TestAnnotations(t *testing.T) {
-	ann := map[string]string{
-		"a/allowed_users":                       `["a"]`,
-		"a/allowed_groups":                      `["a"]`,
-		"a/allowed_domains":                     `["a"]`,
-		"a/allowed_idp_claims":                  `{"key": ["val1", "val2"]}`,
-		"a/policy":                              testPPL,
-		"a/cors_allow_preflight":                "true",
-		"a/allow_public_unauthenticated_access": "false",
-		"a/allow_any_authenticated_user":        "false",
-		"a/timeout":                             `10s`,
-		"a/idle_timeout":                        `60s`,
-		"a/allow_websockets":                    "true",
-		"a/set_request_headers":                 `{"a": "aaa"}`,
-		"a/remove_request_headers":              `["a"]`,
-		"a/set_response_headers":                `{"c": "ccc"}`,
-		"a/rewrite_response_headers":            `[{"header": "a", "prefix": "b", "value": "c"}]`,
-		"a/preserve_host_header":                "true",
-		"a/pass_identity_headers":               "true",
-		"a/health_checks":                       `[{"timeout": "10s", "interval": "60s", "healthy_threshold": 1, "unhealthy_threshold": 2, "http_health_check": {"path": "/"}}]`,
+	r := &pb.Route{To: []string{"http://upstream.svc.cluster.local"}}
+	ic := &model.IngressConfig{
+		AnnotationPrefix: "a",
+		Ingress: &networkingv1.Ingress{
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: "test",
+				Annotations: map[string]string{
+					"a/allowed_users":                       `["a"]`,
+					"a/allowed_groups":                      `["a"]`,
+					"a/allowed_domains":                     `["a"]`,
+					"a/allowed_idp_claims":                  `{"key": ["val1", "val2"]}`,
+					"a/policy":                              testPPL,
+					"a/cors_allow_preflight":                "true",
+					"a/allow_public_unauthenticated_access": "false",
+					"a/allow_any_authenticated_user":        "false",
+					"a/timeout":                             `10s`,
+					"a/idle_timeout":                        `60s`,
+					"a/allow_websockets":                    "true",
+					"a/set_request_headers":                 `{"a": "aaa"}`,
+					"a/remove_request_headers":              `["a"]`,
+					"a/set_response_headers":                `{"c": "ccc"}`,
+					"a/rewrite_response_headers":            `[{"header": "a", "prefix": "b", "value": "c"}]`,
+					"a/preserve_host_header":                "true",
+					"a/pass_identity_headers":               "true",
+					"a/health_checks":                       `[{"timeout": "10s", "interval": "60s", "healthy_threshold": 1, "unhealthy_threshold": 2, "http_health_check": {"path": "/"}}]`,
+					"a/tls_skip_verify":                     "true",
+					"a/tls_server_name":                     "my.server.name",
+					"a/tls_custom_ca_secret":                "my_custom_ca_secret",
+					"a/tls_client_secret":                   "my_client_secret",
+					"a/tls_downstream_client_ca_secret":     "my_downstream_client_ca_secret",
+					"a/secure_upstream":                     "true",
+				},
+			},
+		},
+		Secrets: map[types.NamespacedName]*corev1.Secret{
+			{Name: "my_custom_ca_secret", Namespace: "test"}: {
+				Type: corev1.SecretTypeTLS,
+				Data: map[string][]byte{
+					corev1.TLSCertKey: []byte("my_custom_ca_secret+cert"),
+				},
+			},
+			{Name: "my_client_secret", Namespace: "test"}: {
+				Type: corev1.SecretTypeTLS,
+				Data: map[string][]byte{
+					corev1.TLSCertKey:       []byte("my_client_secret+cert"),
+					corev1.TLSPrivateKeyKey: []byte("my_client_secret+key"),
+				},
+			},
+			{Name: "my_downstream_client_ca_secret", Namespace: "test"}: {
+				Type: corev1.SecretTypeTLS,
+				Data: map[string][]byte{
+					corev1.TLSCertKey: []byte("my_downstream_client_ca_secret+cert"),
+				},
+			},
+		},
 	}
-	r := new(pb.Route)
-	require.NoError(t, applyAnnotations(r, ann, "a"))
+	require.NoError(t, applyAnnotations(r, ic))
 	require.Empty(t, cmp.Diff(r, &pb.Route{
+		TlsCustomCa:                      base64.StdEncoding.EncodeToString([]byte("my_custom_ca_secret+cert")),
+		TlsDownstreamClientCa:            base64.StdEncoding.EncodeToString([]byte("my_downstream_client_ca_secret+cert")),
+		TlsClientCert:                    base64.StdEncoding.EncodeToString([]byte("my_client_secret+cert")),
+		TlsClientKey:                     base64.StdEncoding.EncodeToString([]byte("my_client_secret+key")),
 		CorsAllowPreflight:               true,
 		AllowPublicUnauthenticatedAccess: false,
 		AllowAnyAuthenticatedUser:        false,
@@ -79,6 +124,8 @@ func TestAnnotations(t *testing.T) {
 				"key": {Values: []*structpb.Value{structpb.NewStringValue("val1"), structpb.NewStringValue("val2")}},
 			},
 		}},
+		TlsSkipVerify: true,
+		TlsServerName: "my.server.name",
 	}, cmpopts.IgnoreUnexported(
 		pb.Route{},
 		pb.RouteRewriteHeader{},
