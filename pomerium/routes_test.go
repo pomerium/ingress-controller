@@ -2,6 +2,7 @@ package pomerium
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -171,4 +172,77 @@ func TestUpsertIngress(t *testing.T) {
 	require.Nil(t, routes[routeID{Name: "ingress", Namespace: "default", Path: "/a", Host: "service.localhost.pomerium.io"}])
 	require.NotNil(t, routes[routeID{Name: "ingress", Namespace: "default", Path: "/b", Host: "service.localhost.pomerium.io"}])
 	require.NotNil(t, routes[routeID{Name: "ingress", Namespace: "default", Path: "/c", Host: "service.localhost.pomerium.io"}])
+}
+
+func TestSecureUpstream(t *testing.T) {
+	typePrefix := networkingv1.PathTypePrefix
+	ic := &model.IngressConfig{
+		AnnotationPrefix: "p",
+		Ingress: &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ingress",
+				Namespace: "default",
+				Annotations: map[string]string{
+					fmt.Sprintf("p/%s", model.SecureUpstream): "true",
+				},
+			},
+			Spec: networkingv1.IngressSpec{
+				TLS: []networkingv1.IngressTLS{{
+					Hosts:      []string{"service.localhost.pomerium.io"},
+					SecretName: "secret",
+				}},
+				Rules: []networkingv1.IngressRule{{
+					Host: "service.localhost.pomerium.io",
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{{
+								Path:     "/a",
+								PathType: &typePrefix,
+								Backend: networkingv1.IngressBackend{
+									Service: &networkingv1.IngressServiceBackend{
+										Name: "service",
+										Port: networkingv1.ServiceBackendPort{
+											Name: "https",
+										},
+									},
+								},
+							}},
+						},
+					},
+				}},
+			},
+		},
+		Services: map[types.NamespacedName]*corev1.Service{
+			{Name: "service", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service",
+					Namespace: "default",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{{
+						Name:       "https",
+						Protocol:   "TCP",
+						Port:       443,
+						TargetPort: intstr.IntOrString{IntVal: 443},
+					}},
+				},
+				Status: corev1.ServiceStatus{},
+			},
+		},
+	}
+
+	cfg := new(pb.Config)
+	require.NoError(t, upsertRoutes(context.Background(), cfg, ic))
+	routes, err := routeList(cfg.Routes).toMap()
+	require.NoError(t, err)
+	route := routes[routeID{
+		Name:      "ingress",
+		Namespace: "default",
+		Path:      "/a",
+		Host:      "service.localhost.pomerium.io",
+	}]
+	require.NotNil(t, route)
+	require.Equal(t, []string{
+		"https://service.default.svc.cluster.local:443",
+	}, route.To)
 }
