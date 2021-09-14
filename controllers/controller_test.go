@@ -127,14 +127,12 @@ func (s *ControllerTestSuite) EventuallyUpsert(diffFn func(current *model.Ingres
 func (s *ControllerTestSuite) NeverEqual(diffFn func(current *model.IngressConfig) string) {
 	s.T().Helper()
 	var diff string
-	if !assert.Never(s.T(), s.diffFn(diffFn, &diff), time.Second, time.Millisecond*50) {
-		s.T().Fatal("became equal")
-	}
+	require.Never(s.T(), s.diffFn(diffFn, &diff), time.Second, time.Millisecond*50)
 }
 
-func (s *ControllerTestSuite) NoError(err error) {
+func (s *ControllerTestSuite) NoError(err error, msgAndArgs ...interface{}) {
 	s.T().Helper()
-	require.NoError(s.T(), err)
+	require.NoError(s.T(), err, msgAndArgs...)
 }
 
 func (s *ControllerTestSuite) SetupSuite() {
@@ -358,10 +356,10 @@ func (s *ControllerTestSuite) TestDependencies() {
 
 	for _, obj := range []client.Object{ingress, service, secret} {
 		s.NoError(s.Client.Create(ctx, obj))
-		s.NeverEqual(func(ic *model.IngressConfig) string {
-			return cmp.Diff(ingress, ic.Ingress)
-		})
 	}
+	s.NeverEqual(func(ic *model.IngressConfig) string {
+		return cmp.Diff(ingress, ic.Ingress)
+	})
 	s.NoError(s.Client.Create(ctx, ingressClass))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
 		return cmp.Diff(service, ic.Services[svcName], cmpOpts) +
@@ -386,6 +384,62 @@ func (s *ControllerTestSuite) TestDependencies() {
 	}, "updated secret")
 }
 
+func (s *ControllerTestSuite) TestAnnotationDependencies() {
+	ctx := context.Background()
+	s.createTestController(ctx, allNamespaces)
+
+	ingressClass, ingress, service, secret := s.initialTestObjects("default")
+	ingress.Annotations = map[string]string{
+		fmt.Sprintf("%s/%s", controllers.DefaultAnnotationPrefix, model.TLSCustomCASecret):           "custom-ca",
+		fmt.Sprintf("%s/%s", controllers.DefaultAnnotationPrefix, model.TLSClientSecret):             "client",
+		fmt.Sprintf("%s/%s", controllers.DefaultAnnotationPrefix, model.TLSDownstreamClientCASecret): "downstream-ca",
+	}
+	svcName := types.NamespacedName{Name: "service", Namespace: "default"}
+	secretName := types.NamespacedName{Name: "secret", Namespace: "default"}
+
+	for _, obj := range []client.Object{ingress, service, secret, ingressClass} {
+		s.NoError(s.Client.Create(ctx, obj))
+	}
+	s.NeverEqual(func(ic *model.IngressConfig) string {
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
+	})
+
+	for _, obj := range []*corev1.Secret{{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "client",
+			Namespace: "default",
+		},
+		StringData: map[string]string{
+			corev1.TLSPrivateKeyKey: "k1",
+			corev1.TLSCertKey:       "c1",
+		},
+		Type: corev1.SecretTypeTLS,
+	}, {
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "custom-ca",
+			Namespace: "default",
+		},
+		StringData: map[string]string{
+			corev1.TLSCertKey: "c2",
+		},
+	}, {
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "downstream-ca",
+			Namespace: "default",
+		},
+		StringData: map[string]string{
+			corev1.TLSCertKey: "c3",
+		},
+	}} {
+		s.NoError(s.Client.Create(ctx, obj))
+	}
+	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
+		return cmp.Diff(service, ic.Services[svcName], cmpOpts) +
+			cmp.Diff(secret, ic.Secrets[secretName], cmpOpts) +
+			cmp.Diff(ingress, ic.Ingress, cmpOpts)
+	}, "secret, service, ingress up to date")
+}
+
 // TestNamespaces checks that controller would only
 func (s *ControllerTestSuite) TestNamespaces() {
 	namespaces := map[string]bool{"a": true, "b": false, "c": true, "d": false}
@@ -403,8 +457,7 @@ func (s *ControllerTestSuite) TestNamespaces() {
 			&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}},
 			ingress, service, secret,
 		} {
-			s.T().Logf("%s/%s %s", obj.GetNamespace(), obj.GetName(), reflect.TypeOf(obj))
-			s.NoError(s.Client.Create(ctx, obj))
+			s.NoError(s.Client.Create(ctx, obj), "%s/%s %s", obj.GetNamespace(), obj.GetName(), reflect.TypeOf(obj))
 			defer del(obj)
 		}
 

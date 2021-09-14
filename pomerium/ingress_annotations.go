@@ -197,9 +197,6 @@ func applyTlsAnnotations(
 		if secret == nil {
 			return fmt.Errorf("annotation %s references secret=%s, but the secret wasn't fetched. this is a bug", k, name)
 		}
-		if secret.Type != corev1.SecretTypeTLS {
-			return fmt.Errorf("secret=%s, expected type %s, got %s", name, corev1.SecretTypeTLS, secret.Type)
-		}
 		cert := base64.StdEncoding.EncodeToString(secret.Data[corev1.TLSCertKey])
 		switch k {
 		case model.TLSCustomCASecret:

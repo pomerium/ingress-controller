@@ -63,7 +63,6 @@ func TestAnnotations(t *testing.T) {
 		},
 		Secrets: map[types.NamespacedName]*corev1.Secret{
 			{Name: "my_custom_ca_secret", Namespace: "test"}: {
-				Type: corev1.SecretTypeTLS,
 				Data: map[string][]byte{
 					corev1.TLSCertKey: []byte("my_custom_ca_secret+cert"),
 				},
@@ -76,7 +75,6 @@ func TestAnnotations(t *testing.T) {
 				},
 			},
 			{Name: "my_downstream_client_ca_secret", Namespace: "test"}: {
-				Type: corev1.SecretTypeTLS,
 				Data: map[string][]byte{
 					corev1.TLSCertKey: []byte("my_downstream_client_ca_secret+cert"),
 				},
