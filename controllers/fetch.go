@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -27,9 +26,10 @@ func (r *ingressController) fetchIngress(
 		return nil, fmt.Errorf("services: %w", err)
 	}
 	return &model.IngressConfig{
-		Ingress:  ingress,
-		Secrets:  secrets,
-		Services: svc,
+		AnnotationPrefix: r.annotationPrefix,
+		Ingress:          ingress,
+		Secrets:          secrets,
+		Services:         svc,
 	}, nil
 }
 
@@ -66,13 +66,8 @@ func (r *ingressController) fetchIngressSecrets(ctx context.Context, ingress *ne
 	error,
 ) {
 	secrets := make(map[types.NamespacedName]*corev1.Secret)
-	for _, tls := range ingress.Spec.TLS {
-		if tls.SecretName == "" {
-			return nil, errors.New("tls.secretName is mandatory")
-		}
+	for _, name := range r.allIngressSecrets(ingress) {
 		secret := new(corev1.Secret)
-		name := types.NamespacedName{Namespace: ingress.Namespace, Name: tls.SecretName}
-
 		if err := r.Client.Get(ctx, name, secret); err != nil {
 			if apierrors.IsNotFound(err) {
 				r.Registry.Add(r.objectKey(ingress), model.Key{Kind: r.secretKind, NamespacedName: name})
@@ -82,4 +77,22 @@ func (r *ingressController) fetchIngressSecrets(ctx context.Context, ingress *ne
 		secrets[name] = secret
 	}
 	return secrets, nil
+}
+
+func (r *ingressController) allIngressSecrets(ingress *networkingv1.Ingress) []types.NamespacedName {
+	var names []types.NamespacedName
+	for _, tls := range ingress.Spec.TLS {
+		names = append(names, types.NamespacedName{Name: tls.SecretName, Namespace: ingress.Namespace})
+	}
+	for _, k := range []string{
+		model.TLSClientSecret,
+		model.TLSCustomCASecret,
+		model.TLSDownstreamClientCASecret,
+	} {
+		key := fmt.Sprintf("%s/%s", r.annotationPrefix, k)
+		if secret := ingress.Annotations[key]; secret != "" {
+			names = append(names, types.NamespacedName{Name: secret, Namespace: ingress.Namespace})
+		}
+	}
+	return names
 }

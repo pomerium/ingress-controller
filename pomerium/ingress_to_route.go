@@ -19,9 +19,7 @@ import (
 )
 
 const (
-	// IngressAnnotationPrefix is default prefix for Pomerium ingress controller annotations
-	IngressAnnotationPrefix = "ingress.pomerium.io"
-	httpSolverLabel         = "acme.cert-manager.io/http01-solver"
+	httpSolverLabel = "acme.cert-manager.io/http01-solver"
 )
 
 // ingressToRoutes converts Ingress object into Pomerium Route
@@ -32,7 +30,7 @@ func ingressToRoutes(ctx context.Context, ic *model.IngressConfig) (routeList, e
 		log.FromContext(ctx).Info("Ingress is HTTP-01 challenge solver, enabling public unauthenticated access")
 		tmpl.AllowPublicUnauthenticatedAccess = true
 		tmpl.PreserveHostHeader = true
-	} else if err := applyAnnotations(tmpl, ic.Ingress.Annotations, IngressAnnotationPrefix); err != nil {
+	} else if err := applyAnnotations(tmpl, ic); err != nil {
 		return nil, fmt.Errorf("annotations: %w", err)
 	}
 
@@ -145,8 +143,12 @@ func getServiceURL(namespace string, p networkingv1.HTTPIngressPath, ic *model.I
 		}
 	}
 
+	scheme := "http"
+	if ic.IsSecureUpstream() {
+		scheme = "https"
+	}
 	return &url.URL{
-		Scheme: "http",
+		Scheme: scheme,
 		Host:   fmt.Sprintf("%s.%s.svc.cluster.local:%d", svc.Name, namespace, port),
 	}, nil
 }

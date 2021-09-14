@@ -1,6 +1,7 @@
 package pomerium
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -9,7 +10,10 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/pomerium/ingress-controller/model"
 	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/policy"
 )
@@ -28,6 +32,8 @@ var (
 		"rewrite_response_headers",
 		"preserve_host_header",
 		"pass_identity_headers",
+		"tls_skip_verify",
+		"tls_server_name",
 	})
 	policyAnnotations = boolMap([]string{
 		"allowed_users",
@@ -41,6 +47,14 @@ var (
 		"outlier_detection",
 		"lb_config",
 	})
+	tlsAnnotations = boolMap([]string{
+		model.TLSCustomCASecret,
+		model.TLSClientSecret,
+		model.TLSDownstreamClientCASecret,
+	})
+	handledElsewhere = boolMap([]string{
+		model.SecureUpstream,
+	})
 )
 
 func boolMap(keys []string) map[string]bool {
@@ -52,7 +66,7 @@ func boolMap(keys []string) map[string]bool {
 }
 
 type keys struct {
-	Base, Envoy, Policy map[string]string
+	Base, Envoy, Policy, TLS, Etc map[string]string
 }
 
 func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
@@ -61,19 +75,32 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 		Base:   make(map[string]string),
 		Envoy:  make(map[string]string),
 		Policy: make(map[string]string),
+		TLS:    make(map[string]string),
+		Etc:    make(map[string]string),
 	}
 	for k, v := range src {
 		if !strings.HasPrefix(k, prefix) {
 			continue
 		}
 		k = strings.TrimPrefix(k, prefix)
-		if baseAnnotations[k] {
-			kv.Base[k] = v
-		} else if envoyAnnotations[k] {
-			kv.Envoy[k] = v
-		} else if policyAnnotations[k] {
-			kv.Policy[k] = v
-		} else {
+		known := false
+		for _, m := range []struct {
+			keys map[string]bool
+			dst  map[string]string
+		}{
+			{baseAnnotations, kv.Base},
+			{envoyAnnotations, kv.Envoy},
+			{policyAnnotations, kv.Policy},
+			{tlsAnnotations, kv.TLS},
+			{handledElsewhere, kv.Etc},
+		} {
+			if m.keys[k] {
+				m.dst[k] = v
+				known = true
+				break
+			}
+		}
+		if !known {
 			return nil, fmt.Errorf("unknown %s%s", prefix, k)
 		}
 	}
@@ -100,10 +127,9 @@ func toJSON(src map[string]string) ([]byte, error) {
 // applyAnnotations applies ingress annotations to a route
 func applyAnnotations(
 	r *pomerium.Route,
-	annotations map[string]string,
-	prefix string,
+	ic *model.IngressConfig,
 ) error {
-	kv, err := removeKeyPrefix(annotations, prefix)
+	kv, err := removeKeyPrefix(ic.Ingress.Annotations, ic.AnnotationPrefix)
 	if err != nil {
 		return err
 	}
@@ -113,6 +139,9 @@ func applyAnnotations(
 	}
 	r.EnvoyOpts = new(envoy_config_cluster_v3.Cluster)
 	if err = unmarshallAnnotations(r.EnvoyOpts, kv.Envoy); err != nil {
+		return err
+	}
+	if err = applyTlsAnnotations(r, kv.TLS, ic.Secrets, ic.Ingress.Namespace); err != nil {
 		return err
 	}
 	p := new(pomerium.Policy)
@@ -155,4 +184,31 @@ func unmarshallAnnotations(m protoreflect.ProtoMessage, kvs map[string]string) e
 	return (&protojson.UnmarshalOptions{
 		DiscardUnknown: false,
 	}).Unmarshal(data, m)
+}
+
+func applyTlsAnnotations(
+	r *pomerium.Route,
+	kvs map[string]string,
+	secrets map[types.NamespacedName]*corev1.Secret,
+	namespace string,
+) error {
+	for k, name := range kvs {
+		secret := secrets[types.NamespacedName{Namespace: namespace, Name: name}]
+		if secret == nil {
+			return fmt.Errorf("annotation %s references secret=%s, but the secret wasn't fetched. this is a bug", k, name)
+		}
+		cert := base64.StdEncoding.EncodeToString(secret.Data[corev1.TLSCertKey])
+		switch k {
+		case model.TLSCustomCASecret:
+			r.TlsCustomCa = cert
+		case model.TLSClientSecret:
+			r.TlsClientCert = cert
+			r.TlsClientKey = base64.StdEncoding.EncodeToString(secret.Data[corev1.TLSPrivateKeyKey])
+		case model.TLSDownstreamClientCASecret:
+			r.TlsDownstreamClientCa = cert
+		default:
+			return fmt.Errorf("unknown annotation %s", k)
+		}
+	}
+	return nil
 }
