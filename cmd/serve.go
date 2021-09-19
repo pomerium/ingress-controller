@@ -149,16 +149,13 @@ func (c *leadController) RunLeased(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("get k8s api config: %w", err)
 	}
-	mgr, err := controllers.NewIngressController(cfg, c.Options, c.PomeriumReconciler,
+	mgr, err := controllers.NewIngressController(ctx, cfg, c.Options, c.PomeriumReconciler,
 		controllers.WithNamespaces(c.namespaces),
 		controllers.WithAnnotationPrefix(c.annotationPrefix),
 		controllers.WithControllerName(c.className),
 	)
 	if err != nil {
 		return fmt.Errorf("creating controller: %w", err)
-	}
-	if err = c.PomeriumReconciler.DeleteAll(ctx); err != nil {
-		return fmt.Errorf("clear pomerium config on start: %w", err)
 	}
 	if err = mgr.Start(ctx); err != nil {
 		return fmt.Errorf("running controller: %w", err)

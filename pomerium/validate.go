@@ -15,8 +15,8 @@ import (
 	"github.com/pomerium/ingress-controller/pomerium/envoy"
 )
 
-// Validate validates pomerium config.
-func Validate(ctx context.Context, cfg *pb.Config, id string) error {
+// validate validates pomerium config.
+func validate(ctx context.Context, cfg *pb.Config, id string) error {
 	options := config.NewDefaultOptions()
 	options.ApplySettings(ctx, cfg.GetSettings())
 	options.InsecureServer = true

@@ -16,6 +16,11 @@ func upsertCerts(cfg *pb.Config, ic *model.IngressConfig) error {
 		return err
 	}
 
+	addCerts(cfg, certs)
+	return nil
+}
+
+func addCerts(cfg *pb.Config, certs []*model.TLSCert) {
 	if cfg.Settings == nil {
 		cfg.Settings = new(pb.Settings)
 	}
@@ -26,8 +31,6 @@ func upsertCerts(cfg *pb.Config, ic *model.IngressConfig) error {
 			KeyBytes:  cert.Key,
 		})
 	}
-
-	return removeUnusedCerts(cfg)
 }
 
 func removeUnusedCerts(cfg *pb.Config) error {

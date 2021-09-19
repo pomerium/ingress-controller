@@ -2,6 +2,7 @@ package controllers_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"sync"
@@ -79,8 +80,11 @@ func (m *mockPomeriumReconciler) Delete(ctx context.Context, name types.Namespac
 	return nil
 }
 
-func (m *mockPomeriumReconciler) DeleteAll(ctx context.Context) error {
-	panic("not implemented")
+func (m *mockPomeriumReconciler) Set(ctx context.Context, ics []*model.IngressConfig) error {
+	if len(ics) != 0 {
+		return errors.New("unexpected ingresses")
+	}
+	return nil
 }
 
 func (s *ControllerTestSuite) EventuallyDeleted(name types.NamespacedName) {
@@ -202,7 +206,7 @@ func (s *ControllerTestSuite) TearDownSuite() {
 
 func (s *ControllerTestSuite) createTestController(ctx context.Context, namespaces []string) {
 	s.mockPomeriumReconciler = &mockPomeriumReconciler{}
-	mgr, err := controllers.NewIngressController(s.Environment.Config,
+	mgr, err := controllers.NewIngressController(ctx, s.Environment.Config,
 		ctrl.Options{
 			Scheme: s.Environment.Scheme,
 		},
