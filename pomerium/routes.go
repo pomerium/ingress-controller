@@ -12,25 +12,44 @@ import (
 	"github.com/pomerium/ingress-controller/model"
 )
 
+func upsertAndValidate(ctx context.Context, cfg *pb.Config, ic *model.IngressConfig) error {
+	if err := upsert(ctx, cfg, ic); err != nil {
+		return fmt.Errorf("upsert: %w", err)
+	}
+
+	return validate(ctx, cfg, string(ic.Ingress.UID))
+}
+
+func upsert(ctx context.Context, cfg *pb.Config, ic *model.IngressConfig) error {
+	if err := upsertRoutes(ctx, cfg, ic); err != nil {
+		return fmt.Errorf("deleting pomerium config records: %w", err)
+	}
+	return upsertCerts(cfg, ic)
+}
+
+func mergeRoutes(dst *pb.Config, src routeList, name types.NamespacedName) error {
+	srcMap, err := src.toMap()
+	if err != nil {
+		return fmt.Errorf("indexing new routes: %w", err)
+	}
+	dstMap, err := routeList(dst.Routes).toMap()
+	if err != nil {
+		return fmt.Errorf("indexing current config routes: %w", err)
+	}
+	// remove any existing routes of the ingress we are merging
+	dstMap.removeName(name)
+	dstMap.merge(srcMap)
+	dst.Routes = dstMap.toList()
+	return nil
+}
+
 func upsertRoutes(ctx context.Context, cfg *pb.Config, ic *model.IngressConfig) error {
 	ingRoutes, err := ingressToRoutes(ctx, ic)
 	if err != nil {
 		return fmt.Errorf("parsing ingress: %w", err)
 	}
 	ingRoutes = append(ingRoutes, debugRoute())
-
-	ingRouteMap, err := ingRoutes.toMap()
-	if err != nil {
-		return fmt.Errorf("indexing new routes: %w", err)
-	}
-	routeMap, err := routeList(cfg.Routes).toMap()
-	if err != nil {
-		return fmt.Errorf("indexing current config routes: %w", err)
-	}
-	routeMap.removeName(types.NamespacedName{Name: ic.Ingress.Name, Namespace: ic.Ingress.Namespace})
-	routeMap.merge(ingRouteMap)
-	cfg.Routes = routeMap.toList()
-	return nil
+	return mergeRoutes(cfg, ingRoutes, types.NamespacedName{Name: ic.Ingress.Name, Namespace: ic.Ingress.Namespace})
 }
 
 func deleteRoutes(ctx context.Context, cfg *pb.Config, namespacedName types.NamespacedName) error {
@@ -45,10 +64,10 @@ func deleteRoutes(ctx context.Context, cfg *pb.Config, namespacedName types.Name
 
 func debugRoute() *pb.Route {
 	r := &pb.Route{
-		From:                      "https://envoy.localhost.pomerium.io",
-		To:                        []string{"http://localhost:9901/"},
-		Prefix:                    "/",
-		AllowAnyAuthenticatedUser: true,
+		From:                             "https://envoy.localhost.pomerium.io",
+		To:                               []string{"http://localhost:9901/"},
+		Prefix:                           "/",
+		AllowPublicUnauthenticatedAccess: true,
 	}
 	_ = setRouteNameID(r, types.NamespacedName{Name: "admin", Namespace: "internal-envoy"}, url.URL{Host: "envoy.localhost.pomerium.io", Path: "/"})
 	return r

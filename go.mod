@@ -4,8 +4,11 @@ go 1.17
 
 require (
 	github.com/client9/misspell v0.3.4
+	github.com/envoyproxy/go-control-plane v0.9.9-0.20210512163311-63b5d3c536b0
 	github.com/go-logr/zapr v0.4.0
+	github.com/golangci/golangci-lint v1.42.0
 	github.com/google/go-cmp v0.5.6
+	github.com/google/uuid v1.3.0
 	github.com/gosimple/slug v1.10.0
 	github.com/pomerium/pomerium v0.15.1-0.20210810012516-e38682d02460
 	github.com/spf13/cobra v1.2.1
@@ -18,9 +21,6 @@ require (
 	k8s.io/apimachinery v0.22.1
 	k8s.io/client-go v0.22.1
 	sigs.k8s.io/controller-runtime v0.9.2
-	github.com/envoyproxy/go-control-plane v0.9.9-0.20210512163311-63b5d3c536b0
-	github.com/golangci/golangci-lint v1.42.0
-	github.com/google/uuid v1.3.0
 )
 
 require (
@@ -183,7 +183,6 @@ require (
 	github.com/ryanrolds/sqlclosecheck v0.3.0 // indirect
 	github.com/sanposhiho/wastedassign/v2 v2.0.6 // indirect
 	github.com/securego/gosec/v2 v2.8.1 // indirect
-	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/shazow/go-diff v0.0.0-20160112020656-b6b7b6733b8c // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/sonatard/noctx v0.0.1 // indirect

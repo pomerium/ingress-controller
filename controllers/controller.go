@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -26,6 +27,8 @@ import (
 const (
 	// IngressClassDefaultAnnotationKey see https://kubernetes.io/docs/concepts/services-networking/ingress/#default-ingress-class
 	IngressClassDefaultAnnotationKey = "ingressclass.kubernetes.io/is-default-class"
+
+	initialReconciliationTimeout = time.Minute * 5
 )
 
 // ingressController watches ingress and related resources for updates and reconciles with pomerium
@@ -56,6 +59,8 @@ type ingressController struct {
 	ingressClassKind string
 	secretKind       string
 	serviceKind      string
+
+	initComplete *once
 }
 
 type option func(ic *ingressController)
@@ -83,15 +88,46 @@ func WithNamespaces(ns []string) option {
 type PomeriumReconciler interface {
 	// Upsert should update or create the pomerium routes corresponding to this ingress
 	Upsert(ctx context.Context, ic *model.IngressConfig) (changes bool, err error)
+	// Set configuration to match provided ingresses
+	Set(ctx context.Context, ics []*model.IngressConfig) error
 	// Delete should delete pomerium routes corresponding to this ingress name
 	Delete(ctx context.Context, namespacedName types.NamespacedName) error
-	// DeleteAll wipes the configuration entirely
-	DeleteAll(ctx context.Context) error
+}
+
+// reconcileInitial walks over all ingresses and updates configuration at once
+// this is currently done for performance reasons
+func (r *ingressController) reconcileInitial(ctx context.Context) error {
+	ingressList := new(networkingv1.IngressList)
+	if err := r.Client.List(ctx, ingressList); err != nil {
+		return fmt.Errorf("list ingresses: %w", err)
+	}
+
+	var ics []*model.IngressConfig
+	for _, ingress := range ingressList.Items {
+		managing, err := r.isManaging(ctx, &ingress)
+		if err != nil {
+			return fmt.Errorf("get ingressClass info: %w", err)
+		}
+		if !managing {
+			continue
+		}
+		ic, err := r.fetchIngress(ctx, &ingress)
+		if err != nil {
+			return fmt.Errorf("fetch ingress %s/%s: %w", ingress.Namespace, ingress.Name, err)
+		}
+		ics = append(ics, ic)
+	}
+
+	return r.PomeriumReconciler.Set(ctx, ics)
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	if err := r.initComplete.yield(ctx); err != nil {
+		return ctrl.Result{Requeue: true}, fmt.Errorf("initial reconcilation: %w", err)
+	}
+
 	logger := log.FromContext(ctx)
 	logger.Info("Reconcile")
 
@@ -269,6 +305,11 @@ func (r *ingressController) watchIngressClass(string) func(a client.Object) []re
 	logger := log.FromContext(context.Background())
 
 	return func(a client.Object) []reconcile.Request {
+		ctx, cancel := context.WithTimeout(context.Background(), initialReconciliationTimeout)
+		defer cancel()
+
+		_ = r.initComplete.yield(ctx)
+
 		ic, ok := a.(*networkingv1.IngressClass)
 		if !ok {
 			logger.Error(fmt.Errorf("got %s", reflect.TypeOf(a)), "expected IngressClass")
@@ -278,7 +319,7 @@ func (r *ingressController) watchIngressClass(string) func(a client.Object) []re
 			return nil
 		}
 		il := new(networkingv1.IngressList)
-		err := r.Client.List(context.Background(), il)
+		err := r.Client.List(ctx, il)
 		if err != nil {
 			logger.Error(err, "list")
 			return nil

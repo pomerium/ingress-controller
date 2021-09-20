@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -39,14 +40,31 @@ func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) 
 	if err != nil {
 		return false, fmt.Errorf("get config: %w", err)
 	}
-	if err := upsertRoutes(ctx, cfg, ic); err != nil {
-		return false, fmt.Errorf("deleting pomerium config records: %w", err)
-	}
-	if err := upsertCerts(cfg, ic); err != nil {
-		return false, fmt.Errorf("updating certs: %w", err)
+
+	if err = upsert(ctx, cfg, ic); err != nil {
+		return false, err
 	}
 
 	return r.saveConfig(ctx, cfg, prevBytes, string(ic.Ingress.UID))
+}
+
+func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig) error {
+	logger := log.FromContext(ctx)
+	cfg := new(pb.Config)
+
+	for _, ic := range ics {
+		newCfg := proto.Clone(cfg).(*pb.Config)
+		if err := upsertAndValidate(ctx, newCfg, ic); err != nil {
+			logger.Error(err, "skip ingress %s/%s", ic.Namespace, ic.Name)
+			continue
+		}
+		cfg = newCfg
+	}
+
+	if _, err := r.saveConfig(ctx, cfg, nil, "config"); err != nil {
+		return fmt.Errorf("saving config: %w", err)
+	}
+	return nil
 }
 
 // Delete should delete pomerium routes corresponding to this ingress name
@@ -109,15 +127,19 @@ func (r *ConfigReconciler) getConfig(ctx context.Context) (*pb.Config, []byte, e
 }
 
 func (r *ConfigReconciler) saveConfig(ctx context.Context, cfg *pb.Config, prevBytes []byte, id string) (bool, error) {
-	logger := log.FromContext(ctx)
+	if err := removeUnusedCerts(cfg); err != nil {
+		return false, fmt.Errorf("removing unused certs: %w", err)
+	}
+
 	any := protoutil.NewAny(cfg)
+	logger := log.FromContext(ctx)
 
 	if bytes.Equal(prevBytes, any.GetValue()) {
 		logger.V(1).Info("no changes in pomerium config")
 		return false, nil
 	}
 
-	if err := Validate(ctx, cfg, id); err != nil {
+	if err := validate(ctx, cfg, id); err != nil {
 		return false, fmt.Errorf("config validation: %w", err)
 	}
 

@@ -2,6 +2,7 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/pomerium/ingress-controller/model"
@@ -15,12 +16,13 @@ const (
 )
 
 // NewIngressController creates new controller runtime
-func NewIngressController(cfg *rest.Config, crOpts ctrl.Options, pcr PomeriumReconciler, opts ...option) (ctrl.Manager, error) {
+func NewIngressController(ctx context.Context, cfg *rest.Config, crOpts ctrl.Options, pcr PomeriumReconciler, opts ...option) (ctrl.Manager, error) {
 	mgr, err := ctrl.NewManager(cfg, crOpts)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start manager: %w", err)
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
 	registry := model.NewRegistry()
 	ic := &ingressController{
 		annotationPrefix:   DefaultAnnotationPrefix,
@@ -30,6 +32,7 @@ func NewIngressController(cfg *rest.Config, crOpts ctrl.Options, pcr PomeriumRec
 		Registry:           registry,
 		EventRecorder:      mgr.GetEventRecorderFor("Ingress"),
 	}
+	ic.initComplete = newOnce(ic.reconcileInitial, cancel)
 	for _, opt := range opts {
 		opt(ic)
 	}
