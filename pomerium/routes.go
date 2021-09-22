@@ -12,19 +12,16 @@ import (
 	"github.com/pomerium/ingress-controller/model"
 )
 
-func upsertAndValidate(ctx context.Context, cfg *pb.Config, ic *model.IngressConfig) error {
-	if err := upsert(ctx, cfg, ic); err != nil {
-		return fmt.Errorf("upsert: %w", err)
-	}
-
-	return validate(ctx, cfg, string(ic.Ingress.UID))
-}
-
 func upsert(ctx context.Context, cfg *pb.Config, ic *model.IngressConfig) error {
 	if err := upsertRoutes(ctx, cfg, ic); err != nil {
 		return fmt.Errorf("deleting pomerium config records: %w", err)
 	}
-	return upsertCerts(cfg, ic)
+
+	if err := upsertCerts(cfg, ic); err != nil {
+		return fmt.Errorf("updating certs: %w", err)
+	}
+
+	return nil
 }
 
 func mergeRoutes(dst *pb.Config, src routeList, name types.NamespacedName) error {

@@ -1,9 +1,11 @@
 package pomerium
 
 import (
+	"bytes"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"sort"
 	"strings"
 
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -61,10 +63,11 @@ func (dm domainMap) getCertsInUse() []*pb.Settings_Certificate {
 			certMap[ref.data] = struct{}{}
 		}
 	}
-	certs := make([]*pb.Settings_Certificate, 0, len(certMap))
+	certs := make(byCert, 0, len(certMap))
 	for crt := range certMap {
 		certs = append(certs, crt)
 	}
+	sort.Sort(certs)
 	return certs
 }
 
@@ -100,3 +103,9 @@ func (dm domainMap) markInUse(dnsName string) {
 		ref.inUse = true
 	}
 }
+
+type byCert []*pb.Settings_Certificate
+
+func (a byCert) Len() int           { return len(a) }
+func (a byCert) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byCert) Less(i, j int) bool { return bytes.Compare(a[i].CertBytes, a[j].CertBytes) < 0 }

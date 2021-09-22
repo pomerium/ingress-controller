@@ -80,6 +80,7 @@ func (s *serveCmd) setupFlags() {
 	flags.StringVar(&s.sharedSecret, "shared-secret", "",
 		"base64-encoded shared secret for signing JWTs")
 	flags.BoolVar(&s.debug, "debug", true, "enable debug logging")
+	flags.MarkHidden("debug")
 }
 
 func (s *serveCmd) exec(*cobra.Command, []string) error {
@@ -164,7 +165,7 @@ func (c *leadController) RunLeased(ctx context.Context) error {
 
 func (s *serveCmd) runController(ctx context.Context, client databroker.DataBrokerServiceClient, opts ctrl.Options) error {
 	c := &leadController{
-		PomeriumReconciler:      &pomerium.ConfigReconciler{DataBrokerServiceClient: client},
+		PomeriumReconciler:      &pomerium.ConfigReconciler{DataBrokerServiceClient: client, DebugDumpConfigDiff: s.debug},
 		DataBrokerServiceClient: client,
 		Options:                 opts,
 		namespaces:              s.namespaces,
