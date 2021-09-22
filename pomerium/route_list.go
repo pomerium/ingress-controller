@@ -42,7 +42,8 @@ func (routes routeList) Less(i, j int) bool {
 		}
 		return r.Prefix
 	}
-	return routePath(routes[i]) < routePath(routes[j])
+	return fmt.Sprintf("%s/%s", routes[i].From, routePath(routes[i])) <
+		fmt.Sprintf("%s/%s", routes[j].From, routePath(routes[j]))
 }
 
 func (routes routeList) toMap() (routeMap, error) {

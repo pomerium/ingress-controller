@@ -97,6 +97,10 @@ type PomeriumReconciler interface {
 // reconcileInitial walks over all ingresses and updates configuration at once
 // this is currently done for performance reasons
 func (r *ingressController) reconcileInitial(ctx context.Context) error {
+	logger := log.FromContext(ctx).WithName("initial full reconciliation")
+	log.IntoContext(ctx, logger)
+	logger.Info("starting")
+
 	ingressList := new(networkingv1.IngressList)
 	if err := r.Client.List(ctx, ingressList); err != nil {
 		return fmt.Errorf("list ingresses: %w", err)

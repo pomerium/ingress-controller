@@ -2,9 +2,9 @@
 package pomerium
 
 import (
-	"bytes"
 	"context"
 	"fmt"
+	"sort"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -16,9 +16,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/hashicorp/go-multierror"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/sergi/go-diff/diffmatchpatch"
 
 	"github.com/pomerium/ingress-controller/model"
 )
@@ -32,54 +34,63 @@ const (
 // and its methods are not thread-safe
 type ConfigReconciler struct {
 	databroker.DataBrokerServiceClient
+	DebugDumpConfigDiff bool
 }
 
 // Upsert should update or create the pomerium routes corresponding to this ingress
 func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
-	cfg, prevBytes, err := r.getConfig(ctx)
+	prev, err := r.getConfig(ctx)
 	if err != nil {
 		return false, fmt.Errorf("get config: %w", err)
 	}
 
-	if err = upsert(ctx, cfg, ic); err != nil {
+	next := proto.Clone(prev).(*pb.Config)
+	if err = upsert(ctx, next, ic); err != nil {
 		return false, err
 	}
 
-	return r.saveConfig(ctx, cfg, prevBytes, string(ic.Ingress.UID))
+	return r.saveConfig(ctx, prev, next, string(ic.Ingress.UID))
 }
 
 func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig) error {
 	logger := log.FromContext(ctx)
-	cfg := new(pb.Config)
+
+	prev, err := r.getConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("get config: %w", err)
+	}
+	next := new(pb.Config)
 
 	for _, ic := range ics {
-		newCfg := proto.Clone(cfg).(*pb.Config)
-		if err := upsertAndValidate(ctx, newCfg, ic); err != nil {
+		cfg := proto.Clone(next).(*pb.Config)
+		if err := multierror.Append(
+			upsert(ctx, cfg, ic),
+			validate(ctx, cfg, string(ic.Ingress.UID)),
+		).ErrorOrNil(); err != nil {
 			logger.Error(err, "skip ingress %s/%s", ic.Namespace, ic.Name)
 			continue
 		}
-		cfg = newCfg
+		next = cfg
 	}
 
-	if _, err := r.saveConfig(ctx, cfg, nil, "config"); err != nil {
+	if _, err := r.saveConfig(ctx, prev, next, "config"); err != nil {
 		return fmt.Errorf("saving config: %w", err)
 	}
+
 	return nil
 }
 
 // Delete should delete pomerium routes corresponding to this ingress name
 func (r *ConfigReconciler) Delete(ctx context.Context, namespacedName types.NamespacedName) error {
-	cfg, prevBytes, err := r.getConfig(ctx)
+	prev, err := r.getConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("get pomerium config: %w", err)
 	}
+	cfg := proto.Clone(prev).(*pb.Config)
 	if err := deleteRoutes(ctx, cfg, namespacedName); err != nil {
 		return fmt.Errorf("deleting pomerium config records %s: %w", namespacedName.String(), err)
 	}
-	if err := removeUnusedCerts(cfg); err != nil {
-		return fmt.Errorf("removing unused certs: %w", err)
-	}
-	if _, err := r.saveConfig(ctx, cfg, prevBytes,
+	if _, err := r.saveConfig(ctx, prev, cfg,
 		fmt.Sprintf("%s-%s", namespacedName.Namespace, namespacedName.Name),
 	); err != nil {
 		return fmt.Errorf("updating pomerium config: %w", err)
@@ -103,7 +114,7 @@ func (r *ConfigReconciler) DeleteAll(ctx context.Context) error {
 	return nil
 }
 
-func (r *ConfigReconciler) getConfig(ctx context.Context) (*pb.Config, []byte, error) {
+func (r *ConfigReconciler) getConfig(ctx context.Context) (*pb.Config, error) {
 	cfg := new(pb.Config)
 	any := protoutil.NewAny(cfg)
 	var hdr metadata.MD
@@ -112,37 +123,36 @@ func (r *ConfigReconciler) getConfig(ctx context.Context) (*pb.Config, []byte, e
 		Id:   configID,
 	}, grpc.Header(&hdr))
 	if status.Code(err) == codes.NotFound {
-		return &pb.Config{}, nil, nil
+		return &pb.Config{}, nil
 	} else if err != nil {
-		return nil, nil, fmt.Errorf("get pomerium config: %w", err)
+		return nil, fmt.Errorf("get pomerium config: %w", err)
 	}
 
 	if err := resp.GetRecord().GetData().UnmarshalTo(cfg); err != nil {
-		return nil, nil, fmt.Errorf("unmarshal current config: %w", err)
+		return nil, fmt.Errorf("unmarshal current config: %w", err)
 	}
 
-	fmt.Println("<=", protojson.Format(cfg))
-
-	return cfg, resp.GetRecord().GetData().GetValue(), nil
+	return cfg, nil
 }
 
-func (r *ConfigReconciler) saveConfig(ctx context.Context, cfg *pb.Config, prevBytes []byte, id string) (bool, error) {
-	if err := removeUnusedCerts(cfg); err != nil {
-		return false, fmt.Errorf("removing unused certs: %w", err)
-	}
-
-	any := protoutil.NewAny(cfg)
+func (r *ConfigReconciler) saveConfig(ctx context.Context, prev, next *pb.Config, id string) (bool, error) {
 	logger := log.FromContext(ctx)
 
-	if bytes.Equal(prevBytes, any.GetValue()) {
-		logger.V(1).Info("no changes in pomerium config")
-		return false, nil
+	if err := removeUnusedCerts(next); err != nil {
+		return false, fmt.Errorf("removing unused certs: %w", err)
 	}
+	sort.Sort(routeList(next.Routes))
 
-	if err := validate(ctx, cfg, id); err != nil {
+	if err := validate(ctx, next, id); err != nil {
 		return false, fmt.Errorf("config validation: %w", err)
 	}
 
+	if proto.Equal(prev, next) {
+		logger.Info("no changes detected")
+		return false, nil
+	}
+
+	any := protoutil.NewAny(next)
 	if _, err := r.Put(ctx, &databroker.PutRequest{
 		Record: &databroker.Record{
 			Type: any.GetTypeUrl(),
@@ -154,8 +164,18 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, cfg *pb.Config, prevB
 	}
 
 	logger.Info("new pomerium config applied")
-	// TODO: rm
-	fmt.Println("=>", protojson.Format(cfg))
+
+	if true {
+		debugDumpConfigDiff(prev, next)
+	}
 
 	return true, nil
+}
+
+func debugDumpConfigDiff(prev, next *pb.Config) {
+	dmp := diffmatchpatch.New()
+	txt1 := protojson.Format(prev)
+	txt2 := protojson.Format(next)
+	diffs := dmp.DiffMain(txt1, txt2, true)
+	fmt.Println("CONFIG DIFF", dmp.DiffPrettyText(diffs))
 }
