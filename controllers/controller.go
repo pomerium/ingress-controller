@@ -29,6 +29,10 @@ const (
 	IngressClassDefaultAnnotationKey = "ingressclass.kubernetes.io/is-default-class"
 
 	initialReconciliationTimeout = time.Minute * 5
+
+	reasonPomeriumConfigUpdated     = "Updated"
+	reasonPomeriumConfigUpdateError = "UpdateError"
+	msgPomeriumConfigUpdated        = "updated pomerium configuration"
 )
 
 // ingressController watches ingress and related resources for updates and reconciles with pomerium
@@ -54,6 +58,10 @@ type ingressController struct {
 	// Namespaces to listen to, nil/empty to listen to all
 	namespaces map[string]bool
 
+	// updateStatusFromService defines a pomerium-proxy service name that should be watched for changes in the status field
+	// and all dependent ingresses should be updated accordingly
+	updateStatusFromService *types.NamespacedName
+
 	// object Kinds are frequently used, do not change and are cached
 	ingressKind      string
 	ingressClassKind string
@@ -63,23 +71,31 @@ type ingressController struct {
 	initComplete *once
 }
 
-type option func(ic *ingressController)
+type Option func(ic *ingressController)
 
-func WithControllerName(name string) option {
+func WithControllerName(name string) Option {
 	return func(ic *ingressController) {
 		ic.controllerName = name
 	}
 }
 
-func WithAnnotationPrefix(prefix string) option {
+func WithAnnotationPrefix(prefix string) Option {
 	return func(ic *ingressController) {
 		ic.annotationPrefix = prefix
 	}
 }
 
-func WithNamespaces(ns []string) option {
+func WithNamespaces(ns []string) Option {
 	return func(ic *ingressController) {
 		ic.namespaces = arrayToMap(ns)
+	}
+}
+
+// WithUpdateIngressStatusFromService configures ingress controller to watch a designated service (pomerium proxy)
+// for its load balancer status, and update all managed ingresses accordingly
+func WithUpdateIngressStatusFromService(name types.NamespacedName) Option {
+	return func(ic *ingressController) {
+		ic.updateStatusFromService = &name
 	}
 }
 
@@ -140,7 +156,7 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if !apierrors.IsNotFound(err) {
 			return ctrl.Result{Requeue: true}, fmt.Errorf("get ingress: %w", err)
 		}
-		logger.Info("gone")
+		logger.Info("the ingress was deleted")
 		return r.deleteIngress(ctx, req.NamespacedName)
 	}
 
@@ -176,17 +192,35 @@ func (r *ingressController) deleteIngress(ctx context.Context, name types.Namesp
 func (r *ingressController) upsertIngress(ctx context.Context, ic *model.IngressConfig) (ctrl.Result, error) {
 	changed, err := r.PomeriumReconciler.Upsert(ctx, ic)
 	if err != nil {
-		r.EventRecorder.Event(ic.Ingress, corev1.EventTypeWarning, "UpdatePomeriumConfig", err.Error())
+		r.EventRecorder.Event(ic.Ingress, corev1.EventTypeWarning, reasonPomeriumConfigUpdateError, err.Error())
 		return ctrl.Result{Requeue: true}, fmt.Errorf("upsert: %w", err)
 	}
 
 	r.updateDependencies(ic)
 	if changed {
-		r.EventRecorder.Event(ic.Ingress, corev1.EventTypeNormal, "PomeriumConfigUpdated", "updated pomerium configuration")
+		log.FromContext(ctx).V(1).Info("ingress updated", "deps", r.Deps(r.objectKey(ic.Ingress)), "spec", ic.Ingress.Spec, "changed", changed)
+		r.EventRecorder.Event(ic.Ingress, corev1.EventTypeNormal, reasonPomeriumConfigUpdated, msgPomeriumConfigUpdated)
 	}
-	log.FromContext(ctx).Info("upsertIngress", "deps", r.Deps(r.objectKey(ic.Ingress)), "spec", ic.Ingress.Spec, "changed", changed)
+
+	if err = r.updateIngressStatus(ctx, ic.Ingress); err != nil {
+		return ctrl.Result{Requeue: true}, fmt.Errorf("update ingress status: %w", err)
+	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *ingressController) updateIngressStatus(ctx context.Context, ingress *networkingv1.Ingress) error {
+	if r.updateStatusFromService == nil {
+		return nil
+	}
+
+	svc := new(corev1.Service)
+	if err := r.Client.Get(ctx, *r.updateStatusFromService, svc); err != nil {
+		return fmt.Errorf("get pomerium-proxy service %s: %w", r.updateStatusFromService.String(), err)
+	}
+
+	ingress.Status.LoadBalancer = svc.Status.LoadBalancer
+	return r.Client.Status().Update(ctx, ingress)
 }
 
 // ObjectKey returns a registry key for a given kubernetes object
@@ -213,6 +247,10 @@ func (r *ingressController) updateDependencies(ic *model.IngressConfig) {
 	}
 	for _, s := range ic.Services {
 		r.Add(ingKey, r.objectKey(s))
+	}
+
+	if r.updateStatusFromService != nil {
+		r.Add(ingKey, model.Key{NamespacedName: *r.updateStatusFromService, Kind: r.serviceKind})
 	}
 }
 
@@ -285,15 +323,29 @@ func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 	return nil
 }
 
+func (r *ingressController) isWatching(obj client.Object) bool {
+	if len(r.namespaces) == 0 {
+		return true
+	}
+
+	if (r.updateStatusFromService != nil) &&
+		(*r.updateStatusFromService == types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}) {
+		return true
+	}
+
+	return r.namespaces[obj.GetNamespace()]
+}
+
 // getDependantIngressFn returns for a given object kind (i.e. a secret) a function
 // that would return ingress objects keys that depend from this object
 func (r *ingressController) getDependantIngressFn(kind string) func(a client.Object) []reconcile.Request {
 	logger := log.FromContext(context.Background()).WithValues("kind", kind)
 
 	return func(a client.Object) []reconcile.Request {
-		if len(r.namespaces) > 0 && !r.namespaces[a.GetNamespace()] {
+		if !r.isWatching(a) {
 			return nil
 		}
+
 		name := types.NamespacedName{Name: a.GetName(), Namespace: a.GetNamespace()}
 		deps := r.DepsOfKind(model.Key{Kind: kind, NamespacedName: name}, r.ingressKind)
 		reqs := make([]reconcile.Request, 0, len(deps))

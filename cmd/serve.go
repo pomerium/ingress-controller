@@ -4,14 +4,17 @@ package cmd
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -49,6 +52,8 @@ type serveCmd struct {
 	databrokerServiceURL string
 	sharedSecret         string
 
+	updateStatusFromService string
+
 	debug bool
 
 	cobra.Command
@@ -81,6 +86,7 @@ func (s *serveCmd) setupFlags() {
 		"base64-encoded shared secret for signing JWTs")
 	flags.BoolVar(&s.debug, "debug", true, "enable debug logging")
 	flags.MarkHidden("debug")
+	flags.StringVar(&s.updateStatusFromService, "update-status-from-service", "", "update ingress status from given service status (pomerium-proxy)")
 }
 
 func (s *serveCmd) exec(*cobra.Command, []string) error {
@@ -91,6 +97,11 @@ func (s *serveCmd) exec(*cobra.Command, []string) error {
 		return fmt.Errorf("databroker connection: %w", err)
 	}
 
+	opts, err := s.getOptions()
+	if err != nil {
+		return err
+	}
+
 	return s.runController(ctx,
 		databroker.NewDataBrokerServiceClient(dbc),
 		ctrl.Options{
@@ -99,7 +110,24 @@ func (s *serveCmd) exec(*cobra.Command, []string) error {
 			Port:                   s.webhookPort,
 			HealthProbeBindAddress: s.probeAddr,
 			LeaderElection:         false,
-		})
+		}, opts...)
+}
+
+func (s *serveCmd) getOptions() ([]controllers.Option, error) {
+	opts := []controllers.Option{
+		controllers.WithNamespaces(s.namespaces),
+		controllers.WithAnnotationPrefix(s.annotationPrefix),
+		controllers.WithControllerName(s.className),
+	}
+	if s.updateStatusFromService != "" {
+		parts := strings.Split(s.updateStatusFromService, "/")
+		if len(parts) != 2 {
+			return nil, errors.New("service name must be in namespace/name format")
+		}
+		opts = append(opts,
+			controllers.WithUpdateIngressStatusFromService(types.NamespacedName{Namespace: parts[0], Name: parts[1]}))
+	}
+	return opts, nil
 }
 
 func (s *serveCmd) setupLogger() {
@@ -134,7 +162,8 @@ func (s *serveCmd) getDataBrokerConnection(ctx context.Context) (*grpc.ClientCon
 type leadController struct {
 	controllers.PomeriumReconciler
 	databroker.DataBrokerServiceClient
-	ctrl.Options
+	MgrOpts          ctrl.Options
+	CtrlOpts         []controllers.Option
 	namespaces       []string
 	annotationPrefix string
 	className        string
@@ -149,11 +178,7 @@ func (c *leadController) RunLeased(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("get k8s api config: %w", err)
 	}
-	mgr, err := controllers.NewIngressController(ctx, cfg, c.Options, c.PomeriumReconciler,
-		controllers.WithNamespaces(c.namespaces),
-		controllers.WithAnnotationPrefix(c.annotationPrefix),
-		controllers.WithControllerName(c.className),
-	)
+	mgr, err := controllers.NewIngressController(ctx, cfg, c.MgrOpts, c.PomeriumReconciler, c.CtrlOpts...)
 	if err != nil {
 		return fmt.Errorf("creating controller: %w", err)
 	}
@@ -163,11 +188,12 @@ func (c *leadController) RunLeased(ctx context.Context) error {
 	return nil
 }
 
-func (s *serveCmd) runController(ctx context.Context, client databroker.DataBrokerServiceClient, opts ctrl.Options) error {
+func (s *serveCmd) runController(ctx context.Context, client databroker.DataBrokerServiceClient, opts ctrl.Options, cOpts ...controllers.Option) error {
 	c := &leadController{
 		PomeriumReconciler:      &pomerium.ConfigReconciler{DataBrokerServiceClient: client, DebugDumpConfigDiff: s.debug},
 		DataBrokerServiceClient: client,
-		Options:                 opts,
+		MgrOpts:                 opts,
+		CtrlOpts:                cOpts,
 		namespaces:              s.namespaces,
 		className:               s.className,
 		annotationPrefix:        s.annotationPrefix,
