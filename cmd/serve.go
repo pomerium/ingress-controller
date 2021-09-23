@@ -49,8 +49,13 @@ type serveCmd struct {
 	annotationPrefix string
 	namespaces       []string
 
-	databrokerServiceURL string
-	sharedSecret         string
+	databrokerServiceURL       string
+	tlsCAFile                  string
+	tlsCA                      []byte
+	tlsInsecureSkipVerify      bool
+	tlsOverrideCertificateName string
+
+	sharedSecret string
 
 	updateStatusFromService string
 
@@ -81,6 +86,13 @@ func (s *serveCmd) setupFlags() {
 	flags.StringVar(&s.annotationPrefix, "prefix", controllers.DefaultAnnotationPrefix, "Ingress annotation prefix")
 	flags.StringVar(&s.databrokerServiceURL, "databroker-service-url", "http://localhost:5443",
 		"the databroker service url")
+	flags.StringVar(&s.tlsCAFile, "databroker-tls-ca-file", "", "tls CA file path")
+	flags.BytesBase64Var(&s.tlsCA, "databroker-tls-ca", nil, "base64 encoded tls CA")
+	flags.BoolVar(&s.tlsInsecureSkipVerify, "databroker-tls-insecure-skip-verify", false,
+		"disable remote hosts TLS certificate chain and hostname check for the databroker connection")
+	flags.StringVar(&s.tlsOverrideCertificateName, "databroker-tls-override-certificate-name", "",
+		"override the certificate name used for the databroker connection")
+
 	flags.StringArrayVar(&s.namespaces, "namespaces", nil, "namespaces to watch, or none to watch all namespaces")
 	flags.StringVar(&s.sharedSecret, "shared-secret", "",
 		"base64-encoded shared secret for signing JWTs")
@@ -151,11 +163,14 @@ func (s *serveCmd) getDataBrokerConnection(ctx context.Context) (*grpc.ClientCon
 
 	sharedSecret, _ := base64.StdEncoding.DecodeString(s.sharedSecret)
 	return NewGRPCClientConn(ctx, &Options{
-		Address:        dataBrokerServiceURL,
-		WithInsecure:   dataBrokerServiceURL.Scheme != "https",
-		ServiceName:    "databroker",
-		SignedJWTKey:   sharedSecret,
-		RequestTimeout: defaultGRPCTimeout,
+		Address:                 dataBrokerServiceURL,
+		WithInsecure:            dataBrokerServiceURL.Scheme != "https" || s.tlsInsecureSkipVerify,
+		ServiceName:             "databroker",
+		SignedJWTKey:            sharedSecret,
+		RequestTimeout:          defaultGRPCTimeout,
+		CA:                      base64.StdEncoding.EncodeToString(s.tlsCA),
+		CAFile:                  s.tlsCAFile,
+		OverrideCertificateName: s.tlsOverrideCertificateName,
 	})
 }
 
