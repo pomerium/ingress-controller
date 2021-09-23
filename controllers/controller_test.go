@@ -40,7 +40,10 @@ var (
 
 	allNamespaces []string = nil
 
-	cmpOpts = cmpopts.IgnoreTypes(metav1.TypeMeta{})
+	cmpOpts = []cmp.Option{
+		cmpopts.IgnoreTypes(metav1.TypeMeta{}),
+		cmpopts.IgnoreFields(metav1.ObjectMeta{}, "SelfLink"),
+	}
 )
 
 type ControllerTestSuite struct {
@@ -66,7 +69,7 @@ func (m *mockPomeriumReconciler) Upsert(ctx context.Context, ic *model.IngressCo
 	m.Lock()
 	defer m.Unlock()
 
-	m.lastUpsert = ic
+	m.lastUpsert = ic.Clone()
 	m.lastDelete = nil
 	return true, nil
 }
@@ -204,14 +207,14 @@ func (s *ControllerTestSuite) TearDownSuite() {
 	s.NoError(s.Environment.Stop())
 }
 
-func (s *ControllerTestSuite) createTestController(ctx context.Context, namespaces []string) {
+func (s *ControllerTestSuite) createTestController(ctx context.Context, opts ...controllers.Option) {
 	s.mockPomeriumReconciler = &mockPomeriumReconciler{}
 	mgr, err := controllers.NewIngressController(ctx, s.Environment.Config,
 		ctrl.Options{
 			Scheme: s.Environment.Scheme,
 		},
 		s.mockPomeriumReconciler,
-		controllers.WithNamespaces(namespaces))
+		opts...)
 	s.NoError(err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -296,7 +299,7 @@ func (s *ControllerTestSuite) initialTestObjects(namespace string) (
 
 func (s *ControllerTestSuite) TestIngressClass() {
 	ctx := context.Background()
-	s.createTestController(ctx, allNamespaces)
+	s.createTestController(ctx)
 
 	ingressClass, ingress, service, _ := s.initialTestObjects("default")
 	ingress.Spec.TLS = nil
@@ -305,13 +308,13 @@ func (s *ControllerTestSuite) TestIngressClass() {
 	s.NoError(s.Client.Create(ctx, ingress))
 	s.NoError(s.Client.Create(ctx, service))
 	s.NeverEqual(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
 	})
 
 	// create ingress class spec that is not default
 	s.NoError(s.Client.Create(ctx, ingressClass))
 	s.NeverEqual(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
 	})
 
 	// create ingress class that is not ours
@@ -324,14 +327,14 @@ func (s *ControllerTestSuite) TestIngressClass() {
 	ingress.Spec.IngressClassName = &anotherIngressClass.Name
 	s.NoError(s.Client.Update(ctx, ingress))
 	s.NeverEqual(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
 	})
 
 	// mark ingress with ingress class name that is ours
 	ingress.Spec.IngressClassName = &ingressClass.Name
 	s.NoError(s.Client.Update(ctx, ingress))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
 	}, "set ingressClass to ingress spec")
 
 	// remove ingress class annotation, it should be deleted
@@ -343,7 +346,7 @@ func (s *ControllerTestSuite) TestIngressClass() {
 	ingressClass.Annotations = map[string]string{controllers.IngressClassDefaultAnnotationKey: "true"}
 	s.NoError(s.Client.Update(ctx, ingressClass))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
 	}, "default ingress class")
 
 }
@@ -352,7 +355,7 @@ func (s *ControllerTestSuite) TestIngressClass() {
 // a configuration reconciliation would happen
 func (s *ControllerTestSuite) TestDependencies() {
 	ctx := context.Background()
-	s.createTestController(ctx, allNamespaces)
+	s.createTestController(ctx)
 
 	ingressClass, ingress, service, secret := s.initialTestObjects("default")
 	svcName := types.NamespacedName{Name: "service", Namespace: "default"}
@@ -366,15 +369,15 @@ func (s *ControllerTestSuite) TestDependencies() {
 	})
 	s.NoError(s.Client.Create(ctx, ingressClass))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(service, ic.Services[svcName], cmpOpts) +
-			cmp.Diff(secret, ic.Secrets[secretName], cmpOpts) +
-			cmp.Diff(ingress, ic.Ingress, cmpOpts)
+		return cmp.Diff(service, ic.Services[svcName], cmpOpts...) +
+			cmp.Diff(secret, ic.Secrets[secretName], cmpOpts...) +
+			cmp.Diff(ingress, ic.Ingress, cmpOpts...)
 	}, "secret, service, ingress up to date")
 
 	service.Spec.Ports[0].Port = 8080
 	s.NoError(s.Client.Update(ctx, service))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(service, ic.Services[svcName], cmpOpts)
+		return cmp.Diff(service, ic.Services[svcName], cmpOpts...)
 	}, "updated port")
 
 	// update secret
@@ -384,13 +387,13 @@ func (s *ControllerTestSuite) TestDependencies() {
 	}
 	s.NoError(s.Client.Update(ctx, secret))
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(secret, ic.Secrets[secretName], cmpOpts)
+		return cmp.Diff(secret, ic.Secrets[secretName], cmpOpts...)
 	}, "updated secret")
 }
 
 func (s *ControllerTestSuite) TestAnnotationDependencies() {
 	ctx := context.Background()
-	s.createTestController(ctx, allNamespaces)
+	s.createTestController(ctx)
 
 	ingressClass, ingress, service, secret := s.initialTestObjects("default")
 	ingress.Annotations = map[string]string{
@@ -405,7 +408,7 @@ func (s *ControllerTestSuite) TestAnnotationDependencies() {
 		s.NoError(s.Client.Create(ctx, obj))
 	}
 	s.NeverEqual(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress, cmpOpts)
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
 	})
 
 	for _, obj := range []*corev1.Secret{{
@@ -438,9 +441,9 @@ func (s *ControllerTestSuite) TestAnnotationDependencies() {
 		s.NoError(s.Client.Create(ctx, obj))
 	}
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(service, ic.Services[svcName], cmpOpts) +
-			cmp.Diff(secret, ic.Secrets[secretName], cmpOpts) +
-			cmp.Diff(ingress, ic.Ingress, cmpOpts)
+		return cmp.Diff(service, ic.Services[svcName], cmpOpts...) +
+			cmp.Diff(secret, ic.Secrets[secretName], cmpOpts...) +
+			cmp.Diff(ingress, ic.Ingress, cmpOpts...)
 	}, "secret, service, ingress up to date")
 }
 
@@ -449,7 +452,7 @@ func (s *ControllerTestSuite) TestNamespaces() {
 	namespaces := map[string]bool{"a": true, "b": false, "c": true, "d": false}
 
 	ctx := context.Background()
-	s.createTestController(ctx, []string{"a", "c"})
+	s.createTestController(ctx, controllers.WithNamespaces([]string{"a", "c"}))
 	del := func(obj client.Object) { s.Client.Delete(ctx, obj) }
 
 	ingressClass, _, _, _ := s.initialTestObjects("")
@@ -466,7 +469,7 @@ func (s *ControllerTestSuite) TestNamespaces() {
 		}
 
 		diffFn := func(ic *model.IngressConfig) string {
-			return cmp.Diff(ingress, ic.Ingress, cmpOpts)
+			return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
 		}
 
 		if shouldCreate {
@@ -475,6 +478,59 @@ func (s *ControllerTestSuite) TestNamespaces() {
 			s.NeverEqual(diffFn)
 		}
 	}
+}
+
+func (s *ControllerTestSuite) TestIngressStatus() {
+	ctx := context.Background()
+
+	proxySvcName := types.NamespacedName{Name: "pomerium-proxy", Namespace: "pomerium"}
+	s.createTestController(ctx,
+		controllers.WithNamespaces([]string{"default"}),
+		controllers.WithUpdateIngressStatusFromService(proxySvcName),
+	)
+
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "pomerium"}}
+	proxySvc := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      proxySvcName.Name,
+			Namespace: proxySvcName.Namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{{
+				Name:       "https",
+				Protocol:   "TCP",
+				Port:       443,
+				TargetPort: intstr.FromInt(5443),
+			}},
+		},
+	}
+
+	class, ingress, service, secret := s.initialTestObjects("default")
+	del := func(obj client.Object) { s.Client.Delete(ctx, obj) }
+	for _, obj := range []client.Object{
+		ns, proxySvc,
+		class, service, secret, ingress,
+	} {
+		s.NoError(s.Client.Create(ctx, obj))
+		defer del(obj)
+	}
+
+	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
+	}, "ingress created")
+
+	lbIngress := []corev1.LoadBalancerIngress{{
+		IP: "10.10.10.10",
+	}}
+	proxySvc.Status.LoadBalancer.Ingress = lbIngress
+	s.NoError(s.Client.Status().Update(ctx, proxySvc))
+	s.Equal(lbIngress, proxySvc.Status.LoadBalancer.Ingress)
+	require.Eventually(s.T(), func() bool {
+		s.NoError(s.Client.Get(ctx, types.NamespacedName{Name: ingress.Name, Namespace: ingress.Namespace}, ingress))
+		diff := cmp.Diff(lbIngress, ingress.Status.LoadBalancer.Ingress)
+		return diff == ""
+	}, time.Minute, time.Second)
 }
 
 func TestIngressController(t *testing.T) {

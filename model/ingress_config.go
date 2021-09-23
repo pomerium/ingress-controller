@@ -55,6 +55,25 @@ type TLSCert struct {
 	Cert []byte
 }
 
+func (ic *IngressConfig) Clone() *IngressConfig {
+	dst := &IngressConfig{
+		AnnotationPrefix: ic.AnnotationPrefix,
+		Ingress:          ic.Ingress.DeepCopy(),
+		Secrets:          make(map[types.NamespacedName]*corev1.Secret, len(ic.Secrets)),
+		Services:         make(map[types.NamespacedName]*corev1.Service, len(ic.Services)),
+	}
+
+	for k, v := range ic.Secrets {
+		dst.Secrets[k] = v.DeepCopy()
+	}
+
+	for k, v := range ic.Services {
+		dst.Services[k] = v.DeepCopy()
+	}
+
+	return dst
+}
+
 // ParseTLSCerts decodes K8s TLS secret
 func (ic *IngressConfig) ParseTLSCerts() ([]*TLSCert, error) {
 	certs := make([]*TLSCert, 0, len(ic.Ingress.Spec.TLS))
