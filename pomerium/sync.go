@@ -67,7 +67,7 @@ func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig) 
 			upsert(ctx, cfg, ic),
 			validate(ctx, cfg, string(ic.Ingress.UID)),
 		).ErrorOrNil(); err != nil {
-			logger.Error(err, "skip ingress %s/%s", ic.Namespace, ic.Name)
+			logger.Error(err, "skip ingress", "ingress", fmt.Sprintf("%s/%s", ic.Namespace, ic.Name))
 			continue
 		}
 		next = cfg
@@ -141,6 +141,8 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, prev, next *pb.Config
 	if err := removeUnusedCerts(next); err != nil {
 		return false, fmt.Errorf("removing unused certs: %w", err)
 	}
+	// https://kubernetes.io/docs/concepts/services-networking/ingress/#multiple-matches
+	// envoy matches according to the order routes are present in the configuration
 	sort.Sort(routeList(next.Routes))
 
 	if err := validate(ctx, next, id); err != nil {

@@ -30,7 +30,7 @@ func NewIngressController(ctx context.Context, cfg *rest.Config, crOpts ctrl.Opt
 		PomeriumReconciler: pcr,
 		Client:             mgr.GetClient(),
 		Registry:           registry,
-		EventRecorder:      mgr.GetEventRecorderFor("Ingress"),
+		EventRecorder:      mgr.GetEventRecorderFor("pomerium-ingress"),
 	}
 	ic.initComplete = newOnce(ic.reconcileInitial, cancel)
 	for _, opt := range opts {
