@@ -10,7 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/iancoleman/strcase"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,6 +32,8 @@ import (
 const (
 	defaultGRPCTimeout = time.Minute
 	leaseDuration      = time.Second * 30
+
+	envPrefix = "POMERIUM"
 )
 
 var (
@@ -77,28 +82,59 @@ func ServeCommand() *cobra.Command {
 	return &cmd.Command
 }
 
+const (
+	webhookPort                = "webhook-port"
+	metricsBindAddress         = "metrics-bind-address"
+	healthProbeBindAddress     = "health-probe-bind-address"
+	className                  = "name"
+	annotationPrefix           = "prefix"
+	databrokerServiceURL       = "databroker-service-url"
+	databrokerTLSCAFile        = "databroker-tls-ca-file"
+	databrokerTLSCA            = "databroker-tls-ca"
+	tlsInsecureSkipVerify      = "databroker-tls-insecure-skip-verify"
+	tlsOverrideCertificateName = "databroker-tls-override-certificate-name"
+	namespaces                 = "namespaces"
+	sharedSecret               = "shared-secret"
+	debug                      = "debug"
+	updateStatusFromService    = "update-status-from-service"
+)
+
+func envName(name string) string {
+	return strcase.ToScreamingSnake(fmt.Sprintf("%s_%s", envPrefix, name))
+}
+
 func (s *serveCmd) setupFlags() {
 	flags := s.PersistentFlags()
-	flags.IntVar(&s.webhookPort, "webhook-port", 9443, "webhook port")
-	flags.StringVar(&s.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flags.StringVar(&s.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flags.StringVar(&s.className, "name", controllers.DefaultClassControllerName, "IngressClass controller name")
-	flags.StringVar(&s.annotationPrefix, "prefix", controllers.DefaultAnnotationPrefix, "Ingress annotation prefix")
-	flags.StringVar(&s.databrokerServiceURL, "databroker-service-url", "http://localhost:5443",
+	flags.IntVar(&s.webhookPort, webhookPort, 9443, "webhook port")
+	flags.StringVar(&s.metricsAddr, metricsBindAddress, ":8080", "The address the metric endpoint binds to.")
+	flags.StringVar(&s.probeAddr, healthProbeBindAddress, ":8081", "The address the probe endpoint binds to.")
+	flags.StringVar(&s.className, className, controllers.DefaultClassControllerName, "IngressClass controller name")
+	flags.StringVar(&s.annotationPrefix, annotationPrefix, controllers.DefaultAnnotationPrefix, "Ingress annotation prefix")
+	flags.StringVar(&s.databrokerServiceURL, s.databrokerServiceURL, "http://localhost:5443",
 		"the databroker service url")
-	flags.StringVar(&s.tlsCAFile, "databroker-tls-ca-file", "", "tls CA file path")
-	flags.BytesBase64Var(&s.tlsCA, "databroker-tls-ca", nil, "base64 encoded tls CA")
-	flags.BoolVar(&s.tlsInsecureSkipVerify, "databroker-tls-insecure-skip-verify", false,
+	flags.StringVar(&s.tlsCAFile, databrokerTLSCAFile, "", "tls CA file path")
+	flags.BytesBase64Var(&s.tlsCA, databrokerTLSCA, nil, "base64 encoded tls CA")
+	flags.BoolVar(&s.tlsInsecureSkipVerify, tlsInsecureSkipVerify, false,
 		"disable remote hosts TLS certificate chain and hostname check for the databroker connection")
-	flags.StringVar(&s.tlsOverrideCertificateName, "databroker-tls-override-certificate-name", "",
+	flags.StringVar(&s.tlsOverrideCertificateName, tlsOverrideCertificateName, "",
 		"override the certificate name used for the databroker connection")
 
-	flags.StringArrayVar(&s.namespaces, "namespaces", nil, "namespaces to watch, or none to watch all namespaces")
-	flags.StringVar(&s.sharedSecret, "shared-secret", "",
+	flags.StringSliceVar(&s.namespaces, namespaces, nil, "namespaces to watch, or none to watch all namespaces")
+	flags.StringVar(&s.sharedSecret, sharedSecret, "",
 		"base64-encoded shared secret for signing JWTs")
-	flags.BoolVar(&s.debug, "debug", true, "enable debug logging")
+	flags.BoolVar(&s.debug, debug, true, "enable debug logging")
 	flags.MarkHidden("debug")
-	flags.StringVar(&s.updateStatusFromService, "update-status-from-service", "", "update ingress status from given service status (pomerium-proxy)")
+	flags.StringVar(&s.updateStatusFromService, updateStatusFromService, "", "update ingress status from given service status (pomerium-proxy)")
+
+	v := viper.New()
+	flags.VisitAll(func(f *pflag.Flag) {
+		v.BindEnv(f.Name, envName(f.Name))
+
+		if !f.Changed && v.IsSet(f.Name) {
+			val := v.Get(f.Name)
+			flags.Set(f.Name, fmt.Sprintf("%v", val))
+		}
+	})
 }
 
 func (s *serveCmd) exec(*cobra.Command, []string) error {
