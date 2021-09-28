@@ -3,8 +3,10 @@ package pomerium
 import (
 	"context"
 	"fmt"
+	"sort"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -245,4 +247,28 @@ func TestSecureUpstream(t *testing.T) {
 	require.Equal(t, []string{
 		"https://service.default.svc.cluster.local:443",
 	}, route.To)
+}
+
+// TestRouteSortOrder ensures we're following
+// https://kubernetes.io/docs/concepts/services-networking/ingress/#multiple-matches
+// 1. precedence will be given first to the longest matching path.
+// 2. If two paths are still equally matched, precedence will be given to paths with an exact path type over prefix path type.
+func TestRouteSortOrder(t *testing.T) {
+	routes := routeList{{
+		From:   "https://site",
+		Prefix: "/",
+		Id:     "c",
+	}, {
+		From: "https://site",
+		Path: "/.well-known/something",
+		Id:   "a",
+	}, {
+		From: "https://site",
+		Path: "/.well-known/else",
+		Id:   "b",
+	}}
+	assert.True(t, routes.Less(1, 0))
+	sort.Sort(routes)
+	assert.Equal(t, "a", routes[0].Id)
+	assert.Equal(t, "b", routes[1].Id)
 }

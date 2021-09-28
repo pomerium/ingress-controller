@@ -69,10 +69,6 @@ func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, name types.Names
 		routes = append(routes, r)
 	}
 
-	// https://kubernetes.io/docs/concepts/services-networking/ingress/#multiple-matches
-	// envoy matches according to the order routes are present in the configuration
-	routes.Sort()
-
 	return routes, nil
 }
 
@@ -85,15 +81,11 @@ func pathToRoute(r *pb.Route, name types.NamespacedName, host string, p networki
 
 	switch *p.PathType {
 	case networkingv1.PathTypeImplementationSpecific:
-		return fmt.Errorf("pathType %s unsupported, please explicitly choose between %s or %s",
-			networkingv1.PathTypeImplementationSpecific,
-			networkingv1.PathTypePrefix,
-			networkingv1.PathTypeExact,
-		)
-	case networkingv1.PathTypePrefix:
-		r.Prefix = p.Path
+		r.Path = p.Path
 	case networkingv1.PathTypeExact:
 		r.Path = p.Path
+	case networkingv1.PathTypePrefix:
+		r.Prefix = p.Path
 	default:
 		// shouldn't get there as apiserver should not allow this
 		return fmt.Errorf("unknown pathType %s", *p.PathType)
