@@ -110,7 +110,7 @@ func (s *serveCmd) setupFlags() {
 	flags.StringVar(&s.probeAddr, healthProbeBindAddress, ":8081", "The address the probe endpoint binds to.")
 	flags.StringVar(&s.className, className, controllers.DefaultClassControllerName, "IngressClass controller name")
 	flags.StringVar(&s.annotationPrefix, annotationPrefix, controllers.DefaultAnnotationPrefix, "Ingress annotation prefix")
-	flags.StringVar(&s.databrokerServiceURL, s.databrokerServiceURL, "http://localhost:5443",
+	flags.StringVar(&s.databrokerServiceURL, databrokerServiceURL, "http://localhost:5443",
 		"the databroker service url")
 	flags.StringVar(&s.tlsCAFile, databrokerTLSCAFile, "", "tls CA file path")
 	flags.BytesBase64Var(&s.tlsCA, databrokerTLSCA, nil, "base64 encoded tls CA")
