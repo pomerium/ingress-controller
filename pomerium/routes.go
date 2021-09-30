@@ -45,7 +45,6 @@ func upsertRoutes(ctx context.Context, cfg *pb.Config, ic *model.IngressConfig) 
 	if err != nil {
 		return fmt.Errorf("parsing ingress: %w", err)
 	}
-	ingRoutes = append(ingRoutes, debugRoute())
 	return mergeRoutes(cfg, ingRoutes, types.NamespacedName{Name: ic.Ingress.Name, Namespace: ic.Ingress.Namespace})
 }
 

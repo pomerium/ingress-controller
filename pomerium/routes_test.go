@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -342,6 +343,83 @@ func TestExternalService(t *testing.T) {
 			require.Equal(t, []string{tc.expectURL}, route.To)
 		})
 	}
+}
+
+func TestDefaultBackendService(t *testing.T) {
+	typePrefix := networkingv1.PathTypePrefix
+	typeExact := networkingv1.PathTypeExact
+	icTemplate := func() *model.IngressConfig {
+		return &model.IngressConfig{
+			AnnotationPrefix: "p",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{Name: "ingress", Namespace: "default"},
+				Spec: networkingv1.IngressSpec{
+					TLS: []networkingv1.IngressTLS{{
+						Hosts:      []string{"service.localhost.pomerium.io"},
+						SecretName: "secret",
+					}},
+					DefaultBackend: &networkingv1.IngressBackend{
+						Service: &networkingv1.IngressServiceBackend{
+							Name: "service",
+							Port: networkingv1.ServiceBackendPort{
+								Name: "app",
+							},
+						},
+					},
+				},
+			},
+			Services: map[types.NamespacedName]*corev1.Service{
+				{Name: "service", Namespace: "default"}: {
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "service",
+						Namespace: "default",
+					},
+					Spec: corev1.ServiceSpec{
+						Type:         corev1.ServiceTypeExternalName,
+						ExternalName: "service.external.com",
+						Ports: []corev1.ServicePort{{
+							Name:     "app",
+							Protocol: "TCP",
+							Port:     9999,
+						}},
+					},
+				},
+			},
+		}
+	}
+
+	t.Run("just default backend", func(t *testing.T) {
+		ic := icTemplate()
+		cfg := new(pb.Config)
+		t.Log(protojson.Format(cfg))
+		require.NoError(t, upsertRoutes(context.Background(), cfg, ic))
+		require.Len(t, cfg.Routes, 1)
+		assert.Equal(t, "/", cfg.Routes[0].Prefix)
+	})
+
+	t.Run("default backend and rule", func(t *testing.T) {
+		ic := icTemplate()
+		ic.Spec.Rules = []networkingv1.IngressRule{{
+			Host: "service.localhost.pomerium.io",
+			IngressRuleValue: networkingv1.IngressRuleValue{
+				HTTP: &networkingv1.HTTPIngressRuleValue{
+					Paths: []networkingv1.HTTPIngressPath{{
+						Path:     "/two",
+						PathType: &typeExact,
+						Backend:  *ic.Spec.DefaultBackend,
+					}, {
+						Path:     "/one",
+						PathType: &typePrefix,
+						Backend:  *ic.Spec.DefaultBackend,
+					}},
+				},
+			}}}
+		cfg := new(pb.Config)
+		sort.Sort(routeList(cfg.Routes))
+		require.NoError(t, upsertRoutes(context.Background(), cfg, ic))
+		require.Len(t, cfg.Routes, 3)
+		assert.Equal(t, "/", cfg.Routes[0].Prefix)
+	})
 }
 
 // TestRouteSortOrder ensures we're following

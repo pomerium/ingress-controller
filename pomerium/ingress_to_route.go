@@ -35,9 +35,16 @@ func ingressToRoutes(ctx context.Context, ic *model.IngressConfig) (routeList, e
 		return nil, fmt.Errorf("annotations: %w", err)
 	}
 
-	routes := make(routeList, 0, len(ic.Ingress.Spec.Rules))
+	routes := make(routeList, 0, len(ic.Ingress.Spec.Rules)+1)
+	if ic.Ingress.Spec.DefaultBackend != nil {
+		r, err := defaultBackend(tmpl, ic)
+		if err != nil {
+			return nil, fmt.Errorf("defaultBackend: %w", err)
+		}
+		routes = append(routes, r)
+	}
 	for _, rule := range ic.Ingress.Spec.Rules {
-		r, err := ruleToRoute(rule, tmpl, types.NamespacedName{Namespace: ic.Ingress.Namespace, Name: ic.Ingress.Name}, ic)
+		r, err := ruleToRoute(rule, tmpl, ic)
 		if err != nil {
 			return nil, err
 		}
@@ -51,7 +58,45 @@ func isHTTP01Solver(ingress *networkingv1.Ingress) bool {
 	return strings.ToLower(ingress.Labels[httpSolverLabel]) == "true"
 }
 
-func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, name types.NamespacedName, ic *model.IngressConfig) ([]*pb.Route, error) {
+func deriveHostFromTLS(tls []networkingv1.IngressTLS) (string, error) {
+	if len(tls) != 1 {
+		return "", fmt.Errorf("expected one TLS spec, got %d", len(tls))
+	}
+	if len(tls[0].Hosts) != 1 {
+		return "", fmt.Errorf("expected exactly one Host in the TLS spec, got %d", len(tls[0].Hosts))
+	}
+	return tls[0].Hosts[0], nil
+}
+
+func defaultBackend(tmpl *pb.Route, ic *model.IngressConfig) (*pb.Route, error) {
+	host, err := deriveHostFromTLS(ic.Spec.TLS)
+	if err != nil {
+		return nil, fmt.Errorf("deriving host: %w", err)
+	}
+
+	typePrefix := networkingv1.PathTypePrefix
+	routes, err := ruleToRoute(networkingv1.IngressRule{
+		Host: host,
+		IngressRuleValue: networkingv1.IngressRuleValue{
+			HTTP: &networkingv1.HTTPIngressRuleValue{
+				Paths: []networkingv1.HTTPIngressPath{{
+					Path:     "/",
+					PathType: &typePrefix,
+					Backend:  *ic.Spec.DefaultBackend,
+				}},
+			},
+		},
+	}, tmpl, ic)
+	if err != nil {
+		return nil, err
+	}
+	if len(routes) != 1 {
+		return nil, fmt.Errorf("expected 1 route, got %d", len(routes))
+	}
+	return routes[0], nil
+}
+
+func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, ic *model.IngressConfig) ([]*pb.Route, error) {
 	if rule.Host == "" {
 		return nil, errors.New("host is required")
 	}
@@ -59,6 +104,8 @@ func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, name types.Names
 	if rule.HTTP == nil {
 		return nil, errors.New("rules.http is required")
 	}
+
+	name := types.NamespacedName{Namespace: ic.Ingress.Namespace, Name: ic.Ingress.Name}
 
 	routes := make(routeList, 0, len(rule.HTTP.Paths))
 	for _, p := range rule.HTTP.Paths {
