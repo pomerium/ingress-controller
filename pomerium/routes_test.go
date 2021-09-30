@@ -249,6 +249,101 @@ func TestSecureUpstream(t *testing.T) {
 	}, route.To)
 }
 
+func TestExternalService(t *testing.T) {
+	makeRoute := func(t *testing.T, secure bool) (*pb.Route, error) {
+		typePrefix := networkingv1.PathTypePrefix
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "p",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "ingress",
+					Namespace: "default",
+				},
+				Spec: networkingv1.IngressSpec{
+					TLS: []networkingv1.IngressTLS{{
+						Hosts:      []string{"service.localhost.pomerium.io"},
+						SecretName: "secret",
+					}},
+					Rules: []networkingv1.IngressRule{{
+						Host: "service.localhost.pomerium.io",
+						IngressRuleValue: networkingv1.IngressRuleValue{
+							HTTP: &networkingv1.HTTPIngressRuleValue{
+								Paths: []networkingv1.HTTPIngressPath{{
+									Path:     "/a",
+									PathType: &typePrefix,
+									Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{
+											Name: "service",
+											Port: networkingv1.ServiceBackendPort{
+												Name: "app",
+											},
+										},
+									},
+								}},
+							},
+						},
+					}},
+				},
+			},
+			Services: map[types.NamespacedName]*corev1.Service{
+				{Name: "service", Namespace: "default"}: {
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "service",
+						Namespace: "default",
+					},
+					Spec: corev1.ServiceSpec{
+						Type:         corev1.ServiceTypeExternalName,
+						ExternalName: "service.external.com",
+						Ports: []corev1.ServicePort{{
+							Name:     "app",
+							Protocol: "TCP",
+							Port:     9999,
+						}},
+					},
+				},
+			},
+		}
+		if secure {
+			ic.Ingress.Annotations = map[string]string{fmt.Sprintf("p/%s", model.SecureUpstream): "true"}
+		}
+
+		cfg := new(pb.Config)
+		if err := upsertRoutes(context.Background(), cfg, ic); err != nil {
+			return nil, fmt.Errorf("upsert routes: %w", err)
+		}
+		routes, err := routeList(cfg.Routes).toMap()
+		if err != nil {
+			return nil, err
+		}
+		return routes[routeID{
+			Name:      "ingress",
+			Namespace: "default",
+			Path:      "/a",
+			Host:      "service.localhost.pomerium.io",
+		}], nil
+	}
+
+	for _, tc := range []struct {
+		secure    bool
+		expectURL string
+	}{
+		{
+			secure:    false,
+			expectURL: "http://service.external.com:9999",
+		},
+		{
+			secure:    true,
+			expectURL: "https://service.external.com:9999",
+		},
+	} {
+		t.Run(fmt.Sprintf("%+v", tc), func(t *testing.T) {
+			route, err := makeRoute(t, tc.secure)
+			require.NoError(t, err)
+			require.Equal(t, []string{tc.expectURL}, route.To)
+		})
+	}
+}
+
 // TestRouteSortOrder ensures we're following
 // https://kubernetes.io/docs/concepts/services-networking/ingress/#multiple-matches
 // 1. precedence will be given first to the longest matching path.

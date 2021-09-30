@@ -9,6 +9,7 @@ import (
 
 	"github.com/gosimple/slug"
 	"google.golang.org/protobuf/proto"
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -126,10 +127,11 @@ func getServiceURL(namespace string, p networkingv1.HTTPIngressPath, ic *model.I
 		return nil, errors.New("service is missing")
 	}
 
+	serviceName := types.NamespacedName{Namespace: namespace, Name: svc.Name}
 	port := svc.Port.Number
 	if svc.Port.Name != "" {
 		var err error
-		port, err = ic.GetServicePortByName(types.NamespacedName{Namespace: namespace, Name: svc.Name}, svc.Port.Name)
+		port, err = ic.GetServicePortByName(serviceName, svc.Port.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -139,8 +141,20 @@ func getServiceURL(namespace string, p networkingv1.HTTPIngressPath, ic *model.I
 	if ic.IsSecureUpstream() {
 		scheme = "https"
 	}
+
+	var host string
+	service, ok := ic.Services[serviceName]
+	if !ok {
+		return nil, fmt.Errorf("service %s was not fetched, this is a bug", serviceName.String())
+	}
+	if service.Spec.Type == corev1.ServiceTypeExternalName {
+		host = fmt.Sprintf("%s:%d", service.Spec.ExternalName, port)
+	} else {
+		host = fmt.Sprintf("%s.%s.svc.cluster.local:%d", svc.Name, namespace, port)
+	}
+
 	return &url.URL{
 		Scheme: scheme,
-		Host:   fmt.Sprintf("%s.%s.svc.cluster.local:%d", svc.Name, namespace, port),
+		Host:   host,
 	}, nil
 }
