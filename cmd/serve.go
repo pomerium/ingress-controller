@@ -6,8 +6,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/iancoleman/strcase"
@@ -15,10 +17,12 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apiserver/pkg/server/healthz"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -38,6 +42,8 @@ const (
 
 var (
 	scheme = runtime.NewScheme()
+
+	errWaitingForLease = errors.New("waiting for databroker lease")
 )
 
 func init() {
@@ -153,11 +159,11 @@ func (s *serveCmd) exec(*cobra.Command, []string) error {
 	return s.runController(ctx,
 		databroker.NewDataBrokerServiceClient(dbc),
 		ctrl.Options{
-			Scheme:                 scheme,
-			MetricsBindAddress:     s.metricsAddr,
-			Port:                   s.webhookPort,
-			HealthProbeBindAddress: s.probeAddr,
-			LeaderElection:         false,
+			Scheme:             scheme,
+			MetricsBindAddress: s.metricsAddr,
+			Port:               s.webhookPort,
+			//HealthProbeBindAddress: s.probeAddr,
+			LeaderElection: false,
 		}, opts...)
 }
 
@@ -218,13 +224,32 @@ type leadController struct {
 	namespaces       []string
 	annotationPrefix string
 	className        string
+	running          int32
 }
 
 func (c *leadController) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
 	return c.DataBrokerServiceClient
 }
 
+func (c *leadController) setRunning(running bool) {
+	if running {
+		atomic.StoreInt32(&c.running, 1)
+	} else {
+		atomic.StoreInt32(&c.running, 0)
+	}
+}
+
+func (c *leadController) ReadyzCheck(r *http.Request) error {
+	val := atomic.LoadInt32(&c.running)
+	if val == 0 {
+		return errWaitingForLease
+	}
+	return nil
+}
+
 func (c *leadController) RunLeased(ctx context.Context) error {
+	defer c.setRunning(false)
+
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return fmt.Errorf("get k8s api config: %w", err)
@@ -233,6 +258,7 @@ func (c *leadController) RunLeased(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("creating controller: %w", err)
 	}
+	c.setRunning(true)
 	if err = mgr.Start(ctx); err != nil {
 		return fmt.Errorf("running controller: %w", err)
 	}
@@ -249,6 +275,34 @@ func (s *serveCmd) runController(ctx context.Context, client databroker.DataBrok
 		className:               s.className,
 		annotationPrefix:        s.annotationPrefix,
 	}
-	leaser := databroker.NewLeaser("ingress-controller", leaseDuration, c)
-	return leaser.Run(ctx)
+
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		leaser := databroker.NewLeaser("ingress-controller", leaseDuration, c)
+		return leaser.Run(ctx)
+	})
+	eg.Go(func() error {
+		return s.runHealthz(ctx, healthz.NamedCheck("acquire databroker lease", c.ReadyzCheck))
+	})
+	return eg.Wait()
+}
+
+func (s *serveCmd) runHealthz(ctx context.Context, readyChecks ...healthz.HealthChecker) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	mux := http.NewServeMux()
+	healthz.InstallHandler(mux)
+	healthz.InstallReadyzHandler(mux, readyChecks...)
+
+	srv := http.Server{
+		Addr:    s.probeAddr,
+		Handler: mux,
+	}
+	go func() {
+		<-ctx.Done()
+		_ = srv.Close()
+	}()
+
+	return srv.ListenAndServe()
 }
