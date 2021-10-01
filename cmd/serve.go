@@ -32,8 +32,6 @@ import (
 const (
 	defaultGRPCTimeout = time.Minute
 	leaseDuration      = time.Second * 30
-
-	envPrefix = "POMERIUM"
 )
 
 var (
@@ -100,7 +98,7 @@ const (
 )
 
 func envName(name string) string {
-	return strcase.ToScreamingSnake(fmt.Sprintf("%s_%s", envPrefix, name))
+	return strcase.ToScreamingSnake(name)
 }
 
 func (s *serveCmd) setupFlags() {
