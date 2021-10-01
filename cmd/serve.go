@@ -162,8 +162,7 @@ func (s *serveCmd) exec(*cobra.Command, []string) error {
 			Scheme:             scheme,
 			MetricsBindAddress: s.metricsAddr,
 			Port:               s.webhookPort,
-			//HealthProbeBindAddress: s.probeAddr,
-			LeaderElection: false,
+			LeaderElection:     false,
 		}, opts...)
 }
 
@@ -206,13 +205,14 @@ func (s *serveCmd) getDataBrokerConnection(ctx context.Context) (*grpc.ClientCon
 	sharedSecret, _ := base64.StdEncoding.DecodeString(s.sharedSecret)
 	return NewGRPCClientConn(ctx, &Options{
 		Address:                 dataBrokerServiceURL,
-		WithInsecure:            dataBrokerServiceURL.Scheme != "https" || s.tlsInsecureSkipVerify,
+		WithInsecure:            dataBrokerServiceURL.Scheme != "https",
 		ServiceName:             "databroker",
 		SignedJWTKey:            sharedSecret,
 		RequestTimeout:          defaultGRPCTimeout,
 		CA:                      base64.StdEncoding.EncodeToString(s.tlsCA),
 		CAFile:                  s.tlsCAFile,
 		OverrideCertificateName: s.tlsOverrideCertificateName,
+		InsecureSkipVerify:      s.tlsInsecureSkipVerify,
 	})
 }
 

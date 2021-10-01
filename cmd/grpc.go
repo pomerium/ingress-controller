@@ -41,8 +41,7 @@ type Options struct {
 	// Note that transport security is required unless WithInsecure is set.
 	WithInsecure bool
 
-	// InstallationID specifies the installation id for telemetry exposition.
-	InstallationID string
+	InsecureSkipVerify bool
 
 	// ServiceName specifies the service name for telemetry exposition
 	ServiceName string
@@ -89,7 +88,11 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 			return nil, err
 		}
 
-		cert := credentials.NewTLS(&tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12})
+		cert := credentials.NewTLS(&tls.Config{
+			InsecureSkipVerify: opts.InsecureSkipVerify,
+			RootCAs:            rootCAs,
+			MinVersion:         tls.VersionTLS12,
+		})
 
 		// override allowed certificate name string, typically used when doing behind ingress connection
 		if opts.OverrideCertificateName != "" {
