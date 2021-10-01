@@ -41,6 +41,7 @@ type Options struct {
 	// Note that transport security is required unless WithInsecure is set.
 	WithInsecure bool
 
+	// InsecureSkipVerify skips destination hostname and ca check
 	InsecureSkipVerify bool
 
 	// ServiceName specifies the service name for telemetry exposition
