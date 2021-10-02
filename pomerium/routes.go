@@ -3,7 +3,6 @@ package pomerium
 import (
 	"context"
 	"fmt"
-	"net/url"
 
 	"k8s.io/apimachinery/pkg/types"
 
@@ -56,15 +55,4 @@ func deleteRoutes(ctx context.Context, cfg *pb.Config, namespacedName types.Name
 	rm.removeName(namespacedName)
 	cfg.Routes = rm.toList()
 	return nil
-}
-
-func debugRoute() *pb.Route {
-	r := &pb.Route{
-		From:                             "https://envoy.localhost.pomerium.io",
-		To:                               []string{"http://localhost:9901/"},
-		Prefix:                           "/",
-		AllowPublicUnauthenticatedAccess: true,
-	}
-	_ = setRouteNameID(r, types.NamespacedName{Name: "admin", Namespace: "internal-envoy"}, url.URL{Host: "envoy.localhost.pomerium.io", Path: "/"})
-	return r
 }

@@ -415,10 +415,10 @@ func TestDefaultBackendService(t *testing.T) {
 				},
 			}}}
 		cfg := new(pb.Config)
-		sort.Sort(routeList(cfg.Routes))
 		require.NoError(t, upsertRoutes(context.Background(), cfg, ic))
+		sort.Sort(routeList(cfg.Routes))
 		require.Len(t, cfg.Routes, 3)
-		assert.Equal(t, "/", cfg.Routes[0].Prefix)
+		assert.Equal(t, "/", cfg.Routes[2].Prefix, protojson.Format(cfg))
 	})
 }
 

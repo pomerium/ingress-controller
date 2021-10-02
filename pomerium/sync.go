@@ -145,10 +145,6 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, prev, next *pb.Config
 	// envoy matches according to the order routes are present in the configuration
 	sort.Sort(routeList(next.Routes))
 
-	if err := mergeRoutes(next, routeList{debugRoute()}, types.NamespacedName{}); err != nil {
-		logger.Error(err, "adding debug route")
-	}
-
 	if err := validate(ctx, next, id); err != nil {
 		return false, fmt.Errorf("config validation: %w", err)
 	}
