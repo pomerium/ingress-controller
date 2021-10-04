@@ -2,6 +2,7 @@ package pomerium
 
 import (
 	"encoding/base64"
+	"fmt"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -64,7 +66,7 @@ func TestAnnotations(t *testing.T) {
 		Secrets: map[types.NamespacedName]*corev1.Secret{
 			{Name: "my_custom_ca_secret", Namespace: "test"}: {
 				Data: map[string][]byte{
-					corev1.TLSCertKey: []byte("my_custom_ca_secret+cert"),
+					CAKey: []byte("my_custom_ca_secret+cert"),
 				},
 			},
 			{Name: "my_client_secret", Namespace: "test"}: {
@@ -76,7 +78,7 @@ func TestAnnotations(t *testing.T) {
 			},
 			{Name: "my_downstream_client_ca_secret", Namespace: "test"}: {
 				Data: map[string][]byte{
-					corev1.TLSCertKey: []byte("my_downstream_client_ca_secret+cert"),
+					CAKey: []byte("my_downstream_client_ca_secret+cert"),
 				},
 			},
 		},
@@ -139,4 +141,40 @@ func TestAnnotations(t *testing.T) {
 	),
 		cmpopts.IgnoreFields(pb.Policy{}, "Rego")))
 	require.NotEmpty(t, r.Policies[0].Rego)
+}
+
+func TestMissingTlsAnnotationsSecretData(t *testing.T) {
+	r := &pb.Route{To: []string{"http://upstream.svc.cluster.local"}}
+	ic := &model.IngressConfig{
+		AnnotationPrefix: "a",
+		Ingress: &networkingv1.Ingress{
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: "test",
+			},
+		},
+	}
+	require.NoError(t, applyAnnotations(r, ic))
+
+	for name, keys := range map[string][]string{
+		"tls_custom_ca_secret":            {CAKey},
+		"tls_downstream_client_ca_secret": {CAKey},
+		"tls_client_secret":               {corev1.TLSCertKey, corev1.TLSPrivateKeyKey},
+	} {
+		ic.Ingress.Annotations = map[string]string{
+			fmt.Sprintf("%s/%s", ic.AnnotationPrefix, name): name,
+		}
+		for _, testKey := range keys {
+			data := make(map[string][]byte)
+			ic.Secrets = map[types.NamespacedName]*corev1.Secret{
+				{Name: name, Namespace: "test"}: {Data: data},
+			}
+			for _, key := range keys {
+				if key == testKey {
+					continue
+				}
+				data[key] = []byte("data")
+			}
+			assert.Errorf(t, applyAnnotations(r, ic), "name=%s key=%s", name, testKey)
+		}
+	}
 }

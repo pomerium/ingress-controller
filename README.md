@@ -28,7 +28,7 @@ Additional TLS may be supplied by creating a Kubernetes secret(s) in the same na
 - [`tls_custom_ca_secret`](https://pomerium.io/reference/#tls-custom-certificate-authority)
 - [`tls_downstream_client_ca_secret`](https://pomerium.io/reference/#tls-downstream-client-certificate-authority)
 
-Note the referenced `tls_client_secret` must be a [TLS Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets). `tls_custom_ca_secret` and `tls_downstream_client_ca_secret` must contain `tls.crt` containing a .PEM encoded (Base64-encoded DER format) public certificate.
+Note the referenced `tls_client_secret` must be a [TLS Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets). `tls_custom_ca_secret` and `tls_downstream_client_ca_secret` must contain `ca.crt` containing a .PEM encoded (Base64-encoded DER format) public certificate.
 
 ## IngressClass
 

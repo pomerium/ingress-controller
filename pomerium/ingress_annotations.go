@@ -18,6 +18,10 @@ import (
 	"github.com/pomerium/pomerium/pkg/policy"
 )
 
+const (
+	CAKey = "ca.crt"
+)
+
 var (
 	baseAnnotations = boolMap([]string{
 		"cors_allow_preflight",
@@ -195,20 +199,37 @@ func applyTlsAnnotations(
 	for k, name := range kvs {
 		secret := secrets[types.NamespacedName{Namespace: namespace, Name: name}]
 		if secret == nil {
-			return fmt.Errorf("annotation %s references secret=%s, but the secret wasn't fetched. this is a bug", k, name)
+			return fmt.Errorf("annotation %s references secret %s, but the secret wasn't fetched. this is a bug", k, name)
 		}
-		cert := base64.StdEncoding.EncodeToString(secret.Data[corev1.TLSCertKey])
+		var err error
 		switch k {
 		case model.TLSCustomCASecret:
-			r.TlsCustomCa = cert
+			if r.TlsCustomCa, err = b64(secret, k, CAKey); err != nil {
+				return err
+			}
 		case model.TLSClientSecret:
-			r.TlsClientCert = cert
-			r.TlsClientKey = base64.StdEncoding.EncodeToString(secret.Data[corev1.TLSPrivateKeyKey])
+			if r.TlsClientCert, err = b64(secret, k, corev1.TLSCertKey); err != nil {
+				return err
+			}
+			if r.TlsClientKey, err = b64(secret, k, corev1.TLSPrivateKeyKey); err != nil {
+				return err
+			}
 		case model.TLSDownstreamClientCASecret:
-			r.TlsDownstreamClientCa = cert
+			if r.TlsDownstreamClientCa, err = b64(secret, k, CAKey); err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("unknown annotation %s", k)
 		}
 	}
 	return nil
+}
+
+func b64(secret *corev1.Secret, annotation, key string) (string, error) {
+	data := secret.Data[key]
+	if len(data) == 0 {
+		return "", fmt.Errorf("annotation %s references secret %s, key %s has no data",
+			annotation, secret.Name, CAKey)
+	}
+	return base64.StdEncoding.EncodeToString(data), nil
 }
