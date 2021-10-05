@@ -138,7 +138,16 @@ func (r *ingressController) reconcileInitial(ctx context.Context) error {
 		ics = append(ics, ic)
 	}
 
-	return r.PomeriumReconciler.Set(ctx, ics)
+	err := r.PomeriumReconciler.Set(ctx, ics)
+	for _, ingress := range ingressList.Items {
+		if err != nil {
+			r.EventRecorder.Event(&ingress, corev1.EventTypeWarning, reasonPomeriumConfigUpdateError, err.Error())
+		} else {
+			r.EventRecorder.Event(&ingress, corev1.EventTypeNormal, reasonPomeriumConfigUpdated, msgPomeriumConfigUpdated)
+		}
+	}
+
+	return err
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
