@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	"github.com/open-policy-agent/opa/ast"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"gopkg.in/yaml.v3"
@@ -150,7 +151,10 @@ func applyAnnotations(
 	}
 	p := new(pomerium.Policy)
 	r.Policies = []*pomerium.Policy{p}
-	return unmarshallPolicyAnnotations(p, kv.Policy)
+	if err := unmarshallPolicyAnnotations(p, kv.Policy); err != nil {
+		return fmt.Errorf("applying policy annotations: %w", err)
+	}
+	return nil
 }
 
 func unmarshallPolicyAnnotations(p *pomerium.Policy, kvs map[string]string) error {
@@ -171,6 +175,15 @@ func unmarshallPolicyAnnotations(p *pomerium.Policy, kvs map[string]string) erro
 	if err != nil {
 		return fmt.Errorf("parsing policy: %w", err)
 	}
+
+	_, err = ast.ParseModule("policy.rego", src)
+	if err != nil && strings.Contains(err.Error(), "package expected") {
+		_, err = ast.ParseModule("policy.rego", "package pomerium.policy\n\n"+src)
+	}
+	if err != nil {
+		return fmt.Errorf("invalid custom rego: %w", err)
+	}
+
 	p.Rego = []string{src}
 	return nil
 }
