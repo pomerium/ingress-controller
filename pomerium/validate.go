@@ -39,7 +39,7 @@ func validate(ctx context.Context, cfg *pb.Config, id string) error {
 		return err
 	}
 
-	pCfg := &config.Config{Options: options, OutboundPort: "8002"}
+	pCfg := &config.Config{Options: options}
 
 	builder := envoyconfig.New("127.0.0.1:8000", "127.0.0.1:8001", filemgr.NewManager(), nil)
 
