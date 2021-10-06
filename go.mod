@@ -28,7 +28,7 @@ require (
 	k8s.io/apimachinery v0.22.2
 	k8s.io/apiserver v0.22.2
 	k8s.io/client-go v0.22.2
-	sigs.k8s.io/controller-runtime v0.9.2
+	sigs.k8s.io/controller-runtime v0.10.2
 )
 
 require (
@@ -234,7 +234,7 @@ require (
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	honnef.co/go/tools v0.2.1 // indirect
-	k8s.io/apiextensions-apiserver v0.21.3 // indirect
+	k8s.io/apiextensions-apiserver v0.22.2 // indirect
 	k8s.io/component-base v0.22.2 // indirect
 	k8s.io/klog/v2 v2.9.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20210527164424-3c818078ee3d // indirect
