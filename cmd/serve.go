@@ -126,7 +126,7 @@ func (s *serveCmd) setupFlags() {
 	flags.StringSliceVar(&s.namespaces, namespaces, nil, "namespaces to watch, or none to watch all namespaces")
 	flags.StringVar(&s.sharedSecret, sharedSecret, "",
 		"base64-encoded shared secret for signing JWTs")
-	flags.BoolVar(&s.debug, debug, true, "enable debug logging")
+	flags.BoolVar(&s.debug, debug, false, "enable debug logging")
 	flags.MarkHidden("debug")
 	flags.StringVar(&s.updateStatusFromService, updateStatusFromService, "", "update ingress status from given service status (pomerium-proxy)")
 

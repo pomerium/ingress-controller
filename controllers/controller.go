@@ -113,9 +113,9 @@ type PomeriumReconciler interface {
 // reconcileInitial walks over all ingresses and updates configuration at once
 // this is currently done for performance reasons
 func (r *ingressController) reconcileInitial(ctx context.Context) error {
-	logger := log.FromContext(ctx).WithName("initial full reconciliation")
-	log.IntoContext(ctx, logger)
-	logger.Info("starting")
+	logger := log.FromContext(ctx).WithName("initial sync")
+	logger.Info("starting...")
+	defer logger.Info("complete")
 
 	ingressList := new(networkingv1.IngressList)
 	if err := r.Client.List(ctx, ingressList); err != nil {
@@ -123,27 +123,30 @@ func (r *ingressController) reconcileInitial(ctx context.Context) error {
 	}
 
 	var ics []*model.IngressConfig
-	for _, ingress := range ingressList.Items {
-		managing, err := r.isManaging(ctx, &ingress)
+	for i := range ingressList.Items {
+		ingress := &ingressList.Items[i]
+		managing, err := r.isManaging(ctx, ingress)
 		if err != nil {
 			return fmt.Errorf("get ingressClass info: %w", err)
 		}
 		if !managing {
 			continue
 		}
-		ic, err := r.fetchIngress(ctx, &ingress)
+		ic, err := r.fetchIngress(ctx, ingress)
 		if err != nil {
 			return fmt.Errorf("fetch ingress %s/%s: %w", ingress.Namespace, ingress.Name, err)
 		}
+		logger.V(1).Info("fetch", "ingress", ingress.Name, "secrets", len(ic.Secrets), "services", len(ic.Services))
 		ics = append(ics, ic)
 	}
 
 	err := r.PomeriumReconciler.Set(ctx, ics)
-	for _, ingress := range ingressList.Items {
+	for i := range ingressList.Items {
+		ingress := &ingressList.Items[i]
 		if err != nil {
-			r.EventRecorder.Event(&ingress, corev1.EventTypeWarning, reasonPomeriumConfigUpdateError, err.Error())
+			r.EventRecorder.Event(ingress, corev1.EventTypeWarning, reasonPomeriumConfigUpdateError, err.Error())
 		} else {
-			r.EventRecorder.Event(&ingress, corev1.EventTypeNormal, reasonPomeriumConfigUpdated, msgPomeriumConfigUpdated)
+			r.EventRecorder.Event(ingress, corev1.EventTypeNormal, reasonPomeriumConfigUpdated, msgPomeriumConfigUpdated)
 		}
 	}
 
@@ -361,7 +364,7 @@ func (r *ingressController) getDependantIngressFn(kind string) func(a client.Obj
 		for _, k := range deps {
 			reqs = append(reqs, reconcile.Request{NamespacedName: k.NamespacedName})
 		}
-		logger.Info("watch", "name", fmt.Sprintf("%s/%s", a.GetNamespace(), a.GetName()), "deps", reqs)
+		logger.V(1).Info("watch", "name", fmt.Sprintf("%s/%s", a.GetNamespace(), a.GetName()), "deps", reqs)
 		return reqs
 	}
 }
