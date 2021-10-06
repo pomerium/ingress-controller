@@ -33,13 +33,17 @@ hash_sha256() {
     fi
 }
 
-if [ -f "$_dir/envoy" ] && [ -f "$_dir/envoy.sha256" ] && [ -f "$_dir/envoy.version" ]; then
+_file="${_dir}/envoy_${_target}"
+_sha="${_dir}/envoy_${_target}.sha256"
+_version="${_dir}/envoy_${_target}.version"
+
+if [ -f  "$_file" ] && [ -f "$_sha" ] && [ -f "$_version" ]; then
     exit 0
 fi
 
 mkdir -p "$_dir"
-curl -L -o "$_dir/envoy" \
+curl -L -o "$_file" \
     "https://github.com/pomerium/envoy-binaries/releases/download/v${_envoy_version}/${_envoy_binary_name}"
 
-hash_sha256 "$_dir/envoy" >"$_dir/envoy.sha256"
-echo "$_envoy_version" >"$_dir/envoy.version"
+hash_sha256 "$_file" >"$_sha"
+echo "$_envoy_version" >"$_version"

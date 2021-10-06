@@ -51,6 +51,10 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+.PHONY: clean
+clean:
+	rm -rf pomerium/envoy/bin/* bin/* testbin/
+
 .PHONY: lint
 lint: ## Verifies `golint` passes.
 	@echo "==> $@"
