@@ -7,7 +7,7 @@ export PATH
 _envoy_version=1.19.1
 _dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/../pomerium/envoy/bin"
 _target="${TARGET:-"$(go env GOOS)-$(go env GOARCH)"}"
-_envoy_binary_name="envoy-$_target)"
+_envoy_binary_name="envoy-$_target"
 
 is_command() {
     command -v "$1" >/dev/null
