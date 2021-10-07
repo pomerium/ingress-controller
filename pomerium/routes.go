@@ -13,7 +13,7 @@ import (
 
 func upsert(ctx context.Context, cfg *pb.Config, ic *model.IngressConfig) error {
 	if err := upsertRoutes(ctx, cfg, ic); err != nil {
-		return fmt.Errorf("deleting pomerium config records: %w", err)
+		return fmt.Errorf("upsert routes: %w", err)
 	}
 
 	if err := upsertCerts(cfg, ic); err != nil {

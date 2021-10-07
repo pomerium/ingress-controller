@@ -167,7 +167,7 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, prev, next *pb.Config
 
 	logger.Info("new pomerium config applied")
 
-	if true {
+	if r.DebugDumpConfigDiff {
 		debugDumpConfigDiff(prev, next)
 	}
 
