@@ -6,8 +6,8 @@ export PATH
 
 _envoy_version=1.19.1
 _dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/../pomerium/envoy/bin"
-_target="${TARGET:-"$(go env GOOS)_$(go env GOARCH)"}"
-_envoy_binary_name="envoy-$(echo "$_target" | tr _ -)"
+_target="${TARGET:-"$(go env GOOS)-$(go env GOARCH)"}"
+_envoy_binary_name="envoy-$_target"
 
 is_command() {
     command -v "$1" >/dev/null
@@ -33,13 +33,17 @@ hash_sha256() {
     fi
 }
 
-if [ -f "$_dir/envoy" ] && [ -f "$_dir/envoy.sha256" ] && [ -f "$_dir/envoy.version" ]; then
+_file="${_dir}/envoy-${_target}"
+_sha="${_dir}/envoy-${_target}.sha256"
+_version="${_dir}/envoy-${_target}.version"
+
+if [ -f "$_file" ] && [ -f "$_sha" ] && [ -f "$_version" ]; then
     exit 0
 fi
 
 mkdir -p "$_dir"
-curl -L -o "$_dir/envoy" \
+curl -L -o "$_file" \
     "https://github.com/pomerium/envoy-binaries/releases/download/v${_envoy_version}/${_envoy_binary_name}"
 
-hash_sha256 "$_dir/envoy" >"$_dir/envoy.sha256"
-echo "$_envoy_version" >"$_dir/envoy.version"
+hash_sha256 "$_file" >"$_sha"
+echo "$_envoy_version" >"$_version"

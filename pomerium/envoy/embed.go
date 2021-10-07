@@ -33,24 +33,14 @@ func (hr *hashReader) Read(p []byte) (n int, err error) {
 }
 
 func extract(dstName string) error {
-	bs, err := efs.ReadFile("bin/envoy.sha256")
+	checksum, err := hex.DecodeString(strings.Fields(rawChecksum)[0])
 	if err != nil {
 		return err
 	}
-	checksum, err := hex.DecodeString(strings.Fields(string(bs))[0])
-	if err != nil {
-		return err
-	}
-
-	r, err := efs.Open("bin/envoy")
-	if err != nil {
-		return err
-	}
-	defer r.Close()
 
 	hr := &hashReader{
 		Hash: sha256.New(),
-		r:    r,
+		r:    bytes.NewReader(rawBinary),
 	}
 
 	dst, err := os.OpenFile(dstName, os.O_CREATE|os.O_WRONLY, ownerRX)
