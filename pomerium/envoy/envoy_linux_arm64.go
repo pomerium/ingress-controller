@@ -5,11 +5,11 @@ package envoy
 
 import _ "embed" // embed
 
-//go:embed bin/envoy_linux_arm64
+//go:embed bin/envoy-linux-arm64
 var rawBinary []byte
 
-//go:embed bin/envoy_linux_arm64.sha256
+//go:embed bin/envoy-linux-arm64.sha256
 var rawChecksum string
 
-//go:embed bin/envoy_linux_arm64.version
+//go:embed bin/envoy-linux-arm64.version
 var rawVersion string

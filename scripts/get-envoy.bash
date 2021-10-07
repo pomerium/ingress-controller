@@ -7,7 +7,7 @@ export PATH
 _envoy_version=1.19.1
 _dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/../pomerium/envoy/bin"
 _target="${TARGET:-"$(go env GOOS)_$(go env GOARCH)"}"
-_envoy_binary_name="envoy-$(echo "$_target" | tr _ -)"
+_envoy_binary_name="envoy-$_target)"
 
 is_command() {
     command -v "$1" >/dev/null
@@ -33,11 +33,11 @@ hash_sha256() {
     fi
 }
 
-_file="${_dir}/envoy_${_target}"
-_sha="${_dir}/envoy_${_target}.sha256"
-_version="${_dir}/envoy_${_target}.version"
+_file="${_dir}/envoy-${_target}"
+_sha="${_dir}/envoy-${_target}.sha256"
+_version="${_dir}/envoy-${_target}.version"
 
-if [ -f  "$_file" ] && [ -f "$_sha" ] && [ -f "$_version" ]; then
+if [ -f "$_file" ] && [ -f "$_sha" ] && [ -f "$_version" ]; then
     exit 0
 fi
 
