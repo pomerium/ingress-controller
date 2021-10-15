@@ -13,7 +13,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/iancoleman/strcase v0.2.0
 	github.com/open-policy-agent/opa v0.32.0
-	github.com/pomerium/pomerium v0.15.4-0.20211005194132-0f6cc036aef0
+	github.com/pomerium/pomerium v0.15.4
 	github.com/sergi/go-diff v1.1.0
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
