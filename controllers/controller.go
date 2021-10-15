@@ -27,6 +27,9 @@ import (
 const (
 	// IngressClassDefaultAnnotationKey see https://kubernetes.io/docs/concepts/services-networking/ingress/#default-ingress-class
 	IngressClassDefaultAnnotationKey = "ingressclass.kubernetes.io/is-default-class"
+	// IngressClassAnnotationKey although deprecated, still may be used by the HTTP solvers even for v1 Ingress resources
+	// see https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/#deprecating-the-ingress-class-annotation
+	IngressClassAnnotationKey = "kubernetes.io/ingress.class"
 
 	initialReconciliationTimeout = time.Minute * 5
 
@@ -267,32 +270,40 @@ func (r *ingressController) updateDependencies(ic *model.IngressConfig) {
 }
 
 func (r *ingressController) isManaging(ctx context.Context, ing *networkingv1.Ingress) (bool, error) {
+	// if controller is started with explicit list of namespaces to watch,
+	// ignore all ingress resources coming from other namespaces
+	if len(r.namespaces) > 0 && !r.namespaces[ing.Namespace] {
+		return false, nil
+	}
+
 	icl := new(networkingv1.IngressClassList)
 	if err := r.Client.List(ctx, icl); err != nil {
 		return false, err
 	}
 
-	if len(r.namespaces) > 0 && !r.namespaces[ing.Namespace] {
-		return false, nil
-	}
+	return isManagingClass(ctx, ing, icl.Items, r.controllerName), nil
+}
 
+func isManagingClass(ctx context.Context, ing *networkingv1.Ingress, classes []networkingv1.IngressClass, controllerName string) bool {
 	var className string
 	if ing.Spec.IngressClassName != nil {
 		className = *ing.Spec.IngressClassName
+	} else if className = ing.Annotations[IngressClassAnnotationKey]; className != "" {
+		log.FromContext(ctx).Info(fmt.Sprintf("use of deprecated annotation %s, please use spec.ingressClassName instead", IngressClassAnnotationKey))
 	}
 
-	for _, ic := range icl.Items {
-		if ic.Spec.Controller != r.controllerName {
+	for _, ic := range classes {
+		if ic.Spec.Controller != controllerName {
 			continue
 		}
 		if className == ic.Name {
-			return true, nil
+			return true
 		}
 		if strings.ToLower(ic.Annotations[IngressClassDefaultAnnotationKey]) == "true" {
-			return true, nil
+			return true
 		}
 	}
-	return false, nil
+	return false
 }
 
 // SetupWithManager sets up the controller with the Manager
