@@ -12,7 +12,7 @@ require (
 	github.com/gosimple/slug v1.11.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/iancoleman/strcase v0.2.0
-	github.com/open-policy-agent/opa v0.32.0
+	github.com/open-policy-agent/opa v0.33.1
 	github.com/pomerium/pomerium v0.15.4
 	github.com/sergi/go-diff v1.1.0
 	github.com/spf13/cobra v1.2.1
