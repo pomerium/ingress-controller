@@ -83,11 +83,11 @@ func (m *mockPomeriumReconciler) Delete(ctx context.Context, name types.Namespac
 	return nil
 }
 
-func (m *mockPomeriumReconciler) Set(ctx context.Context, ics []*model.IngressConfig) error {
+func (m *mockPomeriumReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bool, error) {
 	if len(ics) != 0 {
-		return errors.New("unexpected ingresses")
+		return false, errors.New("unexpected ingresses")
 	}
-	return nil
+	return false, nil
 }
 
 func (s *ControllerTestSuite) EventuallyDeleted(name types.NamespacedName) {
