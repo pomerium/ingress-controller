@@ -108,7 +108,7 @@ type PomeriumReconciler interface {
 	// Upsert should update or create the pomerium routes corresponding to this ingress
 	Upsert(ctx context.Context, ic *model.IngressConfig) (changes bool, err error)
 	// Set configuration to match provided ingresses
-	Set(ctx context.Context, ics []*model.IngressConfig) error
+	Set(ctx context.Context, ics []*model.IngressConfig) (changes bool, err error)
 	// Delete should delete pomerium routes corresponding to this ingress name
 	Delete(ctx context.Context, namespacedName types.NamespacedName) error
 }
@@ -116,7 +116,7 @@ type PomeriumReconciler interface {
 // reconcileInitial walks over all ingresses and updates configuration at once
 // this is currently done for performance reasons
 func (r *ingressController) reconcileInitial(ctx context.Context) error {
-	logger := log.FromContext(ctx).WithName("initial sync")
+	logger := log.FromContext(ctx).WithName("initial-sync")
 	logger.Info("starting...")
 	defer logger.Info("complete")
 
@@ -143,12 +143,12 @@ func (r *ingressController) reconcileInitial(ctx context.Context) error {
 		ics = append(ics, ic)
 	}
 
-	err := r.PomeriumReconciler.Set(ctx, ics)
+	changed, err := r.PomeriumReconciler.Set(ctx, ics)
 	for i := range ingressList.Items {
 		ingress := &ingressList.Items[i]
 		if err != nil {
 			r.EventRecorder.Event(ingress, corev1.EventTypeWarning, reasonPomeriumConfigUpdateError, err.Error())
-		} else {
+		} else if changed {
 			r.EventRecorder.Event(ingress, corev1.EventTypeNormal, reasonPomeriumConfigUpdated, msgPomeriumConfigUpdated)
 		}
 	}
@@ -164,15 +164,12 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	logger := log.FromContext(ctx)
-	logger.Info("Reconcile")
-
 	ingress := new(networkingv1.Ingress)
 	if err := r.Client.Get(ctx, req.NamespacedName, ingress); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return ctrl.Result{Requeue: true}, fmt.Errorf("get ingress: %w", err)
 		}
-		logger.Info("the ingress was deleted")
-		return r.deleteIngress(ctx, req.NamespacedName)
+		return r.deleteIngress(ctx, req.NamespacedName, "Ingress resource was deleted")
 	}
 
 	managing, err := r.isManaging(ctx, ingress)
@@ -180,9 +177,8 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{Requeue: true}, fmt.Errorf("get ingressClass info: %w", err)
 	}
 
-	logger.Info("got ingress", "managing", managing, "version", ingress.GetResourceVersion())
 	if !managing {
-		return r.deleteIngress(ctx, req.NamespacedName)
+		return r.deleteIngress(ctx, req.NamespacedName, "not marked to be managed by this controller")
 	}
 
 	ic, err := r.fetchIngress(ctx, ingress)
@@ -195,11 +191,11 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	return r.upsertIngress(ctx, ic)
 }
 
-func (r *ingressController) deleteIngress(ctx context.Context, name types.NamespacedName) (ctrl.Result, error) {
+func (r *ingressController) deleteIngress(ctx context.Context, name types.NamespacedName, reason string) (ctrl.Result, error) {
 	if err := r.PomeriumReconciler.Delete(ctx, name); err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("deleting ingress: %w", err)
 	}
-	log.FromContext(ctx).Info("ingress deleted")
+	log.FromContext(ctx).Info("deleted from pomerium", "reason", reason)
 	r.Registry.DeleteCascade(model.Key{Kind: r.ingressKind, NamespacedName: name})
 	return ctrl.Result{}, nil
 }

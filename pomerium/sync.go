@@ -52,12 +52,12 @@ func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) 
 	return r.saveConfig(ctx, prev, next, string(ic.Ingress.UID))
 }
 
-func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig) error {
+func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bool, error) {
 	logger := log.FromContext(ctx)
 
 	prev, err := r.getConfig(ctx)
 	if err != nil {
-		return fmt.Errorf("get config: %w", err)
+		return false, fmt.Errorf("get config: %w", err)
 	}
 	next := new(pb.Config)
 
@@ -73,11 +73,7 @@ func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig) 
 		next = cfg
 	}
 
-	if _, err := r.saveConfig(ctx, prev, next, "config"); err != nil {
-		return fmt.Errorf("saving config: %w", err)
-	}
-
-	return nil
+	return r.saveConfig(ctx, prev, next, "config")
 }
 
 // Delete should delete pomerium routes corresponding to this ingress name
@@ -145,12 +141,16 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, prev, next *pb.Config
 	// envoy matches according to the order routes are present in the configuration
 	sort.Sort(routeList(next.Routes))
 
+	if r.DebugDumpConfigDiff {
+		debugDumpConfigDiff(prev, next)
+	}
+
 	if err := validate(ctx, next, id); err != nil {
 		return false, fmt.Errorf("config validation: %w", err)
 	}
 
 	if proto.Equal(prev, next) {
-		logger.Info("no changes detected")
+		logger.V(1).Info("no changes in the config")
 		return false, nil
 	}
 
@@ -166,10 +166,6 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, prev, next *pb.Config
 	}
 
 	logger.Info("new pomerium config applied")
-
-	if r.DebugDumpConfigDiff {
-		debugDumpConfigDiff(prev, next)
-	}
 
 	return true, nil
 }
