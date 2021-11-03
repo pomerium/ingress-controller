@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/client9/misspell v0.3.4
-	github.com/envoyproxy/go-control-plane v0.9.10-0.20210907150352-cf90f659a021
+	github.com/envoyproxy/go-control-plane v0.10.0
 	github.com/go-logr/zapr v0.4.0
 	github.com/golangci/golangci-lint v1.43.0
 	github.com/google/go-cmp v0.5.6
