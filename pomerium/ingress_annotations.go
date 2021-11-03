@@ -30,6 +30,7 @@ var (
 		"allow_any_authenticated_user",
 		"timeout",
 		"idle_timeout",
+		"allow_spdy",
 		"allow_websockets",
 		"set_request_headers",
 		"remove_request_headers",
