@@ -9,7 +9,7 @@ require (
 	github.com/golangci/golangci-lint v1.43.0
 	github.com/google/go-cmp v0.5.6
 	github.com/google/uuid v1.3.0
-	github.com/gosimple/slug v1.11.0
+	github.com/gosimple/slug v1.11.2
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/iancoleman/strcase v0.2.0
 	github.com/open-policy-agent/opa v0.34.0
@@ -120,7 +120,7 @@ require (
 	github.com/gordonklaus/ineffassign v0.0.0-20210225214923-2e10b2664254 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
-	github.com/gosimple/unidecode v1.0.0 // indirect
+	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/gostaticanalysis/analysisutil v0.7.1 // indirect
 	github.com/gostaticanalysis/comment v1.4.2 // indirect
 	github.com/gostaticanalysis/forcetypeassert v0.0.0-20200621232751-01d4955beaa5 // indirect
