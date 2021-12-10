@@ -19,6 +19,8 @@ const (
 	TLSDownstreamClientCASecret = "tls_downstream_client_ca_secret"
 	// SecureUpstream indicate that service communication should happen over HTTPS
 	SecureUpstream = "secure_upstream"
+	// PathRegex indicates that paths of ImplementationSpecific type should be treated as regular expression
+	PathRegex = "path_regex"
 )
 
 // IngressConfig represents ingress and all other required resources
@@ -29,8 +31,16 @@ type IngressConfig struct {
 	Services map[types.NamespacedName]*corev1.Service
 }
 
+func (ic *IngressConfig) IsAnnotationSet(name string) bool {
+	return strings.ToLower(ic.Ingress.Annotations[fmt.Sprintf("%s/%s", ic.AnnotationPrefix, name)]) == "true"
+}
+
 func (ic *IngressConfig) IsSecureUpstream() bool {
-	return strings.ToLower(ic.Ingress.Annotations[fmt.Sprintf("%s/secure_upstream", ic.AnnotationPrefix)]) == "true"
+	return ic.IsAnnotationSet(SecureUpstream)
+}
+
+func (ic *IngressConfig) IsPathRegex() bool {
+	return ic.IsAnnotationSet(PathRegex)
 }
 
 // GetServicePortByName returns service named port

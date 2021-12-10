@@ -129,7 +129,11 @@ func pathToRoute(r *pb.Route, name types.NamespacedName, host string, p networki
 
 	switch *p.PathType {
 	case networkingv1.PathTypeImplementationSpecific:
-		r.Prefix = p.Path
+		if ic.IsPathRegex() {
+			r.Regex = p.Path
+		} else {
+			r.Prefix = p.Path
+		}
 	case networkingv1.PathTypeExact:
 		r.Path = p.Path
 	case networkingv1.PathTypePrefix:
