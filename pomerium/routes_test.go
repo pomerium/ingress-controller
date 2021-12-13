@@ -445,3 +445,76 @@ func TestRouteSortOrder(t *testing.T) {
 	assert.Equal(t, "a", routes[0].Id)
 	assert.Equal(t, "b", routes[1].Id)
 }
+
+func TestRegexPath(t *testing.T) {
+	pathType := networkingv1.PathTypeImplementationSpecific
+	ic := &model.IngressConfig{
+		AnnotationPrefix: "p",
+		Ingress: &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ingress",
+				Namespace: "default",
+				Annotations: map[string]string{
+					fmt.Sprintf("p/%s", model.PathRegex): "true",
+				},
+			},
+			Spec: networkingv1.IngressSpec{
+				TLS: []networkingv1.IngressTLS{{
+					Hosts:      []string{"service.localhost.pomerium.io"},
+					SecretName: "secret",
+				}},
+				Rules: []networkingv1.IngressRule{{
+					Host: "service.localhost.pomerium.io",
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{{
+								Path:     "^/(admin|superuser)/.*$",
+								PathType: &pathType,
+								Backend: networkingv1.IngressBackend{
+									Service: &networkingv1.IngressServiceBackend{
+										Name: "service",
+										Port: networkingv1.ServiceBackendPort{
+											Name: "http",
+										},
+									},
+								},
+							}},
+						},
+					},
+				}},
+			},
+		},
+		Services: map[types.NamespacedName]*corev1.Service{
+			{Name: "service", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service",
+					Namespace: "default",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{{
+						Name:       "http",
+						Protocol:   "TCP",
+						Port:       80,
+						TargetPort: intstr.IntOrString{IntVal: 80},
+					}},
+				},
+				Status: corev1.ServiceStatus{},
+			},
+		},
+	}
+
+	cfg := new(pb.Config)
+	require.NoError(t, upsertRoutes(context.Background(), cfg, ic))
+	routes, err := routeList(cfg.Routes).toMap()
+	require.NoError(t, err)
+	route := routes[routeID{
+		Name:      "ingress",
+		Namespace: "default",
+		Path:      "^/(admin|superuser)/.*$",
+		Host:      "service.localhost.pomerium.io",
+	}]
+	require.NotNil(t, route)
+	assert.Equal(t, "^/(admin|superuser)/.*$", route.Regex, "regex")
+	assert.Empty(t, route.Prefix, "prefix")
+	assert.Empty(t, route.Path, "path")
+}
