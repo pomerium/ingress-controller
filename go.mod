@@ -9,7 +9,7 @@ require (
 	github.com/golangci/golangci-lint v1.43.0
 	github.com/google/go-cmp v0.5.6
 	github.com/google/uuid v1.3.0
-	github.com/gosimple/slug v1.11.2
+	github.com/gosimple/slug v1.12.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/iancoleman/strcase v0.2.0
 	github.com/open-policy-agent/opa v0.35.0
