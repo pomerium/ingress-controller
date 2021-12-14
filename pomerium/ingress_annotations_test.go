@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -186,6 +187,50 @@ func TestMissingTlsAnnotationsSecretData(t *testing.T) {
 				data[key] = []byte("data")
 			}
 			assert.Errorf(t, applyAnnotations(r, ic), "name=%s key=%s", name, testKey)
+		}
+	}
+}
+
+func TestAnnotationsConversion(t *testing.T) {
+	for i, tc := range []struct {
+		in     map[string]string
+		expect string
+	}{
+		{map[string]string{
+			"bool_param":         "true",
+			"num_param":          "10",
+			"txt_param":          "text",
+			"allowed_idp_claims": `groups: ["admin", "audit"]`,
+			"allowed_groups":     `["admin", "audit"]`,
+		}, `{
+				"bool_param": true,
+				"num_param": 10,
+				"txt_param": "text",
+				"allowed_groups": ["admin", "audit"],
+				"allowed_idp_claims": {"groups": ["admin", "audit"]}
+			}`},
+	} {
+		data, err := toJSON(tc.in)
+		if assert.NoError(t, err, i) {
+			assert.JSONEq(t, tc.expect, string(data), string(data))
+		}
+	}
+}
+
+func TestYaml(t *testing.T) {
+	for input, expect := range map[string]interface{}{
+		"10":                                10,
+		"0.5":                               0.5,
+		"true":                              true,
+		"text":                              "text",
+		"'text2'":                           "text2",
+		`{"bool_key":true}`:                 map[string]interface{}{"bool_key": true},
+		`{"groups":["admin", "superuser"]}`: map[string]interface{}{"groups": []interface{}{"admin", "superuser"}},
+		`groups: ["admin", "superuser"]`:    map[string]interface{}{"groups": []interface{}{"admin", "superuser"}},
+	} {
+		var out interface{}
+		if assert.NoError(t, yaml.Unmarshal([]byte(input), &out), input) {
+			assert.Equal(t, expect, out)
 		}
 	}
 }
