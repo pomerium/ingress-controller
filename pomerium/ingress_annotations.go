@@ -119,20 +119,16 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 }
 
 func toJSON(src map[string]string) ([]byte, error) {
-	var b strings.Builder
+	dst := make(map[string]interface{}, len(src))
 	for k, v := range src {
-		_, _ = b.WriteString(k)
-		_, _ = b.WriteString(": ")
-		_, _ = b.WriteString(v)
-		_, _ = b.WriteRune('\n')
+		out := new(interface{})
+		if err := yaml.Unmarshal([]byte(v), out); err != nil {
+			return nil, fmt.Errorf("%s: %w", k, err)
+		}
+		dst[k] = *out
 	}
 
-	y := make(map[string]interface{})
-	if err := yaml.Unmarshal([]byte(b.String()), y); err != nil {
-		return nil, err
-	}
-
-	return json.Marshal(y)
+	return json.Marshal(dst)
 }
 
 // applyAnnotations applies ingress annotations to a route
