@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 
 	"github.com/pomerium/ingress-controller/controllers"
 	"github.com/pomerium/ingress-controller/pomerium"
@@ -201,9 +202,8 @@ func (s *serveCmd) getDataBrokerConnection(ctx context.Context) (*grpc.ClientCon
 	}
 
 	sharedSecret, _ := base64.StdEncoding.DecodeString(s.sharedSecret)
-	return NewGRPCClientConn(ctx, &Options{
+	return grpcutil.NewGRPCClientConn(ctx, &grpcutil.Options{
 		Address:                 dataBrokerServiceURL,
-		WithInsecure:            dataBrokerServiceURL.Scheme != "https",
 		ServiceName:             "databroker",
 		SignedJWTKey:            sharedSecret,
 		RequestTimeout:          defaultGRPCTimeout,
