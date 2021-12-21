@@ -15,7 +15,7 @@ require (
 	github.com/open-policy-agent/opa v0.35.0
 	github.com/pomerium/pomerium v0.15.7-0.20211220212603-70e0e866fc5c
 	github.com/sergi/go-diff v1.2.0
-	github.com/spf13/cobra v1.2.1
+	github.com/spf13/cobra v1.3.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.10.1
 	github.com/stretchr/testify v1.7.0
