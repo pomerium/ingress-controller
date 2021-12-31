@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/gosimple/slug"
@@ -147,12 +148,12 @@ func pathToRoute(r *pb.Route, name types.NamespacedName, host string, p networki
 		return fmt.Errorf("setRouteNameID: %w", err)
 	}
 
-	svcURL, err := getServiceURL(name.Namespace, p, ic)
+	svcURLs, err := getServiceURLs(name.Namespace, p, ic)
 	if err != nil {
 		return fmt.Errorf("backend: %w", err)
 	}
 
-	r.To = []string{svcURL.String()}
+	r.To = svcURLs
 	return nil
 }
 
@@ -172,7 +173,7 @@ func setRouteNameID(r *pb.Route, name types.NamespacedName, u url.URL) error {
 	return nil
 }
 
-func getServiceURL(namespace string, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) (*url.URL, error) {
+func getServiceURLs(namespace string, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) ([]string, error) {
 	svc := p.Backend.Service
 	if svc == nil {
 		return nil, errors.New("service is missing")
@@ -193,19 +194,40 @@ func getServiceURL(namespace string, p networkingv1.HTTPIngressPath, ic *model.I
 		scheme = "https"
 	}
 
-	var host string
 	service, ok := ic.Services[serviceName]
 	if !ok {
 		return nil, fmt.Errorf("service %s was not fetched, this is a bug", serviceName.String())
 	}
+
+	var hosts []string
 	if service.Spec.Type == corev1.ServiceTypeExternalName {
-		host = fmt.Sprintf("%s:%d", service.Spec.ExternalName, port)
+		hosts = append(hosts, fmt.Sprintf("%s:%d", service.Spec.ExternalName, port))
 	} else {
-		host = fmt.Sprintf("%s.%s.svc.cluster.local:%d", svc.Name, namespace, port)
+		endpoints, ok := ic.Endpoints[serviceName]
+		if ok {
+			for _, subset := range endpoints.Subsets {
+				for _, endpointAddress := range subset.Addresses {
+					for _, endpointPort := range subset.Ports {
+						hosts = append(hosts, fmt.Sprintf("%s:%d", endpointAddress.IP, endpointPort.Port))
+					}
+				}
+			}
+		}
+
+		// this can happen if no endpoints are ready, or none match, in which case we fallback to the Kubernetes DNS name
+		if len(hosts) == 0 {
+			hosts = append(hosts, fmt.Sprintf("%s.%s.svc.cluster.local:%d", svc.Name, namespace, port))
+		}
 	}
 
-	return &url.URL{
-		Scheme: scheme,
-		Host:   host,
-	}, nil
+	var urls []string
+	for _, host := range hosts {
+		urls = append(urls, (&url.URL{
+			Scheme: scheme,
+			Host:   host,
+		}).String())
+	}
+	sort.Strings(urls)
+
+	return urls, nil
 }

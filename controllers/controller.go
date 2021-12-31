@@ -66,6 +66,7 @@ type ingressController struct {
 	updateStatusFromService *types.NamespacedName
 
 	// object Kinds are frequently used, do not change and are cached
+	endpointsKind    string
 	ingressKind      string
 	ingressClassKind string
 	secretKind       string
@@ -257,7 +258,10 @@ func (r *ingressController) updateDependencies(ic *model.IngressConfig) {
 		r.Add(ingKey, r.objectKey(s))
 	}
 	for _, s := range ic.Services {
-		r.Add(ingKey, r.objectKey(s))
+		k := r.objectKey(s)
+		r.Add(ingKey, k)
+		k.Kind = r.endpointsKind
+		r.Add(ingKey, k)
 	}
 
 	if r.updateStatusFromService != nil {
@@ -321,6 +325,7 @@ func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 		{&networkingv1.IngressClass{}, &r.ingressClassKind, r.watchIngressClass},
 		{&corev1.Secret{}, &r.secretKind, r.getDependantIngressFn},
 		{&corev1.Service{}, &r.serviceKind, r.getDependantIngressFn},
+		{&corev1.Endpoints{}, &r.endpointsKind, r.getDependantIngressFn},
 	} {
 		gvk, err := apiutil.GVKForObject(o.Object, r.Scheme)
 		if err != nil {

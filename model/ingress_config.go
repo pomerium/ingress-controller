@@ -27,8 +27,9 @@ const (
 type IngressConfig struct {
 	AnnotationPrefix string
 	*networkingv1.Ingress
-	Secrets  map[types.NamespacedName]*corev1.Secret
-	Services map[types.NamespacedName]*corev1.Service
+	Endpoints map[types.NamespacedName]*corev1.Endpoints
+	Secrets   map[types.NamespacedName]*corev1.Secret
+	Services  map[types.NamespacedName]*corev1.Service
 }
 
 func (ic *IngressConfig) IsAnnotationSet(name string) bool {
@@ -69,6 +70,7 @@ func (ic *IngressConfig) Clone() *IngressConfig {
 	dst := &IngressConfig{
 		AnnotationPrefix: ic.AnnotationPrefix,
 		Ingress:          ic.Ingress.DeepCopy(),
+		Endpoints:        make(map[types.NamespacedName]*corev1.Endpoints, len(ic.Endpoints)),
 		Secrets:          make(map[types.NamespacedName]*corev1.Secret, len(ic.Secrets)),
 		Services:         make(map[types.NamespacedName]*corev1.Service, len(ic.Services)),
 	}

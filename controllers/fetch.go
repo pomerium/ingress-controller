@@ -21,21 +21,28 @@ func (r *ingressController) fetchIngress(
 		return nil, fmt.Errorf("tls: %w", err)
 	}
 
-	svc, err := r.fetchIngressServices(ctx, ingress)
+	services, endpoints, err := r.fetchIngressServices(ctx, ingress)
 	if err != nil {
 		return nil, fmt.Errorf("services: %w", err)
 	}
+
 	return &model.IngressConfig{
 		AnnotationPrefix: r.annotationPrefix,
 		Ingress:          ingress,
+		Endpoints:        endpoints,
 		Secrets:          secrets,
-		Services:         svc,
+		Services:         services,
 	}, nil
 }
 
 // fetchIngressServices returns list of services referred from named port in the ingress path backend spec
-func (r *ingressController) fetchIngressServices(ctx context.Context, ingress *networkingv1.Ingress) (map[types.NamespacedName]*corev1.Service, error) {
+func (r *ingressController) fetchIngressServices(ctx context.Context, ingress *networkingv1.Ingress) (
+	map[types.NamespacedName]*corev1.Service,
+	map[types.NamespacedName]*corev1.Endpoints,
+	error,
+) {
 	sm := make(map[types.NamespacedName]*corev1.Service)
+	em := make(map[types.NamespacedName]*corev1.Endpoints)
 	ingressKey := r.objectKey(ingress)
 	for _, rule := range ingress.Spec.Rules {
 		if rule.HTTP == nil {
@@ -44,29 +51,34 @@ func (r *ingressController) fetchIngressServices(ctx context.Context, ingress *n
 		for _, p := range rule.HTTP.Paths {
 			svc := p.Backend.Service
 			if svc == nil {
-				return nil, fmt.Errorf("rule host=%s path=%s has no backend service defined", rule.Host, p.Path)
+				return nil, nil, fmt.Errorf("rule host=%s path=%s has no backend service defined", rule.Host, p.Path)
 			}
 			svcName := types.NamespacedName{Name: svc.Name, Namespace: ingress.Namespace}
-			if err := r.fetchIngressService(ctx, ingressKey, sm, svcName); err != nil {
-				return nil, fmt.Errorf("rule host=%s path=%s refers to service %s port=%s, failed to get service information: %w",
+			if err := r.fetchIngressService(ctx, ingressKey, sm, em, svcName); err != nil {
+				return nil, nil, fmt.Errorf("rule host=%s path=%s refers to service %s port=%s, failed to get service information: %w",
 					rule.Host, p.Path, svcName.String(), svc.Port.String(), err)
 			}
-
 		}
 	}
 
 	if ingress.Spec.DefaultBackend == nil {
-		return sm, nil
+		return sm, em, nil
 	}
 
-	if err := r.fetchIngressService(ctx, ingressKey, sm, types.NamespacedName{Name: ingress.Spec.DefaultBackend.Service.Name, Namespace: ingress.Namespace}); err != nil {
-		return nil, fmt.Errorf("defaultBackend: %w", err)
+	if err := r.fetchIngressService(ctx, ingressKey, sm, em, types.NamespacedName{Name: ingress.Spec.DefaultBackend.Service.Name, Namespace: ingress.Namespace}); err != nil {
+		return nil, nil, fmt.Errorf("defaultBackend: %w", err)
 	}
 
-	return sm, nil
+	return sm, em, nil
 }
 
-func (r *ingressController) fetchIngressService(ctx context.Context, ingressKey model.Key, dst map[types.NamespacedName]*corev1.Service, name types.NamespacedName) error {
+func (r *ingressController) fetchIngressService(
+	ctx context.Context,
+	ingressKey model.Key,
+	servicesDst map[types.NamespacedName]*corev1.Service,
+	endpointsDst map[types.NamespacedName]*corev1.Endpoints,
+	name types.NamespacedName,
+) error {
 	service := new(corev1.Service)
 	if err := r.Client.Get(ctx, name, service); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -74,7 +86,17 @@ func (r *ingressController) fetchIngressService(ctx context.Context, ingressKey 
 		}
 		return err
 	}
-	dst[name] = service
+	servicesDst[name] = service
+
+	endpoint := new(corev1.Endpoints)
+	if err := r.Client.Get(ctx, name, endpoint); err != nil {
+		if apierrors.IsNotFound(err) {
+			r.Registry.Add(ingressKey, model.Key{Kind: r.endpointsKind, NamespacedName: name})
+		}
+		return err
+	}
+	endpointsDst[name] = endpoint
+
 	return nil
 }
 
