@@ -215,6 +215,17 @@ func TestSecureUpstream(t *testing.T) {
 				}},
 			},
 		},
+		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
+			{Name: "service", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service",
+					Namespace: "default",
+				},
+				Subsets: []corev1.EndpointSubset{{
+					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
+					Ports:     []corev1.EndpointPort{{Port: 443}},
+				}},
+			}},
 		Services: map[types.NamespacedName]*corev1.Service{
 			{Name: "service", Namespace: "default"}: {
 				ObjectMeta: metav1.ObjectMeta{
@@ -244,9 +255,9 @@ func TestSecureUpstream(t *testing.T) {
 		Path:      "/a",
 		Host:      "service.localhost.pomerium.io",
 	}]
-	require.NotNil(t, route)
+	require.NotNil(t, route, "route not found in %v", routes)
 	require.Equal(t, []string{
-		"https://service.default.svc.cluster.local:443",
+		"https://1.2.3.4:443",
 	}, route.To)
 }
 
