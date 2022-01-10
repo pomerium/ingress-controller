@@ -529,3 +529,88 @@ func TestRegexPath(t *testing.T) {
 	assert.Empty(t, route.Prefix, "prefix")
 	assert.Empty(t, route.Path, "path")
 }
+
+func TestUseServiceProxy(t *testing.T) {
+	pathTypePrefix := networkingv1.PathTypePrefix
+	ic := &model.IngressConfig{
+		AnnotationPrefix: "p",
+		Ingress: &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ingress",
+				Namespace: "default",
+				Annotations: map[string]string{
+					fmt.Sprintf("p/%s", model.UseServiceProxy): "true",
+				},
+			},
+			Spec: networkingv1.IngressSpec{
+				TLS: []networkingv1.IngressTLS{{
+					Hosts:      []string{"service.localhost.pomerium.io"},
+					SecretName: "secret",
+				}},
+				Rules: []networkingv1.IngressRule{{
+					Host: "service.localhost.pomerium.io",
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{{
+								Path:     "/a",
+								PathType: &pathTypePrefix,
+								Backend: networkingv1.IngressBackend{
+									Service: &networkingv1.IngressServiceBackend{
+										Name: "service",
+										Port: networkingv1.ServiceBackendPort{
+											Name: "http",
+										},
+									},
+								},
+							}},
+						},
+					},
+				}},
+			},
+		},
+		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
+			{Name: "service", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service",
+					Namespace: "default",
+				},
+				Subsets: []corev1.EndpointSubset{{
+					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
+					Ports:     []corev1.EndpointPort{{Port: 80}},
+				}},
+			}},
+		Services: map[types.NamespacedName]*corev1.Service{
+			{Name: "service", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service",
+					Namespace: "default",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{{
+						Name:       "http",
+						Protocol:   "TCP",
+						Port:       80,
+						TargetPort: intstr.IntOrString{IntVal: 80},
+					}},
+				},
+				Status: corev1.ServiceStatus{},
+			},
+		},
+	}
+
+	cfg := new(pb.Config)
+	require.NoError(t, upsertRoutes(context.Background(), cfg, ic))
+	routes, err := routeList(cfg.Routes).toMap()
+	require.NoError(t, err)
+	route := routes[routeID{
+		Name:      "ingress",
+		Namespace: "default",
+		Path:      "/a",
+		Host:      "service.localhost.pomerium.io",
+	}]
+	require.NotNil(t, route, "route not found in %v", routes)
+	require.Equal(t, []string{
+		"http://service.default.svc.cluster.local:80",
+	}, route.To)
+
+}

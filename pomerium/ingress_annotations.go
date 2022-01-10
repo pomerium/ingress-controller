@@ -65,6 +65,7 @@ var (
 	handledElsewhere = boolMap([]string{
 		model.SecureUpstream,
 		model.PathRegex,
+		model.UseServiceProxy,
 	})
 )
 
