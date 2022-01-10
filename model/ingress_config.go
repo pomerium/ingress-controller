@@ -21,6 +21,8 @@ const (
 	SecureUpstream = "secure_upstream"
 	// PathRegex indicates that paths of ImplementationSpecific type should be treated as regular expression
 	PathRegex = "path_regex"
+	// UseServiceProxy will use standard k8s service proxy as upstream, opposed to individual endpoints
+	UseServiceProxy = "service_proxy_upstream"
 )
 
 // IngressConfig represents ingress and all other required resources
@@ -42,6 +44,11 @@ func (ic *IngressConfig) IsSecureUpstream() bool {
 
 func (ic *IngressConfig) IsPathRegex() bool {
 	return ic.IsAnnotationSet(PathRegex)
+}
+
+// UseServiceProxy disables use of endpoints and would use standard k8s service proxy instead
+func (ic *IngressConfig) UseServiceProxy() bool {
+	return ic.IsAnnotationSet(UseServiceProxy)
 }
 
 // GetServicePortByName returns service named port

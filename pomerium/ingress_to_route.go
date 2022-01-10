@@ -202,6 +202,8 @@ func getServiceURLs(namespace string, p networkingv1.HTTPIngressPath, ic *model.
 	var hosts []string
 	if service.Spec.Type == corev1.ServiceTypeExternalName {
 		hosts = append(hosts, fmt.Sprintf("%s:%d", service.Spec.ExternalName, port))
+	} else if ic.UseServiceProxy() {
+		hosts = append(hosts, fmt.Sprintf("%s.%s.svc.cluster.local:%d", svc.Name, namespace, port))
 	} else {
 		endpoints, ok := ic.Endpoints[serviceName]
 		if ok {
