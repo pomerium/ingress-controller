@@ -60,7 +60,7 @@ dockers:
     dockerfile: Dockerfile.release
     build_flag_templates:
       - "--pull"
-      - "--build-arg=ARCH=amd64"
+      - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.created={{.Date}}"
       - "--label=org.opencontainers.image.name={{.ProjectName}}"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
@@ -74,7 +74,7 @@ dockers:
     dockerfile: Dockerfile.release
     build_flag_templates:
       - "--pull"
-      - "--build-arg=ARCH=arm64"
+      - "--platform=linux/arm64"
       - "--label=org.opencontainers.image.created={{.Date}}"
       - "--label=org.opencontainers.image.name={{.ProjectName}}"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
