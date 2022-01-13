@@ -4,7 +4,7 @@ set -euo pipefail
 PATH="$PATH:$(go env GOPATH)/bin"
 export PATH
 
-_envoy_version=1.19.1
+_envoy_version=1.20.1
 _dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/../pomerium/envoy/bin"
 _target="${TARGET:-"$(go env GOOS)-$(go env GOARCH)"}"
 _envoy_binary_name="envoy-$_target"
@@ -42,7 +42,7 @@ if [ -f "$_file" ] && [ -f "$_sha" ] && [ -f "$_version" ]; then
 fi
 
 mkdir -p "$_dir"
-curl -L -o "$_file" \
+curl --no-progress-meter --fail -L -o "$_file" \
     "https://github.com/pomerium/envoy-binaries/releases/download/v${_envoy_version}/${_envoy_binary_name}"
 
 hash_sha256 "$_file" >"$_sha"
