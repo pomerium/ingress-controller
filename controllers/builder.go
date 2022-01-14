@@ -11,18 +11,25 @@ import (
 )
 
 const (
-	DefaultAnnotationPrefix    = "ingress.pomerium.io"
+	// DefaultAnnotationPrefix defines prefix that would be watched for Ingress annotations
+	DefaultAnnotationPrefix = "ingress.pomerium.io"
+	// DefaultClassControllerName is controller name
+	//
 	DefaultClassControllerName = "pomerium.io/ingress-controller"
 )
 
 // NewIngressController creates new controller runtime
-func NewIngressController(ctx context.Context, cfg *rest.Config, crOpts ctrl.Options, pcr PomeriumReconciler, opts ...Option) (ctrl.Manager, error) {
+func NewIngressController(
+	cfg *rest.Config,
+	crOpts ctrl.Options,
+	pcr PomeriumReconciler,
+	onError context.CancelFunc,
+	opts ...Option) (ctrl.Manager, error) {
 	mgr, err := ctrl.NewManager(cfg, crOpts)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start manager: %w", err)
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
 	registry := model.NewRegistry()
 	ic := &ingressController{
 		annotationPrefix:   DefaultAnnotationPrefix,
@@ -32,7 +39,7 @@ func NewIngressController(ctx context.Context, cfg *rest.Config, crOpts ctrl.Opt
 		Registry:           registry,
 		EventRecorder:      mgr.GetEventRecorderFor("pomerium-ingress"),
 	}
-	ic.initComplete = newOnce(ic.reconcileInitial, cancel)
+	ic.initComplete = newOnce(ic.reconcileInitial, onError)
 	for _, opt := range opts {
 		opt(ic)
 	}

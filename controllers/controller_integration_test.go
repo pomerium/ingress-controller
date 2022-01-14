@@ -38,8 +38,6 @@ var (
 	_ suite.SetupTestSuite    = &ControllerTestSuite{}
 	_ suite.TearDownTestSuite = &ControllerTestSuite{}
 
-	allNamespaces []string = nil
-
 	cmpOpts = []cmp.Option{
 		cmpopts.IgnoreTypes(metav1.TypeMeta{}),
 		cmpopts.IgnoreFields(metav1.ObjectMeta{}, "SelfLink"),
@@ -208,16 +206,18 @@ func (s *ControllerTestSuite) TearDownSuite() {
 }
 
 func (s *ControllerTestSuite) createTestController(ctx context.Context, opts ...controllers.Option) {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	s.mockPomeriumReconciler = &mockPomeriumReconciler{}
-	mgr, err := controllers.NewIngressController(ctx, s.Environment.Config,
+	mgr, err := controllers.NewIngressController(s.Environment.Config,
 		ctrl.Options{
 			Scheme: s.Environment.Scheme,
 		},
 		s.mockPomeriumReconciler,
+		cancel,
 		opts...)
 	s.NoError(err)
 
-	ctx, cancel := context.WithCancel(context.Background())
 	s.mgrCtxCancel = cancel
 	s.mgrDone = make(chan error)
 
@@ -226,16 +226,19 @@ func (s *ControllerTestSuite) createTestController(ctx context.Context, opts ...
 	}()
 }
 
-func (s *ControllerTestSuite) initialTestObjects(namespace string) (
-	*networkingv1.IngressClass,
-	*networkingv1.Ingress,
-	*corev1.Endpoints,
-	*corev1.Service,
-	*corev1.Secret,
-) {
+type testObjs struct {
+	*networkingv1.IngressClass
+	*networkingv1.Ingress
+	*corev1.Endpoints
+	*corev1.Service
+	*corev1.Secret
+}
+
+func (s *ControllerTestSuite) initialTestObjects(namespace string) *testObjs {
 	typePrefix := networkingv1.PathTypePrefix
 	icsName := "pomerium"
-	return &networkingv1.IngressClass{
+	return &testObjs{
+		&networkingv1.IngressClass{
 			ObjectMeta: metav1.ObjectMeta{Name: icsName, Namespace: namespace},
 			Spec: networkingv1.IngressClassSpec{
 				Controller: s.controllerName,
@@ -304,14 +307,16 @@ func (s *ControllerTestSuite) initialTestObjects(namespace string) (
 				corev1.TLSCertKey:       []byte("A"),
 			},
 			Type: corev1.SecretTypeTLS,
-		}
+		},
+	}
 }
 
 func (s *ControllerTestSuite) TestIngressClass() {
 	ctx := context.Background()
 	s.createTestController(ctx)
 
-	ingressClass, ingress, endpoints, service, _ := s.initialTestObjects("default")
+	to := s.initialTestObjects("default")
+	ingressClass, ingress, endpoints, service := to.IngressClass, to.Ingress, to.Endpoints, to.Service
 	ingress.Spec.TLS = nil
 	ingress.Spec.IngressClassName = nil
 	// ingress should not be picked up for reconciliation as there's no ingress class record
@@ -368,7 +373,8 @@ func (s *ControllerTestSuite) TestDependencies() {
 	ctx := context.Background()
 	s.createTestController(ctx)
 
-	ingressClass, ingress, endpoints, service, secret := s.initialTestObjects("default")
+	to := s.initialTestObjects("default")
+	ingressClass, ingress, endpoints, service, secret := to.IngressClass, to.Ingress, to.Endpoints, to.Service, to.Secret
 	svcName := types.NamespacedName{Name: "service", Namespace: "default"}
 	secretName := types.NamespacedName{Name: "secret", Namespace: "default"}
 
@@ -406,7 +412,8 @@ func (s *ControllerTestSuite) TestAnnotationDependencies() {
 	ctx := context.Background()
 	s.createTestController(ctx)
 
-	ingressClass, ingress, endpoints, service, secret := s.initialTestObjects("default")
+	to := s.initialTestObjects("default")
+	ingressClass, ingress, endpoints, service, secret := to.IngressClass, to.Ingress, to.Endpoints, to.Service, to.Secret
 	ingress.Annotations = map[string]string{
 		fmt.Sprintf("%s/%s", controllers.DefaultAnnotationPrefix, model.TLSCustomCASecret):           "custom-ca",
 		fmt.Sprintf("%s/%s", controllers.DefaultAnnotationPrefix, model.TLSClientSecret):             "client",
@@ -466,11 +473,12 @@ func (s *ControllerTestSuite) TestNamespaces() {
 	s.createTestController(ctx, controllers.WithNamespaces([]string{"a", "c"}))
 	del := func(obj client.Object) { s.Client.Delete(ctx, obj) }
 
-	ingressClass, _, _, _, _ := s.initialTestObjects("")
+	ingressClass := s.initialTestObjects("").IngressClass
 	s.NoError(s.Client.Create(ctx, ingressClass))
 
 	for ns, shouldCreate := range namespaces {
-		_, ingress, endpoints, service, secret := s.initialTestObjects(ns)
+		to := s.initialTestObjects(ns)
+		ingress, endpoints, service, secret := to.Ingress, to.Endpoints, to.Service, to.Secret
 		for _, obj := range []client.Object{
 			&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}},
 			ingress, endpoints, service, secret,
@@ -516,8 +524,8 @@ func (s *ControllerTestSuite) TestIngressStatus() {
 			}},
 		},
 	}
-
-	class, ingress, endpoints, service, secret := s.initialTestObjects("default")
+	to := s.initialTestObjects("default")
+	class, ingress, endpoints, service, secret := to.IngressClass, to.Ingress, to.Endpoints, to.Service, to.Secret
 	del := func(obj client.Object) { s.Client.Delete(ctx, obj) }
 	for _, obj := range []client.Object{
 		ns, proxySvc,

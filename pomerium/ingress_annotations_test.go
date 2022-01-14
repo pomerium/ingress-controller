@@ -21,8 +21,9 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/pomerium/ingress-controller/model"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
+
+	"github.com/pomerium/ingress-controller/model"
 )
 
 var (

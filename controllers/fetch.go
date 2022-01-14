@@ -65,7 +65,11 @@ func (r *ingressController) fetchIngressServices(ctx context.Context, ingress *n
 		return sm, em, nil
 	}
 
-	if err := r.fetchIngressService(ctx, ingressKey, sm, em, types.NamespacedName{Name: ingress.Spec.DefaultBackend.Service.Name, Namespace: ingress.Namespace}); err != nil {
+	if err := r.fetchIngressService(ctx, ingressKey, sm, em,
+		types.NamespacedName{
+			Name:      ingress.Spec.DefaultBackend.Service.Name,
+			Namespace: ingress.Namespace,
+		}); err != nil {
 		return nil, nil, fmt.Errorf("defaultBackend: %w", err)
 	}
 

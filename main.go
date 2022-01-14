@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"log"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -27,5 +28,9 @@ import (
 )
 
 func main() {
-	_ = cmd.ServeCommand().ExecuteContext(context.Background())
+	c, err := cmd.ServeCommand()
+	if err != nil {
+		log.Fatal(err)
+	}
+	_ = c.ExecuteContext(context.Background())
 }

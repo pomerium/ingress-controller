@@ -3,7 +3,6 @@ package envoy
 import (
 	"bytes"
 	"crypto/sha256"
-	"embed"
 	"encoding/hex"
 	"fmt"
 	"hash"
@@ -18,9 +17,6 @@ const (
 	maxExpandedEnvoySize = 1 << 30
 )
 
-//go:embed bin
-var efs embed.FS
-
 type hashReader struct {
 	hash.Hash
 	r io.Reader
@@ -32,7 +28,7 @@ func (hr *hashReader) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
-func extract(dstName string) error {
+func extract(dstName string) (err error) {
 	checksum, err := hex.DecodeString(strings.Fields(rawChecksum)[0])
 	if err != nil {
 		return err
@@ -47,7 +43,8 @@ func extract(dstName string) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = dst.Close() }()
+	//nolint: gosec
+	defer func() { err = dst.Close() }()
 
 	if _, err = io.Copy(dst, io.LimitReader(hr, maxExpandedEnvoySize)); err != nil {
 		return err

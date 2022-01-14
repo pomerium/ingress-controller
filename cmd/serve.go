@@ -47,7 +47,6 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -76,15 +75,17 @@ type serveCmd struct {
 }
 
 // ServeCommand creates command to run ingress controller
-func ServeCommand() *cobra.Command {
+func ServeCommand() (*cobra.Command, error) {
 	cmd := serveCmd{
 		Command: cobra.Command{
 			Use:   "serve",
 			Short: "run ingress controller",
 		}}
 	cmd.RunE = cmd.exec
-	cmd.setupFlags()
-	return &cmd.Command
+	if err := cmd.setupFlags(); err != nil {
+		return nil, err
+	}
+	return &cmd.Command, nil
 }
 
 const (
@@ -108,7 +109,7 @@ func envName(name string) string {
 	return strcase.ToScreamingSnake(name)
 }
 
-func (s *serveCmd) setupFlags() {
+func (s *serveCmd) setupFlags() error {
 	flags := s.PersistentFlags()
 	flags.IntVar(&s.webhookPort, webhookPort, 9443, "webhook port")
 	flags.StringVar(&s.metricsAddr, metricsBindAddress, ":8080", "The address the metric endpoint binds to.")
@@ -128,18 +129,26 @@ func (s *serveCmd) setupFlags() {
 	flags.StringVar(&s.sharedSecret, sharedSecret, "",
 		"base64-encoded shared secret for signing JWTs")
 	flags.BoolVar(&s.debug, debug, false, "enable debug logging")
-	flags.MarkHidden("debug")
+	if err := flags.MarkHidden("debug"); err != nil {
+		return err
+	}
 	flags.StringVar(&s.updateStatusFromService, updateStatusFromService, "", "update ingress status from given service status (pomerium-proxy)")
 
 	v := viper.New()
+	var err error
 	flags.VisitAll(func(f *pflag.Flag) {
-		v.BindEnv(f.Name, envName(f.Name))
+		if err = v.BindEnv(f.Name, envName(f.Name)); err != nil {
+			return
+		}
 
 		if !f.Changed && v.IsSet(f.Name) {
 			val := v.Get(f.Name)
-			flags.Set(f.Name, fmt.Sprintf("%v", val))
+			if err = flags.Set(f.Name, fmt.Sprintf("%v", val)); err != nil {
+				return
+			}
 		}
 	})
+	return err
 }
 
 func (s *serveCmd) exec(*cobra.Command, []string) error {
@@ -248,11 +257,13 @@ func (c *leadController) ReadyzCheck(r *http.Request) error {
 func (c *leadController) RunLeased(ctx context.Context) error {
 	defer c.setRunning(false)
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return fmt.Errorf("get k8s api config: %w", err)
 	}
-	mgr, err := controllers.NewIngressController(ctx, cfg, c.MgrOpts, c.PomeriumReconciler, c.CtrlOpts...)
+	mgr, err := controllers.NewIngressController(cfg, c.MgrOpts, c.PomeriumReconciler, cancel, c.CtrlOpts...)
 	if err != nil {
 		return fmt.Errorf("creating controller: %w", err)
 	}
