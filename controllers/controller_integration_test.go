@@ -206,18 +206,16 @@ func (s *ControllerTestSuite) TearDownSuite() {
 }
 
 func (s *ControllerTestSuite) createTestController(ctx context.Context, opts ...controllers.Option) {
-	ctx, cancel := context.WithCancel(context.Background())
-
 	s.mockPomeriumReconciler = &mockPomeriumReconciler{}
 	mgr, err := controllers.NewIngressController(s.Environment.Config,
 		ctrl.Options{
 			Scheme: s.Environment.Scheme,
 		},
 		s.mockPomeriumReconciler,
-		cancel,
 		opts...)
 	s.NoError(err)
 
+	ctx, cancel := context.WithCancel(context.Background())
 	s.mgrCtxCancel = cancel
 	s.mgrDone = make(chan error)
 

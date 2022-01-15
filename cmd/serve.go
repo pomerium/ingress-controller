@@ -257,13 +257,11 @@ func (c *leadController) ReadyzCheck(r *http.Request) error {
 func (c *leadController) RunLeased(ctx context.Context) error {
 	defer c.setRunning(false)
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return fmt.Errorf("get k8s api config: %w", err)
 	}
-	mgr, err := controllers.NewIngressController(cfg, c.MgrOpts, c.PomeriumReconciler, cancel, c.CtrlOpts...)
+	mgr, err := controllers.NewIngressController(cfg, c.MgrOpts, c.PomeriumReconciler, c.CtrlOpts...)
 	if err != nil {
 		return fmt.Errorf("creating controller: %w", err)
 	}

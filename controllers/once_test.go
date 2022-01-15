@@ -15,14 +15,11 @@ import (
 func TestOnce(t *testing.T) {
 	var callCount int32
 	var errSeen int32
-	var onError int32
 
 	o := newOnce(func(ctx context.Context) error {
 		_ = atomic.AddInt32(&callCount, 1)
 		time.Sleep(time.Second)
 		return fmt.Errorf("ERROR")
-	}, func() {
-		_ = atomic.AddInt32(&onError, 1)
 	})
 
 	ctx := context.Background()
@@ -42,5 +39,4 @@ func TestOnce(t *testing.T) {
 	wg.Wait()
 	assert.Equal(t, callCount, int32(1))
 	assert.Equal(t, errSeen, int32(1))
-	assert.Equal(t, onError, int32(1))
 }

@@ -2,7 +2,6 @@
 package controllers
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/pomerium/ingress-controller/model"
@@ -23,8 +22,8 @@ func NewIngressController(
 	cfg *rest.Config,
 	crOpts ctrl.Options,
 	pcr PomeriumReconciler,
-	onError context.CancelFunc,
-	opts ...Option) (ctrl.Manager, error) {
+	opts ...Option,
+) (ctrl.Manager, error) {
 	mgr, err := ctrl.NewManager(cfg, crOpts)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start manager: %w", err)
@@ -39,7 +38,7 @@ func NewIngressController(
 		Registry:           registry,
 		EventRecorder:      mgr.GetEventRecorderFor("pomerium-ingress"),
 	}
-	ic.initComplete = newOnce(ic.reconcileInitial, onError)
+	ic.initComplete = newOnce(ic.reconcileInitial)
 	for _, opt := range opts {
 		opt(ic)
 	}

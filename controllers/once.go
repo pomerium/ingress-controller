@@ -9,7 +9,7 @@ type once struct {
 	result  chan error
 }
 
-func newOnce(runnable func(ctx context.Context) error, onError func()) *once {
+func newOnce(runnable func(ctx context.Context) error) *once {
 	o := &once{
 		execCtx: make(chan context.Context),
 		result:  make(chan error),
@@ -17,9 +17,6 @@ func newOnce(runnable func(ctx context.Context) error, onError func()) *once {
 	go func() {
 		ctx := <-o.execCtx
 		err := runnable(ctx)
-		if err != nil {
-			onError()
-		}
 		o.result <- err
 		close(o.result)
 	}()
