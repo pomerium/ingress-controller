@@ -14,12 +14,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/pomerium/ingress-controller/model"
 	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/policy"
+
+	"github.com/pomerium/ingress-controller/model"
 )
 
 const (
+	// CAKey is certificate authority secret key name
 	CAKey = "ca.crt"
 )
 
@@ -149,7 +151,7 @@ func applyAnnotations(
 	if err = unmarshallAnnotations(r.EnvoyOpts, kv.Envoy); err != nil {
 		return err
 	}
-	if err = applyTlsAnnotations(r, kv.TLS, ic.Secrets, ic.Ingress.Namespace); err != nil {
+	if err = applyTLSAnnotations(r, kv.TLS, ic.Secrets, ic.Ingress.Namespace); err != nil {
 		return err
 	}
 	p := new(pomerium.Policy)
@@ -206,7 +208,7 @@ func unmarshallAnnotations(m protoreflect.ProtoMessage, kvs map[string]string) e
 	}).Unmarshal(data, m)
 }
 
-func applyTlsAnnotations(
+func applyTLSAnnotations(
 	r *pomerium.Route,
 	kvs map[string]string,
 	secrets map[types.NamespacedName]*corev1.Secret,

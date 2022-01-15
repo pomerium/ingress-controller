@@ -1,5 +1,7 @@
 # Pomerium Kubernetes Ingress Controller
 
+See [docs for usage details](https://www.pomerium.com/docs/k8s/ingress.html).
+
 ## System Requirements
 
 - [Pomerium](https://github.com/pomerium/pomerium) v0.15.0+

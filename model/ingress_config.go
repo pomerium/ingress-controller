@@ -12,8 +12,10 @@ import (
 
 const (
 	// TLSCustomCASecret replaces https://pomerium.io/reference/#tls-custom-certificate-authority
+	// nolint: gosec
 	TLSCustomCASecret = "tls_custom_ca_secret"
 	// TLSClientSecret replaces https://pomerium.io/reference/#tls-client-certificate
+	// nolint: gosec
 	TLSClientSecret = "tls_client_secret"
 	// TLSDownstreamClientCASecret replaces https://pomerium.io/reference/#tls-downstream-client-certificate-authority
 	TLSDownstreamClientCASecret = "tls_downstream_client_ca_secret"
@@ -34,14 +36,17 @@ type IngressConfig struct {
 	Services  map[types.NamespacedName]*corev1.Service
 }
 
+// IsAnnotationSet checks if a boolean annotation is set to true
 func (ic *IngressConfig) IsAnnotationSet(name string) bool {
 	return strings.ToLower(ic.Ingress.Annotations[fmt.Sprintf("%s/%s", ic.AnnotationPrefix, name)]) == "true"
 }
 
+// IsSecureUpstream returns true if upstream endpoints should be HTTPS
 func (ic *IngressConfig) IsSecureUpstream() bool {
 	return ic.IsAnnotationSet(SecureUpstream)
 }
 
+// IsPathRegex returns true if paths in the Ingress spec should be treated as regular expressions
 func (ic *IngressConfig) IsPathRegex() bool {
 	return ic.IsAnnotationSet(PathRegex)
 }
@@ -73,6 +78,7 @@ type TLSCert struct {
 	Cert []byte
 }
 
+// Clone creates a deep copy of the ingress config
 func (ic *IngressConfig) Clone() *IngressConfig {
 	dst := &IngressConfig{
 		AnnotationPrefix: ic.AnnotationPrefix,

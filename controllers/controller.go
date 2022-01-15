@@ -75,20 +75,24 @@ type ingressController struct {
 	initComplete *once
 }
 
+// Option customizes ingress controller
 type Option func(ic *ingressController)
 
+// WithControllerName changes default ingress controller name
 func WithControllerName(name string) Option {
 	return func(ic *ingressController) {
 		ic.controllerName = name
 	}
 }
 
+// WithAnnotationPrefix makes ingress controller watch annotation with custom prefix
 func WithAnnotationPrefix(prefix string) Option {
 	return func(ic *ingressController) {
 		ic.annotationPrefix = prefix
 	}
 }
 
+// WithNamespaces requires ingress controller to only monitor specific namespaces
 func WithNamespaces(ns []string) Option {
 	return func(ic *ingressController) {
 		ic.namespaces = arrayToMap(ns)
@@ -116,10 +120,16 @@ type PomeriumReconciler interface {
 
 // reconcileInitial walks over all ingresses and updates configuration at once
 // this is currently done for performance reasons
-func (r *ingressController) reconcileInitial(ctx context.Context) error {
+func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 	logger := log.FromContext(ctx).WithName("initial-sync")
 	logger.Info("starting...")
-	defer logger.Info("complete")
+	defer func() {
+		if err != nil {
+			logger.Error(err, "completed with error")
+		} else {
+			logger.Info("complete")
+		}
+	}()
 
 	ingressList := new(networkingv1.IngressList)
 	if err := r.Client.List(ctx, ingressList); err != nil {
@@ -161,7 +171,7 @@ func (r *ingressController) reconcileInitial(ctx context.Context) error {
 // move the current state of the cluster closer to the desired state.
 func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	if err := r.initComplete.yield(ctx); err != nil {
-		return ctrl.Result{Requeue: true}, fmt.Errorf("initial reconcilation: %w", err)
+		return ctrl.Result{Requeue: true}, fmt.Errorf("initial reconciliation: %w", err)
 	}
 
 	logger := log.FromContext(ctx)

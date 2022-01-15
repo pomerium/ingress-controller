@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/hashicorp/go-multierror"
+	"github.com/sergi/go-diff/diffmatchpatch"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -16,11 +18,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/hashicorp/go-multierror"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
-	"github.com/sergi/go-diff/diffmatchpatch"
 
 	"github.com/pomerium/ingress-controller/model"
 )
@@ -52,6 +52,7 @@ func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) 
 	return r.saveConfig(ctx, prev, next, string(ic.Ingress.UID))
 }
 
+// Set merges existing config with the one generated for ingress
 func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bool, error) {
 	logger := log.FromContext(ctx)
 
