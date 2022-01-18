@@ -68,6 +68,8 @@ func TestAnnotations(t *testing.T) {
 					"a/tls_client_secret":                    "my_client_secret",
 					"a/tls_downstream_client_ca_secret":      "my_downstream_client_ca_secret",
 					"a/secure_upstream":                      "true",
+					"a/lb_policy":                            "LEAST_REQUEST",
+					"a/least_request_lb_config":              `{"choice_count":3,"active_request_bias":{"default_value":4,"runtime_key":"key"},"slow_start_config":{"slow_start_window":"3s","aggression":{"runtime_key":"key"}}}`,
 				},
 			},
 		},
@@ -128,6 +130,28 @@ func TestAnnotations(t *testing.T) {
 					HttpHealthCheck: &envoy_config_core_v3.HealthCheck_HttpHealthCheck{Path: "/"},
 				},
 			}},
+			LbPolicy: envoy_config_cluster_v3.Cluster_LEAST_REQUEST,
+			LbConfig: &envoy_config_cluster_v3.Cluster_LeastRequestLbConfig_{
+				LeastRequestLbConfig: &envoy_config_cluster_v3.Cluster_LeastRequestLbConfig{
+					ChoiceCount: &wrapperspb.UInt32Value{
+						Value: 3,
+					},
+					ActiveRequestBias: &envoy_config_core_v3.RuntimeDouble{
+						DefaultValue: 4,
+						RuntimeKey:   "key",
+					},
+					SlowStartConfig: &envoy_config_cluster_v3.Cluster_SlowStartConfig{
+						SlowStartWindow: &durationpb.Duration{
+							Seconds: 3,
+							Nanos:   0,
+						},
+						Aggression: &envoy_config_core_v3.RuntimeDouble{
+							DefaultValue: 0,
+							RuntimeKey:   "key",
+						},
+					},
+				},
+			},
 		},
 		Policies: []*pb.Policy{{
 			AllowedUsers:   []string{"a"},
@@ -150,6 +174,9 @@ func TestAnnotations(t *testing.T) {
 		envoy_config_core_v3.HealthCheck{},
 		envoy_config_core_v3.HealthCheck_HttpHealthCheck_{},
 		envoy_config_core_v3.HealthCheck_HttpHealthCheck{},
+		envoy_config_cluster_v3.Cluster_LeastRequestLbConfig{},
+		envoy_config_core_v3.RuntimeDouble{},
+		envoy_config_cluster_v3.Cluster_SlowStartConfig{},
 		wrapperspb.UInt32Value{},
 	),
 		cmpopts.IgnoreFields(pb.Policy{}, "Rego")))

@@ -57,7 +57,10 @@ var (
 	envoyAnnotations = boolMap([]string{
 		"health_checks",
 		"outlier_detection",
-		"lb_config",
+		"lb_policy",
+		"least_request_lb_config",
+		"ring_hash_lb_config",
+		"maglev_lb_config",
 	})
 	tlsAnnotations = boolMap([]string{
 		model.TLSCustomCASecret,
