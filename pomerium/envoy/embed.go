@@ -43,7 +43,6 @@ func extract(dstName string) (err error) {
 	if err != nil {
 		return err
 	}
-	//nolint: gosec
 	defer func() { err = dst.Close() }()
 
 	if _, err = io.Copy(dst, io.LimitReader(hr, maxExpandedEnvoySize)); err != nil {
