@@ -56,7 +56,7 @@ clean:
 	rm -rf pomerium/envoy/bin/* bin/* testbin/
 
 .PHONY: lint
-lint: ## Verifies `golint` passes.
+lint: envoy ## Verifies `golint` passes.
 	@echo "==> $@"
 	go run github.com/golangci/golangci-lint/cmd/golangci-lint run ./...
 
@@ -85,7 +85,7 @@ docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
 .PHONE: snapshot
-snapshot: 
+snapshot:
 	goreleaser release --snapshot --rm-dist
 
 ##@ Deployment
