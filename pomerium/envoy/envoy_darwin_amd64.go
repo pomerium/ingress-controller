@@ -10,6 +10,3 @@ var rawBinary []byte
 
 //go:embed bin/envoy-darwin-amd64.sha256
 var rawChecksum string
-
-//go:embed bin/envoy-darwin-amd64.version
-var rawVersion string
