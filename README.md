@@ -5,7 +5,7 @@ See [docs for usage details](https://www.pomerium.com/docs/k8s/ingress.html).
 ## System Requirements
 
 - [Pomerium](https://github.com/pomerium/pomerium) v0.15.0+
-- Kubernetes v0.19.0+
+- Kubernetes v1.19.0+
 - `networking.k8s.io/v1` Ingress versions supported
 
 ## Command Line Options
