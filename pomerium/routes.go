@@ -6,9 +6,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 
-	pb "github.com/pomerium/pomerium/pkg/grpc/config"
-
 	"github.com/pomerium/ingress-controller/model"
+	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 func upsert(ctx context.Context, cfg *pb.Config, ic *model.IngressConfig) error {
@@ -36,6 +35,7 @@ func mergeRoutes(dst *pb.Config, src routeList, name types.NamespacedName) error
 	dstMap.removeName(name)
 	dstMap.merge(srcMap)
 	dst.Routes = dstMap.toList()
+
 	return nil
 }
 

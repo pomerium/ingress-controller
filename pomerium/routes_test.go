@@ -3,21 +3,23 @@ package pomerium
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"sort"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	pb "github.com/pomerium/pomerium/pkg/grpc/config"
-
 	"github.com/pomerium/ingress-controller/model"
+	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 func TestHttp01Solver(t *testing.T) {
@@ -433,30 +435,6 @@ func TestDefaultBackendService(t *testing.T) {
 	})
 }
 
-// TestRouteSortOrder ensures we're following
-// https://kubernetes.io/docs/concepts/services-networking/ingress/#multiple-matches
-// 1. precedence will be given first to the longest matching path.
-// 2. If two paths are still equally matched, precedence will be given to paths with an exact path type over prefix path type.
-func TestRouteSortOrder(t *testing.T) {
-	routes := routeList{{
-		From:   "https://site",
-		Prefix: "/",
-		Id:     "c",
-	}, {
-		From: "https://site",
-		Path: "/.well-known/something",
-		Id:   "a",
-	}, {
-		From: "https://site",
-		Path: "/.well-known/else",
-		Id:   "b",
-	}}
-	assert.True(t, routes.Less(1, 0))
-	sort.Sort(routes)
-	assert.Equal(t, "a", routes[0].Id)
-	assert.Equal(t, "b", routes[1].Id)
-}
-
 func TestRegexPath(t *testing.T) {
 	pathType := networkingv1.PathTypeImplementationSpecific
 	ic := &model.IngressConfig{
@@ -612,5 +590,58 @@ func TestUseServiceProxy(t *testing.T) {
 	require.Equal(t, []string{
 		"http://service.default.svc.cluster.local:80",
 	}, route.To)
+}
 
+func TestSortRoutes(t *testing.T) {
+	r1 := &pb.Route{
+		Name: "route1",
+		From: "http://a.example.com",
+	}
+	r2 := &pb.Route{
+		Name: "route2",
+		From: "http://b.example.com",
+		Path: "/path/a",
+	}
+	r3 := &pb.Route{
+		Name: "route3",
+		From: "http://b.example.com",
+		Path: "/path",
+	}
+	r4 := &pb.Route{
+		Name:  "route4",
+		From:  "http://b.example.com",
+		Regex: "REGEX/A",
+	}
+	r5 := &pb.Route{
+		Name:  "route5",
+		From:  "http://b.example.com",
+		Regex: "REGEX",
+	}
+	r6 := &pb.Route{
+		Name:   "route6",
+		From:   "http://b.example.com",
+		Prefix: "/prefix/a/",
+	}
+	r7 := &pb.Route{
+		Name:   "route7",
+		From:   "http://b.example.com",
+		Prefix: "/prefix/",
+	}
+
+	random := rand.New(rand.NewSource(0))
+
+	for i := 0; i < 10; i++ {
+		routes := routeList{r1, r2, r3, r4, r5, r6, r7}
+		shuffleRoutes(random, routes)
+
+		sort.Sort(routes)
+		assert.Empty(t, cmp.Diff(routeList{r1, r2, r3, r4, r5, r6, r7}, routes, protocmp.Transform()))
+	}
+}
+
+func shuffleRoutes(random *rand.Rand, routes []*pb.Route) {
+	for i := range routes {
+		j := random.Intn(i + 1)
+		routes[i], routes[j] = routes[j], routes[i]
+	}
 }

@@ -41,22 +41,52 @@ func (routes routeList) Swap(i, j int) { routes[i], routes[j] = routes[j], route
 // as envoy parses routes as presented, we should presents routes with longer paths first
 // exact Path always takes priority over Prefix matching
 func (routes routeList) Less(i, j int) bool {
-	if routes[i].From != routes[j].From {
-		return routes[i].From < routes[j].From
-	}
-	if routes[i].Path != "" && routes[j].Path == "" {
+	// from ASC
+	iFrom, jFrom := routes[i].GetFrom(), routes[j].GetFrom()
+	switch {
+	case iFrom < jFrom:
 		return true
-	}
-	if routes[j].Path != "" && routes[i].Path == "" {
+	case iFrom > jFrom:
 		return false
 	}
-	routePath := func(r *pb.Route) string {
-		if r.Path != "" {
-			return r.Path
-		}
-		return r.Prefix
+
+	// path DESC
+	iPath, jPath := routes[i].GetPath(), routes[j].GetPath()
+	switch {
+	case iPath < jPath:
+		return false
+	case iPath > jPath:
+		return true
 	}
-	return len(routePath(routes[i])) > len(routePath(routes[j]))
+
+	// regex DESC
+	iRegex, jRegex := routes[i].GetRegex(), routes[j].GetRegex()
+	switch {
+	case iRegex < jRegex:
+		return false
+	case iRegex > jRegex:
+		return true
+	}
+
+	// prefix DESC
+	iPrefix, jPrefix := routes[i].GetPrefix(), routes[j].GetPrefix()
+	switch {
+	case iPrefix < jPrefix:
+		return false
+	case iPrefix > jPrefix:
+		return true
+	}
+
+	// finally, by id
+	iID, jID := routes[i].GetId(), routes[j].GetId()
+	switch {
+	case iID < jID:
+		return true
+	case iID > jID:
+		return false
+	}
+
+	return false
 }
 
 func (routes routeList) toMap() (routeMap, error) {
@@ -83,11 +113,12 @@ func (rm routeMap) removeName(name types.NamespacedName) {
 }
 
 func (rm routeMap) toList() routeList {
-	routes := make([]*pb.Route, 0, len(rm))
+	routes := make(routeList, 0, len(rm))
 	for _, r := range rm {
 		routes = append(routes, r)
 	}
-	return routeList(routes)
+	sort.Sort(routes)
+	return routes
 }
 
 func (rm routeMap) merge(src routeMap) {

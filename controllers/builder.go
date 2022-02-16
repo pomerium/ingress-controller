@@ -4,9 +4,10 @@ package controllers
 import (
 	"fmt"
 
-	"github.com/pomerium/ingress-controller/model"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/pomerium/ingress-controller/model"
 )
 
 const (
