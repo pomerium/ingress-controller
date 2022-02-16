@@ -3,10 +3,8 @@ package pomerium
 import (
 	"context"
 	"fmt"
-
-	"k8s.io/apimachinery/pkg/types"
-
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/pomerium/ingress-controller/model"
 )
@@ -36,6 +34,7 @@ func mergeRoutes(dst *pb.Config, src routeList, name types.NamespacedName) error
 	dstMap.removeName(name)
 	dstMap.merge(srcMap)
 	dst.Routes = dstMap.toList()
+
 	return nil
 }
 

@@ -6,6 +6,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/pomerium/ingress-controller/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -16,8 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
-
-	"github.com/pomerium/ingress-controller/model"
 )
 
 func TestHttp01Solver(t *testing.T) {
@@ -431,30 +430,6 @@ func TestDefaultBackendService(t *testing.T) {
 		require.Len(t, cfg.Routes, 3)
 		assert.Equal(t, "/", cfg.Routes[2].Prefix, protojson.Format(cfg))
 	})
-}
-
-// TestRouteSortOrder ensures we're following
-// https://kubernetes.io/docs/concepts/services-networking/ingress/#multiple-matches
-// 1. precedence will be given first to the longest matching path.
-// 2. If two paths are still equally matched, precedence will be given to paths with an exact path type over prefix path type.
-func TestRouteSortOrder(t *testing.T) {
-	routes := routeList{{
-		From:   "https://site",
-		Prefix: "/",
-		Id:     "c",
-	}, {
-		From: "https://site",
-		Path: "/.well-known/something",
-		Id:   "a",
-	}, {
-		From: "https://site",
-		Path: "/.well-known/else",
-		Id:   "b",
-	}}
-	assert.True(t, routes.Less(1, 0))
-	sort.Sort(routes)
-	assert.Equal(t, "a", routes[0].Id)
-	assert.Equal(t, "b", routes[1].Id)
 }
 
 func TestRegexPath(t *testing.T) {
