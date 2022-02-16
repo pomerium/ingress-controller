@@ -3,10 +3,11 @@ package pomerium
 import (
 	"context"
 	"fmt"
-	pb "github.com/pomerium/pomerium/pkg/grpc/config"
+
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/pomerium/ingress-controller/model"
+	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 func upsert(ctx context.Context, cfg *pb.Config, ic *model.IngressConfig) error {

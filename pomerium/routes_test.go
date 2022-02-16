@@ -3,9 +3,11 @@ package pomerium
 import (
 	"context"
 	"fmt"
+	"math/rand"
+	"sort"
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
-	"github.com/pomerium/ingress-controller/model"
-	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -15,9 +17,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"math/rand"
-	"sort"
-	"testing"
+
+	"github.com/pomerium/ingress-controller/model"
+	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 func TestHttp01Solver(t *testing.T) {
