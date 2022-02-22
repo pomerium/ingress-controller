@@ -14,7 +14,6 @@ const (
 	// DefaultAnnotationPrefix defines prefix that would be watched for Ingress annotations
 	DefaultAnnotationPrefix = "ingress.pomerium.io"
 	// DefaultClassControllerName is controller name
-	//
 	DefaultClassControllerName = "pomerium.io/ingress-controller"
 )
 
