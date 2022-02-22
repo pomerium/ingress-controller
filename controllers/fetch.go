@@ -92,6 +92,10 @@ func (r *ingressController) fetchIngressService(
 	}
 	servicesDst[name] = service
 
+	if service.Spec.Type == corev1.ServiceTypeExternalName {
+		return nil
+	}
+
 	endpoint := new(corev1.Endpoints)
 	if err := r.Client.Get(ctx, name, endpoint); err != nil {
 		if apierrors.IsNotFound(err) {
