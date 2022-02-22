@@ -101,15 +101,11 @@ func (ic *IngressConfig) Clone() *IngressConfig {
 
 // ParseTLSCerts decodes K8s TLS secret
 func (ic *IngressConfig) ParseTLSCerts() ([]*TLSCert, error) {
-	certs := make([]*TLSCert, 0, len(ic.Ingress.Spec.TLS))
+	certs := make([]*TLSCert, 0, len(ic.Secrets))
 
-	for _, tls := range ic.Ingress.Spec.TLS {
-		secret := ic.Secrets[types.NamespacedName{Namespace: ic.Ingress.Namespace, Name: tls.SecretName}]
-		if secret == nil {
-			return nil, fmt.Errorf("secret=%s, but the secret wasn't fetched. this is a bug", tls.SecretName)
-		}
+	for _, secret := range ic.Secrets {
 		if secret.Type != corev1.SecretTypeTLS {
-			return nil, fmt.Errorf("secret=%s, expected type %s, got %s", tls.SecretName, corev1.SecretTypeTLS, secret.Type)
+			return nil, fmt.Errorf("secret=%s, expected type %s, got %s", secret.Name, corev1.SecretTypeTLS, secret.Type)
 		}
 		certs = append(certs, &TLSCert{
 			Key:  secret.Data[corev1.TLSPrivateKeyKey],

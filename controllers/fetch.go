@@ -113,7 +113,8 @@ func (r *ingressController) fetchIngressSecrets(ctx context.Context, ingress *ne
 	error,
 ) {
 	secrets := make(map[types.NamespacedName]*corev1.Secret)
-	for _, name := range r.allIngressSecrets(ingress) {
+	names, expectsDefault := r.allIngressSecrets(ingress)
+	for _, name := range names {
 		secret := new(corev1.Secret)
 		if err := r.Client.Get(ctx, name, secret); err != nil {
 			if apierrors.IsNotFound(err) {
@@ -123,12 +124,33 @@ func (r *ingressController) fetchIngressSecrets(ctx context.Context, ingress *ne
 		}
 		secrets[name] = secret
 	}
+
+	if !expectsDefault {
+		return secrets, nil
+	}
+
+	defaultCertSecret, err := r.fetchDefaultCert(ctx, ingress)
+	if err != nil {
+		return nil, fmt.Errorf("spec.TLS.secretName was empty, could not get default cert from ingressClass: %w", err)
+	}
+	name := types.NamespacedName{
+		Namespace: defaultCertSecret.Namespace,
+		Name:      defaultCertSecret.Name,
+	}
+	secrets[name] = defaultCertSecret
+	r.Registry.Add(r.objectKey(ingress), model.Key{Kind: r.secretKind, NamespacedName: name})
+
 	return secrets, nil
 }
 
-func (r *ingressController) allIngressSecrets(ingress *networkingv1.Ingress) []types.NamespacedName {
+func (r *ingressController) allIngressSecrets(ingress *networkingv1.Ingress) ([]types.NamespacedName, bool) {
+	expectsDefault := len(ingress.Spec.TLS) == 0
 	var names []types.NamespacedName
 	for _, tls := range ingress.Spec.TLS {
+		if tls.SecretName == "" {
+			expectsDefault = true
+			continue
+		}
 		names = append(names, types.NamespacedName{Name: tls.SecretName, Namespace: ingress.Namespace})
 	}
 	for _, k := range []string{
@@ -141,5 +163,27 @@ func (r *ingressController) allIngressSecrets(ingress *networkingv1.Ingress) []t
 			names = append(names, types.NamespacedName{Name: secret, Namespace: ingress.Namespace})
 		}
 	}
-	return names
+	return names, expectsDefault
+}
+
+func (r *ingressController) fetchDefaultCert(ctx context.Context, ingress *networkingv1.Ingress) (*corev1.Secret, error) {
+	class, err := r.getManagingClass(ctx, ingress)
+	if err != nil {
+		return nil, fmt.Errorf("could not find a matching ingressClass: %w", err)
+	}
+
+	name, err := getDefaultCertSecretName(class, r.annotationPrefix)
+	if err != nil {
+		return nil, fmt.Errorf("default cert secret name: %w", err)
+	}
+
+	var secret corev1.Secret
+	if err := r.Client.Get(ctx, *name, &secret); err != nil {
+		if apierrors.IsNotFound(err) {
+			r.Registry.Add(r.objectKey(ingress), model.Key{Kind: r.secretKind, NamespacedName: *name})
+		}
+		return nil, err
+	}
+
+	return &secret, nil
 }
