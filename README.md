@@ -44,12 +44,14 @@ metadata:
   name: pomerium
   annotations:
     ingressclass.kubernetes.io/is-default-class: "false"
+    ingress.pomerium.io/default-cert-secret: pomerium/wildcard-localhost-pomerium-io
 spec:
   controller: pomerium.io/ingress-controller
 ```
 
-Use `ingressclass.kubernetes.io/is-default-class: "true"` to mark Pomerium as default controller for your cluster
+- Use `ingressclass.kubernetes.io/is-default-class: "true"` to mark Pomerium as default controller for your cluster
 and manage `Ingress` resources that do not specify an ingress controller in `ingressClassName`.
+- Use `ingress.pomerium.io/default-cert-secret` to optionally set a wildcard certificate's secret as the default used by all ingresses using this IngressClass, in the format `namespace/secret-name`.
 
 # HTTP-01 solvers
 
