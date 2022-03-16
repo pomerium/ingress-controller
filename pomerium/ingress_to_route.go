@@ -207,15 +207,8 @@ func getServiceURLs(namespace string, p networkingv1.HTTPIngressPath, ic *model.
 	} else {
 		endpoints, ok := ic.Endpoints[serviceName]
 		if ok {
-			for _, subset := range endpoints.Subsets {
-				for _, endpointAddress := range subset.Addresses {
-					for _, endpointPort := range subset.Ports {
-						hosts = append(hosts, fmt.Sprintf("%s:%d", endpointAddress.IP, endpointPort.Port))
-					}
-				}
-			}
+			hosts = getEndpointsURLs(svc.Port, service.Spec.Ports, endpoints.Subsets)
 		}
-
 		// this can happen if no endpoints are ready, or none match, in which case we fallback to the Kubernetes DNS name
 		if len(hosts) == 0 {
 			hosts = append(hosts, fmt.Sprintf("%s.%s.svc.cluster.local:%d", svc.Name, namespace, port))
@@ -232,4 +225,47 @@ func getServiceURLs(namespace string, p networkingv1.HTTPIngressPath, ic *model.
 	sort.Strings(urls)
 
 	return urls, nil
+}
+
+func getEndpointsURLs(ingressServicePort networkingv1.ServiceBackendPort, servicePorts []corev1.ServicePort, endpointSubsets []corev1.EndpointSubset) []string {
+	portMatch := getEndpointPortMatcher(ingressServicePort, servicePorts)
+	if portMatch == nil {
+		return nil
+	}
+	var hosts []string
+	for _, subset := range endpointSubsets {
+		for _, endpointAddress := range subset.Addresses {
+			for _, endpointPort := range subset.Ports {
+				if portMatch(endpointPort) {
+					hosts = append(hosts, fmt.Sprintf("%s:%d", endpointAddress.IP, endpointPort.Port))
+				}
+			}
+		}
+	}
+	return hosts
+}
+
+func getEndpointPortMatcher(ingressServicePort networkingv1.ServiceBackendPort, servicePorts []corev1.ServicePort) func(port corev1.EndpointPort) bool {
+	if ingressServicePort.Name != "" {
+		ports := make(map[int32]bool)
+		for _, sp := range servicePorts {
+			if sp.Name == ingressServicePort.Name {
+				ports[sp.TargetPort.IntVal] = true
+			}
+		}
+		return func(port corev1.EndpointPort) bool {
+			return port.Name == ingressServicePort.Name && ports[port.Port]
+		}
+	}
+
+	// match by port number
+	for _, sp := range servicePorts {
+		if sp.Port == ingressServicePort.Number {
+			return func(port corev1.EndpointPort) bool {
+				return sp.TargetPort.IntVal == port.Port
+			}
+		}
+	}
+
+	return nil
 }
