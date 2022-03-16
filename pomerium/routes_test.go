@@ -225,7 +225,7 @@ func TestSecureUpstream(t *testing.T) {
 				},
 				Subsets: []corev1.EndpointSubset{{
 					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-					Ports:     []corev1.EndpointPort{{Port: 443}},
+					Ports:     []corev1.EndpointPort{{Name: "https", Port: 443}},
 				}},
 			}},
 		Services: map[types.NamespacedName]*corev1.Service{
