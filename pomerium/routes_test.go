@@ -225,7 +225,7 @@ func TestSecureUpstream(t *testing.T) {
 				},
 				Subsets: []corev1.EndpointSubset{{
 					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-					Ports:     []corev1.EndpointPort{{Port: 443}},
+					Ports:     []corev1.EndpointPort{{Name: "https", Port: 443}},
 				}},
 			}},
 		Services: map[types.NamespacedName]*corev1.Service{
@@ -643,5 +643,166 @@ func shuffleRoutes(random *rand.Rand, routes []*pb.Route) {
 	for i := range routes {
 		j := random.Intn(i + 1)
 		routes[i], routes[j] = routes[j], routes[i]
+	}
+}
+
+// TestServicePortsAndEndpoints checks that only correct Endpoints would be selected for a Service
+// https://github.com/pomerium/ingress-controller/issues/157
+// - if there's just one port defined for the service, it may be defined in numerical form
+// - if there are multiple, then name is required, that would be repeated in the endpoints
+func TestServicePortsAndEndpoints(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		ingressPort     networkingv1.ServiceBackendPort
+		svcPorts        []corev1.ServicePort
+		endpointSubsets []corev1.EndpointSubset
+		expectTO        []string
+		expectError     bool
+	}{
+		{
+			"unnamed port",
+			networkingv1.ServiceBackendPort{Number: 8080},
+			[]corev1.ServicePort{{
+				Port:       8080,
+				TargetPort: intstr.IntOrString{IntVal: 80},
+			}},
+			[]corev1.EndpointSubset{{
+				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
+				Ports:     []corev1.EndpointPort{{Port: 80}},
+			}},
+			[]string{
+				"http://1.2.3.4:80",
+			},
+			false,
+		},
+		{
+			"named port",
+			networkingv1.ServiceBackendPort{Name: "http"},
+			[]corev1.ServicePort{{
+				Name:       "http",
+				Port:       8000,
+				TargetPort: intstr.IntOrString{IntVal: 80},
+			}},
+			[]corev1.EndpointSubset{{
+				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
+				Ports:     []corev1.EndpointPort{{Name: "http", Port: 80}},
+			}},
+			[]string{
+				"http://1.2.3.4:80",
+			},
+			false,
+		},
+		{
+			"multiple IPs",
+			networkingv1.ServiceBackendPort{Name: "http"},
+			[]corev1.ServicePort{{
+				Name:       "http",
+				Port:       8000,
+				TargetPort: intstr.IntOrString{IntVal: 80},
+			}},
+			[]corev1.EndpointSubset{{
+				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}, {IP: "1.2.3.5"}},
+				Ports:     []corev1.EndpointPort{{Name: "http", Port: 80}},
+			}},
+			[]string{
+				"http://1.2.3.4:80",
+				"http://1.2.3.5:80",
+			},
+			false,
+		},
+		{
+			"multiple services",
+			networkingv1.ServiceBackendPort{Name: "http"},
+			[]corev1.ServicePort{{
+				Name:       "http",
+				Port:       8000,
+				TargetPort: intstr.IntOrString{IntVal: 80},
+			}, {
+				Name:       "metrics",
+				Port:       9090,
+				TargetPort: intstr.IntOrString{IntVal: 8090},
+			}},
+			[]corev1.EndpointSubset{{
+				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}, {IP: "1.2.3.5"}},
+				Ports: []corev1.EndpointPort{
+					{Name: "metrics", Port: 8090},
+					{Name: "http", Port: 80},
+				},
+			}},
+			[]string{
+				"http://1.2.3.4:80",
+				"http://1.2.3.5:80",
+			},
+			false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pathTypePrefix := networkingv1.PathTypePrefix
+			ic := &model.IngressConfig{
+				AnnotationPrefix: "p",
+				Ingress: &networkingv1.Ingress{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "ingress",
+						Namespace: "default",
+					},
+					Spec: networkingv1.IngressSpec{
+						TLS: []networkingv1.IngressTLS{{
+							Hosts:      []string{"service.localhost.pomerium.io"},
+							SecretName: "secret",
+						}},
+						Rules: []networkingv1.IngressRule{{
+							Host: "service.localhost.pomerium.io",
+							IngressRuleValue: networkingv1.IngressRuleValue{
+								HTTP: &networkingv1.HTTPIngressRuleValue{
+									Paths: []networkingv1.HTTPIngressPath{{
+										Path:     "/a",
+										PathType: &pathTypePrefix,
+										Backend: networkingv1.IngressBackend{
+											Service: &networkingv1.IngressServiceBackend{
+												Name: "service",
+												Port: tc.ingressPort,
+											},
+										},
+									}},
+								},
+							},
+						}},
+					},
+				},
+				Endpoints: map[types.NamespacedName]*corev1.Endpoints{
+					{Name: "service", Namespace: "default"}: {
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "service",
+							Namespace: "default",
+						},
+						Subsets: tc.endpointSubsets,
+					}},
+				Services: map[types.NamespacedName]*corev1.Service{
+					{Name: "service", Namespace: "default"}: {
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "service",
+							Namespace: "default",
+						},
+						Spec: corev1.ServiceSpec{
+							Ports: tc.svcPorts,
+						},
+						Status: corev1.ServiceStatus{},
+					},
+				},
+			}
+
+			cfg := new(pb.Config)
+			require.NoError(t, upsertRoutes(context.Background(), cfg, ic))
+			routes, err := routeList(cfg.Routes).toMap()
+			require.NoError(t, err)
+			route := routes[routeID{
+				Name:      "ingress",
+				Namespace: "default",
+				Path:      "/a",
+				Host:      "service.localhost.pomerium.io",
+			}]
+			require.NotNil(t, route, "route not found in %v", routes)
+			require.ElementsMatch(t, tc.expectTO, route.To)
+		})
 	}
 }
