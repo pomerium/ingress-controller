@@ -19,6 +19,8 @@ const (
 	TLSClientSecret = "tls_client_secret"
 	// TLSDownstreamClientCASecret replaces https://pomerium.io/reference/#tls-downstream-client-certificate-authority
 	TLSDownstreamClientCASecret = "tls_downstream_client_ca_secret"
+	// TLSServerName is annotation to override TLS server name
+	TLSServerName = "tls_server_name"
 	// SecureUpstream indicate that service communication should happen over HTTPS
 	SecureUpstream = "secure_upstream"
 	// PathRegex indicates that paths of ImplementationSpecific type should be treated as regular expression
