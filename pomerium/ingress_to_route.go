@@ -148,12 +148,10 @@ func pathToRoute(r *pb.Route, name types.NamespacedName, host string, p networki
 		return fmt.Errorf("setRouteNameID: %w", err)
 	}
 
-	svcURLs, err := getServiceURLs(name.Namespace, p, ic)
-	if err != nil {
+	if err := setServiceURLs(r, name.Namespace, p, ic); err != nil {
 		return fmt.Errorf("backend: %w", err)
 	}
 
-	r.To = svcURLs
 	return nil
 }
 
@@ -173,10 +171,10 @@ func setRouteNameID(r *pb.Route, name types.NamespacedName, u url.URL) error {
 	return nil
 }
 
-func getServiceURLs(namespace string, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) ([]string, error) {
+func setServiceURLs(r *pb.Route, namespace string, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) error {
 	svc := p.Backend.Service
 	if svc == nil {
-		return nil, errors.New("service is missing")
+		return errors.New("service is missing")
 	}
 
 	serviceName := types.NamespacedName{Namespace: namespace, Name: svc.Name}
@@ -185,7 +183,7 @@ func getServiceURLs(namespace string, p networkingv1.HTTPIngressPath, ic *model.
 		var err error
 		port, err = ic.GetServicePortByName(serviceName, svc.Port.Name)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
@@ -196,7 +194,7 @@ func getServiceURLs(namespace string, p networkingv1.HTTPIngressPath, ic *model.
 
 	service, ok := ic.Services[serviceName]
 	if !ok {
-		return nil, fmt.Errorf("service %s was not fetched, this is a bug", serviceName.String())
+		return fmt.Errorf("service %s was not fetched, this is a bug", serviceName.String())
 	}
 
 	var hosts []string
@@ -212,6 +210,8 @@ func getServiceURLs(namespace string, p networkingv1.HTTPIngressPath, ic *model.
 		// this can happen if no endpoints are ready, or none match, in which case we fallback to the Kubernetes DNS name
 		if len(hosts) == 0 {
 			hosts = append(hosts, fmt.Sprintf("%s.%s.svc.cluster.local:%d", svc.Name, namespace, port))
+		} else if ic.IsSecureUpstream() && r.TlsServerName == "" {
+			r.TlsServerName = fmt.Sprintf("%s.%s.svc.cluster.local", svc.Name, namespace)
 		}
 	}
 
@@ -224,7 +224,8 @@ func getServiceURLs(namespace string, p networkingv1.HTTPIngressPath, ic *model.
 	}
 	sort.Strings(urls)
 
-	return urls, nil
+	r.To = urls
+	return nil
 }
 
 func getEndpointsURLs(ingressServicePort networkingv1.ServiceBackendPort, servicePorts []corev1.ServicePort, endpointSubsets []corev1.EndpointSubset) []string {
