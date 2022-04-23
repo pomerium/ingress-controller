@@ -46,7 +46,7 @@ var (
 		"pass_identity_headers",
 		"tls_skip_verify",
 		"tls_server_name",
-		"prefix_rewrite"
+		"prefix_rewrite",
 	})
 	policyAnnotations = boolMap([]string{
 		"allowed_users",
