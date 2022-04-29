@@ -125,7 +125,7 @@ func (r *ingressController) fetchIngressSecrets(ctx context.Context, ingress *ne
 		secrets[name] = secret
 	}
 
-	if !expectsDefault {
+	if !expectsDefault || r.disableCertCheck {
 		return secrets, nil
 	}
 

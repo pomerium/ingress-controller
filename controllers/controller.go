@@ -67,6 +67,10 @@ type ingressController struct {
 	secretKind       string
 	serviceKind      string
 
+	// disableCertCheck indicates that pomerium is deployed with insecure_server option
+	// no checks should be applied for the cert check
+	disableCertCheck bool
+
 	initComplete *once
 }
 
@@ -99,6 +103,15 @@ func WithNamespaces(ns []string) Option {
 func WithUpdateIngressStatusFromService(name types.NamespacedName) Option {
 	return func(ic *ingressController) {
 		ic.updateStatusFromService = &name
+	}
+}
+
+// WithDisableCertCheck indicates that Pomerium this ingress controller is communicating with
+// is currently configured with insecure_server option
+// that would disable certificate checks
+func WithDisableCertCheck() Option {
+	return func(ic *ingressController) {
+		ic.disableCertCheck = true
 	}
 }
 
