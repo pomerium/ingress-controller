@@ -46,6 +46,7 @@ var (
 		"pass_identity_headers",
 		"tls_skip_verify",
 		"tls_server_name",
+		"kubernetes_service_account_token_file",
 	})
 	policyAnnotations = boolMap([]string{
 		"allowed_users",

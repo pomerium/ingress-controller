@@ -70,6 +70,7 @@ func TestAnnotations(t *testing.T) {
 					"a/secure_upstream":                      "true",
 					"a/lb_policy":                            "LEAST_REQUEST",
 					"a/least_request_lb_config":              `{"choice_count":3,"active_request_bias":{"default_value":4,"runtime_key":"key"},"slow_start_config":{"slow_start_window":"3s","aggression":{"runtime_key":"key"}}}`,
+					"a/kubernetes_service_account_token_file": "/var/run/secrets/kubernetes.io/serviceaccount/token",
 				},
 			},
 		},
@@ -163,6 +164,7 @@ func TestAnnotations(t *testing.T) {
 		}},
 		TlsSkipVerify: true,
 		TlsServerName: "my.server.name",
+		KubernetesServiceAccountTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
 	}, cmpopts.IgnoreUnexported(
 		pb.Route{},
 		pb.RouteRewriteHeader{},
