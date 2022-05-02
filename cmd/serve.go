@@ -66,6 +66,8 @@ type serveCmd struct {
 
 	sharedSecret string
 
+	disableCertCheck bool
+
 	updateStatusFromService string
 
 	debug bool
@@ -103,6 +105,7 @@ const (
 	sharedSecret               = "shared-secret"
 	debug                      = "debug"
 	updateStatusFromService    = "update-status-from-service"
+	disableCertCheck           = "disable-cert-check"
 )
 
 func envName(name string) string {
@@ -133,6 +136,7 @@ func (s *serveCmd) setupFlags() error {
 		return err
 	}
 	flags.StringVar(&s.updateStatusFromService, updateStatusFromService, "", "update ingress status from given service status (pomerium-proxy)")
+	flags.BoolVar(&s.disableCertCheck, disableCertCheck, false, "this flag should only be set if pomerium is configured with insecure_server option")
 
 	v := viper.New()
 	var err error
@@ -179,6 +183,9 @@ func (s *serveCmd) getOptions() ([]controllers.Option, error) {
 		controllers.WithNamespaces(s.namespaces),
 		controllers.WithAnnotationPrefix(s.annotationPrefix),
 		controllers.WithControllerName(s.className),
+	}
+	if s.disableCertCheck {
+		opts = append(opts, controllers.WithDisableCertCheck())
 	}
 	if s.updateStatusFromService != "" {
 		parts := strings.Split(s.updateStatusFromService, "/")
