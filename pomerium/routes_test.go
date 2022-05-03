@@ -263,6 +263,113 @@ func TestSecureUpstream(t *testing.T) {
 	}, route.To)
 }
 
+func TestTCPUpstream(t *testing.T) {
+	typePrefix := networkingv1.PathTypePrefix
+	typeImpSpec := networkingv1.PathTypeImplementationSpecific
+
+	base := model.IngressConfig{
+		AnnotationPrefix: "p",
+		Ingress: &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ingress",
+				Namespace: "default",
+			},
+			Spec: networkingv1.IngressSpec{
+				Rules: []networkingv1.IngressRule{{
+					Host: "service.localhost.pomerium.io",
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{},
+					},
+				}},
+			},
+		},
+		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
+			{Name: "service", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service",
+					Namespace: "default",
+				},
+				Subsets: []corev1.EndpointSubset{{
+					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
+					Ports:     []corev1.EndpointPort{{Name: "app", Port: 12345}},
+				}},
+			}},
+		Services: map[types.NamespacedName]*corev1.Service{
+			{Name: "service", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service",
+					Namespace: "default",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{{
+						Name:       "app",
+						Protocol:   "TCP",
+						Port:       12345,
+						TargetPort: intstr.IntOrString{IntVal: 12345},
+					}},
+				},
+				Status: corev1.ServiceStatus{},
+			},
+		},
+	}
+
+	backend := networkingv1.IngressBackend{
+		Service: &networkingv1.IngressServiceBackend{
+			Name: "service",
+			Port: networkingv1.ServiceBackendPort{Name: "app"},
+		},
+	}
+
+	for _, tc := range []struct {
+		name        string
+		annotations map[string]string
+		paths       []networkingv1.HTTPIngressPath
+		expectError bool
+	}{
+		{"invalid path/type", map[string]string{
+			fmt.Sprintf("p/%s", model.TCPUpstream): "true",
+		}, []networkingv1.HTTPIngressPath{{
+			Path:     "/",
+			PathType: &typePrefix,
+			Backend:  backend,
+		}}, true},
+		{"invalid path/type", map[string]string{
+			fmt.Sprintf("p/%s", model.TCPUpstream): "true",
+		}, []networkingv1.HTTPIngressPath{{
+			PathType: &typeImpSpec,
+			Backend:  backend,
+		}}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ic := base
+			ic.Annotations = tc.annotations
+			ic.Spec.Rules[0].HTTP.Paths = tc.paths
+
+			cfg := new(pb.Config)
+			err := upsertRoutes(context.Background(), cfg, &ic)
+			if tc.expectError {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			routes, err := routeList(cfg.Routes).toMap()
+			require.NoError(t, err)
+			route := routes[routeID{
+				Name:      "ingress",
+				Namespace: "default",
+				Path:      tc.paths[0].Path,
+				Host:      "service.localhost.pomerium.io",
+			}]
+			require.NotNil(t, route, "route not found in %v", routes)
+			assert.Equal(t, []string{
+				"tcp://1.2.3.4:12345",
+			}, route.To)
+			assert.Equal(t, "tcp+https://service.localhost.pomerium.io:12345", route.From)
+		})
+	}
+}
+
 func TestExternalService(t *testing.T) {
 	makeRoute := func(t *testing.T, secure bool) (*pb.Route, error) {
 		typePrefix := networkingv1.PathTypePrefix

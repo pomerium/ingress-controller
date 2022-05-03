@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"sort"
 	"strings"
@@ -106,14 +107,11 @@ func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, ic *model.Ingres
 		return nil, errors.New("rules.http is required")
 	}
 
-	name := types.NamespacedName{Namespace: ic.Ingress.Namespace, Name: ic.Ingress.Name}
-
 	routes := make(routeList, 0, len(rule.HTTP.Paths))
 	for _, p := range rule.HTTP.Paths {
 		r := proto.Clone(tmpl).(*pb.Route)
-		r.From = (&url.URL{Scheme: "https", Host: rule.Host}).String()
-		if err := pathToRoute(r, name, rule.Host, p, ic); err != nil {
-			return nil, err
+		if err := pathToRoute(r, rule.Host, p, ic); err != nil {
+			return nil, fmt.Errorf("pathToRoute: %s: %w", p.String(), err)
 		}
 		routes = append(routes, r)
 	}
@@ -121,11 +119,41 @@ func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, ic *model.Ingres
 	return routes, nil
 }
 
-func pathToRoute(r *pb.Route, name types.NamespacedName, host string, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) error {
+func pathToRoute(r *pb.Route, host string, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) error {
+	if err := setRouteFrom(r, host, p, ic); err != nil {
+		return fmt.Errorf("from: %w", err)
+	}
+
+	if err := setRoutePath(r, p, ic); err != nil {
+		return fmt.Errorf("path: %w", err)
+	}
+
+	if err := setRouteNameID(r, ic.GetNamespacedName(ic.Name), url.URL{Host: host, Path: p.Path}); err != nil {
+		return fmt.Errorf("name: %w", err)
+	}
+
+	if err := setServiceURLs(r, p, ic); err != nil {
+		return fmt.Errorf("backend: %w", err)
+	}
+
+	return nil
+}
+
+func setRoutePath(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) error {
 	// https://kubernetes.io/docs/concepts/services-networking/ingress/#path-types
 	// Paths that do not include an explicit pathType will fail validation.
 	if p.PathType == nil {
 		return fmt.Errorf("pathType is required")
+	}
+
+	if ic.IsTCPUpstream() {
+		if *p.PathType != networkingv1.PathTypeImplementationSpecific {
+			return fmt.Errorf("tcp services must have %s path type", networkingv1.PathTypeImplementationSpecific)
+		}
+		if p.Path != "" {
+			return fmt.Errorf("tcp services must not specify path, got %s", r.Path)
+		}
+		return nil
 	}
 
 	switch *p.PathType {
@@ -144,14 +172,25 @@ func pathToRoute(r *pb.Route, name types.NamespacedName, host string, p networki
 		return fmt.Errorf("unknown pathType %s", *p.PathType)
 	}
 
-	if err := setRouteNameID(r, name, url.URL{Host: host, Path: p.Path}); err != nil {
-		return fmt.Errorf("setRouteNameID: %w", err)
+	return nil
+}
+
+func setRouteFrom(r *pb.Route, host string, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) error {
+	u := url.URL{
+		Scheme: "https",
+		Host:   host,
 	}
 
-	if err := setServiceURLs(r, name.Namespace, p, ic); err != nil {
-		return fmt.Errorf("backend: %w", err)
+	if ic.IsTCPUpstream() {
+		_, _, port, err := getServiceFromPath(p, ic)
+		if err != nil {
+			return err
+		}
+		u.Host = net.JoinHostPort(u.Host, fmt.Sprint(port))
+		u.Scheme = "tcp+https"
 	}
 
+	r.From = u.String()
 	return nil
 }
 
@@ -171,51 +210,74 @@ func setRouteNameID(r *pb.Route, name types.NamespacedName, u url.URL) error {
 	return nil
 }
 
-func setServiceURLs(r *pb.Route, namespace string, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) error {
-	svc := p.Backend.Service
-	if svc == nil {
-		return errors.New("service is missing")
+func getServiceFromPath(p networkingv1.HTTPIngressPath, ic *model.IngressConfig) (*networkingv1.IngressServiceBackend, *corev1.Service, int32, error) {
+	backend := p.Backend.Service
+	if backend == nil {
+		return nil, nil, -1, errors.New("service must be specified")
 	}
 
-	serviceName := types.NamespacedName{Namespace: namespace, Name: svc.Name}
-	port := svc.Port.Number
-	if svc.Port.Name != "" {
+	serviceName := ic.GetNamespacedName(backend.Name)
+	port := backend.Port.Number
+	if backend.Port.Name != "" {
 		var err error
-		port, err = ic.GetServicePortByName(serviceName, svc.Port.Name)
+		port, err = ic.GetServicePortByName(serviceName, backend.Port.Name)
 		if err != nil {
-			return err
+			return nil, nil, -1, fmt.Errorf("get service %s port by name %s: %w", serviceName.String(), backend.Port.Name, err)
 		}
-	}
-
-	scheme := "http"
-	if ic.IsSecureUpstream() {
-		scheme = "https"
 	}
 
 	service, ok := ic.Services[serviceName]
 	if !ok {
-		return fmt.Errorf("service %s was not fetched, this is a bug", serviceName.String())
+		return nil, nil, -1, fmt.Errorf("service %s was not fetched, this is a bug", serviceName.String())
+	}
+
+	return backend, service, port, nil
+}
+
+func getPathServiceHosts(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) ([]string, error) {
+	backend, service, port, err := getServiceFromPath(p, ic)
+	if err != nil {
+		return nil, fmt.Errorf("get service from path: %w", err)
 	}
 
 	var hosts []string
 	if service.Spec.Type == corev1.ServiceTypeExternalName {
 		hosts = append(hosts, fmt.Sprintf("%s:%d", service.Spec.ExternalName, port))
 	} else if ic.UseServiceProxy() {
-		hosts = append(hosts, fmt.Sprintf("%s.%s.svc.cluster.local:%d", svc.Name, namespace, port))
+		hosts = append(hosts, fmt.Sprintf("%s.%s.svc.cluster.local:%d", backend.Name, ic.Namespace, port))
 	} else {
-		endpoints, ok := ic.Endpoints[serviceName]
+		endpoints, ok := ic.Endpoints[ic.GetNamespacedName(backend.Name)]
 		if ok {
-			hosts = getEndpointsURLs(svc.Port, service.Spec.Ports, endpoints.Subsets)
+			hosts = getEndpointsURLs(backend.Port, service.Spec.Ports, endpoints.Subsets)
 		}
 		// this can happen if no endpoints are ready, or none match, in which case we fallback to the Kubernetes DNS name
 		if len(hosts) == 0 {
-			hosts = append(hosts, fmt.Sprintf("%s.%s.svc.cluster.local:%d", svc.Name, namespace, port))
+			hosts = append(hosts, fmt.Sprintf("%s.%s.svc.cluster.local:%d", backend.Name, ic.Namespace, port))
 		} else if ic.IsSecureUpstream() && r.TlsServerName == "" {
-			r.TlsServerName = fmt.Sprintf("%s.%s.svc.cluster.local", svc.Name, namespace)
+			r.TlsServerName = fmt.Sprintf("%s.%s.svc.cluster.local", backend.Name, ic.Namespace)
 		}
 	}
 
+	return hosts, nil
+}
+
+func getUpstreamScheme(ic *model.IngressConfig) string {
+	if ic.IsSecureUpstream() {
+		return "https"
+	} else if ic.IsTCPUpstream() {
+		return "tcp"
+	}
+	return "http"
+}
+
+func setServiceURLs(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) error {
+	hosts, err := getPathServiceHosts(r, p, ic)
+	if err != nil {
+		return fmt.Errorf("get service hosts: %w", err)
+	}
+
 	var urls []string
+	scheme := getUpstreamScheme(ic)
 	for _, host := range hosts {
 		urls = append(urls, (&url.URL{
 			Scheme: scheme,

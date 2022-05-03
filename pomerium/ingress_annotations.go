@@ -71,6 +71,7 @@ var (
 		model.SecureUpstream,
 		model.PathRegex,
 		model.UseServiceProxy,
+		model.TCPUpstream,
 	})
 )
 
