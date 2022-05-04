@@ -41,7 +41,7 @@ func validate(ctx context.Context, cfg *pb.Config, id string) error {
 
 	pCfg := &config.Config{Options: options, OutboundPort: "8002"}
 
-	builder := envoyconfig.New("127.0.0.1:8000", "127.0.0.1:8001", filemgr.NewManager(), nil)
+	builder := envoyconfig.New("127.0.0.1:8000", "127.0.0.1:8001", "127.0.0.1:8003", filemgr.NewManager(), nil)
 
 	bootstrapCfg := new(envoy_config_bootstrap_v3.Bootstrap)
 	bootstrapCfg.Admin, err = builder.BuildBootstrapAdmin(pCfg)
