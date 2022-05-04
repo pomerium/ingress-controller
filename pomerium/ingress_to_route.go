@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
-	"strings"
 
 	"github.com/gosimple/slug"
 	"google.golang.org/protobuf/proto"
@@ -20,15 +19,11 @@ import (
 	"github.com/pomerium/ingress-controller/model"
 )
 
-const (
-	httpSolverLabel = "acme.cert-manager.io/http01-solver"
-)
-
 // ingressToRoutes converts Ingress object into Pomerium Route
 func ingressToRoutes(ctx context.Context, ic *model.IngressConfig) (routeList, error) {
 	tmpl := &pb.Route{}
 
-	if isHTTP01Solver(ic.Ingress) {
+	if model.IsHTTP01Solver(ic.Ingress) {
 		log.FromContext(ctx).Info("Ingress is HTTP-01 challenge solver, enabling public unauthenticated access")
 		tmpl.AllowPublicUnauthenticatedAccess = true
 		tmpl.PreserveHostHeader = true
@@ -53,10 +48,6 @@ func ingressToRoutes(ctx context.Context, ic *model.IngressConfig) (routeList, e
 	}
 
 	return routes, nil
-}
-
-func isHTTP01Solver(ingress *networkingv1.Ingress) bool {
-	return strings.ToLower(ingress.Labels[httpSolverLabel]) == "true"
 }
 
 func deriveHostFromTLS(tls []networkingv1.IngressTLS) (string, error) {

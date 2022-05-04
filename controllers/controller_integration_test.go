@@ -592,6 +592,77 @@ func (s *ControllerTestSuite) TestIngressStatus() {
 	}, time.Minute, time.Second)
 }
 
+func (s *ControllerTestSuite) TestHttp01Solver() {
+	ctx := context.Background()
+	s.createTestController(ctx)
+
+	typePrefix := networkingv1.PathTypeImplementationSpecific
+	ingressClass := &networkingv1.IngressClass{
+		ObjectMeta: metav1.ObjectMeta{Name: "pomerium"},
+		Spec: networkingv1.IngressClassSpec{
+			Controller: s.controllerName,
+		},
+	}
+
+	ingress := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{Name: "ingress", Namespace: "default",
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class": ingressClass.Name,
+			},
+			Labels: map[string]string{
+				"acme.cert-manager.io/http01-solver": "true",
+			},
+		},
+		Spec: networkingv1.IngressSpec{
+			Rules: []networkingv1.IngressRule{{
+				Host: "service.localhost.pomerium.io",
+				IngressRuleValue: networkingv1.IngressRuleValue{
+					HTTP: &networkingv1.HTTPIngressRuleValue{
+						Paths: []networkingv1.HTTPIngressPath{{
+							Path:     "/.well-known/acme-challenge/xZ2esGlx49lBuluhAjE92fHXxgHLBlxgy8hxqamt00g",
+							PathType: &typePrefix,
+							Backend: networkingv1.IngressBackend{
+								Service: &networkingv1.IngressServiceBackend{
+									Name: "service",
+									Port: networkingv1.ServiceBackendPort{
+										Number: 8089,
+									}}}}}}}}}}}
+
+	endpoints := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "service",
+			Namespace: "default",
+		},
+		Subsets: []corev1.EndpointSubset{{
+			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
+		}},
+	}
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "service",
+			Namespace: "default",
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{{
+				Name:       "http",
+				Protocol:   "TCP",
+				Port:       8089,
+				TargetPort: intstr.IntOrString{IntVal: 8089},
+			}},
+		},
+	}
+
+	// ingress should not be picked up unless there's a certificate
+	s.NoError(s.Client.Create(ctx, ingressClass))
+	s.NoError(s.Client.Create(ctx, ingress))
+	s.NoError(s.Client.Create(ctx, endpoints))
+	s.NoError(s.Client.Create(ctx, service))
+
+	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
+	}, "http01 solver ingress")
+}
+
 func TestIngressController(t *testing.T) {
 	suite.Run(t, &ControllerTestSuite{})
 }

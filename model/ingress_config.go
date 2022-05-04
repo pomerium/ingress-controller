@@ -74,6 +74,17 @@ func (ic *IngressConfig) GetServicePortByName(name types.NamespacedName, port st
 	return 0, fmt.Errorf("could not find port %s on service %s", port, name.String())
 }
 
+const (
+	httpSolverLabel = "acme.cert-manager.io/http01-solver"
+)
+
+// IsHTTP01Solver checks if this ingress is marked by the cert-manager
+// as ACME HTTP01 challenge solver, as it need be handled separately
+// namely, publicly accessed and no TLS cert should be required
+func IsHTTP01Solver(ingress *networkingv1.Ingress) bool {
+	return strings.ToLower(ingress.Labels[httpSolverLabel]) == "true"
+}
+
 // TLSCert represents a parsed TLS secret
 type TLSCert struct {
 	Key  []byte
