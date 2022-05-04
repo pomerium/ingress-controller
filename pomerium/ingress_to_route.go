@@ -262,10 +262,10 @@ func getPathServiceHosts(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.
 }
 
 func getUpstreamScheme(ic *model.IngressConfig) string {
-	if ic.IsSecureUpstream() {
-		return "https"
-	} else if ic.IsTCPUpstream() {
+	if ic.IsTCPUpstream() {
 		return "tcp"
+	} else if ic.IsSecureUpstream() {
+		return "https"
 	}
 	return "http"
 }
