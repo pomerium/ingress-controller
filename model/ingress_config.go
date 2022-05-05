@@ -27,6 +27,8 @@ const (
 	PathRegex = "path_regex"
 	// UseServiceProxy will use standard k8s service proxy as upstream, opposed to individual endpoints
 	UseServiceProxy = "service_proxy_upstream"
+	// TCPUpstream indicates this route is a TCP service https://www.pomerium.com/docs/tcp/
+	TCPUpstream = "tcp_upstream"
 )
 
 // IngressConfig represents ingress and all other required resources
@@ -48,6 +50,11 @@ func (ic *IngressConfig) IsSecureUpstream() bool {
 	return ic.IsAnnotationSet(SecureUpstream)
 }
 
+// IsTCPUpstream returns true is this route represents a TCP service https://www.pomerium.com/docs/tcp/
+func (ic *IngressConfig) IsTCPUpstream() bool {
+	return ic.IsAnnotationSet(TCPUpstream)
+}
+
 // IsPathRegex returns true if paths in the Ingress spec should be treated as regular expressions
 func (ic *IngressConfig) IsPathRegex() bool {
 	return ic.IsAnnotationSet(PathRegex)
@@ -56,6 +63,16 @@ func (ic *IngressConfig) IsPathRegex() bool {
 // UseServiceProxy disables use of endpoints and would use standard k8s service proxy instead
 func (ic *IngressConfig) UseServiceProxy() bool {
 	return ic.IsAnnotationSet(UseServiceProxy)
+}
+
+// GetNamespacedName returns namespaced name of a resource
+func (ic *IngressConfig) GetNamespacedName(name string) types.NamespacedName {
+	return types.NamespacedName{Namespace: ic.Ingress.Namespace, Name: name}
+}
+
+// GetIngressNamespacedName returns name of that ingress in a namespaced format
+func (ic *IngressConfig) GetIngressNamespacedName() types.NamespacedName {
+	return types.NamespacedName{Namespace: ic.Ingress.Namespace, Name: ic.Ingress.Name}
 }
 
 // GetServicePortByName returns service named port
