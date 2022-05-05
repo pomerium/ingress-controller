@@ -280,13 +280,17 @@ func applySecretAnnotations(
 			}
 			r.KubernetesServiceAccountToken = string(token)
 		case model.SetRequestHeadersSecret:
-			if err := mergeMaps(secret.Data, &r.SetRequestHeaders); err != nil {
+			dst, err := mergeMaps(r.SetRequestHeaders, secret.Data)
+			if err != nil {
 				return fmt.Errorf("%s: %w", model.SetRequestHeadersSecret, err)
 			}
+			r.SetRequestHeaders = dst
 		case model.SetResponseHeadersSecret:
-			if err := mergeMaps(secret.Data, &r.SetResponseHeaders); err != nil {
+			dst, err := mergeMaps(r.SetResponseHeaders, secret.Data)
+			if err != nil {
 				return fmt.Errorf("%s: %w", model.SetResponseHeadersSecret, err)
 			}
+			r.SetResponseHeaders = dst
 		default:
 			return fmt.Errorf("unknown annotation %s", k)
 		}
@@ -303,16 +307,15 @@ func b64(secret *corev1.Secret, annotation, key string) (string, error) {
 	return base64.StdEncoding.EncodeToString(data), nil
 }
 
-func mergeMaps(src map[string][]byte, dst *map[string]string) error {
+func mergeMaps(dst map[string]string, src map[string][]byte) (map[string]string, error) {
 	if dst == nil {
-		m := make(map[string]string)
-		dst = &m
+		dst = make(map[string]string)
 	}
 	for key, data := range src {
-		if _, there := (*dst)[key]; there {
-			return fmt.Errorf("secret contains key %s that was already specified by a non-secret rule", key)
+		if _, there := dst[key]; there {
+			return nil, fmt.Errorf("secret contains key %s that was already specified by a non-secret rule", key)
 		}
-		(*dst)[key] = string(data)
+		dst[key] = string(data)
 	}
-	return nil
+	return dst, nil
 }
