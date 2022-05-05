@@ -39,40 +39,43 @@ func TestAnnotations(t *testing.T) {
 			ObjectMeta: v1.ObjectMeta{
 				Namespace: "test",
 				Annotations: map[string]string{
-					"a/allowed_users":                        `["a"]`,
-					"a/allowed_groups":                       `["a"]`,
-					"a/allowed_domains":                      `["a"]`,
-					"a/allowed_idp_claims":                   `{"key": ["val1", "val2"]}`,
-					"a/policy":                               testPPL,
-					"a/cors_allow_preflight":                 "true",
-					"a/allow_public_unauthenticated_access":  "false",
-					"a/allow_any_authenticated_user":         "false",
-					"a/timeout":                              `10s`,
-					"a/idle_timeout":                         `60s`,
-					"a/allow_websockets":                     "true",
-					"a/allow_spdy":                           "true",
-					"a/set_request_headers":                  `{"a": "aaa"}`,
-					"a/remove_request_headers":               `["a"]`,
-					"a/set_response_headers":                 `{"c": "ccc"}`,
-					"a/rewrite_response_headers":             `[{"header": "a", "prefix": "b", "value": "c"}]`,
-					"a/preserve_host_header":                 "true",
-					"a/host_rewrite":                         "rewrite",
-					"a/host_rewrite_header":                  "rewrite-header",
-					"a/host_path_regex_rewrite_pattern":      "rewrite-pattern",
-					"a/host_path_regex_rewrite_substitution": "rewrite-sub",
-					"a/pass_identity_headers":                "true",
-					"a/health_checks":                        `[{"timeout": "10s", "interval": "60s", "healthy_threshold": 1, "unhealthy_threshold": 2, "http_health_check": {"path": "/"}}]`,
-					"a/tls_skip_verify":                      "true",
-					"a/tls_server_name":                      "my.server.name",
-					"a/tls_custom_ca_secret":                 "my_custom_ca_secret",
-					"a/tls_client_secret":                    "my_client_secret",
-					"a/tls_downstream_client_ca_secret":      "my_downstream_client_ca_secret",
-					"a/secure_upstream":                      "true",
-					"a/lb_policy":                            "LEAST_REQUEST",
-					"a/least_request_lb_config":              `{"choice_count":3,"active_request_bias":{"default_value":4,"runtime_key":"key"},"slow_start_config":{"slow_start_window":"3s","aggression":{"runtime_key":"key"}}}`,
-					"a/prefix_rewrite":                       "/",
-					"a/regex_rewrite_pattern":                `^/service/([^/]+)(/.*)$`,
-					"a/regex_rewrite_substitution":           `\\2/instance/\\1`,
+					"a/allowed_users":                           `["a"]`,
+					"a/allowed_groups":                          `["a"]`,
+					"a/allowed_domains":                         `["a"]`,
+					"a/allowed_idp_claims":                      `{"key": ["val1", "val2"]}`,
+					"a/policy":                                  testPPL,
+					"a/cors_allow_preflight":                    "true",
+					"a/allow_public_unauthenticated_access":     "false",
+					"a/allow_any_authenticated_user":            "false",
+					"a/timeout":                                 `10s`,
+					"a/idle_timeout":                            `60s`,
+					"a/allow_websockets":                        "true",
+					"a/allow_spdy":                              "true",
+					"a/set_request_headers":                     `{"a": "aaa"}`,
+					"a/set_request_headers_secret":              `request_headers`,
+					"a/remove_request_headers":                  `["a"]`,
+					"a/set_response_headers":                    `{"c": "ccc"}`,
+					"a/set_response_headers_secret":             `response_headers`,
+					"a/rewrite_response_headers":                `[{"header": "a", "prefix": "b", "value": "c"}]`,
+					"a/preserve_host_header":                    "true",
+					"a/host_rewrite":                            "rewrite",
+					"a/host_rewrite_header":                     "rewrite-header",
+					"a/host_path_regex_rewrite_pattern":         "rewrite-pattern",
+					"a/host_path_regex_rewrite_substitution":    "rewrite-sub",
+					"a/pass_identity_headers":                   "true",
+					"a/health_checks":                           `[{"timeout": "10s", "interval": "60s", "healthy_threshold": 1, "unhealthy_threshold": 2, "http_health_check": {"path": "/"}}]`,
+					"a/tls_skip_verify":                         "true",
+					"a/tls_server_name":                         "my.server.name",
+					"a/tls_custom_ca_secret":                    "my_custom_ca_secret",
+					"a/tls_client_secret":                       "my_client_secret",
+					"a/tls_downstream_client_ca_secret":         "my_downstream_client_ca_secret",
+					"a/secure_upstream":                         "true",
+					"a/lb_policy":                               "LEAST_REQUEST",
+					"a/least_request_lb_config":                 `{"choice_count":3,"active_request_bias":{"default_value":4,"runtime_key":"key"},"slow_start_config":{"slow_start_window":"3s","aggression":{"runtime_key":"key"}}}`,
+					"a/prefix_rewrite":                          "/",
+					"a/regex_rewrite_pattern":                   `^/service/([^/]+)(/.*)$`,
+					"a/regex_rewrite_substitution":              `\\2/instance/\\1`,
+					"a/kubernetes_service_account_token_secret": "k8s_token",
 				},
 			},
 		},
@@ -94,6 +97,23 @@ func TestAnnotations(t *testing.T) {
 					CAKey: []byte("my_downstream_client_ca_secret+cert"),
 				},
 			},
+			{Name: "k8s_token", Namespace: "test"}: {
+				Data: map[string][]byte{
+					model.KubernetesServiceAccountTokenSecretKey: []byte("k8s-token-data"),
+				},
+			},
+			{Name: "request_headers", Namespace: "test"}: {
+				Data: map[string][]byte{
+					"req_key_1": []byte("req_data1"),
+					"req_key_2": []byte("req_data2"),
+				},
+			},
+			{Name: "response_headers", Namespace: "test"}: {
+				Data: map[string][]byte{
+					"res_key_1": []byte("res_data1"),
+					"res_key_2": []byte("res_data2"),
+				},
+			},
 		},
 	}
 	require.NoError(t, applyAnnotations(r, ic))
@@ -109,9 +129,10 @@ func TestAnnotations(t *testing.T) {
 		IdleTimeout:                      durationpb.New(time.Minute),
 		AllowWebsockets:                  true,
 		AllowSpdy:                        true,
-		SetRequestHeaders:                map[string]string{"a": "aaa"},
+		KubernetesServiceAccountToken:    "k8s-token-data",
+		SetRequestHeaders:                map[string]string{"a": "aaa", "req_key_1": "req_data1", "req_key_2": "req_data2"},
 		RemoveRequestHeaders:             []string{"a"},
-		SetResponseHeaders:               map[string]string{"c": "ccc"},
+		SetResponseHeaders:               map[string]string{"c": "ccc", "res_key_1": "res_data1", "res_key_2": "res_data2"},
 		RewriteResponseHeaders: []*pb.RouteRewriteHeader{{
 			Header:  "a",
 			Matcher: &pb.RouteRewriteHeader_Prefix{Prefix: "b"},
@@ -265,6 +286,41 @@ func TestYaml(t *testing.T) {
 		var out interface{}
 		if assert.NoError(t, yaml.Unmarshal([]byte(input), &out), input) {
 			assert.Equal(t, expect, out)
+		}
+	}
+}
+
+func TestMergeMap(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		src         map[string][]byte
+		dst         map[string]string
+		expect      map[string]string
+		expectError bool
+	}{
+		{name: "nothing", src: nil, dst: nil, expect: map[string]string{}, expectError: false},
+		{name: "key overlap", src: map[string][]byte{
+			"k1": []byte("v1"),
+		}, dst: map[string]string{
+			"k1": "v1.1",
+			"k2": "v2",
+		}, expect: nil, expectError: true},
+		{name: "no overlap", src: map[string][]byte{
+			"k1": []byte("v1"),
+		}, dst: map[string]string{
+			"k2": "v2",
+		}, expect: map[string]string{
+			"k1": "v1",
+			"k2": "v2",
+		}, expectError: false},
+	} {
+		got, err := mergeMaps(tc.dst, tc.src)
+		if tc.expectError {
+			assert.Error(t, err, tc.name)
+			continue
+		}
+		if assert.NoError(t, err, tc.name) {
+			assert.Equal(t, tc.expect, got)
 		}
 	}
 }
