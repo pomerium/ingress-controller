@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -153,13 +154,8 @@ func (r *ingressController) allIngressSecrets(ingress *networkingv1.Ingress) ([]
 		}
 		names = append(names, types.NamespacedName{Name: tls.SecretName, Namespace: ingress.Namespace})
 	}
-	for _, k := range []string{
-		model.TLSClientSecret,
-		model.TLSCustomCASecret,
-		model.TLSDownstreamClientCASecret,
-	} {
-		key := fmt.Sprintf("%s/%s", r.annotationPrefix, k)
-		if secret := ingress.Annotations[key]; secret != "" {
+	for key, secret := range ingress.Annotations {
+		if strings.HasPrefix(key, r.annotationPrefix) && strings.HasSuffix(key, "_secret") {
 			names = append(names, types.NamespacedName{Name: secret, Namespace: ingress.Namespace})
 		}
 	}

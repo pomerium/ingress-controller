@@ -70,6 +70,11 @@ var (
 		model.TLSClientSecret,
 		model.TLSDownstreamClientCASecret,
 	})
+	secretAnnotations = boolMap([]string{
+		model.KubernetesServiceAccountTokenSecret,
+		model.SetRequestHeadersSecret,
+		model.SetResponseHeadersSecret,
+	})
 	handledElsewhere = boolMap([]string{
 		model.SecureUpstream,
 		model.PathRegex,
@@ -87,7 +92,7 @@ func boolMap(keys []string) map[string]bool {
 }
 
 type keys struct {
-	Base, Envoy, Policy, TLS, Etc map[string]string
+	Base, Envoy, Policy, TLS, Etc, Secret map[string]string
 }
 
 func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
@@ -98,6 +103,7 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 		Policy: make(map[string]string),
 		TLS:    make(map[string]string),
 		Etc:    make(map[string]string),
+		Secret: make(map[string]string),
 	}
 	for k, v := range src {
 		if !strings.HasPrefix(k, prefix) {
@@ -113,6 +119,7 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 			{envoyAnnotations, kv.Envoy},
 			{policyAnnotations, kv.Policy},
 			{tlsAnnotations, kv.TLS},
+			{secretAnnotations, kv.Secret},
 			{handledElsewhere, kv.Etc},
 		} {
 			if m.keys[k] {
@@ -159,6 +166,9 @@ func applyAnnotations(
 		return err
 	}
 	if err = applyTLSAnnotations(r, kv.TLS, ic.Secrets, ic.Ingress.Namespace); err != nil {
+		return err
+	}
+	if err = applySecretAnnotations(r, kv.Secret, ic.Secrets, ic.Ingress.Namespace); err != nil {
 		return err
 	}
 	p := new(pomerium.Policy)
@@ -250,6 +260,40 @@ func applyTLSAnnotations(
 	return nil
 }
 
+func applySecretAnnotations(
+	r *pomerium.Route,
+	kvs map[string]string,
+	secrets map[types.NamespacedName]*corev1.Secret,
+	namespace string,
+) error {
+	for k, name := range kvs {
+		secret := secrets[types.NamespacedName{Namespace: namespace, Name: name}]
+		if secret == nil {
+			return fmt.Errorf("annotation %s references secret %s, but the secret wasn't fetched. this is a bug", k, name)
+		}
+		switch k {
+		case model.KubernetesServiceAccountTokenSecret:
+			token, ok := secret.Data[model.KubernetesServiceAccountTokenSecretKey]
+			if !ok {
+				return fmt.Errorf("annotation %s references secret %s that must have a %s key that is missing",
+					k, name, model.KubernetesServiceAccountTokenSecretKey)
+			}
+			r.KubernetesServiceAccountToken = string(token)
+		case model.SetRequestHeadersSecret:
+			if err := mergeMaps(secret.Data, &r.SetRequestHeaders); err != nil {
+				return fmt.Errorf("%s: %w", model.SetRequestHeadersSecret, err)
+			}
+		case model.SetResponseHeadersSecret:
+			if err := mergeMaps(secret.Data, &r.SetResponseHeaders); err != nil {
+				return fmt.Errorf("%s: %w", model.SetResponseHeadersSecret, err)
+			}
+		default:
+			return fmt.Errorf("unknown annotation %s", k)
+		}
+	}
+	return nil
+}
+
 func b64(secret *corev1.Secret, annotation, key string) (string, error) {
 	data := secret.Data[key]
 	if len(data) == 0 {
@@ -257,4 +301,18 @@ func b64(secret *corev1.Secret, annotation, key string) (string, error) {
 			annotation, secret.Name, CAKey)
 	}
 	return base64.StdEncoding.EncodeToString(data), nil
+}
+
+func mergeMaps(src map[string][]byte, dst *map[string]string) error {
+	if dst == nil {
+		m := make(map[string]string)
+		dst = &m
+	}
+	for key, data := range src {
+		if _, there := (*dst)[key]; there {
+			return fmt.Errorf("secret contains key %s that was already specified by a non-secret rule", key)
+		}
+		(*dst)[key] = string(data)
+	}
+	return nil
 }
