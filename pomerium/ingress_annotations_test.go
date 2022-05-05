@@ -70,6 +70,9 @@ func TestAnnotations(t *testing.T) {
 					"a/secure_upstream":                      "true",
 					"a/lb_policy":                            "LEAST_REQUEST",
 					"a/least_request_lb_config":              `{"choice_count":3,"active_request_bias":{"default_value":4,"runtime_key":"key"},"slow_start_config":{"slow_start_window":"3s","aggression":{"runtime_key":"key"}}}`,
+					"a/prefix_rewrite":                       "/",
+					"a/regex_rewrite_pattern":                `^/service/([^/]+)(/.*)$`,
+					"a/regex_rewrite_substitution":           `\\2/instance/\\1`,
 				},
 			},
 		},
@@ -120,6 +123,9 @@ func TestAnnotations(t *testing.T) {
 		HostPathRegexRewritePattern:      strp("rewrite-pattern"),
 		HostPathRegexRewriteSubstitution: strp("rewrite-sub"),
 		PassIdentityHeaders:              true,
+		PrefixRewrite:                    "/",
+		RegexRewritePattern:              `^/service/([^/]+)(/.*)$`,
+		RegexRewriteSubstitution:         `\\2/instance/\\1`,
 		EnvoyOpts: &envoy_config_cluster_v3.Cluster{
 			HealthChecks: []*envoy_config_core_v3.HealthCheck{{
 				Timeout:            durationpb.New(time.Second * 10),
