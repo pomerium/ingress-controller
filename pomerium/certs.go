@@ -1,6 +1,7 @@
 package pomerium
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 
@@ -10,8 +11,8 @@ import (
 )
 
 // upsertCerts updates certificate bundle
-func upsertCerts(cfg *pb.Config, ic *model.IngressConfig) error {
-	certs, err := ic.ParseTLSCerts()
+func upsertCerts(ctx context.Context, cfg *pb.Config, ic *model.IngressConfig) error {
+	certs, err := ic.ParseTLSCerts(ctx)
 	if err != nil {
 		return err
 	}

@@ -2,12 +2,14 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -139,12 +141,13 @@ func (ic *IngressConfig) Clone() *IngressConfig {
 }
 
 // ParseTLSCerts decodes K8s TLS secret
-func (ic *IngressConfig) ParseTLSCerts() ([]*TLSCert, error) {
+func (ic *IngressConfig) ParseTLSCerts(ctx context.Context) ([]*TLSCert, error) {
 	certs := make([]*TLSCert, 0, len(ic.Secrets))
 
 	for _, secret := range ic.Secrets {
 		if secret.Type != corev1.SecretTypeTLS {
-			return nil, fmt.Errorf("secret=%s, expected type %s, got %s", secret.Name, corev1.SecretTypeTLS, secret.Type)
+			log.FromContext(ctx).Info(fmt.Sprintf("secret=%s, of type=%s found while parsing TLS certs, expected type=%s, ignoring", secret.Name, secret.Type, corev1.SecretTypeTLS))
+			continue
 		}
 		certs = append(certs, &TLSCert{
 			Key:  secret.Data[corev1.TLSPrivateKeyKey],

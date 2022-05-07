@@ -15,7 +15,7 @@ func upsert(ctx context.Context, cfg *pb.Config, ic *model.IngressConfig) error 
 		return fmt.Errorf("upsert routes: %w", err)
 	}
 
-	if err := upsertCerts(cfg, ic); err != nil {
+	if err := upsertCerts(ctx, cfg, ic); err != nil {
 		return fmt.Errorf("updating certs: %w", err)
 	}
 
