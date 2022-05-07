@@ -146,7 +146,7 @@ func (ic *IngressConfig) ParseTLSCerts(ctx context.Context) ([]*TLSCert, error) 
 
 	for _, secret := range ic.Secrets {
 		if secret.Type != corev1.SecretTypeTLS {
-			log.FromContext(ctx).Info(fmt.Sprintf("secret=%s, of type=%s found while parsing TLS certs, expected type=%s, ignoring", secret.Name, secret.Type, corev1.SecretTypeTLS))
+			log.FromContext(ctx).Info(fmt.Sprintf("secret=%s, of type=%s found while parsing TLS certs for Ingress %s, expected type=%s, ignoring", secret.Name, secret.Type, ic.Name, corev1.SecretTypeTLS))
 			continue
 		}
 		certs = append(certs, &TLSCert{
