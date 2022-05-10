@@ -18,8 +18,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/pomerium/ingress-controller/model"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
+
+	"github.com/pomerium/ingress-controller/model"
 )
 
 func TestHttp01Solver(t *testing.T) {
@@ -261,6 +262,112 @@ func TestSecureUpstream(t *testing.T) {
 	require.Equal(t, []string{
 		"https://1.2.3.4:443",
 	}, route.To)
+}
+
+func TestCustomSecrets(t *testing.T) {
+	typePrefix := networkingv1.PathTypePrefix
+	ic := &model.IngressConfig{
+		AnnotationPrefix: "p",
+		Ingress: &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ingress",
+				Namespace: "default",
+				Annotations: map[string]string{
+					fmt.Sprintf("p/%s", model.SetRequestHeadersSecret):  "request-headers",
+					fmt.Sprintf("p/%s", model.SetResponseHeadersSecret): "response-headers",
+				},
+			},
+			Spec: networkingv1.IngressSpec{
+				TLS: []networkingv1.IngressTLS{{
+					Hosts:      []string{"service.localhost.pomerium.io"},
+					SecretName: "secret",
+				}},
+				Rules: []networkingv1.IngressRule{{
+					Host: "service.localhost.pomerium.io",
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{{
+								Path:     "/a",
+								PathType: &typePrefix,
+								Backend: networkingv1.IngressBackend{
+									Service: &networkingv1.IngressServiceBackend{
+										Name: "service",
+										Port: networkingv1.ServiceBackendPort{
+											Name: "http",
+										},
+									},
+								},
+							}},
+						},
+					},
+				}},
+			},
+		},
+		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
+			{Name: "service", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service",
+					Namespace: "default",
+				},
+				Subsets: []corev1.EndpointSubset{{
+					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
+					Ports:     []corev1.EndpointPort{{Name: "http", Port: 80}},
+				}},
+			}},
+		Services: map[types.NamespacedName]*corev1.Service{
+			{Name: "service", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service",
+					Namespace: "default",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{{
+						Name:       "http",
+						Protocol:   "TCP",
+						Port:       80,
+						TargetPort: intstr.IntOrString{IntVal: 80},
+					}},
+				},
+				Status: corev1.ServiceStatus{},
+			},
+		},
+		Secrets: map[types.NamespacedName]*corev1.Secret{
+			{Name: "request-headers", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "request-headers",
+					Namespace: "default",
+				},
+				StringData: map[string]string{
+					"header1": "value 1",
+					"header2": "value 2",
+				},
+				Type: corev1.SecretTypeOpaque,
+			},
+			{Name: "response-headers", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "response-headers",
+					Namespace: "default",
+				},
+				StringData: map[string]string{
+					"header3": "value 3",
+					"header4": "value 4",
+				},
+				Type: corev1.SecretTypeOpaque,
+			},
+		},
+	}
+
+	cfg := new(pb.Config)
+	require.NoError(t, upsert(context.Background(), cfg, ic))
+	routes, err := routeList(cfg.Routes).toMap()
+	require.NoError(t, err)
+	route := routes[routeID{
+		Name:      "ingress",
+		Namespace: "default",
+		Path:      "/a",
+		Host:      "service.localhost.pomerium.io",
+	}]
+	require.NotNil(t, route, "route not found in %v", routes)
 }
 
 func TestTCPUpstream(t *testing.T) {

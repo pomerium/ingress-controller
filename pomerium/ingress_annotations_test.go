@@ -101,18 +101,21 @@ func TestAnnotations(t *testing.T) {
 				Data: map[string][]byte{
 					model.KubernetesServiceAccountTokenSecretKey: []byte("k8s-token-data"),
 				},
+				Type: corev1.SecretTypeOpaque,
 			},
 			{Name: "request_headers", Namespace: "test"}: {
 				Data: map[string][]byte{
 					"req_key_1": []byte("req_data1"),
 					"req_key_2": []byte("req_data2"),
 				},
+				Type: corev1.SecretTypeOpaque,
 			},
 			{Name: "response_headers", Namespace: "test"}: {
 				Data: map[string][]byte{
 					"res_key_1": []byte("res_data1"),
 					"res_key_2": []byte("res_data2"),
 				},
+				Type: corev1.SecretTypeOpaque,
 			},
 		},
 	}

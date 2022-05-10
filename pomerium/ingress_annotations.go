@@ -271,6 +271,9 @@ func applySecretAnnotations(
 		if secret == nil {
 			return fmt.Errorf("annotation %s references secret %s, but the secret wasn't fetched. this is a bug", k, name)
 		}
+		if secret.Type != corev1.SecretTypeOpaque {
+			return fmt.Errorf("annotation %s references secret %s, expected type %s, got %s", k, name, corev1.SecretTypeOpaque, secret.Type)
+		}
 		switch k {
 		case model.KubernetesServiceAccountTokenSecret:
 			token, ok := secret.Data[model.KubernetesServiceAccountTokenSecretKey]

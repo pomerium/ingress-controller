@@ -144,7 +144,7 @@ func (ic *IngressConfig) ParseTLSCerts() ([]*TLSCert, error) {
 
 	for _, secret := range ic.Secrets {
 		if secret.Type != corev1.SecretTypeTLS {
-			return nil, fmt.Errorf("secret=%s, expected type %s, got %s", secret.Name, corev1.SecretTypeTLS, secret.Type)
+			continue
 		}
 		certs = append(certs, &TLSCert{
 			Key:  secret.Data[corev1.TLSPrivateKeyKey],
