@@ -199,6 +199,8 @@ func (s *ControllerTestSuite) TearDownTest() {
 	s.mgrCtxCancel()
 	<-s.mgrDone
 	s.deleteAll()
+	s.mgrCtxCancel = nil
+	close(s.mgrDone)
 }
 
 func (s *ControllerTestSuite) TearDownSuite() {
@@ -661,6 +663,58 @@ func (s *ControllerTestSuite) TestHttp01Solver() {
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
 		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
 	}, "http01 solver ingress")
+}
+
+func (s *ControllerTestSuite) TestCustomSecrets() {
+	ctx := context.Background()
+	s.createTestController(ctx)
+	to := s.initialTestObjects("default")
+	ingressClass, ingress, endpoints, service, secret := to.IngressClass, to.Ingress, to.Endpoints, to.Service, to.Secret
+	ingress.Annotations = map[string]string{
+		//fmt.Sprintf("%s/%s", controllers.DefaultAnnotationPrefix, model.KubernetesServiceAccountTokenSecret): "k8s-token",
+		fmt.Sprintf("%s/%s", controllers.DefaultAnnotationPrefix, model.SetRequestHeadersSecret):  "request-headers",
+		fmt.Sprintf("%s/%s", controllers.DefaultAnnotationPrefix, model.SetResponseHeadersSecret): "response-headers",
+	}
+
+	for _, obj := range []client.Object{
+		endpoints, service, secret, ingressClass,
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "k8s-token",
+				Namespace: "default",
+			},
+			StringData: map[string]string{
+				"token": "token-value",
+			},
+			Type: corev1.SecretTypeOpaque,
+		}, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "request-headers",
+				Namespace: "default",
+			},
+			StringData: map[string]string{
+				"header1": "value 1",
+				"header2": "value 2",
+			},
+			Type: corev1.SecretTypeOpaque,
+		}, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "response-headers",
+				Namespace: "default",
+			},
+			StringData: map[string]string{
+				"header3": "value 3",
+				"header4": "value 4",
+			},
+		},
+		ingress,
+	} {
+		s.NoError(s.Client.Create(ctx, obj))
+	}
+
+	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
+	}, "ingress")
 }
 
 func TestIngressController(t *testing.T) {
