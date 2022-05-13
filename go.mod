@@ -30,6 +30,8 @@ require (
 	k8s.io/apiserver v0.24.0
 	k8s.io/client-go v0.24.0
 	sigs.k8s.io/controller-runtime v0.11.2
+	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20220511133701-2f77235e25b1
+	sigs.k8s.io/controller-tools v0.8.0
 )
 
 require (
@@ -110,6 +112,7 @@ require (
 	github.com/go-toolsmith/strparse v1.0.0 // indirect
 	github.com/go-toolsmith/typep v1.0.2 // indirect
 	github.com/go-xmlfmt/xmlfmt v0.0.0-20191208150333-d5b6f63a941b // indirect
+	github.com/gobuffalo/flect v0.2.3 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
