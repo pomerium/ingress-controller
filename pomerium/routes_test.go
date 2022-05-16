@@ -370,6 +370,97 @@ func TestCustomSecrets(t *testing.T) {
 	require.NotNil(t, route, "route not found in %v", routes)
 }
 
+func TestKubernetesToken(t *testing.T) {
+	typePrefix := networkingv1.PathTypePrefix
+	ic := &model.IngressConfig{
+		AnnotationPrefix: "p",
+		Ingress: &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ingress",
+				Namespace: "default",
+				Annotations: map[string]string{
+					fmt.Sprintf("p/%s", model.KubernetesServiceAccountTokenSecret): "k8s-token",
+				},
+			},
+			Spec: networkingv1.IngressSpec{
+				TLS: []networkingv1.IngressTLS{{
+					Hosts:      []string{"service.localhost.pomerium.io"},
+					SecretName: "secret",
+				}},
+				Rules: []networkingv1.IngressRule{{
+					Host: "service.localhost.pomerium.io",
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{{
+								Path:     "/a",
+								PathType: &typePrefix,
+								Backend: networkingv1.IngressBackend{
+									Service: &networkingv1.IngressServiceBackend{
+										Name: "service",
+										Port: networkingv1.ServiceBackendPort{
+											Name: "http",
+										},
+									},
+								},
+							}},
+						},
+					},
+				}},
+			},
+		},
+		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
+			{Name: "service", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service",
+					Namespace: "default",
+				},
+				Subsets: []corev1.EndpointSubset{{
+					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
+					Ports:     []corev1.EndpointPort{{Name: "http", Port: 80}},
+				}},
+			}},
+		Services: map[types.NamespacedName]*corev1.Service{
+			{Name: "service", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service",
+					Namespace: "default",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{{
+						Name:       "http",
+						Protocol:   "TCP",
+						Port:       80,
+						TargetPort: intstr.IntOrString{IntVal: 80},
+					}},
+				},
+				Status: corev1.ServiceStatus{},
+			},
+		},
+		Secrets: map[types.NamespacedName]*corev1.Secret{
+			{Name: "k8s-token", Namespace: "default"}: {
+				Data: map[string][]byte{
+					model.KubernetesServiceAccountTokenSecretKey: []byte("123456"),
+				},
+				Type: corev1.SecretTypeOpaque,
+			},
+		},
+	}
+
+	cfg := new(pb.Config)
+	ctx := context.Background()
+	require.NoError(t, upsert(ctx, cfg, ic))
+	routes, err := routeList(cfg.Routes).toMap()
+	require.NoError(t, err)
+	route := routes[routeID{
+		Name:      "ingress",
+		Namespace: "default",
+		Path:      "/a",
+		Host:      "service.localhost.pomerium.io",
+	}]
+	require.NotNil(t, route, "route not found in %v", routes)
+	require.NoError(t, validate(ctx, cfg, "test"))
+}
+
 func TestTCPUpstream(t *testing.T) {
 	typePrefix := networkingv1.PathTypePrefix
 	typeImpSpec := networkingv1.PathTypeImplementationSpecific
