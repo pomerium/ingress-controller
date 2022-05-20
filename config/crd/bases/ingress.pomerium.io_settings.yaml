@@ -40,10 +40,16 @@ spec:
             properties:
               routes:
                 additionalProperties:
+<<<<<<< HEAD
                   description: RouteStatus reconciliation status between Ingress spec
                     and Pomerium state
                   properties:
                     error:
+=======
+                  description: RouteStatus
+                  properties:
+                    errors:
+>>>>>>> 66086a7 (add settings CRD and basic status)
                       description: Error is reason most recent reconciliation failed
                         for the route
                       type: string
