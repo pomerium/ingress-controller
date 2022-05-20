@@ -5,8 +5,11 @@ package envoy
 
 import _ "embed" // embed
 
-//go:embed bin/envoy-darwin-arm64
-var rawBinary []byte
+var (
+	rawBinary   []byte
+	rawChecksum string
+)
 
-//go:embed bin/envoy-darwin-arm64.sha256
-var rawChecksum string
+const (
+	enabled = false
+)

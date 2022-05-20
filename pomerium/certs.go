@@ -4,31 +4,25 @@ import (
 	"fmt"
 	"net/url"
 
-	pb "github.com/pomerium/pomerium/pkg/grpc/config"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/pomerium/ingress-controller/model"
+	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
-// upsertCerts updates certificate bundle
-func upsertCerts(cfg *pb.Config, ic *model.IngressConfig) error {
-	certs, err := ic.ParseTLSCerts()
-	if err != nil {
-		return err
-	}
-
-	addCerts(cfg, certs)
-	return nil
-}
-
-func addCerts(cfg *pb.Config, certs []*model.TLSCert) {
+func addCerts(cfg *pb.Config, secrets map[types.NamespacedName]*corev1.Secret) {
 	if cfg.Settings == nil {
 		cfg.Settings = new(pb.Settings)
 	}
 
-	for _, cert := range certs {
+	for _, secret := range secrets {
+		if secret.Type != corev1.SecretTypeTLS {
+			continue
+		}
+
 		cfg.Settings.Certificates = append(cfg.Settings.Certificates, &pb.Settings_Certificate{
-			CertBytes: cert.Cert,
-			KeyBytes:  cert.Key,
+			CertBytes: secret.Data[corev1.TLSCertKey],
+			KeyBytes:  secret.Data[corev1.TLSPrivateKeyKey],
 		})
 	}
 }

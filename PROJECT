@@ -1,11 +1,20 @@
-domain: networking.k8s.io
+domain: pomerium.io
 layout:
 - go.kubebuilder.io/v3
+multigroup: true
 projectName: ingress-controller
 repo: github.com/pomerium/ingress-controller
 resources:
 - controller: true
   domain: networking.k8s.io
   kind: Ingress
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: pomerium.io
+  group: ingress
+  kind: Settings
+  path: github.com/pomerium/ingress-controller/apis/ingress/v1
   version: v1
 version: "3"

@@ -3,13 +3,31 @@ package model
 import (
 	"sync"
 
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 // Key is dependenciy key
 type Key struct {
 	Kind string
 	types.NamespacedName
+}
+
+// ObjectKey returns a registry key for a given kubernetes object
+// the object must be properly initialized (GVK, name, namespace)
+func ObjectKey(obj client.Object, scheme *runtime.Scheme) Key {
+	name := types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
+	gvk, err := apiutil.GVKForObject(obj, scheme)
+	if err != nil {
+		panic(err)
+	}
+	kind := gvk.Kind
+	if kind == "" {
+		panic("no kind available for object")
+	}
+	return Key{Kind: kind, NamespacedName: name}
 }
 
 // Registry is used to keep track of dependencies between kubernetes objects

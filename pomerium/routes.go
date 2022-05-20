@@ -10,18 +10,6 @@ import (
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
-func upsert(ctx context.Context, cfg *pb.Config, ic *model.IngressConfig) error {
-	if err := upsertRoutes(ctx, cfg, ic); err != nil {
-		return fmt.Errorf("upsert routes: %w", err)
-	}
-
-	if err := upsertCerts(cfg, ic); err != nil {
-		return fmt.Errorf("updating certs: %w", err)
-	}
-
-	return nil
-}
-
 func mergeRoutes(dst *pb.Config, src routeList, name types.NamespacedName) error {
 	srcMap, err := src.toMap()
 	if err != nil {

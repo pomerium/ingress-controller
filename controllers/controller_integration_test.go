@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"sync"
 	"testing"
@@ -28,7 +29,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
+	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/controllers"
+	"github.com/pomerium/ingress-controller/controllers/reporter"
 	"github.com/pomerium/ingress-controller/model"
 )
 
@@ -145,11 +148,14 @@ func (s *ControllerTestSuite) SetupSuite() {
 
 	scheme := runtime.NewScheme()
 	s.NoError(clientgoscheme.AddToScheme(scheme))
+	s.NoError(icsv1.AddToScheme(scheme))
 
 	useExistingCluster := false
 	s.Environment = &envtest.Environment{
-		Scheme:             scheme,
-		UseExistingCluster: &useExistingCluster,
+		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
+		ErrorIfCRDPathMissing: true,
+		Scheme:                scheme,
+		UseExistingCluster:    &useExistingCluster,
 	}
 	cfg, err := s.Environment.Start()
 	s.NoError(err)
@@ -193,9 +199,19 @@ func (s *ControllerTestSuite) deleteAll() {
 	for i := range secrets.Items {
 		s.NoError(s.Client.Delete(ctx, &secrets.Items[i]))
 	}
+
+	settings := new(icsv1.SettingsList)
+	s.NoError(s.Client.List(ctx, settings))
+	for i := range settings.Items {
+		s.NoError(s.Client.Delete(ctx, &settings.Items[i]))
+	}
 }
 
 func (s *ControllerTestSuite) TearDownTest() {
+	if s.mgrCtxCancel == nil {
+		s.deleteAll()
+		return
+	}
 	s.mgrCtxCancel()
 	<-s.mgrDone
 	s.deleteAll()
@@ -671,7 +687,6 @@ func (s *ControllerTestSuite) TestCustomSecrets() {
 	to := s.initialTestObjects("default")
 	ingressClass, ingress, endpoints, service, secret := to.IngressClass, to.Ingress, to.Endpoints, to.Service, to.Secret
 	ingress.Annotations = map[string]string{
-		//fmt.Sprintf("%s/%s", controllers.DefaultAnnotationPrefix, model.KubernetesServiceAccountTokenSecret): "k8s-token",
 		fmt.Sprintf("%s/%s", controllers.DefaultAnnotationPrefix, model.SetRequestHeadersSecret):  "request-headers",
 		fmt.Sprintf("%s/%s", controllers.DefaultAnnotationPrefix, model.SetResponseHeadersSecret): "response-headers",
 	}
@@ -715,6 +730,49 @@ func (s *ControllerTestSuite) TestCustomSecrets() {
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
 		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
 	}, "ingress")
+}
+
+func (s *ControllerTestSuite) TestSettingsStatusUpdate() {
+	ctx := context.Background()
+
+	name := types.NamespacedName{Namespace: "default", Name: "global-settings"}
+	reporter := reporter.IngressSettingsReporter{
+		Name:   name,
+		Client: s.Client,
+	}
+
+	to := s.initialTestObjects("default")
+	s.NoError(s.Client.Create(ctx, to.Ingress))
+	ingressName := types.NamespacedName{Namespace: to.Ingress.Namespace, Name: to.Ingress.Name}
+
+	gs := icsv1.Settings{
+		ObjectMeta: metav1.ObjectMeta{Name: name.Name, Namespace: name.Namespace},
+	}
+	s.NoError(s.Client.Create(ctx, &gs))
+
+	s.NoError(reporter.IngressNotReconciled(ctx, to.Ingress, errors.New("some error")))
+	s.NoError(s.Client.Get(ctx, name, &gs))
+	assert.Empty(s.T(), cmp.Diff(
+		gs.Status.Routes[ingressName.String()],
+		icsv1.RouteStatus{
+			Reconciled: false,
+			Error:      "some error",
+		},
+		cmpopts.IgnoreFields(icsv1.RouteStatus{}, "LastReconciled")))
+
+	s.NoError(reporter.IngressReconciled(ctx, to.Ingress))
+	s.NoError(s.Client.Get(ctx, name, &gs))
+	assert.Empty(s.T(), cmp.Diff(
+		gs.Status.Routes[ingressName.String()],
+		icsv1.RouteStatus{
+			Reconciled: true,
+			Error:      "",
+		},
+		cmpopts.IgnoreFields(icsv1.RouteStatus{}, "LastReconciled")))
+
+	s.NoError(reporter.IngressDeleted(ctx, ingressName, "test"))
+	s.NoError(s.Client.Get(ctx, name, &gs))
+	assert.Empty(s.T(), gs.Status.Routes)
 }
 
 func TestIngressController(t *testing.T) {

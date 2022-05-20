@@ -8,37 +8,21 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/pomerium/ingress-controller/model"
 )
 
-// ObjectKey returns a registry key for a given kubernetes object
-// the object must be properly initialized (GVK, name, namespace)
-func (r *ingressController) objectKey(obj client.Object) model.Key {
-	name := types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
-	gvk, err := apiutil.GVKForObject(obj, r.Scheme)
-	if err != nil {
-		panic(err)
-	}
-	kind := gvk.Kind
-	if kind == "" {
-		panic("no kind available for object")
-	}
-	return model.Key{Kind: kind, NamespacedName: name}
-}
-
 func (r *ingressController) updateDependencies(ic *model.IngressConfig) {
-	ingKey := r.objectKey(ic.Ingress)
+	ingKey := model.ObjectKey(ic.Ingress, r.Scheme)
 	r.DeleteCascade(ingKey)
 
 	for _, s := range ic.Secrets {
-		r.Add(ingKey, r.objectKey(s))
+		r.Add(ingKey, model.ObjectKey(s, r.Scheme))
 	}
 	for _, s := range ic.Services {
-		k := r.objectKey(s)
+		k := model.ObjectKey(s, r.Scheme)
 		r.Add(ingKey, k)
 		k.Kind = r.endpointsKind
 		r.Add(ingKey, k)
@@ -47,6 +31,7 @@ func (r *ingressController) updateDependencies(ic *model.IngressConfig) {
 	if r.updateStatusFromService != nil {
 		r.Add(ingKey, model.Key{NamespacedName: *r.updateStatusFromService, Kind: r.serviceKind})
 	}
+
 }
 
 // getDependantIngressFn returns for a given object kind (i.e. a secret) a function
@@ -65,7 +50,7 @@ func (r *ingressController) getDependantIngressFn(kind string) func(a client.Obj
 		for _, k := range deps {
 			reqs = append(reqs, reconcile.Request{NamespacedName: k.NamespacedName})
 		}
-		logger.V(1).Info("watch", "name", fmt.Sprintf("%s/%s", a.GetNamespace(), a.GetName()), "deps", reqs)
+		logger.V(5).Info("watch", "name", fmt.Sprintf("%s/%s", a.GetNamespace(), a.GetName()), "deps", reqs)
 		return reqs
 	}
 }
@@ -102,7 +87,7 @@ func (r *ingressController) watchIngressClass(string) func(a client.Object) []re
 				},
 			})
 		}
-		logger.Info("watch", "deps", deps, "ingressClass", a.GetName())
+		logger.V(5).Info("watch", "deps", deps, "ingressClass", a.GetName())
 		return deps
 	}
 }

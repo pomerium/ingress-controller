@@ -70,6 +70,13 @@ type ValidateResult struct {
 
 // Validate validates the bootstrap envoy config.
 func Validate(ctx context.Context, bootstrap *envoy_config_bootstrap_v3.Bootstrap, id string) (*ValidateResult, error) {
+	if !enabled {
+		return &ValidateResult{
+			Valid:   true,
+			Message: "OK",
+		}, nil
+	}
+
 	bs, err := proto.Marshal(bootstrap)
 	if err != nil {
 		return nil, err

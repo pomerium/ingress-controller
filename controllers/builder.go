@@ -7,6 +7,7 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/pomerium/ingress-controller/controllers/reporter"
 	"github.com/pomerium/ingress-controller/model"
 )
 
@@ -36,13 +37,22 @@ func NewIngressController(
 		PomeriumReconciler: pcr,
 		Client:             mgr.GetClient(),
 		Registry:           registry,
-		EventRecorder:      mgr.GetEventRecorderFor("pomerium-ingress"),
+		MultiIngressStatusReporter: []IngressStatusReporter{
+			&reporter.IngressEventReporter{EventRecorder: mgr.GetEventRecorderFor("pomerium-ingress")},
+			&reporter.IngressLogReporter{V: 1, Name: "reconcile"},
+		},
 	}
 	ic.initComplete = newOnce(ic.reconcileInitial)
 	for _, opt := range opts {
 		opt(ic)
 	}
 
+	if ic.globalSettings != nil {
+		ic.MultiIngressStatusReporter = append(ic.MultiIngressStatusReporter, &reporter.IngressSettingsReporter{
+			Name:   *ic.globalSettings,
+			Client: ic.Client,
+		})
+	}
 	if err = ic.SetupWithManager(mgr); err != nil {
 		return nil, fmt.Errorf("unable to create controller: %w", err)
 	}

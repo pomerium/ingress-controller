@@ -111,12 +111,6 @@ func IsHTTP01Solver(ingress *networkingv1.Ingress) bool {
 	return strings.ToLower(ingress.Labels[httpSolverLabel]) == "true"
 }
 
-// TLSCert represents a parsed TLS secret
-type TLSCert struct {
-	Key  []byte
-	Cert []byte
-}
-
 // Clone creates a deep copy of the ingress config
 func (ic *IngressConfig) Clone() *IngressConfig {
 	dst := &IngressConfig{
@@ -136,21 +130,4 @@ func (ic *IngressConfig) Clone() *IngressConfig {
 	}
 
 	return dst
-}
-
-// ParseTLSCerts decodes K8s TLS secret
-func (ic *IngressConfig) ParseTLSCerts() ([]*TLSCert, error) {
-	certs := make([]*TLSCert, 0, len(ic.Secrets))
-
-	for _, secret := range ic.Secrets {
-		if secret.Type != corev1.SecretTypeTLS {
-			continue
-		}
-		certs = append(certs, &TLSCert{
-			Key:  secret.Data[corev1.TLSPrivateKeyKey],
-			Cert: secret.Data[corev1.TLSCertKey],
-		})
-	}
-
-	return certs, nil
 }

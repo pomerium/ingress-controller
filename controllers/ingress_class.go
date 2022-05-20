@@ -14,6 +14,10 @@ import (
 )
 
 const (
+	// IngressClassAnnotationKey although deprecated, still may be used by the HTTP solvers even for v1 Ingress resources
+	// see https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/#deprecating-the-ingress-class-annotation
+	IngressClassAnnotationKey = "kubernetes.io/ingress.class"
+
 	// IngressClassDefaultAnnotationKey see https://kubernetes.io/docs/concepts/services-networking/ingress/#default-ingress-class
 	IngressClassDefaultAnnotationKey = "ingressclass.kubernetes.io/is-default-class"
 	// DefaultCertSecretKey is an annotation that may be added to ingressClass
