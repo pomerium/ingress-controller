@@ -33,7 +33,7 @@ type RouteStatus struct {
 	// LastReconciled timestamp indicates when the ingress resource was last synced with pomerium
 	LastReconciled *metav1.Time `json:"ts,omitempty"`
 	// Error is reason most recent reconciliation failed for the route
-	Error string `json:"errors,omitempty"`
+	Error string `json:"error,omitempty"`
 }
 
 // SettingsStatus defines the observed state of Settings

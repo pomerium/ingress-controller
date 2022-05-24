@@ -40,9 +40,10 @@ spec:
             properties:
               routes:
                 additionalProperties:
-                  description: RouteStatus
+                  description: RouteStatus reconciliation status between Ingress spec
+                    and Pomerium state
                   properties:
-                    errors:
+                    error:
                       description: Error is reason most recent reconciliation failed
                         for the route
                       type: string
