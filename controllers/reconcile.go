@@ -18,9 +18,9 @@ import (
 // it is not expected to be thread safe
 type PomeriumReconciler interface {
 	// Upsert should update or create the pomerium routes corresponding to this ingress
-	Upsert(ctx context.Context, ic *model.IngressConfig) (changes bool, err error)
+	Upsert(ctx context.Context, ic *model.IngressConfig, cfg *model.Config) (changes bool, err error)
 	// Set configuration to match provided ingresses
-	Set(ctx context.Context, ics []*model.IngressConfig) (changes bool, err error)
+	Set(ctx context.Context, ics []*model.IngressConfig, cfg *model.Config) (changes bool, err error)
 	// Delete should delete pomerium routes corresponding to this ingress name
 	Delete(ctx context.Context, namespacedName types.NamespacedName) error
 }
@@ -37,6 +37,14 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 			logger.Info("complete")
 		}
 	}()
+
+	var cfg *model.Config
+	if r.globalSettings != nil {
+		cfg = new(model.Config)
+		if err := r.Client.Get(ctx, *r.globalSettings, &cfg.Settings); err != nil {
+			return fmt.Errorf("get settings: %w", err)
+		}
+	}
 
 	ingressList := new(networkingv1.IngressList)
 	if err := r.Client.List(ctx, ingressList); err != nil {
@@ -61,7 +69,7 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 		ics = append(ics, ic)
 	}
 
-	_, err = r.PomeriumReconciler.Set(ctx, ics)
+	_, err = r.PomeriumReconciler.Set(ctx, ics, cfg)
 	for i := range ingressList.Items {
 		ingress := &ingressList.Items[i]
 		if err != nil {
@@ -121,7 +129,15 @@ func (r *ingressController) deleteIngress(ctx context.Context, name types.Namesp
 }
 
 func (r *ingressController) upsertIngress(ctx context.Context, ic *model.IngressConfig) (ctrl.Result, error) {
-	changed, err := r.PomeriumReconciler.Upsert(ctx, ic)
+	var cfg *model.Config
+	if r.globalSettings != nil {
+		cfg = new(model.Config)
+		if err := r.Client.Get(ctx, *r.globalSettings, &cfg.Settings); err != nil {
+			return ctrl.Result{}, fmt.Errorf("get settings: %w", err)
+		}
+	}
+
+	changed, err := r.PomeriumReconciler.Upsert(ctx, ic, cfg)
 	if err != nil {
 		r.IngressNotReconciled(ctx, ic.Ingress, err)
 		return ctrl.Result{Requeue: true}, fmt.Errorf("upsert: %w", err)

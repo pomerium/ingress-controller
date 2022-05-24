@@ -38,7 +38,7 @@ type ConfigReconciler struct {
 }
 
 // Upsert should update or create the pomerium routes corresponding to this ingress
-func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
+func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig, global *model.Config) (bool, error) {
 	prev, err := r.getConfig(ctx)
 	if err != nil {
 		return false, fmt.Errorf("get config: %w", err)
@@ -50,11 +50,14 @@ func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) 
 	}
 	addCerts(next, ic.Secrets)
 
+	if global != nil {
+		addCerts(next, global.Certs)
+	}
 	return r.saveConfig(ctx, prev, next, string(ic.Ingress.UID))
 }
 
 // Set merges existing config with the one generated for ingress
-func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bool, error) {
+func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig, global *model.Config) (bool, error) {
 	logger := log.FromContext(ctx)
 
 	prev, err := r.getConfig(ctx)
@@ -74,6 +77,10 @@ func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig) 
 		}
 		addCerts(cfg, ic.Secrets)
 		next = cfg
+	}
+
+	if global != nil {
+		addCerts(next, global.Certs)
 	}
 
 	return r.saveConfig(ctx, prev, next, "config")

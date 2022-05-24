@@ -20,13 +20,50 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Duration is a sequence of decimal numbers, each with optional fraction and a unit suffix,
+// such as "300ms", "-1.5h" or "2h45m".
+// Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+type Duration string
+
+// IdentityProvider see https://www.pomerium.com/docs/identity-providers/
+type IdentityProvider struct {
+	// Provider one of accepted providers https://www.pomerium.com/reference/#identity-provider-name
+	Provider string `json:"provider"`
+	// URL is identity provider url, see https://www.pomerium.com/reference/#identity-provider-url
+	URL string `json:"url"`
+	// Secret refers to a k8s secret containing IdP provider specific parameters
+	SecretRef string `json:"secret"`
+	// Scopes see https://www.pomerium.com/reference/#identity-provider-scopes
+	// +optional
+	Scopes []string `json:"scopes"`
+
+	// Specifies refresh settings
+	// +optional
+	RefreshDirectory *RefreshDirectorySettings `json:"refresh_directory"`
+}
+
+// RefreshDirectorySettings defines how frequently should
+type RefreshDirectorySettings struct {
+	Interval Duration `json:"interval"`
+	Timeout  Duration `json:"timeout"`
+}
+
 // SettingsSpec defines the desired state of Settings
 type SettingsSpec struct {
+	// IdentityProvider see https://www.pomerium.com/docs/identity-providers/
+	// +optional
+	IdentityProvider IdentityProvider `json:"identity_provider"`
+	// Certificates is a list of secrets of type TLS to use
+	// +optional
+	Certificates []string `json:"certificates"`
+	// AuthenticateURL should be publicly accessible URL
+	// the non-authenticated persons would be referred to
+	AuthenticateURL string `json:"authenticateServiceURL"`
 }
 
 //+kubebuilder:printcolumn:name="Last Reconciled",type=datetime,JSONPath=`.ts`
 
-// RouteStatus reconciliation status between Ingress spec and Pomerium state
+// RouteStatus provides high level status between the last observed ingress object and pomerium state
 type RouteStatus struct {
 	// Reconciled is true if Ingress resource was fully synced with pomerium state
 	Reconciled bool `json:"reconciled"`
