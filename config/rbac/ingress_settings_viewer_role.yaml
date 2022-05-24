@@ -1,0 +1,20 @@
+# permissions for end users to view settings.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: settings-viewer-role
+rules:
+- apiGroups:
+  - ingress.pomerium.io
+  resources:
+  - settings
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ingress.pomerium.io
+  resources:
+  - settings/status
+  verbs:
+  - get

@@ -45,9 +45,10 @@ func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) 
 	}
 
 	next := proto.Clone(prev).(*pb.Config)
-	if err = upsert(ctx, next, ic); err != nil {
+	if err = upsertRoutes(ctx, next, ic); err != nil {
 		return false, err
 	}
+	addCerts(next, ic.Secrets)
 
 	return r.saveConfig(ctx, prev, next, string(ic.Ingress.UID))
 }
@@ -65,12 +66,13 @@ func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig) 
 	for _, ic := range ics {
 		cfg := proto.Clone(next).(*pb.Config)
 		if err := multierror.Append(
-			upsert(ctx, cfg, ic),
+			upsertRoutes(ctx, cfg, ic),
 			validate(ctx, cfg, string(ic.Ingress.UID)),
 		).ErrorOrNil(); err != nil {
 			logger.Error(err, "skip ingress", "ingress", fmt.Sprintf("%s/%s", ic.Namespace, ic.Name))
 			continue
 		}
+		addCerts(cfg, ic.Secrets)
 		next = cfg
 	}
 

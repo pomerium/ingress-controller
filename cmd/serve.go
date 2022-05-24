@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apiserver/pkg/server/healthz"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -30,8 +28,10 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 
+	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/controllers"
 	"github.com/pomerium/ingress-controller/pomerium"
+	"github.com/pomerium/ingress-controller/util"
 )
 
 const (
@@ -40,15 +40,8 @@ const (
 )
 
 var (
-	scheme = runtime.NewScheme()
-
 	errWaitingForLease = errors.New("waiting for databroker lease")
 )
-
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	//+kubebuilder:scaffold:scheme
-}
 
 type serveCmd struct {
 	metricsAddr      string
@@ -69,6 +62,7 @@ type serveCmd struct {
 	disableCertCheck bool
 
 	updateStatusFromService string
+	globalSettings          string
 
 	debug bool
 
@@ -106,6 +100,7 @@ const (
 	debug                      = "debug"
 	updateStatusFromService    = "update-status-from-service"
 	disableCertCheck           = "disable-cert-check"
+	globalSettings             = "global-settings"
 )
 
 func envName(name string) string {
@@ -137,6 +132,8 @@ func (s *serveCmd) setupFlags() error {
 	}
 	flags.StringVar(&s.updateStatusFromService, updateStatusFromService, "", "update ingress status from given service status (pomerium-proxy)")
 	flags.BoolVar(&s.disableCertCheck, disableCertCheck, false, "this flag should only be set if pomerium is configured with insecure_server option")
+	flags.StringVar(&s.globalSettings, globalSettings, "",
+		fmt.Sprintf("namespace/name to a resource of type %s/Settings", icsv1.GroupVersion.Group))
 
 	v := viper.New()
 	var err error
@@ -171,7 +168,7 @@ func (s *serveCmd) exec(*cobra.Command, []string) error {
 	return s.runController(ctx,
 		databroker.NewDataBrokerServiceClient(dbc),
 		ctrl.Options{
-			Scheme:             scheme,
+			Scheme:             getScheme(),
 			MetricsBindAddress: s.metricsAddr,
 			Port:               s.webhookPort,
 			LeaderElection:     false,
@@ -187,13 +184,19 @@ func (s *serveCmd) getOptions() ([]controllers.Option, error) {
 	if s.disableCertCheck {
 		opts = append(opts, controllers.WithDisableCertCheck())
 	}
-	if s.updateStatusFromService != "" {
-		parts := strings.Split(s.updateStatusFromService, "/")
-		if len(parts) != 2 {
-			return nil, errors.New("service name must be in namespace/name format")
+	if s.globalSettings != "" {
+		name, err := util.ParseNamespacedName(s.globalSettings)
+		if err != nil {
+			return nil, fmt.Errorf("%s=%s: %w", globalSettings, s.globalSettings, err)
 		}
-		opts = append(opts,
-			controllers.WithUpdateIngressStatusFromService(types.NamespacedName{Namespace: parts[0], Name: parts[1]}))
+		opts = append(opts, controllers.WithGlobalSettings(*name))
+	}
+	if s.updateStatusFromService != "" {
+		name, err := util.ParseNamespacedName(s.updateStatusFromService)
+		if err != nil {
+			return nil, fmt.Errorf("update status from service: %q: %w", s.updateStatusFromService, err)
+		}
+		opts = append(opts, controllers.WithUpdateIngressStatusFromService(*name))
 	}
 	return opts, nil
 }
@@ -319,4 +322,11 @@ func (s *serveCmd) runHealthz(ctx context.Context, readyChecks ...healthz.Health
 	}()
 
 	return srv.ListenAndServe()
+}
+
+func getScheme() *runtime.Scheme {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(icsv1.AddToScheme(scheme))
+	return scheme
 }

@@ -8,7 +8,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -16,21 +15,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/model"
 )
 
 //go:generate go run github.com/golang/mock/mockgen -package controllers -destination client_mock.go sigs.k8s.io/controller-runtime/pkg/client Client
 
 const (
-	// IngressClassAnnotationKey although deprecated, still may be used by the HTTP solvers even for v1 Ingress resources
-	// see https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/#deprecating-the-ingress-class-annotation
-	IngressClassAnnotationKey = "kubernetes.io/ingress.class"
-
 	initialReconciliationTimeout = time.Minute * 5
-
-	reasonPomeriumConfigUpdated     = "Updated"
-	reasonPomeriumConfigUpdateError = "UpdateError"
-	msgPomeriumConfigUpdated        = "updated pomerium configuration"
 )
 
 // ingressController watches ingress and related resources for updates and reconciles with pomerium
@@ -50,15 +42,19 @@ type ingressController struct {
 	PomeriumReconciler
 	// Registry keeps track of dependencies between k8s objects
 	model.Registry
-	// EventRecorder provides means to add events to Ingress objects, that are visible via kubectl describe
-	record.EventRecorder
 
 	// Namespaces to listen to, nil/empty to listen to all
 	namespaces map[string]bool
 
+	// ingressStatusReporter is used to report ingress status changes
+	MultiIngressStatusReporter
+
 	// updateStatusFromService defines a pomerium-proxy service name that should be watched for changes in the status field
 	// and all dependent ingresses should be updated accordingly
 	updateStatusFromService *types.NamespacedName
+
+	// globalSettings defines which global settings object to watch
+	globalSettings *types.NamespacedName
 
 	// object Kinds are frequently used, do not change and are cached
 	endpointsKind    string
@@ -66,6 +62,7 @@ type ingressController struct {
 	ingressClassKind string
 	secretKind       string
 	serviceKind      string
+	settingsKind     string
 
 	// disableCertCheck indicates that pomerium is deployed with insecure_server option
 	// no checks should be applied for the cert check
@@ -76,6 +73,20 @@ type ingressController struct {
 
 // Option customizes ingress controller
 type Option func(ic *ingressController)
+
+// WithGlobalSettings makes ingress controller set up and report
+func WithGlobalSettings(name types.NamespacedName) Option {
+	return func(ic *ingressController) {
+		ic.globalSettings = &name
+	}
+}
+
+// WithIngressStatusReporter adds ingress status reporting option, multiple may be added
+func WithIngressStatusReporter(rep IngressStatusReporter) Option {
+	return func(ic *ingressController) {
+		ic.MultiIngressStatusReporter = append(ic.MultiIngressStatusReporter, rep)
+	}
+}
 
 // WithControllerName changes default ingress controller name
 func WithControllerName(name string) Option {
@@ -103,6 +114,13 @@ func WithNamespaces(ns []string) Option {
 func WithUpdateIngressStatusFromService(name types.NamespacedName) Option {
 	return func(ic *ingressController) {
 		ic.updateStatusFromService = &name
+	}
+}
+
+// WithWatchSettings specifies which global settings to watch
+func WithWatchSettings(name types.NamespacedName) Option {
+	return func(ic *ingressController) {
+		ic.globalSettings = &name
 	}
 }
 
@@ -135,6 +153,7 @@ func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 		{&corev1.Secret{}, &r.secretKind, r.getDependantIngressFn},
 		{&corev1.Service{}, &r.serviceKind, r.getDependantIngressFn},
 		{&corev1.Endpoints{}, &r.endpointsKind, r.getDependantIngressFn},
+		{&icsv1.Settings{}, &r.settingsKind, nil},
 	} {
 		gvk, err := apiutil.GVKForObject(o.Object, r.Scheme)
 		if err != nil {

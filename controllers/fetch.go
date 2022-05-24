@@ -44,7 +44,7 @@ func (r *ingressController) fetchIngressServices(ctx context.Context, ingress *n
 ) {
 	sm := make(map[types.NamespacedName]*corev1.Service)
 	em := make(map[types.NamespacedName]*corev1.Endpoints)
-	ingressKey := r.objectKey(ingress)
+	ingressKey := model.ObjectKey(ingress, r.Scheme)
 	for _, rule := range ingress.Spec.Rules {
 		if rule.HTTP == nil {
 			continue
@@ -119,7 +119,7 @@ func (r *ingressController) fetchIngressSecrets(ctx context.Context, ingress *ne
 		secret := new(corev1.Secret)
 		if err := r.Client.Get(ctx, name, secret); err != nil {
 			if apierrors.IsNotFound(err) {
-				r.Registry.Add(r.objectKey(ingress), model.Key{Kind: r.secretKind, NamespacedName: name})
+				r.Registry.Add(model.ObjectKey(ingress, r.Scheme), model.Key{Kind: r.secretKind, NamespacedName: name})
 			}
 			return nil, fmt.Errorf("get secret %s: %w", name.String(), err)
 		}
@@ -139,7 +139,7 @@ func (r *ingressController) fetchIngressSecrets(ctx context.Context, ingress *ne
 		Name:      defaultCertSecret.Name,
 	}
 	secrets[name] = defaultCertSecret
-	r.Registry.Add(r.objectKey(ingress), model.Key{Kind: r.secretKind, NamespacedName: name})
+	r.Registry.Add(model.ObjectKey(ingress, r.Scheme), model.Key{Kind: r.secretKind, NamespacedName: name})
 
 	return secrets, nil
 }
@@ -176,7 +176,7 @@ func (r *ingressController) fetchDefaultCert(ctx context.Context, ingress *netwo
 	var secret corev1.Secret
 	if err := r.Client.Get(ctx, *name, &secret); err != nil {
 		if apierrors.IsNotFound(err) {
-			r.Registry.Add(r.objectKey(ingress), model.Key{Kind: r.secretKind, NamespacedName: *name})
+			r.Registry.Add(model.ObjectKey(ingress, r.Scheme), model.Key{Kind: r.secretKind, NamespacedName: *name})
 		}
 		return nil, err
 	}

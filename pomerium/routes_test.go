@@ -358,7 +358,7 @@ func TestCustomSecrets(t *testing.T) {
 	}
 
 	cfg := new(pb.Config)
-	require.NoError(t, upsert(context.Background(), cfg, ic))
+	require.NoError(t, upsertRoutes(context.Background(), cfg, ic))
 	routes, err := routeList(cfg.Routes).toMap()
 	require.NoError(t, err)
 	route := routes[routeID{
@@ -448,7 +448,7 @@ func TestKubernetesToken(t *testing.T) {
 
 	cfg := new(pb.Config)
 	ctx := context.Background()
-	require.NoError(t, upsert(ctx, cfg, ic))
+	require.NoError(t, upsertRoutes(ctx, cfg, ic))
 	routes, err := routeList(cfg.Routes).toMap()
 	require.NoError(t, err)
 	route := routes[routeID{

@@ -10,3 +10,7 @@ var rawBinary []byte
 
 //go:embed bin/envoy-linux-amd64.sha256
 var rawChecksum string
+
+const (
+	enabled = true
+)
