@@ -157,7 +157,7 @@ $(KUSTOMIZE): $(LOCALBIN)
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
 $(CONTROLLER_GEN): $(LOCALBIN)
 	@echo "==> $@"
-	@GOARCH= GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen
+	@GOARCH= GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.9.0
 
 .PHONY: envtest
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
