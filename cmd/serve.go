@@ -29,7 +29,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
-	"github.com/pomerium/ingress-controller/controllers"
+	"github.com/pomerium/ingress-controller/controllers/ingress"
 	"github.com/pomerium/ingress-controller/pomerium"
 	"github.com/pomerium/ingress-controller/util"
 )
@@ -67,7 +67,7 @@ type serveCmd struct {
 	debug bool
 
 	cobra.Command
-	controllers.PomeriumReconciler
+	pomerium.Reconciler
 }
 
 // ServeCommand creates command to run ingress controller
@@ -112,8 +112,8 @@ func (s *serveCmd) setupFlags() error {
 	flags.IntVar(&s.webhookPort, webhookPort, 9443, "webhook port")
 	flags.StringVar(&s.metricsAddr, metricsBindAddress, ":8080", "The address the metric endpoint binds to.")
 	flags.StringVar(&s.probeAddr, healthProbeBindAddress, ":8081", "The address the probe endpoint binds to.")
-	flags.StringVar(&s.className, className, controllers.DefaultClassControllerName, "IngressClass controller name")
-	flags.StringVar(&s.annotationPrefix, annotationPrefix, controllers.DefaultAnnotationPrefix, "Ingress annotation prefix")
+	flags.StringVar(&s.className, className, ingress.DefaultClassControllerName, "IngressClass controller name")
+	flags.StringVar(&s.annotationPrefix, annotationPrefix, ingress.DefaultAnnotationPrefix, "Ingress annotation prefix")
 	flags.StringVar(&s.databrokerServiceURL, databrokerServiceURL, "http://localhost:5443",
 		"the databroker service url")
 	flags.StringVar(&s.tlsCAFile, databrokerTLSCAFile, "", "tls CA file path")
@@ -175,28 +175,28 @@ func (s *serveCmd) exec(*cobra.Command, []string) error {
 		}, opts...)
 }
 
-func (s *serveCmd) getOptions() ([]controllers.Option, error) {
-	opts := []controllers.Option{
-		controllers.WithNamespaces(s.namespaces),
-		controllers.WithAnnotationPrefix(s.annotationPrefix),
-		controllers.WithControllerName(s.className),
+func (s *serveCmd) getOptions() ([]ingress.Option, error) {
+	opts := []ingress.Option{
+		ingress.WithNamespaces(s.namespaces),
+		ingress.WithAnnotationPrefix(s.annotationPrefix),
+		ingress.WithControllerName(s.className),
 	}
 	if s.disableCertCheck {
-		opts = append(opts, controllers.WithDisableCertCheck())
+		opts = append(opts, ingress.WithDisableCertCheck())
 	}
 	if s.globalSettings != "" {
 		name, err := util.ParseNamespacedName(s.globalSettings)
 		if err != nil {
 			return nil, fmt.Errorf("%s=%s: %w", globalSettings, s.globalSettings, err)
 		}
-		opts = append(opts, controllers.WithGlobalSettings(*name))
+		opts = append(opts, ingress.WithGlobalSettings(*name))
 	}
 	if s.updateStatusFromService != "" {
 		name, err := util.ParseNamespacedName(s.updateStatusFromService)
 		if err != nil {
 			return nil, fmt.Errorf("update status from service: %q: %w", s.updateStatusFromService, err)
 		}
-		opts = append(opts, controllers.WithUpdateIngressStatusFromService(*name))
+		opts = append(opts, ingress.WithUpdateIngressStatusFromService(*name))
 	}
 	return opts, nil
 }
@@ -234,10 +234,10 @@ func (s *serveCmd) getDataBrokerConnection(ctx context.Context) (*grpc.ClientCon
 }
 
 type leadController struct {
-	controllers.PomeriumReconciler
+	pomerium.Reconciler
 	databroker.DataBrokerServiceClient
 	MgrOpts          ctrl.Options
-	CtrlOpts         []controllers.Option
+	CtrlOpts         []ingress.Option
 	namespaces       []string
 	annotationPrefix string
 	className        string
@@ -271,8 +271,12 @@ func (c *leadController) RunLeased(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("get k8s api config: %w", err)
 	}
-	mgr, err := controllers.NewIngressController(cfg, c.MgrOpts, c.PomeriumReconciler, c.CtrlOpts...)
+	mgr, err := ctrl.NewManager(cfg, c.MgrOpts)
 	if err != nil {
+		return fmt.Errorf("unable to create controller manager: %w", err)
+	}
+
+	if err = ingress.NewIngressController(mgr, c.Reconciler, c.CtrlOpts...); err != nil {
 		return fmt.Errorf("creating controller: %w", err)
 	}
 	c.setRunning(true)
@@ -282,9 +286,10 @@ func (c *leadController) RunLeased(ctx context.Context) error {
 	return nil
 }
 
-func (s *serveCmd) runController(ctx context.Context, client databroker.DataBrokerServiceClient, opts ctrl.Options, cOpts ...controllers.Option) error {
+func (s *serveCmd) runController(ctx context.Context, client databroker.DataBrokerServiceClient, opts ctrl.Options, cOpts ...ingress.Option) error {
+	reconciler := &pomerium.ConfigReconciler{DataBrokerServiceClient: client, DebugDumpConfigDiff: s.debug}
 	c := &leadController{
-		PomeriumReconciler:      &pomerium.ConfigReconciler{DataBrokerServiceClient: client, DebugDumpConfigDiff: s.debug},
+		Reconciler:              pomerium.WithLock(reconciler),
 		DataBrokerServiceClient: client,
 		MgrOpts:                 opts,
 		CtrlOpts:                cOpts,

@@ -20,22 +20,36 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Duration is a sequence of decimal numbers, each with optional fraction and a unit suffix,
-// such as "300ms", "-1.5h" or "2h45m".
-// Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
-type Duration string
-
 // IdentityProvider see https://www.pomerium.com/docs/identity-providers/
 type IdentityProvider struct {
 	// Provider one of accepted providers https://www.pomerium.com/reference/#identity-provider-name
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=auth0;azure;google;okta;onelogin;oidc;ping;github
 	Provider string `json:"provider"`
 	// URL is identity provider url, see https://www.pomerium.com/reference/#identity-provider-url
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Format=uri
+	// +kubebuilder:validation:Pattern=`^https://`
 	URL string `json:"url"`
 	// Secret refers to a k8s secret containing IdP provider specific parameters
-	SecretRef string `json:"secret"`
+	// and must contain at least `client_id` and `client_secret` map values,
+	// an optional `service_account` field, mapped to https://www.pomerium.com/reference/#identity-provider-service-account
+	// +kubebuilder:validation:Required
+	Secret string `json:"secret"`
+	// ServiceAccountFromSecret is a convenience way to build a value for `idp_service_account` from
+	// secret map values, see https://www.pomerium.com/docs/identity-providers/
+	// +optional
+	ServiceAccountFromSecret *string `json:"serviceAccountFromSecret,omitempty"`
+	// RequestParams see https://www.pomerium.com/reference/#identity-provider-request-params
+	// +optional
+	RequestParams map[string]string `json:"requestParams,omitempty"`
+	// RequestParamsSecret is a reference to a secret for additional parameters you'd prefer not to provide in plaintext
+	// +optional
+	RequestParamsSecret *string `json:"requestParamsSecret,omitempty"`
 	// Scopes see https://www.pomerium.com/reference/#identity-provider-scopes
 	// +optional
-	Scopes []string `json:"scopes"`
+	Scopes []string `json:"scopes,omitempty"`
 
 	// Specifies refresh settings
 	// +optional
@@ -44,21 +58,42 @@ type IdentityProvider struct {
 
 // RefreshDirectorySettings defines how frequently should
 type RefreshDirectorySettings struct {
-	Interval Duration `json:"interval"`
-	Timeout  Duration `json:"timeout"`
+	// +kubebuilder:validation:Format=duration
+	Interval metav1.Duration `json:"interval"`
+	// +kubebuilder:validation:Format=duration
+	Timeout metav1.Duration `json:"timeout"`
+}
+
+// Timeouts regulate common timeout settings
+type Timeouts struct {
+}
+
+// Authenticate service configuration parameters
+type Authenticate struct {
+	// AuthenticateURL should be publicly accessible URL
+	// the non-authenticated persons would be referred to
+	// see https://www.pomerium.com/reference/#authenticate-service-url
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Format=uri
+	// +kubebuilder:validation:Pattern=`^https://`
+	URL string `json:"url"`
+	// CallbackPath see https://www.pomerium.com/reference/#authenticate-callback-path
+	// +optional
+	CallbackPath *string `json:"callbackPath,omitempty"`
 }
 
 // SettingsSpec defines the desired state of Settings
 type SettingsSpec struct {
+	// Authenticate see
+	// +kubebuilder:validation:Required
+	Authenticate Authenticate `json:"authenticate"`
 	// IdentityProvider see https://www.pomerium.com/docs/identity-providers/
-	// +optional
+	// +kubebuilder:validation:Required
 	IdentityProvider IdentityProvider `json:"identity_provider"`
 	// Certificates is a list of secrets of type TLS to use
 	// +optional
 	Certificates []string `json:"certificates"`
-	// AuthenticateURL should be publicly accessible URL
-	// the non-authenticated persons would be referred to
-	AuthenticateURL string `json:"authenticateServiceURL"`
 }
 
 //+kubebuilder:printcolumn:name="Last Reconciled",type=datetime,JSONPath=`.ts`
@@ -81,7 +116,8 @@ type SettingsStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// Settings is the Schema for the settings API
+// Settings define runtime-configurable Pomerium settings
+// that do not fall into the category of deployment parameters
 type Settings struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

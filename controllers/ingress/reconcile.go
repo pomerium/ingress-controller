@@ -1,4 +1,4 @@
-package controllers
+package ingress
 
 import (
 	"context"
@@ -13,17 +13,6 @@ import (
 
 	"github.com/pomerium/ingress-controller/model"
 )
-
-// PomeriumReconciler updates pomerium configuration based on provided network resources
-// it is not expected to be thread safe
-type PomeriumReconciler interface {
-	// Upsert should update or create the pomerium routes corresponding to this ingress
-	Upsert(ctx context.Context, ic *model.IngressConfig, cfg *model.Config) (changes bool, err error)
-	// Set configuration to match provided ingresses
-	Set(ctx context.Context, ics []*model.IngressConfig, cfg *model.Config) (changes bool, err error)
-	// Delete should delete pomerium routes corresponding to this ingress name
-	Delete(ctx context.Context, namespacedName types.NamespacedName) error
-}
 
 // reconcileInitial walks over all ingresses and updates configuration at once
 // this is currently done for performance reasons
@@ -69,7 +58,7 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 		ics = append(ics, ic)
 	}
 
-	_, err = r.PomeriumReconciler.Set(ctx, ics, cfg)
+	_, err = r.Reconciler.Set(ctx, ics, cfg)
 	for i := range ingressList.Items {
 		ingress := &ingressList.Items[i]
 		if err != nil {
@@ -120,7 +109,7 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func (r *ingressController) deleteIngress(ctx context.Context, name types.NamespacedName, reason string) (ctrl.Result, error) {
-	if err := r.PomeriumReconciler.Delete(ctx, name); err != nil {
+	if err := r.Reconciler.Delete(ctx, name); err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("deleting ingress: %w", err)
 	}
 	r.IngressDeleted(ctx, name, reason)
@@ -137,7 +126,7 @@ func (r *ingressController) upsertIngress(ctx context.Context, ic *model.Ingress
 		}
 	}
 
-	changed, err := r.PomeriumReconciler.Upsert(ctx, ic, cfg)
+	changed, err := r.Reconciler.Upsert(ctx, ic, cfg)
 	if err != nil {
 		r.IngressNotReconciled(ctx, ic.Ingress, err)
 		return ctrl.Result{Requeue: true}, fmt.Errorf("upsert: %w", err)

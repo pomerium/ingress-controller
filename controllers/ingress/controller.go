@@ -1,4 +1,4 @@
-package controllers
+package ingress
 
 import (
 	"fmt"
@@ -16,10 +16,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
+	"github.com/pomerium/ingress-controller/controllers/reporter"
 	"github.com/pomerium/ingress-controller/model"
+	"github.com/pomerium/ingress-controller/pomerium"
 )
 
-//go:generate go run github.com/golang/mock/mockgen -package controllers -destination client_mock.go sigs.k8s.io/controller-runtime/pkg/client Client
+//go:generate go run github.com/golang/mock/mockgen -package ingress -destination client_mock.go sigs.k8s.io/controller-runtime/pkg/client Client
 
 const (
 	initialReconciliationTimeout = time.Minute * 5
@@ -39,7 +41,7 @@ type ingressController struct {
 	client.Client
 
 	// PomeriumReconciler updates Pomerium service configuration
-	PomeriumReconciler
+	pomerium.Reconciler
 	// Registry keeps track of dependencies between k8s objects
 	model.Registry
 
@@ -47,7 +49,7 @@ type ingressController struct {
 	namespaces map[string]bool
 
 	// ingressStatusReporter is used to report ingress status changes
-	MultiIngressStatusReporter
+	reporter.MultiIngressStatusReporter
 
 	// updateStatusFromService defines a pomerium-proxy service name that should be watched for changes in the status field
 	// and all dependent ingresses should be updated accordingly
@@ -82,7 +84,7 @@ func WithGlobalSettings(name types.NamespacedName) Option {
 }
 
 // WithIngressStatusReporter adds ingress status reporting option, multiple may be added
-func WithIngressStatusReporter(rep IngressStatusReporter) Option {
+func WithIngressStatusReporter(rep reporter.IngressStatusReporter) Option {
 	return func(ic *ingressController) {
 		ic.MultiIngressStatusReporter = append(ic.MultiIngressStatusReporter, rep)
 	}

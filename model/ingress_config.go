@@ -48,6 +48,12 @@ type Config struct {
 	icsv1.Settings
 	// Certs are fetched certs from settings.Certificates
 	Certs map[types.NamespacedName]*corev1.Secret
+	// RequestParams is a secret from Settings.IdentityProvider.RequestParams
+	RequestParams *corev1.Secret
+	// IdpSecret is Settings.IdentityProvider.Secret
+	IdpSecret *corev1.Secret
+	// IdpServiceAccount is Settings.IdentityProvider.ServiceAccountFromSecret
+	IdpServiceAccount *corev1.Secret
 }
 
 // IngressConfig represents ingress and all other required resources

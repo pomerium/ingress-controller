@@ -29,6 +29,10 @@ const (
 	configID = "ingress-controller"
 )
 
+var (
+	_ = Reconciler(new(ConfigReconciler))
+)
+
 // ConfigReconciler updates pomerium configuration
 // only one ConfigReconciler should be active
 // and its methods are not thread-safe
@@ -50,9 +54,10 @@ func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig, 
 	}
 	addCerts(next, ic.Secrets)
 
-	if global != nil {
-		addCerts(next, global.Certs)
+	if err = applyConfig(next, global); err != nil {
+		return false, fmt.Errorf("settings: %w", err)
 	}
+
 	return r.saveConfig(ctx, prev, next, string(ic.Ingress.UID))
 }
 
@@ -79,8 +84,23 @@ func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig, 
 		next = cfg
 	}
 
-	if global != nil {
-		addCerts(next, global.Certs)
+	if err = applyConfig(next, global); err != nil {
+		return false, fmt.Errorf("settings: %w", err)
+	}
+
+	return r.saveConfig(ctx, prev, next, "config")
+}
+
+// SetConfig updates just the shared config settings
+func (r *ConfigReconciler) SetConfig(ctx context.Context, cfg *model.Config) (changes bool, err error) {
+	prev, err := r.getConfig(ctx)
+	if err != nil {
+		return false, fmt.Errorf("get config: %w", err)
+	}
+	next := proto.Clone(prev).(*pb.Config)
+
+	if err = applyConfig(next, cfg); err != nil {
+		return false, fmt.Errorf("settings: %w", err)
 	}
 
 	return r.saveConfig(ctx, prev, next, "config")

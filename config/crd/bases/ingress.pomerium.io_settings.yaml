@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
+    controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
   name: settings.ingress.pomerium.io
 spec:
@@ -18,7 +18,8 @@ spec:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: Settings is the Schema for the settings API
+        description: Settings define runtime-configurable Pomerium settings that do
+          not fall into the category of deployment parameters
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -35,6 +36,21 @@ spec:
           spec:
             description: SettingsSpec defines the desired state of Settings
             properties:
+              authenticate:
+                description: Authenticate see
+                properties:
+                  callbackPath:
+                    description: CallbackPath see https://www.pomerium.com/reference/#authenticate-callback-path
+                    type: string
+                  url:
+                    description: AuthenticateURL should be publicly accessible URL
+                      the non-authenticated persons would be referred to see https://www.pomerium.com/reference/#authenticate-service-url
+                    format: uri
+                    pattern: ^https://
+                    type: string
+                required:
+                - url
+                type: object
               certificates:
                 description: Certificates is a list of secrets of type TLS to use
                 items:
@@ -45,26 +61,38 @@ spec:
                 properties:
                   provider:
                     description: Provider one of accepted providers https://www.pomerium.com/reference/#identity-provider-name
+                    enum:
+                    - auth0
+                    - azure
+                    - google
+                    - okta
+                    - onelogin
+                    - oidc
+                    - ping
+                    - github
                     type: string
                   refresh_directory:
                     description: Specifies refresh settings
                     properties:
                       interval:
-                        description: Duration is a sequence of decimal numbers, each
-                          with optional fraction and a unit suffix, such as "300ms",
-                          "-1.5h" or "2h45m". Valid time units are "ns", "us" (or
-                          "µs"), "ms", "s", "m", "h".
+                        format: duration
                         type: string
                       timeout:
-                        description: Duration is a sequence of decimal numbers, each
-                          with optional fraction and a unit suffix, such as "300ms",
-                          "-1.5h" or "2h45m". Valid time units are "ns", "us" (or
-                          "µs"), "ms", "s", "m", "h".
+                        format: duration
                         type: string
                     required:
                     - interval
                     - timeout
                     type: object
+                  requestParams:
+                    additionalProperties:
+                      type: string
+                    description: RequestParams see https://www.pomerium.com/reference/#identity-provider-request-params
+                    type: object
+                  requestParamsSecret:
+                    description: RequestParamsSecret is a reference to a secret for
+                      additional parameters you'd prefer not to provide in plaintext
+                    type: string
                   scopes:
                     description: Scopes see https://www.pomerium.com/reference/#identity-provider-scopes
                     items:
@@ -72,32 +100,38 @@ spec:
                     type: array
                   secret:
                     description: Secret refers to a k8s secret containing IdP provider
-                      specific parameters
+                      specific parameters and must contain at least `client_id` and
+                      `client_secret` map values, an optional `service_account` field,
+                      mapped to https://www.pomerium.com/reference/#identity-provider-service-account
+                    type: string
+                  serviceAccountFromSecret:
+                    description: ServiceAccountFromSecret is a convenience way to
+                      build a value for `idp_service_account` from secret map values,
+                      see https://www.pomerium.com/docs/identity-providers/
                     type: string
                   url:
                     description: URL is identity provider url, see https://www.pomerium.com/reference/#identity-provider-url
+                    format: uri
+                    pattern: ^https://
                     type: string
                 required:
                 - provider
                 - secret
                 - url
                 type: object
+            required:
+            - authenticate
+            - identity_provider
             type: object
           status:
             description: SettingsStatus defines the observed state of Settings
             properties:
               routes:
                 additionalProperties:
-<<<<<<< HEAD
-                  description: RouteStatus reconciliation status between Ingress spec
-                    and Pomerium state
+                  description: RouteStatus provides high level status between the
+                    last observed ingress object and pomerium state
                   properties:
                     error:
-=======
-                  description: RouteStatus
-                  properties:
-                    errors:
->>>>>>> 66086a7 (add settings CRD and basic status)
                       description: Error is reason most recent reconciliation failed
                         for the route
                       type: string
@@ -122,9 +156,3 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
