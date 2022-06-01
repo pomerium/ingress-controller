@@ -8,6 +8,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -36,7 +37,7 @@ func (r *ingressController) updateDependencies(ic *model.IngressConfig) {
 
 // getDependantIngressFn returns for a given object kind (i.e. a secret) a function
 // that would return ingress objects keys that depend from this object
-func (r *ingressController) getDependantIngressFn(kind string) func(a client.Object) []reconcile.Request {
+func (r *ingressController) getDependantIngressFn(kind string) handler.MapFunc {
 	logger := log.FromContext(context.Background()).WithValues("kind", kind)
 
 	return func(a client.Object) []reconcile.Request {
@@ -55,7 +56,7 @@ func (r *ingressController) getDependantIngressFn(kind string) func(a client.Obj
 	}
 }
 
-func (r *ingressController) watchIngressClass(string) func(a client.Object) []reconcile.Request {
+func (r *ingressController) watchIngressClass(string) handler.MapFunc {
 	logger := log.FromContext(context.Background())
 
 	return func(a client.Object) []reconcile.Request {

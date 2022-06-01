@@ -12,7 +12,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
@@ -148,7 +147,7 @@ func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 	for _, o := range []struct {
 		client.Object
 		kind  *string
-		mapFn func(string) func(client.Object) []reconcile.Request
+		mapFn func(string) handler.MapFunc
 	}{
 		{&networkingv1.Ingress{}, &r.ingressKind, nil},
 		{&networkingv1.IngressClass{}, &r.ingressClassKind, r.watchIngressClass},

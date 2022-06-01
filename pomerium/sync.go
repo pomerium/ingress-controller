@@ -171,10 +171,6 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, prev, next *pb.Config
 	// envoy matches according to the order routes are present in the configuration
 	sort.Sort(routeList(next.Routes))
 
-	if r.DebugDumpConfigDiff {
-		debugDumpConfigDiff(prev, next)
-	}
-
 	if err := validate(ctx, next, id); err != nil {
 		return false, fmt.Errorf("config validation: %w", err)
 	}
@@ -195,6 +191,9 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, prev, next *pb.Config
 		return false, err
 	}
 
+	if r.DebugDumpConfigDiff {
+		debugDumpConfigDiff(prev, next)
+	}
 	logger.Info("new pomerium config applied")
 
 	return true, nil

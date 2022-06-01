@@ -42,10 +42,18 @@ func NewIngressController(
 	}
 
 	if ic.globalSettings != nil {
-		ic.MultiIngressStatusReporter = append(ic.MultiIngressStatusReporter, &reporter.IngressSettingsReporter{
-			Name:   *ic.globalSettings,
-			Client: ic.Client,
-		})
+		sr := reporter.SettingsReporter{
+			NamespacedName: *ic.globalSettings,
+			Client:         ic.Client,
+		}
+		ic.MultiIngressStatusReporter = append(ic.MultiIngressStatusReporter,
+			&reporter.IngressSettingsReporter{
+				SettingsReporter: sr,
+			},
+			&reporter.IngressSettingsEventReporter{
+				EventRecorder:    mgr.GetEventRecorderFor("pomerium"),
+				SettingsReporter: sr,
+			})
 	}
 	if err := ic.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create controller: %w", err)

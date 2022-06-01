@@ -27,11 +27,11 @@ type IdentityProvider struct {
 	// +kubebuilder:validation:Enum=auth0;azure;google;okta;onelogin;oidc;ping;github
 	Provider string `json:"provider"`
 	// URL is identity provider url, see https://www.pomerium.com/reference/#identity-provider-url
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Format=uri
 	// +kubebuilder:validation:Pattern=`^https://`
-	URL string `json:"url"`
+	URL *string `json:"url"`
 	// Secret refers to a k8s secret containing IdP provider specific parameters
 	// and must contain at least `client_id` and `client_secret` map values,
 	// an optional `service_account` field, mapped to https://www.pomerium.com/reference/#identity-provider-service-account
@@ -90,7 +90,7 @@ type SettingsSpec struct {
 	Authenticate Authenticate `json:"authenticate"`
 	// IdentityProvider see https://www.pomerium.com/docs/identity-providers/
 	// +kubebuilder:validation:Required
-	IdentityProvider IdentityProvider `json:"identity_provider"`
+	IdentityProvider IdentityProvider `json:"identityProvider"`
 	// Certificates is a list of secrets of type TLS to use
 	// +optional
 	Certificates []string `json:"certificates"`
@@ -103,14 +103,14 @@ type RouteStatus struct {
 	// Reconciled is true if Ingress resource was fully synced with pomerium state
 	Reconciled bool `json:"reconciled"`
 	// LastReconciled timestamp indicates when the ingress resource was last synced with pomerium
-	LastReconciled *metav1.Time `json:"ts,omitempty"`
+	LastReconciled *metav1.Time `json:"lastReconciled,omitempty"`
 	// Error is reason most recent reconciliation failed for the route
 	Error string `json:"error,omitempty"`
 }
 
 // SettingsStatus defines the observed state of Settings
 type SettingsStatus struct {
-	Routes map[string]RouteStatus `json:"routes"`
+	Routes map[string]RouteStatus `json:"ingress"`
 }
 
 //+kubebuilder:object:root=true

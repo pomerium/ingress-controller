@@ -56,7 +56,7 @@ spec:
                 items:
                   type: string
                 type: array
-              identity_provider:
+              identityProvider:
                 description: IdentityProvider see https://www.pomerium.com/docs/identity-providers/
                 properties:
                   provider:
@@ -117,16 +117,15 @@ spec:
                 required:
                 - provider
                 - secret
-                - url
                 type: object
             required:
             - authenticate
-            - identity_provider
+            - identityProvider
             type: object
           status:
             description: SettingsStatus defines the observed state of Settings
             properties:
-              routes:
+              ingress:
                 additionalProperties:
                   description: RouteStatus provides high level status between the
                     last observed ingress object and pomerium state
@@ -135,21 +134,21 @@ spec:
                       description: Error is reason most recent reconciliation failed
                         for the route
                       type: string
-                    reconciled:
-                      description: Reconciled is true if Ingress resource was fully
-                        synced with pomerium state
-                      type: boolean
-                    ts:
+                    lastReconciled:
                       description: LastReconciled timestamp indicates when the ingress
                         resource was last synced with pomerium
                       format: date-time
                       type: string
+                    reconciled:
+                      description: Reconciled is true if Ingress resource was fully
+                        synced with pomerium state
+                      type: boolean
                   required:
                   - reconciled
                   type: object
                 type: object
             required:
-            - routes
+            - ingress
             type: object
         type: object
     served: true

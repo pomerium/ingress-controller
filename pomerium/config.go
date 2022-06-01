@@ -20,12 +20,18 @@ func applyConfig(p *pb.Config, c *model.Config) error {
 		return nil
 	}
 
+	if p.Settings == nil {
+		p.Settings = new(pb.Settings)
+	}
+
 	for _, apply := range []struct {
 		name string
 		fn   func(*pb.Config, *model.Config) error
 	}{
 		{"authenticate", applyAuthenticate},
 		{"idp", applyIDP},
+		{"idp url", applyIDPProviderURL},
+		{"idp refresh", applyIDPProviderRefreshTimeouts},
 		{"idp secret", applyIDPSecret},
 		{"idp service account from secret", applyServiceAccount},
 		{"idp request params", applyIDPRequestParams},
@@ -51,18 +57,33 @@ func applyAuthenticate(p *pb.Config, c *model.Config) error {
 
 func applyIDP(p *pb.Config, c *model.Config) error {
 	idp := c.Spec.IdentityProvider
-	if _, err := url.Parse(idp.URL); err != nil {
-		return fmt.Errorf("parse %s: %w", idp.URL, err)
-	}
-	p.Settings.IdpProviderUrl = &idp.URL
 	p.Settings.IdpProvider = &idp.Provider
+	p.Settings.Scopes = idp.Scopes
 
-	if idp.RefreshDirectory != nil {
-		p.Settings.IdpRefreshDirectoryInterval = durationpb.New(idp.RefreshDirectory.Interval.Duration)
-		p.Settings.IdpRefreshDirectoryTimeout = durationpb.New(idp.RefreshDirectory.Timeout.Duration)
+	return nil
+}
+
+func applyIDPProviderRefreshTimeouts(p *pb.Config, c *model.Config) error {
+	rd := c.Settings.Spec.IdentityProvider.RefreshDirectory
+	if rd == nil {
+		return nil
+	}
+	p.Settings.IdpRefreshDirectoryInterval = durationpb.New(rd.Interval.Duration)
+	p.Settings.IdpRefreshDirectoryTimeout = durationpb.New(rd.Timeout.Duration)
+
+	return nil
+}
+
+func applyIDPProviderURL(p *pb.Config, c *model.Config) error {
+	if c.Spec.IdentityProvider.URL == nil {
+		return nil
 	}
 
-	p.Settings.Scopes = idp.Scopes
+	if _, err := url.Parse(*c.Spec.IdentityProvider.URL); err != nil {
+		return err
+	}
+	p.Settings.IdpProviderUrl = c.Spec.IdentityProvider.URL
+
 	return nil
 }
 

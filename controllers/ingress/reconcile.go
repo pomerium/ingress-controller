@@ -11,6 +11,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	settings_controller "github.com/pomerium/ingress-controller/controllers/settings"
 	"github.com/pomerium/ingress-controller/model"
 )
 
@@ -29,9 +30,9 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 
 	var cfg *model.Config
 	if r.globalSettings != nil {
-		cfg = new(model.Config)
-		if err := r.Client.Get(ctx, *r.globalSettings, &cfg.Settings); err != nil {
-			return fmt.Errorf("get settings: %w", err)
+		cfg, err = settings_controller.FetchConfig(ctx, r.Client, *r.globalSettings)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -113,16 +114,17 @@ func (r *ingressController) deleteIngress(ctx context.Context, name types.Namesp
 		return ctrl.Result{Requeue: true}, fmt.Errorf("deleting ingress: %w", err)
 	}
 	r.IngressDeleted(ctx, name, reason)
-	r.Registry.DeleteCascade(model.Key{Kind: r.ingressKind, NamespacedName: name})
+	r.DeleteCascade(model.Key{Kind: r.ingressKind, NamespacedName: name})
 	return ctrl.Result{}, nil
 }
 
 func (r *ingressController) upsertIngress(ctx context.Context, ic *model.IngressConfig) (ctrl.Result, error) {
 	var cfg *model.Config
+	var err error
 	if r.globalSettings != nil {
-		cfg = new(model.Config)
-		if err := r.Client.Get(ctx, *r.globalSettings, &cfg.Settings); err != nil {
-			return ctrl.Result{}, fmt.Errorf("get settings: %w", err)
+		cfg, err = settings_controller.FetchConfig(ctx, r.Client, *r.globalSettings)
+		if err != nil {
+			return ctrl.Result{Requeue: true}, err
 		}
 	}
 

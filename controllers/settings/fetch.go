@@ -9,19 +9,17 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/util"
 )
 
 // FetchConfig returns
 func FetchConfig(ctx context.Context, client client.Client, name types.NamespacedName) (*model.Config, error) {
-	var settings icsv1.Settings
-	if err := client.Get(ctx, name, &settings); err != nil {
+	var cfg model.Config
+	if err := client.Get(ctx, name, &cfg.Settings); err != nil {
 		return nil, fmt.Errorf("get %s: %w", name, err)
 	}
 
-	var cfg model.Config
 	for _, apply := range []struct {
 		name string
 		src  *string
@@ -34,9 +32,9 @@ func FetchConfig(ctx context.Context, client client.Client, name types.Namespace
 		if apply.src == nil {
 			continue
 		}
-		name, err := util.ParseNamespacedName(*apply.src, util.WithDefaultNamespace(settings.Namespace))
+		name, err := util.ParseNamespacedName(*apply.src, util.WithDefaultNamespace(cfg.Namespace))
 		if err != nil {
-			return nil, fmt.Errorf("parse %s %s: %w", apply.name, *apply.src, err)
+			return nil, fmt.Errorf("parse %s %q: %w", apply.name, *apply.src, err)
 		}
 		var secret corev1.Secret
 		if err := client.Get(ctx, *name, &secret); err != nil {

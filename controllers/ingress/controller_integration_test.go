@@ -742,8 +742,10 @@ func (s *ControllerTestSuite) TestSettingsStatusUpdate() {
 
 	name := types.NamespacedName{Namespace: "default", Name: "global-settings"}
 	reporter := reporter.IngressSettingsReporter{
-		Name:   name,
-		Client: s.Client,
+		SettingsReporter: reporter.SettingsReporter{
+			NamespacedName: name,
+			Client:         s.Client,
+		},
 	}
 
 	to := s.initialTestObjects("default")

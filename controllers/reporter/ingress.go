@@ -3,7 +3,6 @@ package reporter
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -12,29 +11,25 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 )
 
-// IngressSettingsReporter reflects ingress updates in a Pomerium Settings CRD /status section
-type IngressSettingsReporter struct {
-	Name   types.NamespacedName
-	Client client.Client
+// IngressStatusReporter updates status of ingress objects
+type IngressStatusReporter interface {
+	// IngressReconciled an ingress was successfully reconciled with Pomerium
+	IngressReconciled(ctx context.Context, ingress *networkingv1.Ingress) error
+	// IngressNotReconciled an updated ingress resource was received,
+	// however it could not be reconciled with Pomerium due to errors
+	IngressNotReconciled(ctx context.Context, ingress *networkingv1.Ingress, reason error) error
+	// IngressDeleted an ingress resource was deleted and Pomerium no longer serves it
+	IngressDeleted(ctx context.Context, name types.NamespacedName, reason string) error
 }
 
-func (r *IngressSettingsReporter) getSettings(ctx context.Context) (*icsv1.Settings, error) {
-	var obj icsv1.Settings
-	if err := r.Client.Get(ctx, r.Name, &obj); err != nil {
-		return nil, fmt.Errorf("get %s: %w", r.Name, err)
-	}
-
-	if obj.Status.Routes == nil {
-		obj.Status.Routes = make(map[string]icsv1.RouteStatus)
-	}
-
-	return &obj, nil
+// IngressSettingsReporter reflects ingress updates in a Pomerium Settings CRD /status section
+type IngressSettingsReporter struct {
+	SettingsReporter
 }
 
 // IngressReconciled an ingress was successfully reconciled with Pomerium
@@ -90,7 +85,8 @@ type IngressEventReporter struct {
 const (
 	reasonPomeriumConfigUpdated     = "Updated"
 	reasonPomeriumConfigUpdateError = "UpdateError"
-	msgPomeriumConfigUpdated        = "updated pomerium configuration"
+	msgPomeriumConfigUpdated        = "Pomerium configuration updated"
+	msgIngressDeleted               = "deleted from Pomerium"
 )
 
 // IngressReconciled an ingress was successfully reconciled with Pomerium
@@ -109,6 +105,41 @@ func (r *IngressEventReporter) IngressNotReconciled(ctx context.Context, ingress
 // IngressDeleted an ingress resource was deleted and Pomerium no longer serves it
 func (r *IngressEventReporter) IngressDeleted(ctx context.Context, name types.NamespacedName, reason string) error {
 	return nil
+}
+
+// IngressSettingsEventReporter posts ingress updates as events to Settings CRD
+type IngressSettingsEventReporter struct {
+	SettingsReporter
+	record.EventRecorder
+}
+
+func (r *IngressSettingsEventReporter) postEvent(ctx context.Context, ingress types.NamespacedName, eventType, reason, msg string) error {
+	settings, err := r.getSettings(ctx)
+	if err != nil {
+		return err
+	}
+	r.EventRecorder.AnnotatedEventf(settings,
+		map[string]string{"ingress": ingress.String()},
+		eventType, reason, "%s: %s", ingress.String(), msg)
+	return nil
+}
+
+// IngressReconciled an ingress was successfully reconciled with Pomerium
+func (r *IngressSettingsEventReporter) IngressReconciled(ctx context.Context, ingress *networkingv1.Ingress) error {
+	return r.postEvent(ctx, types.NamespacedName{Name: ingress.Name, Namespace: ingress.Namespace},
+		corev1.EventTypeNormal, reasonPomeriumConfigUpdated, msgPomeriumConfigUpdated)
+}
+
+// IngressNotReconciled an updated ingress resource was received,
+// however it could not be reconciled with Pomerium due to errors
+func (r *IngressSettingsEventReporter) IngressNotReconciled(ctx context.Context, ingress *networkingv1.Ingress, reason error) error {
+	return r.postEvent(ctx, types.NamespacedName{Name: ingress.Name, Namespace: ingress.Namespace},
+		corev1.EventTypeWarning, reasonPomeriumConfigUpdateError, reason.Error())
+}
+
+// IngressDeleted an ingress resource was deleted and Pomerium no longer serves it
+func (r *IngressSettingsEventReporter) IngressDeleted(ctx context.Context, ingress types.NamespacedName, reason string) error {
+	return r.postEvent(ctx, ingress, corev1.EventTypeNormal, reasonPomeriumConfigUpdated, msgIngressDeleted)
 }
 
 // IngressLogReporter reflects updates as log messages
