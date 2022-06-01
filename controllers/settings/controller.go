@@ -92,6 +92,7 @@ func NewSettingsController(
 	return nil
 }
 
+// Reconcile syncs Settings CRD with pomerium databroker
 func (c *settingsController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	if req.NamespacedName != c.name {
 		return ctrl.Result{}, nil

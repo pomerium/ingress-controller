@@ -736,8 +736,6 @@ func (s *ControllerTestSuite) TestCustomSecrets() {
 }
 
 func (s *ControllerTestSuite) TestSettingsStatusUpdate() {
-	s.T().SkipNow()
-
 	ctx := context.Background()
 
 	name := types.NamespacedName{Namespace: "default", Name: "global-settings"}
@@ -754,6 +752,15 @@ func (s *ControllerTestSuite) TestSettingsStatusUpdate() {
 
 	gs := icsv1.Settings{
 		ObjectMeta: metav1.ObjectMeta{Name: name.Name, Namespace: name.Namespace},
+		Spec: icsv1.SettingsSpec{
+			IdentityProvider: icsv1.IdentityProvider{
+				Provider: "oidc",
+				Secret:   "secret",
+			},
+			Authenticate: icsv1.Authenticate{
+				URL: "https://provider.local",
+			},
+		},
 	}
 	s.NoError(s.Client.Create(ctx, &gs))
 

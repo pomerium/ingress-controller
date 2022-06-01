@@ -9,6 +9,8 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	controllers_mock "github.com/pomerium/ingress-controller/controllers/mock"
 )
 
 func TestManagingIngressClass(t *testing.T) {
@@ -18,7 +20,7 @@ func TestManagingIngressClass(t *testing.T) {
 	otherControllerName := "legacy.com/ingress"
 
 	ctx := context.Background()
-	mc := NewMockClient(gomock.NewController(t))
+	mc := controllers_mock.NewMockClient(gomock.NewController(t))
 	ctrl := ingressController{
 		controllerName:   pomeriumControllerName,
 		annotationPrefix: DefaultAnnotationPrefix,

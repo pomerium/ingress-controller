@@ -36,6 +36,8 @@ type IdentityProvider struct {
 	// and must contain at least `client_id` and `client_secret` map values,
 	// an optional `service_account` field, mapped to https://www.pomerium.com/reference/#identity-provider-service-account
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MinLength=1
 	Secret string `json:"secret"`
 	// ServiceAccountFromSecret is a convenience way to build a value for `idp_service_account` from
 	// secret map values, see https://www.pomerium.com/docs/identity-providers/

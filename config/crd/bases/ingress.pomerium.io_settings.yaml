@@ -103,6 +103,7 @@ spec:
                       specific parameters and must contain at least `client_id` and
                       `client_secret` map values, an optional `service_account` field,
                       mapped to https://www.pomerium.com/reference/#identity-provider-service-account
+                    minLength: 1
                     type: string
                   serviceAccountFromSecret:
                     description: ServiceAccountFromSecret is a convenience way to

@@ -20,8 +20,6 @@ import (
 	"github.com/pomerium/ingress-controller/pomerium"
 )
 
-//go:generate go run github.com/golang/mock/mockgen -package ingress -destination client_mock.go sigs.k8s.io/controller-runtime/pkg/client Client
-
 const (
 	initialReconciliationTimeout = time.Minute * 5
 )
