@@ -94,7 +94,8 @@ func (s *ControllerTestSuite) TearDownSuite() {
 
 func (s *ControllerTestSuite) createTestController(ctx context.Context, reconciler pomerium.Reconciler, name types.NamespacedName) {
 	mgr, err := ctrl.NewManager(s.Environment.Config, ctrl.Options{
-		Scheme: s.Environment.Scheme,
+		Scheme:             s.Environment.Scheme,
+		MetricsBindAddress: "0",
 	})
 	s.NoError(err)
 	s.NoError(settings.NewSettingsController(mgr, reconciler, name))

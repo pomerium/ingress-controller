@@ -231,7 +231,8 @@ func (s *ControllerTestSuite) createTestController(ctx context.Context, opts ...
 	s.mockPomeriumReconciler = &mockPomeriumReconciler{}
 
 	mgr, err := ctrl.NewManager(s.Environment.Config, ctrl.Options{
-		Scheme: s.Environment.Scheme,
+		Scheme:             s.Environment.Scheme,
+		MetricsBindAddress: "0", // disable
 	})
 	s.NoError(err)
 	s.NoError(ingress_controller.NewIngressController(mgr, s.mockPomeriumReconciler, opts...))
