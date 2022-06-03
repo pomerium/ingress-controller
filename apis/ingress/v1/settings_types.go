@@ -55,7 +55,7 @@ type IdentityProvider struct {
 
 	// Specifies refresh settings
 	// +optional
-	RefreshDirectory *RefreshDirectorySettings `json:"refresh_directory"`
+	RefreshDirectory *RefreshDirectorySettings `json:"refreshDirectory"`
 }
 
 // RefreshDirectorySettings defines how frequently should

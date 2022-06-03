@@ -71,7 +71,7 @@ spec:
                     - ping
                     - github
                     type: string
-                  refresh_directory:
+                  refreshDirectory:
                     description: Specifies refresh settings
                     properties:
                       interval:
