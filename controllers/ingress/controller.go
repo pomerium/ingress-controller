@@ -1,4 +1,4 @@
-package controllers
+package ingress
 
 import (
 	"fmt"
@@ -12,14 +12,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
+	"github.com/pomerium/ingress-controller/controllers/reporter"
 	"github.com/pomerium/ingress-controller/model"
+	"github.com/pomerium/ingress-controller/pomerium"
 )
-
-//go:generate go run github.com/golang/mock/mockgen -package controllers -destination client_mock.go sigs.k8s.io/controller-runtime/pkg/client Client
 
 const (
 	initialReconciliationTimeout = time.Minute * 5
@@ -39,7 +38,7 @@ type ingressController struct {
 	client.Client
 
 	// PomeriumReconciler updates Pomerium service configuration
-	PomeriumReconciler
+	pomerium.Reconciler
 	// Registry keeps track of dependencies between k8s objects
 	model.Registry
 
@@ -47,7 +46,7 @@ type ingressController struct {
 	namespaces map[string]bool
 
 	// ingressStatusReporter is used to report ingress status changes
-	MultiIngressStatusReporter
+	reporter.MultiIngressStatusReporter
 
 	// updateStatusFromService defines a pomerium-proxy service name that should be watched for changes in the status field
 	// and all dependent ingresses should be updated accordingly
@@ -82,7 +81,7 @@ func WithGlobalSettings(name types.NamespacedName) Option {
 }
 
 // WithIngressStatusReporter adds ingress status reporting option, multiple may be added
-func WithIngressStatusReporter(rep IngressStatusReporter) Option {
+func WithIngressStatusReporter(rep reporter.IngressStatusReporter) Option {
 	return func(ic *ingressController) {
 		ic.MultiIngressStatusReporter = append(ic.MultiIngressStatusReporter, rep)
 	}
@@ -146,7 +145,7 @@ func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 	for _, o := range []struct {
 		client.Object
 		kind  *string
-		mapFn func(string) func(client.Object) []reconcile.Request
+		mapFn func(string) handler.MapFunc
 	}{
 		{&networkingv1.Ingress{}, &r.ingressKind, nil},
 		{&networkingv1.IngressClass{}, &r.ingressClassKind, r.watchIngressClass},

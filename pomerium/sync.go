@@ -29,6 +29,10 @@ const (
 	configID = "ingress-controller"
 )
 
+var (
+	_ = Reconciler(new(ConfigReconciler))
+)
+
 // ConfigReconciler updates pomerium configuration
 // only one ConfigReconciler should be active
 // and its methods are not thread-safe
@@ -38,7 +42,7 @@ type ConfigReconciler struct {
 }
 
 // Upsert should update or create the pomerium routes corresponding to this ingress
-func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
+func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig, global *model.Config) (bool, error) {
 	prev, err := r.getConfig(ctx)
 	if err != nil {
 		return false, fmt.Errorf("get config: %w", err)
@@ -50,11 +54,15 @@ func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) 
 	}
 	addCerts(next, ic.Secrets)
 
+	if err = applyConfig(next, global); err != nil {
+		return false, fmt.Errorf("settings: %w", err)
+	}
+
 	return r.saveConfig(ctx, prev, next, string(ic.Ingress.UID))
 }
 
 // Set merges existing config with the one generated for ingress
-func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bool, error) {
+func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig, global *model.Config) (bool, error) {
 	logger := log.FromContext(ctx)
 
 	prev, err := r.getConfig(ctx)
@@ -74,6 +82,25 @@ func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig) 
 		}
 		addCerts(cfg, ic.Secrets)
 		next = cfg
+	}
+
+	if err = applyConfig(next, global); err != nil {
+		return false, fmt.Errorf("settings: %w", err)
+	}
+
+	return r.saveConfig(ctx, prev, next, "config")
+}
+
+// SetConfig updates just the shared config settings
+func (r *ConfigReconciler) SetConfig(ctx context.Context, cfg *model.Config) (changes bool, err error) {
+	prev, err := r.getConfig(ctx)
+	if err != nil {
+		return false, fmt.Errorf("get config: %w", err)
+	}
+	next := proto.Clone(prev).(*pb.Config)
+
+	if err = applyConfig(next, cfg); err != nil {
+		return false, fmt.Errorf("settings: %w", err)
 	}
 
 	return r.saveConfig(ctx, prev, next, "config")
@@ -144,10 +171,6 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, prev, next *pb.Config
 	// envoy matches according to the order routes are present in the configuration
 	sort.Sort(routeList(next.Routes))
 
-	if r.DebugDumpConfigDiff {
-		debugDumpConfigDiff(prev, next)
-	}
-
 	if err := validate(ctx, next, id); err != nil {
 		return false, fmt.Errorf("config validation: %w", err)
 	}
@@ -168,6 +191,9 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, prev, next *pb.Config
 		return false, err
 	}
 
+	if r.DebugDumpConfigDiff {
+		debugDumpConfigDiff(prev, next)
+	}
 	logger.Info("new pomerium config applied")
 
 	return true, nil

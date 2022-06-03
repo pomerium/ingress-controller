@@ -1,14 +1,14 @@
-// Package controllers implements ingress controller functions
-package controllers
+// Package ingress implements Ingress controller functions
+package ingress
 
 import (
 	"fmt"
 
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/pomerium/ingress-controller/controllers/reporter"
 	"github.com/pomerium/ingress-controller/model"
+	"github.com/pomerium/ingress-controller/pomerium"
 )
 
 const (
@@ -20,24 +20,18 @@ const (
 
 // NewIngressController creates new controller runtime
 func NewIngressController(
-	cfg *rest.Config,
-	crOpts ctrl.Options,
-	pcr PomeriumReconciler,
+	mgr ctrl.Manager,
+	pcr pomerium.Reconciler,
 	opts ...Option,
-) (ctrl.Manager, error) {
-	mgr, err := ctrl.NewManager(cfg, crOpts)
-	if err != nil {
-		return nil, fmt.Errorf("unable to start manager: %w", err)
-	}
-
+) error {
 	registry := model.NewRegistry()
 	ic := &ingressController{
-		annotationPrefix:   DefaultAnnotationPrefix,
-		controllerName:     DefaultClassControllerName,
-		PomeriumReconciler: pcr,
-		Client:             mgr.GetClient(),
-		Registry:           registry,
-		MultiIngressStatusReporter: []IngressStatusReporter{
+		annotationPrefix: DefaultAnnotationPrefix,
+		controllerName:   DefaultClassControllerName,
+		Reconciler:       pcr,
+		Client:           mgr.GetClient(),
+		Registry:         registry,
+		MultiIngressStatusReporter: []reporter.IngressStatusReporter{
 			&reporter.IngressEventReporter{EventRecorder: mgr.GetEventRecorderFor("pomerium-ingress")},
 			&reporter.IngressLogReporter{V: 1, Name: "reconcile"},
 		},
@@ -48,16 +42,24 @@ func NewIngressController(
 	}
 
 	if ic.globalSettings != nil {
-		ic.MultiIngressStatusReporter = append(ic.MultiIngressStatusReporter, &reporter.IngressSettingsReporter{
-			Name:   *ic.globalSettings,
-			Client: ic.Client,
-		})
+		sr := reporter.SettingsReporter{
+			NamespacedName: *ic.globalSettings,
+			Client:         ic.Client,
+		}
+		ic.MultiIngressStatusReporter = append(ic.MultiIngressStatusReporter,
+			&reporter.IngressSettingsReporter{
+				SettingsReporter: sr,
+			},
+			&reporter.IngressSettingsEventReporter{
+				EventRecorder:    mgr.GetEventRecorderFor("pomerium"),
+				SettingsReporter: sr,
+			})
 	}
-	if err = ic.SetupWithManager(mgr); err != nil {
-		return nil, fmt.Errorf("unable to create controller: %w", err)
+	if err := ic.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to create controller: %w", err)
 	}
 
-	return mgr, nil
+	return nil
 }
 
 func arrayToMap(in []string) map[string]bool {

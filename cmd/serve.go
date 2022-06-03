@@ -19,7 +19,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apiserver/pkg/server/healthz"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -29,7 +29,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
-	"github.com/pomerium/ingress-controller/controllers"
+	"github.com/pomerium/ingress-controller/controllers/ingress"
+	"github.com/pomerium/ingress-controller/controllers/settings"
 	"github.com/pomerium/ingress-controller/pomerium"
 	"github.com/pomerium/ingress-controller/util"
 )
@@ -67,7 +68,7 @@ type serveCmd struct {
 	debug bool
 
 	cobra.Command
-	controllers.PomeriumReconciler
+	pomerium.Reconciler
 }
 
 // ServeCommand creates command to run ingress controller
@@ -112,8 +113,8 @@ func (s *serveCmd) setupFlags() error {
 	flags.IntVar(&s.webhookPort, webhookPort, 9443, "webhook port")
 	flags.StringVar(&s.metricsAddr, metricsBindAddress, ":8080", "The address the metric endpoint binds to.")
 	flags.StringVar(&s.probeAddr, healthProbeBindAddress, ":8081", "The address the probe endpoint binds to.")
-	flags.StringVar(&s.className, className, controllers.DefaultClassControllerName, "IngressClass controller name")
-	flags.StringVar(&s.annotationPrefix, annotationPrefix, controllers.DefaultAnnotationPrefix, "Ingress annotation prefix")
+	flags.StringVar(&s.className, className, ingress.DefaultClassControllerName, "IngressClass controller name")
+	flags.StringVar(&s.annotationPrefix, annotationPrefix, ingress.DefaultAnnotationPrefix, "Ingress annotation prefix")
 	flags.StringVar(&s.databrokerServiceURL, databrokerServiceURL, "http://localhost:5443",
 		"the databroker service url")
 	flags.StringVar(&s.tlsCAFile, databrokerTLSCAFile, "", "tls CA file path")
@@ -155,48 +156,47 @@ func (s *serveCmd) setupFlags() error {
 func (s *serveCmd) exec(*cobra.Command, []string) error {
 	s.setupLogger()
 	ctx := ctrl.SetupSignalHandler()
-	dbc, err := s.getDataBrokerConnection(ctx)
-	if err != nil {
-		return fmt.Errorf("databroker connection: %w", err)
-	}
 
-	opts, err := s.getOptions()
+	c, err := s.buildController(ctx)
 	if err != nil {
 		return err
 	}
 
-	return s.runController(ctx,
-		databroker.NewDataBrokerServiceClient(dbc),
-		ctrl.Options{
-			Scheme:             getScheme(),
-			MetricsBindAddress: s.metricsAddr,
-			Port:               s.webhookPort,
-			LeaderElection:     false,
-		}, opts...)
+	return s.runController(ctx, c)
 }
 
-func (s *serveCmd) getOptions() ([]controllers.Option, error) {
-	opts := []controllers.Option{
-		controllers.WithNamespaces(s.namespaces),
-		controllers.WithAnnotationPrefix(s.annotationPrefix),
-		controllers.WithControllerName(s.className),
+func (s *serveCmd) getGlobalSettings() (*types.NamespacedName, error) {
+	if s.globalSettings == "" {
+		return nil, nil
+	}
+
+	name, err := util.ParseNamespacedName(s.globalSettings)
+	if err != nil {
+		return nil, fmt.Errorf("%s=%s: %w", globalSettings, s.globalSettings, err)
+	}
+	return name, nil
+}
+
+func (s *serveCmd) getIngressControllerOptions() ([]ingress.Option, error) {
+	opts := []ingress.Option{
+		ingress.WithNamespaces(s.namespaces),
+		ingress.WithAnnotationPrefix(s.annotationPrefix),
+		ingress.WithControllerName(s.className),
 	}
 	if s.disableCertCheck {
-		opts = append(opts, controllers.WithDisableCertCheck())
+		opts = append(opts, ingress.WithDisableCertCheck())
 	}
-	if s.globalSettings != "" {
-		name, err := util.ParseNamespacedName(s.globalSettings)
-		if err != nil {
-			return nil, fmt.Errorf("%s=%s: %w", globalSettings, s.globalSettings, err)
-		}
-		opts = append(opts, controllers.WithGlobalSettings(*name))
+	if name, err := s.getGlobalSettings(); err != nil {
+		return nil, err
+	} else if name != nil {
+		opts = append(opts, ingress.WithGlobalSettings(*name))
 	}
 	if s.updateStatusFromService != "" {
 		name, err := util.ParseNamespacedName(s.updateStatusFromService)
 		if err != nil {
 			return nil, fmt.Errorf("update status from service: %q: %w", s.updateStatusFromService, err)
 		}
-		opts = append(opts, controllers.WithUpdateIngressStatusFromService(*name))
+		opts = append(opts, ingress.WithUpdateIngressStatusFromService(*name))
 	}
 	return opts, nil
 }
@@ -233,15 +233,73 @@ func (s *serveCmd) getDataBrokerConnection(ctx context.Context) (*grpc.ClientCon
 	})
 }
 
+func (s *serveCmd) buildController(ctx context.Context) (*leadController, error) {
+	opts, err := s.getIngressControllerOptions()
+	if err != nil {
+		return nil, fmt.Errorf("ingress controller opts: %w", err)
+	}
+
+	scheme, err := getScheme()
+	if err != nil {
+		return nil, fmt.Errorf("get scheme: %w", err)
+	}
+
+	conn, err := s.getDataBrokerConnection(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("databroker connection: %w", err)
+	}
+	client := databroker.NewDataBrokerServiceClient(conn)
+
+	c := &leadController{
+		Reconciler: pomerium.WithLock(&pomerium.ConfigReconciler{
+			DataBrokerServiceClient: client,
+			DebugDumpConfigDiff:     s.debug,
+		}),
+		DataBrokerServiceClient: client,
+		MgrOpts: ctrl.Options{
+			Scheme:             scheme,
+			MetricsBindAddress: s.metricsAddr,
+			Port:               s.webhookPort,
+			LeaderElection:     false,
+		},
+		CtrlOpts:         opts,
+		namespaces:       s.namespaces,
+		className:        s.className,
+		annotationPrefix: s.annotationPrefix,
+	}
+
+	c.globalSettings, err = s.getGlobalSettings()
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+// runController runs controller part of the lease
+func (s *serveCmd) runController(ctx context.Context, ct *leadController) error {
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		leaser := databroker.NewLeaser("ingress-controller", leaseDuration, ct)
+		return leaser.Run(ctx)
+	})
+	eg.Go(func() error {
+		return s.runHealthz(ctx, healthz.NamedCheck("acquire databroker lease", ct.ReadyzCheck))
+	})
+	return eg.Wait()
+}
+
+// leadController implements a databroker lease holder
 type leadController struct {
-	controllers.PomeriumReconciler
+	pomerium.Reconciler
 	databroker.DataBrokerServiceClient
 	MgrOpts          ctrl.Options
-	CtrlOpts         []controllers.Option
+	CtrlOpts         []ingress.Option
 	namespaces       []string
 	annotationPrefix string
 	className        string
 	running          int32
+	globalSettings   *types.NamespacedName
 }
 
 func (c *leadController) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
@@ -271,37 +329,25 @@ func (c *leadController) RunLeased(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("get k8s api config: %w", err)
 	}
-	mgr, err := controllers.NewIngressController(cfg, c.MgrOpts, c.PomeriumReconciler, c.CtrlOpts...)
+	mgr, err := ctrl.NewManager(cfg, c.MgrOpts)
 	if err != nil {
-		return fmt.Errorf("creating controller: %w", err)
+		return fmt.Errorf("unable to create controller manager: %w", err)
 	}
+
+	if err = ingress.NewIngressController(mgr, c.Reconciler, c.CtrlOpts...); err != nil {
+		return fmt.Errorf("create ingress controller: %w", err)
+	}
+	if c.globalSettings != nil {
+		if err = settings.NewSettingsController(mgr, c.Reconciler, *c.globalSettings); err != nil {
+			return fmt.Errorf("create settings controller: %w", err)
+		}
+	}
+
 	c.setRunning(true)
 	if err = mgr.Start(ctx); err != nil {
 		return fmt.Errorf("running controller: %w", err)
 	}
 	return nil
-}
-
-func (s *serveCmd) runController(ctx context.Context, client databroker.DataBrokerServiceClient, opts ctrl.Options, cOpts ...controllers.Option) error {
-	c := &leadController{
-		PomeriumReconciler:      &pomerium.ConfigReconciler{DataBrokerServiceClient: client, DebugDumpConfigDiff: s.debug},
-		DataBrokerServiceClient: client,
-		MgrOpts:                 opts,
-		CtrlOpts:                cOpts,
-		namespaces:              s.namespaces,
-		className:               s.className,
-		annotationPrefix:        s.annotationPrefix,
-	}
-
-	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error {
-		leaser := databroker.NewLeaser("ingress-controller", leaseDuration, c)
-		return leaser.Run(ctx)
-	})
-	eg.Go(func() error {
-		return s.runHealthz(ctx, healthz.NamedCheck("acquire databroker lease", c.ReadyzCheck))
-	})
-	return eg.Wait()
 }
 
 func (s *serveCmd) runHealthz(ctx context.Context, readyChecks ...healthz.HealthChecker) error {
@@ -324,9 +370,18 @@ func (s *serveCmd) runHealthz(ctx context.Context, readyChecks ...healthz.Health
 	return srv.ListenAndServe()
 }
 
-func getScheme() *runtime.Scheme {
+func getScheme() (*runtime.Scheme, error) {
 	scheme := runtime.NewScheme()
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(icsv1.AddToScheme(scheme))
-	return scheme
+	for _, apply := range []struct {
+		name string
+		fn   func(*runtime.Scheme) error
+	}{
+		{"core", clientgoscheme.AddToScheme},
+		{"settings", icsv1.AddToScheme},
+	} {
+		if err := apply.fn(scheme); err != nil {
+			return nil, fmt.Errorf("%s: %w", apply.name, err)
+		}
+	}
+	return scheme, nil
 }

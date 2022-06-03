@@ -1,4 +1,4 @@
-package controllers
+package ingress
 
 import (
 	"context"
@@ -11,19 +11,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	settings_controller "github.com/pomerium/ingress-controller/controllers/settings"
 	"github.com/pomerium/ingress-controller/model"
 )
-
-// PomeriumReconciler updates pomerium configuration based on provided network resources
-// it is not expected to be thread safe
-type PomeriumReconciler interface {
-	// Upsert should update or create the pomerium routes corresponding to this ingress
-	Upsert(ctx context.Context, ic *model.IngressConfig) (changes bool, err error)
-	// Set configuration to match provided ingresses
-	Set(ctx context.Context, ics []*model.IngressConfig) (changes bool, err error)
-	// Delete should delete pomerium routes corresponding to this ingress name
-	Delete(ctx context.Context, namespacedName types.NamespacedName) error
-}
 
 // reconcileInitial walks over all ingresses and updates configuration at once
 // this is currently done for performance reasons
@@ -37,6 +27,14 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 			logger.Info("complete")
 		}
 	}()
+
+	var cfg *model.Config
+	if r.globalSettings != nil {
+		cfg, err = settings_controller.FetchConfig(ctx, r.Client, *r.globalSettings)
+		if err != nil {
+			return err
+		}
+	}
 
 	ingressList := new(networkingv1.IngressList)
 	if err := r.Client.List(ctx, ingressList); err != nil {
@@ -61,7 +59,7 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 		ics = append(ics, ic)
 	}
 
-	_, err = r.PomeriumReconciler.Set(ctx, ics)
+	_, err = r.Reconciler.Set(ctx, ics, cfg)
 	for i := range ingressList.Items {
 		ingress := &ingressList.Items[i]
 		if err != nil {
@@ -112,16 +110,25 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func (r *ingressController) deleteIngress(ctx context.Context, name types.NamespacedName, reason string) (ctrl.Result, error) {
-	if err := r.PomeriumReconciler.Delete(ctx, name); err != nil {
+	if err := r.Reconciler.Delete(ctx, name); err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("deleting ingress: %w", err)
 	}
 	r.IngressDeleted(ctx, name, reason)
-	r.Registry.DeleteCascade(model.Key{Kind: r.ingressKind, NamespacedName: name})
+	r.DeleteCascade(model.Key{Kind: r.ingressKind, NamespacedName: name})
 	return ctrl.Result{}, nil
 }
 
 func (r *ingressController) upsertIngress(ctx context.Context, ic *model.IngressConfig) (ctrl.Result, error) {
-	changed, err := r.PomeriumReconciler.Upsert(ctx, ic)
+	var cfg *model.Config
+	var err error
+	if r.globalSettings != nil {
+		cfg, err = settings_controller.FetchConfig(ctx, r.Client, *r.globalSettings)
+		if err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
+	}
+
+	changed, err := r.Reconciler.Upsert(ctx, ic, cfg)
 	if err != nil {
 		r.IngressNotReconciled(ctx, ic.Ingress, err)
 		return ctrl.Result{Requeue: true}, fmt.Errorf("upsert: %w", err)

@@ -8,6 +8,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 )
 
 const (
@@ -39,6 +41,20 @@ const (
 	// SetResponseHeadersSecret defines a secret to copy response headers from
 	SetResponseHeadersSecret = "set_response_headers_secret"
 )
+
+// Config represents global configuration
+type Config struct {
+	// Settings define global settings parameters
+	icsv1.Settings
+	// Certs are fetched certs from settings.Certificates
+	Certs map[types.NamespacedName]*corev1.Secret
+	// RequestParams is a secret from Settings.IdentityProvider.RequestParams
+	RequestParams *corev1.Secret
+	// IdpSecret is Settings.IdentityProvider.Secret
+	IdpSecret *corev1.Secret
+	// IdpServiceAccount is Settings.IdentityProvider.ServiceAccountFromSecret
+	IdpServiceAccount *corev1.Secret
+}
 
 // IngressConfig represents ingress and all other required resources
 type IngressConfig struct {

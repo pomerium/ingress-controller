@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/policy"
 
 	"github.com/pomerium/ingress-controller/model"
+	"github.com/pomerium/ingress-controller/util"
 )
 
 const (
@@ -283,13 +284,13 @@ func applySecretAnnotations(
 			}
 			r.KubernetesServiceAccountToken = string(token)
 		case model.SetRequestHeadersSecret:
-			dst, err := mergeMaps(r.SetRequestHeaders, secret.Data)
+			dst, err := util.MergeMaps(r.SetRequestHeaders, secret.Data)
 			if err != nil {
 				return fmt.Errorf("%s: %w", model.SetRequestHeadersSecret, err)
 			}
 			r.SetRequestHeaders = dst
 		case model.SetResponseHeadersSecret:
-			dst, err := mergeMaps(r.SetResponseHeaders, secret.Data)
+			dst, err := util.MergeMaps(r.SetResponseHeaders, secret.Data)
 			if err != nil {
 				return fmt.Errorf("%s: %w", model.SetResponseHeadersSecret, err)
 			}
@@ -308,17 +309,4 @@ func b64(secret *corev1.Secret, annotation, key string) (string, error) {
 			annotation, secret.Name, CAKey)
 	}
 	return base64.StdEncoding.EncodeToString(data), nil
-}
-
-func mergeMaps(dst map[string]string, src map[string][]byte) (map[string]string, error) {
-	if dst == nil {
-		dst = make(map[string]string)
-	}
-	for key, data := range src {
-		if _, there := dst[key]; there {
-			return nil, fmt.Errorf("secret contains key %s that was already specified by a non-secret rule", key)
-		}
-		dst[key] = string(data)
-	}
-	return dst, nil
 }

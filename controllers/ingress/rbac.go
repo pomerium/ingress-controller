@@ -1,4 +1,4 @@
-package controllers
+package ingress
 
 // https://book.kubebuilder.io/reference/markers/rbac.html
 
