@@ -2483,6 +2483,8 @@ sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20220602164547-f469197
 sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20220602164547-f46919744bee/go.mod h1:nLkMD2WB4Jcix1qfVuJeOF4j5y/VfyeOIlTxG5Wj9co=
 sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20220607150856-0c2effbc7eab h1:MK/6/wTSlQ6O7ts7FyAmXsD8XsVjX8m1SIVXJU70Rzo=
 sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20220607150856-0c2effbc7eab/go.mod h1:nLkMD2WB4Jcix1qfVuJeOF4j5y/VfyeOIlTxG5Wj9co=
+sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20220614131733-a759a0d51676 h1:BaOsdXdfWasZ95LftHZLnmnMfklhotqOnadHgDA0N44=
+sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20220614131733-a759a0d51676/go.mod h1:nLkMD2WB4Jcix1qfVuJeOF4j5y/VfyeOIlTxG5Wj9co=
 sigs.k8s.io/controller-tools v0.9.0 h1:b/vSEPpA8hiMiyzDfLbZdCn3hoAcy3/868OHhYtHY9w=
 sigs.k8s.io/controller-tools v0.9.0/go.mod h1:NUkn8FTV3Sad3wWpSK7dt/145qfuQ8CKJV6j4jHC5rM=
 sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 h1:kDi4JBNAsJWfz1aEXhO8Jg87JJaPNLh5tIzYHgStQ9Y=
