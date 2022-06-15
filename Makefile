@@ -83,7 +83,12 @@ lint: envoy pomerium-ui ## Verifies `golint` passes.
 
 ##@ Build
 .PHONY: build
-build: envoy generate fmt vet pomerium-ui ## Build manager binary.
+build: pomerium-ui build-go ## Build manager binary.
+	@echo "==> $@"
+
+##@ Build
+.PHONY: build-go
+build-go: envoy generate fmt vet
 	@echo "==> $@"
 	@go build $(GOTAGS) -o bin/manager main.go
 
@@ -93,13 +98,20 @@ envoy:
 	@./scripts/get-envoy.bash
 
 UI_DIR = $(shell go list -f {{.Dir}} github.com/pomerium/pomerium/ui)
-.PHONY: pomerium-ui
-pomerium-ui: internal/ui/dist/index.js
-internal/ui/dist/index.js:
-	@echo "==> $@"
+internal/ui:
+	@echo "@==> $@"
 	@cp -rf $(UI_DIR) ./internal
 	@chmod u+w internal/ui internal/ui/dist
-	@cd internal/ui && yarn install --network-timeout 120000 && yarn build
+
+internal/ui/node_modules: internal/ui
+	@echo "@==> $@"
+	@cd internal/ui && yarn install --network-timeout 120000
+
+.PHONY: pomerium-ui
+pomerium-ui: internal/ui/dist/index.js
+internal/ui/dist/index.js: internal/ui/node_modules
+	@echo "==> $@"
+	@cd internal/ui && yarn build
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
