@@ -1,6 +1,5 @@
 # kubeenv is not supported on darwin/arm64
 ifeq (darwin arm64,$(shell go env GOOS GOARCH))
-$(warning darwin/arm64 is not supported by kubeenv test, will use amd64 instead)
 KUBEENV_GOARCH=amd64
 else
 KUBEENV_GOARCH=$(shell go env GOARCH)
@@ -70,7 +69,7 @@ fmt: ## Run go fmt against code.
 .PHONY: vet
 vet: ## Run go vet against code.
 	@echo "==> $@"
-	@go vet $(GOTAGS) ./...
+	@go vet ./...
 
 .PHONY: test
 test: envoy manifests generate fmt vet envtest ## Run tests.
@@ -157,6 +156,7 @@ clean:
 	@rm -rf pomerium/envoy/bin/*
 	@rm -rf $(LOCALBIN)
 	@rm -rf testbin
+	@chmod -Rf u+w internal/ui || true
 	@rm -rf internal/ui
 
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
