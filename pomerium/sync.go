@@ -128,12 +128,12 @@ func (r *ConfigReconciler) Delete(ctx context.Context, namespacedName types.Name
 func (r *ConfigReconciler) DeleteAll(ctx context.Context) error {
 	any := protoutil.NewAny(&pb.Config{})
 	if _, err := r.Put(ctx, &databroker.PutRequest{
-		Record: &databroker.Record{
+		Records: []*databroker.Record{{
 			Type:      any.GetTypeUrl(),
 			Id:        configID,
 			Data:      any,
 			DeletedAt: timestamppb.Now(),
-		},
+		}},
 	}); err != nil {
 		return err
 	}
@@ -182,11 +182,11 @@ func (r *ConfigReconciler) saveConfig(ctx context.Context, prev, next *pb.Config
 
 	any := protoutil.NewAny(next)
 	if _, err := r.Put(ctx, &databroker.PutRequest{
-		Record: &databroker.Record{
+		Records: []*databroker.Record{{
 			Type: any.GetTypeUrl(),
 			Id:   configID,
 			Data: any,
-		},
+		}},
 	}); err != nil {
 		return false, err
 	}

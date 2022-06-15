@@ -1,6 +1,10 @@
-# Only x64 is supported for most tools
-
-export GOARCH = amd64
+# kubeenv is not supported on darwin/arm64
+ifeq (darwin arm64,$(shell go env GOOS GOARCH))
+$(warning darwin/arm64 is not supported by kubeenv test, will use amd64 instead)
+KUBEENV_GOARCH=amd64
+else
+KUBEENV_GOARCH=$(shell go env GOARCH)
+endif
 
 # Image URL to use all building/pushing image targets
 IMG ?= ingress-controller:latest
@@ -13,6 +17,10 @@ GOBIN=$(shell go env GOPATH)/bin
 else
 GOBIN=$(shell go env GOBIN)
 endif
+
+# Pomerium core requires a special tag set to indicate
+# the embedded resources would be supplied externally
+GOTAGS = -tags embed_pomerium
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
@@ -46,13 +54,13 @@ help: ## Display this help.
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	@echo "==> $@"
-	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role crd webhook paths="apis/..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	@echo "==> $@"
-	@$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
-	@go generate ./...
+	@$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="apis/..."
+	@go generate $(GOTAGS) ./...
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -62,12 +70,12 @@ fmt: ## Run go fmt against code.
 .PHONY: vet
 vet: ## Run go vet against code.
 	@echo "==> $@"
-	@go vet ./...
+	@go vet $(GOTAGS) ./...
 
 .PHONY: test
 test: envoy manifests generate fmt vet envtest ## Run tests.
 	@echo "==> $@"
-	@KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path --arch=$(GOARCH))" go test ./... -coverprofile cover.out
+	@KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path --arch=$(KUBEENV_GOARCH))" go test $(GOTAGS) ./... -coverprofile cover.out
 
 .PHONY: lint
 lint: envoy ## Verifies `golint` passes.
@@ -76,19 +84,28 @@ lint: envoy ## Verifies `golint` passes.
 
 ##@ Build
 .PHONY: build
-build: envoy generate fmt vet ## Build manager binary.
+build: envoy generate fmt vet pomerium-ui ## Build manager binary.
 	@echo "==> $@"
-	@go build -o bin/manager main.go
+	@go build $(GOTAGS) -o bin/manager main.go
 
 .PHONY: envoy
 envoy:
 	@echo "==> $@"
 	@./scripts/get-envoy.bash
 
+UI_DIR = $(shell go list -f {{.Dir}} github.com/pomerium/pomerium/ui)
+.PHONY: pomerium-ui
+pomerium-ui: internal/ui/dist/index.js
+internal/ui/dist/index.js:
+	@echo "==> $@"
+	@cp -rf $(UI_DIR) ./internal
+	@rm -rf internal/ui/node_modules
+	@cd internal/ui && yarn install --network-timeout 120000 && yarn build
+
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
 	@echo "==> $@"
-	@go run ./main.go
+	@go run $(GOTAGS) ./main.go
 
 .PHONY: docker-build
 docker-build: test ## Build docker image with the manager.
@@ -137,7 +154,7 @@ $(LOCALBIN):
 .PHONY: clean
 clean:
 	@echo "==> $@"
-	@rm -rf pomerium/envoy/bin/* $(LOCALBIN) testbin/
+	@rm -rf pomerium/envoy/bin/* $(LOCALBIN) testbin/ pomerium-ui
 
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
@@ -157,7 +174,7 @@ $(KUSTOMIZE):
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
 $(CONTROLLER_GEN): $(LOCALBIN)
 	@echo "==> $@"
-	@GOARCH= GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.9.0
+	@GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.9.0
 
 .PHONY: envtest
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
