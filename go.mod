@@ -16,7 +16,7 @@ require (
 	github.com/iancoleman/strcase v0.2.0
 	github.com/open-policy-agent/opa v0.41.0
 	github.com/pomerium/csrf v1.7.0
-	github.com/pomerium/pomerium v0.17.1-0.20220614202140-8c886bff37a9
+	github.com/pomerium/pomerium v0.17.3
 	github.com/sergi/go-diff v1.2.0
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
