@@ -2,8 +2,6 @@ module github.com/pomerium/ingress-controller
 
 go 1.18
 
-replace github.com/pomerium/pomerium => ../pomerium
-
 require (
 	github.com/client9/misspell v0.3.4
 	github.com/envoyproxy/go-control-plane v0.10.2-0.20220325020618-49ff273808a1
@@ -18,7 +16,7 @@ require (
 	github.com/iancoleman/strcase v0.2.0
 	github.com/open-policy-agent/opa v0.41.0
 	github.com/pomerium/csrf v1.7.0
-	github.com/pomerium/pomerium v0.17.4-0.20220512172518-32d5c54dbff6
+	github.com/pomerium/pomerium v0.17.1-0.20220614202140-8c886bff37a9
 	github.com/sergi/go-diff v1.2.0
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
@@ -169,6 +167,7 @@ require (
 	github.com/libdns/libdns v0.2.1 // indirect
 	github.com/lufeee/execinquery v1.2.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
+	github.com/lyft/protoc-gen-star v0.6.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/maratori/testpackage v1.0.1 // indirect
@@ -263,6 +262,7 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20220218215828-6cf2b201936e // indirect
+	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
 	golang.org/x/net v0.0.0-20220607020251-c690dde0001d // indirect
 	golang.org/x/oauth2 v0.0.0-20220524215830-622c5d57e401 // indirect
