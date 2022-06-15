@@ -92,7 +92,7 @@ func (s *ControllerTestSuite) TearDownSuite() {
 	s.NoError(s.Environment.Stop())
 }
 
-func (s *ControllerTestSuite) createTestController(ctx context.Context, reconciler pomerium.Reconciler, name types.NamespacedName) {
+func (s *ControllerTestSuite) createTestController(ctx context.Context, reconciler pomerium.ConfigReconciler, name types.NamespacedName) {
 	mgr, err := ctrl.NewManager(s.Environment.Config, ctrl.Options{
 		Scheme:             s.Environment.Scheme,
 		MetricsBindAddress: "0",
@@ -126,19 +126,28 @@ func (s *ControllerTestSuite) TestValidation() {
 		{"ok spec", icsv1.SettingsSpec{
 			Authenticate:     auth,
 			IdentityProvider: idp,
+			Secrets:          "pomerium/default-secrets",
 		}, false},
+		{"secrets required", icsv1.SettingsSpec{
+			Authenticate:     auth,
+			IdentityProvider: idp,
+		}, true},
 		{"invalid auth url", icsv1.SettingsSpec{
 			Authenticate:     icsv1.Authenticate{URL: "hostname"},
 			IdentityProvider: idp,
+			Secrets:          "pomerium/default-secrets",
 		}, true},
 		{"auth required", icsv1.SettingsSpec{
 			IdentityProvider: idp,
+			Secrets:          "pomerium/default-secrets",
 		}, true},
 		{"idp required", icsv1.SettingsSpec{
 			Authenticate: auth,
+			Secrets:      "pomerium/default-secrets",
 		}, true},
 		{"idp secret required", icsv1.SettingsSpec{
 			Authenticate: auth,
+			Secrets:      "pomerium/default-secrets",
 			IdentityProvider: icsv1.IdentityProvider{
 				Secret:   "",
 				Provider: "oidc",
@@ -150,6 +159,7 @@ func (s *ControllerTestSuite) TestValidation() {
 				Secret:   "secret",
 				Provider: "",
 			},
+			Secrets: "pomerium/default-secrets",
 		}, true},
 		{"idp provider enum", icsv1.SettingsSpec{
 			Authenticate: auth,
@@ -157,6 +167,7 @@ func (s *ControllerTestSuite) TestValidation() {
 				Secret:   "secret",
 				Provider: "invalid",
 			},
+			Secrets: "pomerium/default-secrets",
 		}, true},
 	} {
 		s.T().Run(tc.name, func(t *testing.T) {
@@ -177,7 +188,7 @@ func (s *ControllerTestSuite) TestDependencies() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	mc := controllers_mock.NewMockReconciler(gomock.NewController(s.T()))
+	mc := controllers_mock.NewMockConfigReconciler(gomock.NewController(s.T()))
 	name := types.NamespacedName{Namespace: "pomerium", Name: "settings"}
 
 	s.createTestController(ctx, mc, name)

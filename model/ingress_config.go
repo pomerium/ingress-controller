@@ -46,6 +46,8 @@ const (
 type Config struct {
 	// Settings define global settings parameters
 	icsv1.Settings
+	// Secrets are key secrets
+	Secrets *corev1.Secret
 	// Certs are fetched certs from settings.Certificates
 	Certs map[types.NamespacedName]*corev1.Secret
 	// RequestParams is a secret from Settings.IdentityProvider.RequestParams

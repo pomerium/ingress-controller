@@ -9,7 +9,7 @@ import (
 )
 
 func TestFlags(t *testing.T) {
-	cmd := new(serveCmd)
+	cmd := new(controllerCmd)
 	caString := "pvsuDLZHrTr0vDt6+5ghiQ=="
 	caData, err := base64.StdEncoding.DecodeString(caString)
 	assert.NoError(t, err)

@@ -96,9 +96,21 @@ type SettingsSpec struct {
 	// Certificates is a list of secrets of type TLS to use
 	// +optional
 	Certificates []string `json:"certificates"`
+	// Secrets references a Secret that must have the following keys
+	// - shared_secret
+	// - cookie_secret
+	// - signing_key
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MinLength=1
+	Secrets string `json:"secrets"`
+	// Namespaces limits k8s namespaces that must be watched for Ingress objects
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MinItems=0
+	Namespaces []string `json:"namespaces"`
 }
 
-//+kubebuilder:printcolumn:name="Last Reconciled",type=datetime,JSONPath=`.ts`
+//+kubebuilder:printcolumn:name="Last Reconciled",type=datetime,JSONPath=`.lastReconciled`
 
 // RouteStatus provides high level status between the last observed ingress object and pomerium state
 type RouteStatus struct {

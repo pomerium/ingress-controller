@@ -1,20 +1,17 @@
 # TODO
 
-- policy annotation
-- config transformation tests
-- envoy config validation
-- watch only specific namespace(s)
-- run against k8s ingress conformance tests
-- support http01 challenge
-- recover after redis wipe: currently may not be detecting that?
-- potential leak of ingresses if removed while controller is unavailable:
-  per controller-runtime model we do not have full list of ingresses in the system
-- certificate matching: if a matching cert already exists in the databroker config, then it might be chosen
-  even if tls spec says otherwise
+## Pomerium Embedding
 
-# Done
+- move internal/cmd to publicly accessible package
+- provide Source as external source, and not a file
+- build UI package as FS ext resources
+- Make Envoy binaries injectable
 
-- monitor referenced secret & service for changes
-- map annotations to route props
-- support TLS certs
-- record ingress state change events
+## Ingress Controller Bootstrap
+
+- fetch Settings, create bootstrap config, launch Pomerium
+- validate ?
+  - storage reachable?
+  - can connect to IdP?
+  - reflect status in Settings /status ?
+  -

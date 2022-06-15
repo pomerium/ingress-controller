@@ -30,19 +30,19 @@ const (
 )
 
 var (
-	_ = Reconciler(new(ConfigReconciler))
+	_ = Reconciler(new(DataBrokerReconciler))
 )
 
-// ConfigReconciler updates pomerium configuration
-// only one ConfigReconciler should be active
+// DataBrokerReconciler updates pomerium configuration
+// only one DataBrokerReconciler should be active
 // and its methods are not thread-safe
-type ConfigReconciler struct {
+type DataBrokerReconciler struct {
 	databroker.DataBrokerServiceClient
 	DebugDumpConfigDiff bool
 }
 
 // Upsert should update or create the pomerium routes corresponding to this ingress
-func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig, global *model.Config) (bool, error) {
+func (r *DataBrokerReconciler) Upsert(ctx context.Context, ic *model.IngressConfig, global *model.Config) (bool, error) {
 	prev, err := r.getConfig(ctx)
 	if err != nil {
 		return false, fmt.Errorf("get config: %w", err)
@@ -62,7 +62,7 @@ func (r *ConfigReconciler) Upsert(ctx context.Context, ic *model.IngressConfig, 
 }
 
 // Set merges existing config with the one generated for ingress
-func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig, global *model.Config) (bool, error) {
+func (r *DataBrokerReconciler) Set(ctx context.Context, ics []*model.IngressConfig, global *model.Config) (bool, error) {
 	logger := log.FromContext(ctx)
 
 	prev, err := r.getConfig(ctx)
@@ -92,7 +92,7 @@ func (r *ConfigReconciler) Set(ctx context.Context, ics []*model.IngressConfig, 
 }
 
 // SetConfig updates just the shared config settings
-func (r *ConfigReconciler) SetConfig(ctx context.Context, cfg *model.Config) (changes bool, err error) {
+func (r *DataBrokerReconciler) SetConfig(ctx context.Context, cfg *model.Config) (changes bool, err error) {
 	prev, err := r.getConfig(ctx)
 	if err != nil {
 		return false, fmt.Errorf("get config: %w", err)
@@ -107,7 +107,7 @@ func (r *ConfigReconciler) SetConfig(ctx context.Context, cfg *model.Config) (ch
 }
 
 // Delete should delete pomerium routes corresponding to this ingress name
-func (r *ConfigReconciler) Delete(ctx context.Context, namespacedName types.NamespacedName) error {
+func (r *DataBrokerReconciler) Delete(ctx context.Context, namespacedName types.NamespacedName) error {
 	prev, err := r.getConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("get pomerium config: %w", err)
@@ -125,7 +125,7 @@ func (r *ConfigReconciler) Delete(ctx context.Context, namespacedName types.Name
 }
 
 // DeleteAll cleans pomerium configuration entirely
-func (r *ConfigReconciler) DeleteAll(ctx context.Context) error {
+func (r *DataBrokerReconciler) DeleteAll(ctx context.Context) error {
 	any := protoutil.NewAny(&pb.Config{})
 	if _, err := r.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
@@ -140,7 +140,7 @@ func (r *ConfigReconciler) DeleteAll(ctx context.Context) error {
 	return nil
 }
 
-func (r *ConfigReconciler) getConfig(ctx context.Context) (*pb.Config, error) {
+func (r *DataBrokerReconciler) getConfig(ctx context.Context) (*pb.Config, error) {
 	cfg := new(pb.Config)
 	any := protoutil.NewAny(cfg)
 	var hdr metadata.MD
@@ -161,7 +161,7 @@ func (r *ConfigReconciler) getConfig(ctx context.Context) (*pb.Config, error) {
 	return cfg, nil
 }
 
-func (r *ConfigReconciler) saveConfig(ctx context.Context, prev, next *pb.Config, id string) (bool, error) {
+func (r *DataBrokerReconciler) saveConfig(ctx context.Context, prev, next *pb.Config, id string) (bool, error) {
 	logger := log.FromContext(ctx)
 
 	if err := removeUnusedCerts(next); err != nil {

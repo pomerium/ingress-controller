@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
-	"github.com/pomerium/ingress-controller/controllers"
+	"github.com/pomerium/ingress-controller/controllers/deps"
 	"github.com/pomerium/ingress-controller/controllers/reporter"
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/pomerium"
@@ -26,7 +26,7 @@ type settingsController struct {
 	// Client is k8s apiserver client
 	client.Client
 	// PomeriumReconciler updates Pomerium service configuration
-	pomerium.Reconciler
+	pomerium.ConfigReconciler
 	// Registry is used to keep track of dependencies between objects
 	model.Registry
 	// Scheme keeps track of registered object types and kinds
@@ -39,15 +39,15 @@ type settingsController struct {
 // a given settings object, as we can only watch single settings
 func NewSettingsController(
 	mgr ctrl.Manager,
-	pcr pomerium.Reconciler,
+	pcr pomerium.ConfigReconciler,
 	name types.NamespacedName,
 ) error {
 	stc := &settingsController{
-		name:       name,
-		Client:     mgr.GetClient(),
-		Reconciler: pcr,
-		Scheme:     mgr.GetScheme(),
-		Registry:   model.NewRegistry(),
+		name:             name,
+		Client:           mgr.GetClient(),
+		Scheme:           mgr.GetScheme(),
+		Registry:         model.NewRegistry(),
+		ConfigReconciler: pcr,
 		MultiPomeriumStatusReporter: []reporter.PomeriumReporter{
 			&reporter.SettingsEventReporter{
 				EventRecorder: mgr.GetEventRecorderFor("pomerium"),
@@ -76,7 +76,7 @@ func NewSettingsController(
 		client.Object
 		mapFn func(model.Registry, string) handler.MapFunc
 	}{
-		{new(corev1.Secret), controllers.GetDependantMapFunc},
+		{new(corev1.Secret), deps.GetDependantMapFunc},
 	} {
 		gvk, err := apiutil.GVKForObject(o.Object, mgr.GetScheme())
 		if err != nil {
