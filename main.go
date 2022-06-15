@@ -25,6 +25,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 
 	"github.com/pomerium/ingress-controller/cmd"
+	_ "github.com/pomerium/ingress-controller/internal"
 )
 
 func main() {

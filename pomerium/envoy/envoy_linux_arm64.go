@@ -11,6 +11,5 @@ var rawBinary []byte
 //go:embed bin/envoy-linux-arm64.sha256
 var rawChecksum string
 
-const (
-	enabled = true
-)
+//go:embed bin/envoy-linux-arm64.version
+var rawVersion string

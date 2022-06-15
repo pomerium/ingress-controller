@@ -1,4 +1,6 @@
-package envoy
+//go:build embed_pomerium
+
+package envoy_test
 
 import (
 	"context"
@@ -11,16 +13,20 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	envoy_core "github.com/pomerium/pomerium/pkg/envoy"
+
+	"github.com/pomerium/ingress-controller/pomerium/envoy"
 )
 
 func TestDeletedBinary(t *testing.T) {
-	p1, err := setup()
+	p1, err := envoy_core.Extract()
 	assert.NoError(t, err)
 
 	err = os.Remove(p1)
 	assert.NoError(t, err)
 
-	p2, err := setup()
+	p2, err := envoy_core.Extract()
 	assert.NoError(t, err)
 
 	assert.NotEqual(t, p1, p2)
@@ -31,13 +37,13 @@ func TestValidate(t *testing.T) {
 	defer clearTimeout()
 
 	t.Run("valid", func(t *testing.T) {
-		res, err := Validate(ctx, &envoy_config_bootstrap_v3.Bootstrap{}, uuid.NewString())
+		res, err := envoy.Validate(ctx, &envoy_config_bootstrap_v3.Bootstrap{}, uuid.NewString())
 		require.NoError(t, err)
 		assert.True(t, res.Valid)
 		assert.Equal(t, "OK", res.Message)
 	})
 	t.Run("invalid", func(t *testing.T) {
-		res, err := Validate(ctx, &envoy_config_bootstrap_v3.Bootstrap{
+		res, err := envoy.Validate(ctx, &envoy_config_bootstrap_v3.Bootstrap{
 			Admin: &envoy_config_bootstrap_v3.Admin{
 				Address: &envoy_config_core_v3.Address{
 					Address: &envoy_config_core_v3.Address_SocketAddress{

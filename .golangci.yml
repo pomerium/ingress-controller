@@ -1,5 +1,7 @@
 run:
   deadline: 20m
+  build-tags:
+    - embed_pomerium
 
 linters-settings:
   dupl:
