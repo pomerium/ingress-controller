@@ -78,7 +78,7 @@ test: envoy manifests generate fmt vet envtest ## Run tests.
 	@KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path --arch=$(KUBEENV_GOARCH))" go test $(GOTAGS) ./... -coverprofile cover.out
 
 .PHONY: lint
-lint: envoy ## Verifies `golint` passes.
+lint: envoy pomerium-ui ## Verifies `golint` passes.
 	@echo "==> $@"
 	@go run github.com/golangci/golangci-lint/cmd/golangci-lint run ./...
 
@@ -99,7 +99,7 @@ pomerium-ui: internal/ui/dist/index.js
 internal/ui/dist/index.js:
 	@echo "==> $@"
 	@cp -rf $(UI_DIR) ./internal
-	@rm -rf internal/ui/node_modules
+	@chmod u+w internal/ui internal/ui/dist
 	@cd internal/ui && yarn install --network-timeout 120000 && yarn build
 
 .PHONY: run
@@ -154,7 +154,10 @@ $(LOCALBIN):
 .PHONY: clean
 clean:
 	@echo "==> $@"
-	@rm -rf pomerium/envoy/bin/* $(LOCALBIN) testbin/ pomerium-ui
+	@rm -rf pomerium/envoy/bin/*
+	@rm -rf $(LOCALBIN)
+	@rm -rf testbin
+	@rm -rf internal/ui
 
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
