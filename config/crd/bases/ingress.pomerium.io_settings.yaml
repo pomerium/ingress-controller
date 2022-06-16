@@ -119,9 +119,22 @@ spec:
                 - provider
                 - secret
                 type: object
+              namespaces:
+                description: Namespaces limits k8s namespaces that must be watched
+                  for Ingress objects
+                items:
+                  type: string
+                minItems: 0
+                type: array
+              secrets:
+                description: Secrets references a Secret that must have the following
+                  keys - shared_secret - cookie_secret - signing_key
+                minLength: 1
+                type: string
             required:
             - authenticate
             - identityProvider
+            - secrets
             type: object
           status:
             description: SettingsStatus defines the observed state of Settings

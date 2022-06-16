@@ -69,7 +69,7 @@ fmt: ## Run go fmt against code.
 .PHONY: vet
 vet: ## Run go vet against code.
 	@echo "==> $@"
-	@go vet ./...
+	@go vet $(GOTAGS) ./...
 
 .PHONY: test
 test: envoy manifests generate fmt vet envtest ## Run tests.

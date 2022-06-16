@@ -761,6 +761,7 @@ func (s *ControllerTestSuite) TestSettingsStatusUpdate() {
 			Authenticate: icsv1.Authenticate{
 				URL: "https://provider.local",
 			},
+			Secrets: "default/default-secrets",
 		},
 	}
 	s.NoError(s.Client.Create(ctx, &gs))

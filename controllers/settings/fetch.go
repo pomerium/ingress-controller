@@ -25,6 +25,7 @@ func FetchConfig(ctx context.Context, client client.Client, name types.Namespace
 		src  *string
 		dst  **corev1.Secret
 	}{
+		{"bootstrap secret", &cfg.Spec.Secrets, &cfg.Secrets},
 		{"secret", &cfg.Spec.IdentityProvider.Secret, &cfg.IdpSecret},
 		{"request params", cfg.Spec.IdentityProvider.RequestParamsSecret, &cfg.RequestParams},
 		{"service account", cfg.Spec.IdentityProvider.ServiceAccountFromSecret, &cfg.IdpServiceAccount},

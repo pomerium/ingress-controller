@@ -1,5 +1,5 @@
-//Package controllers implements shared functions for k8s controllers
-package controllers
+//Package deps implements dependencies management
+package deps
 
 import (
 	"k8s.io/apimachinery/pkg/types"

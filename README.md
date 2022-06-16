@@ -2,6 +2,71 @@
 
 See [docs for usage details](https://www.pomerium.com/docs/k8s/ingress.html).
 
+## How it works
+
+- Deployment
+  - containers
+    - ingress-controller
+      - Ingress controller: updates `Ingress` resources
+      - Settings controller
+        - set configuration to the databroker
+        - set configuration to the `pomerium-bootstrap`
+    - pomerium all-in-one
+      - watches `config.yaml`, mounted as a `Secret` `pomerium-bootstrap`
+
+## Quick start
+
+### Checklist
+
+[ ] Kubernetes version 1.19 or higher
+[ ] Can configure access to one of the supported [Identity Providers](https://www.pomerium.com/docs/identity-providers/)
+[ ] Can provision TLS certificates i.e. using `cert-manager`.
+
+### Install
+
+The below command would install Pomerium, along with the Pomerium Ingress Controller,
+and create an `settings.ingress.pomerium.io` CRD that may be used to dynamically configure Pomerium.
+
+```
+kubectl apply -f https://raw.githubusercontent.com/pomerium/ingress-controller/main/deploy
+```
+
+### Configure IdP
+
+Once applied, you need complete the Pomerium configuration by creating `Settings` CRD:
+
+```yaml
+apiVersion: ingress.pomerium.io/v1
+kind: Settings
+metadata:
+  name: global
+spec:
+  authenticate:
+    url: https://login.localhost.pomerium.io
+  identityProvider:
+    provider: see https://www.pomerium.com/reference/#identity-provider-name
+    secret: pomerium-idp
+  certificates:
+    - login-localhost-pomerium-io
+---
+apiVersion: v1
+stringData:
+  client_id:
+  client_secret:
+kind: Secret
+metadata:
+  name: pomerium-idp
+type: Opaque
+```
+
+### Session Persistence
+
+By default, Pomerium stores its identity and session data in-memory.
+There are two supported storage backends that you may use for data persistence:
+
+1. Redis
+2. PostgreSQL
+
 ## System Requirements
 
 - [Pomerium](https://github.com/pomerium/pomerium) v0.15.0+
