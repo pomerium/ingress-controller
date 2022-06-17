@@ -5,6 +5,8 @@ else
 KUBEENV_GOARCH=$(shell go env GOARCH)
 endif
 
+CRD_PACKAGE=github.com/pomerium/ingress-controller/apis/ingress/v1
+
 # Image URL to use all building/pushing image targets
 IMG ?= ingress-controller:latest
 CRD_OPTIONS ?=
@@ -53,12 +55,12 @@ help: ## Display this help.
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	@echo "==> $@"
-	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role crd webhook paths="apis/..." output:crd:artifacts:config=config/crd/bases
+	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role crd webhook paths=$(CRD_PACKAGE) output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	@echo "==> $@"
-	@$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="apis/..."
+	@$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths=$(CRD_PACKAGE)
 	@go generate $(GOTAGS) ./...
 
 .PHONY: fmt

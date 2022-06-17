@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
+	"github.com/pomerium/ingress-controller/util"
 )
 
 const (
@@ -40,7 +41,38 @@ const (
 	SetRequestHeadersSecret = "set_request_headers_secret"
 	// SetResponseHeadersSecret defines a secret to copy response headers from
 	SetResponseHeadersSecret = "set_response_headers_secret"
+	// StorageConnectionStringKey represents a secret that must be present in the Storage Secret
+	StorageConnectionStringKey = "connection"
+	// CAKey is certificate authority secret key
+	CAKey = "ca.crt"
 )
+
+// StorageSecrets is a convenience grouping of storage-related secrets
+type StorageSecrets struct {
+	// Secret contains storage connection string
+	Secret *corev1.Secret
+	// TLS contains optional
+	TLS *corev1.Secret
+	CA  *corev1.Secret
+}
+
+// Validate performs basic check of secrets
+func (s StorageSecrets) Validate() error {
+	if s.Secret == nil {
+		return fmt.Errorf("storage secret is mandatory")
+	} else if _, ok := s.Secret.Data[StorageConnectionStringKey]; !ok {
+		return fmt.Errorf("storage secret %s should have %q key", util.GetNamespacedName(s.Secret), StorageConnectionStringKey)
+	}
+	if s.TLS != nil && s.TLS.Type != corev1.SecretTypeTLS {
+		return fmt.Errorf("storage TLS secret %s should be of type %s, got %s", util.GetNamespacedName(s.TLS), corev1.SecretTypeTLS, s.TLS.Type)
+	}
+	if s.CA != nil {
+		if _, ok := s.CA.Data[CAKey]; !ok {
+			return fmt.Errorf("storage CA secret %s should have %s key", util.GetNamespacedName(s.CA), CAKey)
+		}
+	}
+	return nil
+}
 
 // Config represents global configuration
 type Config struct {
@@ -56,6 +88,8 @@ type Config struct {
 	IdpSecret *corev1.Secret
 	// IdpServiceAccount is Settings.IdentityProvider.ServiceAccountFromSecret
 	IdpServiceAccount *corev1.Secret
+	// StorageSecrets represent databroker storage settings
+	StorageSecrets StorageSecrets
 }
 
 // IngressConfig represents ingress and all other required resources

@@ -20,29 +20,92 @@ func FetchConfig(ctx context.Context, client client.Client, name types.Namespace
 		return nil, fmt.Errorf("get %s: %w", name, err)
 	}
 
-	for _, apply := range []struct {
-		name string
-		src  *string
-		dst  **corev1.Secret
-	}{
-		{"bootstrap secret", &cfg.Spec.Secrets, &cfg.Secrets},
-		{"secret", &cfg.Spec.IdentityProvider.Secret, &cfg.IdpSecret},
-		{"request params", cfg.Spec.IdentityProvider.RequestParamsSecret, &cfg.RequestParams},
-		{"service account", cfg.Spec.IdentityProvider.ServiceAccountFromSecret, &cfg.IdpServiceAccount},
-	} {
-		if apply.src == nil {
-			continue
-		}
-		name, err := util.ParseNamespacedName(*apply.src, util.WithDefaultNamespace(cfg.Namespace))
-		if err != nil {
-			return nil, fmt.Errorf("parse %s %q: %w", apply.name, *apply.src, err)
-		}
-		var secret corev1.Secret
-		if err := client.Get(ctx, *name, &secret); err != nil {
-			return nil, fmt.Errorf("get %s: %w", name, err)
-		}
-		*apply.dst = &secret
+	if err := fetchConfigSecrets(ctx, client, &cfg); err != nil {
+		return nil, err
 	}
 
 	return &cfg, nil
+}
+
+func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Config) error {
+	get := func(src string) func() (*corev1.Secret, error) {
+		return func() (*corev1.Secret, error) {
+			name, err := util.ParseNamespacedName(src, util.WithDefaultNamespace(cfg.Namespace))
+			if err != nil {
+				return nil, fmt.Errorf("parse %s: %w", src, err)
+			}
+			var secret corev1.Secret
+			if err := client.Get(ctx, *name, &secret); err != nil {
+				return nil, fmt.Errorf("get %s: %w", name, err)
+			}
+			return &secret, nil
+		}
+	}
+	optional := func(src *string) func() (*corev1.Secret, error) {
+		if src == nil {
+			return func() (*corev1.Secret, error) { return nil, nil }
+		}
+		return get(*src)
+	}
+	required := func(src *string) func() (*corev1.Secret, error) {
+		if src == nil {
+			return func() (*corev1.Secret, error) { return nil, fmt.Errorf("required") }
+		}
+		return get(*src)
+	}
+	apply := func(name string, getFn func() (*corev1.Secret, error), dst **corev1.Secret) func() error {
+		return func() error {
+			secret, err := getFn()
+			if err != nil {
+				return fmt.Errorf("%s: %w", name, err)
+			}
+			if secret != nil {
+				*dst = secret
+			}
+			return nil
+		}
+	}
+	applyAll := func(funcs ...func() error) error {
+		for _, fn := range funcs {
+			if err := fn(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	s := cfg.Spec
+	return applyAll(
+		apply("bootstrap secret", required(&s.Secrets), &cfg.Secrets),
+		apply("secret", required(&s.IdentityProvider.Secret), &cfg.IdpSecret),
+		apply("request params", optional(s.IdentityProvider.RequestParamsSecret), &cfg.RequestParams),
+		apply("service account", optional(s.IdentityProvider.ServiceAccountFromSecret), &cfg.IdpServiceAccount),
+		func() error {
+			if s.Storage == nil {
+				return nil
+			}
+
+			if r := s.Storage.Redis; r != nil {
+				if err := applyAll(
+					apply("connection", required(&r.Secret), &cfg.StorageSecrets.Secret),
+					apply("tls", optional(r.TLSSecret), &cfg.StorageSecrets.TLS),
+					apply("ca", optional(r.CASecret), &cfg.StorageSecrets.CA),
+				); err != nil {
+					return fmt.Errorf("redis: %w", err)
+				}
+			} else if p := s.Storage.Postgres; p != nil {
+				if err := applyAll(
+					apply("connection", required(&p.Secret), &cfg.StorageSecrets.Secret),
+					apply("tls", optional(p.TLSSecret), &cfg.StorageSecrets.TLS),
+					apply("ca", optional(p.CASecret), &cfg.StorageSecrets.CA),
+				); err != nil {
+					return fmt.Errorf("postgresql: %w", err)
+				}
+			} else {
+				return fmt.Errorf("if storage is specified, either redis or postgres storage should be provided")
+			}
+
+			return cfg.StorageSecrets.Validate()
+		},
+	)
 }

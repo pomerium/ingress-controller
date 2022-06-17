@@ -37,7 +37,7 @@ spec:
             description: SettingsSpec defines the desired state of Settings
             properties:
               authenticate:
-                description: Authenticate see
+                description: Authenticate sets authenticate service parameters
                 properties:
                   callbackPath:
                     description: CallbackPath see https://www.pomerium.com/reference/#authenticate-callback-path
@@ -131,6 +131,72 @@ spec:
                   keys - shared_secret - cookie_secret - signing_key
                 minLength: 1
                 type: string
+              storage:
+                description: Storage defines persistent storage for sessions and other
+                  data it will use in-memory if none specified see https://www.pomerium.com/docs/topics/data-storage
+                properties:
+                  postgresql:
+                    description: Postgres specifies PostgreSQL database connection
+                      parameters
+                    properties:
+                      caSecret:
+                        description: CASecret should refer to a k8s secret with key
+                          `ca.crt` containing CA certificate that, if specified, would
+                          be used to populate `sslrootcert` parameter of the connection
+                          string
+                        minLength: 1
+                        type: string
+                      secret:
+                        description: Secret specifies a name of a Secret that must
+                          contain `postgresql_connection_string` for the connection
+                          DSN format and parameters, see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
+                          the following keywords are not allowed to be part of the
+                          parameters, as they must be populated via `tlsCecret` and
+                          `caSecret` fields
+                        minLength: 1
+                        type: string
+                      tlsSecret:
+                        description: TLSSecret should refer to a k8s secret of type
+                          `kubernetes.io/tls` and allows to specify an optional client
+                          certificate and key, by constructing `sslcert` and `sslkey`
+                          connection string parameter values see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS
+                        minLength: 1
+                        type: string
+                    required:
+                    - secret
+                    type: object
+                  redis:
+                    description: Redis defines REDIS connection parameters
+                    properties:
+                      caSecret:
+                        description: CASecret should refer to a k8s secret with key
+                          `ca.crt` that must be a PEM-encoded certificate authority
+                          to use when connecting to the databroker storage engine
+                          see https://www.pomerium.com/docs/reference/data-broker-storage-certificate-authority
+                        type: string
+                      secret:
+                        description: Secret specifies a name of a Secret that must
+                          contain `connection` key. see https://www.pomerium.com/docs/reference/data-broker-storage-connection-string
+                        minLength: 1
+                        type: string
+                      tlsSecret:
+                        description: TLSSecret should refer to a k8s secret of type
+                          `kubernetes.io/tls` and allows to specify an optional databroker
+                          storage client certificate and key, see - https://www.pomerium.com/docs/reference/data-broker-storage-certificate-file
+                          - https://www.pomerium.com/docs/reference/data-broker-storage-certificate-key-file
+                        minLength: 1
+                        type: string
+                      tlsSkipVerify:
+                        description: TLSSkipVerify disables TLS certificate chain
+                          validation see https://www.pomerium.com/docs/reference/data-broker-storage-tls-skip-verify
+                        type: boolean
+                    required:
+                    - secret
+                    type: object
+                required:
+                - postgresql
+                - redis
+                type: object
             required:
             - authenticate
             - identityProvider

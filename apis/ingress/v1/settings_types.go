@@ -58,7 +58,7 @@ type IdentityProvider struct {
 	RefreshDirectory *RefreshDirectorySettings `json:"refreshDirectory"`
 }
 
-// RefreshDirectorySettings defines how frequently should
+// RefreshDirectorySettings defines how frequently should directory update
 type RefreshDirectorySettings struct {
 	// +kubebuilder:validation:Format=duration
 	Interval metav1.Duration `json:"interval"`
@@ -66,8 +66,76 @@ type RefreshDirectorySettings struct {
 	Timeout metav1.Duration `json:"timeout"`
 }
 
-// Timeouts regulate common timeout settings
-type Timeouts struct {
+// RedisStorage defines REDIS databroker storage backend bootstrap parameters
+type RedisStorage struct {
+	// Secret specifies a name of a Secret that must contain
+	// `connection` key.
+	// see https://www.pomerium.com/docs/reference/data-broker-storage-connection-string
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MinLength=1
+	Secret string `json:"secret"`
+	// TLSSecret should refer to a k8s secret of type `kubernetes.io/tls`
+	// and allows to specify an optional databroker storage client certificate and key, see
+	// - https://www.pomerium.com/docs/reference/data-broker-storage-certificate-file
+	// - https://www.pomerium.com/docs/reference/data-broker-storage-certificate-key-file
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MinLength=1
+	TLSSecret *string `json:"tlsSecret"`
+	// CASecret should refer to a k8s secret with key `ca.crt` that must be a PEM-encoded
+	// certificate authority to use when connecting to the databroker storage engine
+	// see https://www.pomerium.com/docs/reference/data-broker-storage-certificate-authority
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	CASecret *string `json:"caSecret"`
+	// TLSSkipVerify disables TLS certificate chain validation
+	// see https://www.pomerium.com/docs/reference/data-broker-storage-tls-skip-verify
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=boolean
+	TLSSkipVerify bool `json:"tlsSkipVerify"`
+}
+
+// PostgresStorage defines Postgres connection parameters
+type PostgresStorage struct {
+	// Secret specifies a name of a Secret that must contain
+	// `postgresql_connection_string`
+	// for the connection DSN format and parameters, see
+	// https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
+	// the following keywords are not allowed to be part of the parameters,
+	// as they must be populated via `tlsCecret` and `caSecret` fields
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MinLength=1
+	Secret string `json:"secret"`
+	// TLSSecret should refer to a k8s secret of type `kubernetes.io/tls`
+	// and allows to specify an optional client certificate and key,
+	// by constructing `sslcert` and `sslkey` connection string parameter values
+	// see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MinLength=1
+	TLSSecret *string `json:"tlsSecret"`
+	// CASecret should refer to a k8s secret with key `ca.crt` containing CA certificate
+	// that, if specified, would be used to populate `sslrootcert` parameter of the connection string
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MinLength=1
+	CASecret *string `json:"caSecret"`
+}
+
+// Storage defines persistent storage option for the databroker
+// and is only applied for all-in-one pomerium bootstrap,
+// and has no effect for the split-mode deployment.
+// If Storage is specified, either `redis`` or `postgresql` parameter should be set.
+// Omit setting storage to use in-memory storage implementation.
+type Storage struct {
+	// Redis defines REDIS connection parameters
+	Redis *RedisStorage `json:"redis"`
+
+	// Postgres specifies PostgreSQL database connection parameters
+	Postgres *PostgresStorage `json:"postgresql"`
 }
 
 // Authenticate service configuration parameters
@@ -87,15 +155,18 @@ type Authenticate struct {
 
 // SettingsSpec defines the desired state of Settings
 type SettingsSpec struct {
-	// Authenticate see
+	// Authenticate sets authenticate service parameters
 	// +kubebuilder:validation:Required
 	Authenticate Authenticate `json:"authenticate"`
+
 	// IdentityProvider see https://www.pomerium.com/docs/identity-providers/
 	// +kubebuilder:validation:Required
 	IdentityProvider IdentityProvider `json:"identityProvider"`
+
 	// Certificates is a list of secrets of type TLS to use
 	// +optional
 	Certificates []string `json:"certificates"`
+
 	// Secrets references a Secret that must have the following keys
 	// - shared_secret
 	// - cookie_secret
@@ -104,10 +175,17 @@ type SettingsSpec struct {
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1
 	Secrets string `json:"secrets"`
+
 	// Namespaces limits k8s namespaces that must be watched for Ingress objects
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinItems=0
 	Namespaces []string `json:"namespaces"`
+
+	// Storage defines persistent storage for sessions and other data
+	// it will use in-memory if none specified
+	// see https://www.pomerium.com/docs/topics/data-storage
+	// +kubebuilder:validation:Optional
+	Storage *Storage `json:"storage"`
 }
 
 //+kubebuilder:printcolumn:name="Last Reconciled",type=datetime,JSONPath=`.lastReconciled`
