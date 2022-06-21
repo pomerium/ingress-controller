@@ -23,6 +23,9 @@ func updateDependencies(cfg *model.Config, r model.Registry, scheme *runtime.Sch
 		cfg.IdpSecret,
 		cfg.IdpServiceAccount,
 		cfg.RequestParams,
+		cfg.StorageSecrets.Secret,
+		cfg.StorageSecrets.TLS,
+		cfg.StorageSecrets.CA,
 	} {
 		if s == nil {
 			continue

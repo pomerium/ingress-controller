@@ -82,7 +82,7 @@ func TestAnnotations(t *testing.T) {
 		Secrets: map[types.NamespacedName]*corev1.Secret{
 			{Name: "my_custom_ca_secret", Namespace: "test"}: {
 				Data: map[string][]byte{
-					CAKey: []byte("my_custom_ca_secret+cert"),
+					model.CAKey: []byte("my_custom_ca_secret+cert"),
 				},
 			},
 			{Name: "my_client_secret", Namespace: "test"}: {
@@ -94,7 +94,7 @@ func TestAnnotations(t *testing.T) {
 			},
 			{Name: "my_downstream_client_ca_secret", Namespace: "test"}: {
 				Data: map[string][]byte{
-					CAKey: []byte("my_downstream_client_ca_secret+cert"),
+					model.CAKey: []byte("my_downstream_client_ca_secret+cert"),
 				},
 			},
 			{Name: "k8s_token", Namespace: "test"}: {
@@ -226,8 +226,8 @@ func TestMissingTlsAnnotationsSecretData(t *testing.T) {
 	require.NoError(t, applyAnnotations(r, ic))
 
 	for name, keys := range map[string][]string{
-		"tls_custom_ca_secret":            {CAKey},
-		"tls_downstream_client_ca_secret": {CAKey},
+		"tls_custom_ca_secret":            {model.CAKey},
+		"tls_downstream_client_ca_secret": {model.CAKey},
 		"tls_client_secret":               {corev1.TLSCertKey, corev1.TLSPrivateKeyKey},
 	} {
 		ic.Ingress.Annotations = map[string]string{

@@ -21,11 +21,6 @@ import (
 	"github.com/pomerium/ingress-controller/util"
 )
 
-const (
-	// CAKey is certificate authority secret key name
-	CAKey = "ca.crt"
-)
-
 var (
 	baseAnnotations = boolMap([]string{
 		"cors_allow_preflight",
@@ -240,7 +235,7 @@ func applyTLSAnnotations(
 		var err error
 		switch k {
 		case model.TLSCustomCASecret:
-			if r.TlsCustomCa, err = b64(secret, k, CAKey); err != nil {
+			if r.TlsCustomCa, err = b64(secret, k, model.CAKey); err != nil {
 				return err
 			}
 		case model.TLSClientSecret:
@@ -251,7 +246,7 @@ func applyTLSAnnotations(
 				return err
 			}
 		case model.TLSDownstreamClientCASecret:
-			if r.TlsDownstreamClientCa, err = b64(secret, k, CAKey); err != nil {
+			if r.TlsDownstreamClientCa, err = b64(secret, k, model.CAKey); err != nil {
 				return err
 			}
 		default:
@@ -306,7 +301,7 @@ func b64(secret *corev1.Secret, annotation, key string) (string, error) {
 	data := secret.Data[key]
 	if len(data) == 0 {
 		return "", fmt.Errorf("annotation %s references secret %s, key %s has no data",
-			annotation, secret.Name, CAKey)
+			annotation, secret.Name, model.CAKey)
 	}
 	return base64.StdEncoding.EncodeToString(data), nil
 }

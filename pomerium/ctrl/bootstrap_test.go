@@ -66,7 +66,3 @@ func TestSecretsDecodeRules(t *testing.T) {
 		},
 	}))
 }
-
-func NewBootstrapSecrets() {
-	panic("unimplemented")
-}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -68,4 +69,9 @@ func ParseNamespacedName(name string, options ...NamespacedNameOption) (*types.N
 	}
 
 	return &dst, nil
+}
+
+// GetNamespacedName a convenience method to return types.NamespacedName for an object
+func GetNamespacedName(obj metav1.Object) types.NamespacedName {
+	return types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
 }
