@@ -1,0 +1,13 @@
+#
+# Deploys all-in-one controller + core pomerium
+#
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - service_account.yaml
+  - role.yaml
+  - role_binding.yaml
+  - ingressclass.yaml
+#patchesStrategicMerge:
+#  - healthcheck.yaml

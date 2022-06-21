@@ -198,3 +198,24 @@ envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	@echo "==> $@"
 	@GOARCH= GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest
+
+#
+# --- internal development targets
+#
+.PHONY: dev-install
+dev-install:
+	@echo "==> $@"
+	@kubectl delete --force --selector app.kubernetes.io/name=pomerium pods || true
+	@$(KUSTOMIZE) build config/dev | kubectl apply --filename -
+	@stern -n pomerium --selector app.kubernetes.io/name=pomerium
+
+.PHONY: dev-build
+dev-build:
+	@echo "==> $@"
+	@make -e GOOS=linux envoy
+	@GOOS=linux GOARCH=arm64 go build $(GOTAGS) -o bin/manager-linux-arm64 main.go
+
+.PHONY: dev-clean
+dev-clean:
+	@echo "==> $@"
+	@$(KUSTOMIZE) build config/dev | kubectl delete --force --wait --filename - || true

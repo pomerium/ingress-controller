@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service
+spec:
+  selector: {}
+  replicas: 1
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: service
+          command:
+            - /manager
+          args:
+            - all-in-one
+            - --global-settings=pomerium/settings
+          image: controller:latest
+          ports:
+            - containerPort: 443
+              name: https
+              protocol: TCP
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          env:
+            - name: POMERIUM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+          securityContext:
+            allowPrivilegeEscalation: false
+          resources:
+            limits:
+              cpu: 5000m
+              memory: 1Gi
+            requests:
+              cpu: 1000m
+              memory: 200Mi
+      serviceAccountName: controller
+      terminationGracePeriodSeconds: 10
