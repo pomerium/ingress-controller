@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service
+spec:
+  template:
+    spec:
+      containers:
+        - name: service
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10

@@ -1,0 +1,10 @@
+apiVersion: ingress.pomerium.io/v1
+kind: Settings
+metadata:
+  name: settings
+spec:
+  authenticate:
+    url: https://login.localhost.pomerium.io
+  identityProvider:
+    provider: google
+    secret: idp

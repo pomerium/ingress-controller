@@ -1,6 +1,0 @@
-apiVersion: ingress.pomerium.io/v1
-kind: Settings
-metadata:
-  name: settings-sample
-spec:
-  # TODO(user): Add fields here

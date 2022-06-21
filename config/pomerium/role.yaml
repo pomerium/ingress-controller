@@ -1,0 +1,64 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: controller
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - endpoints
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - services/status
+      - secrets/status
+      - endpoints/status
+    verbs:
+      - get
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - ingress.pomerium.io
+    resources:
+      - settings
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ingress.pomerium.io
+    resources:
+      - settings/status
+    verbs:
+      - get
+      - update
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
