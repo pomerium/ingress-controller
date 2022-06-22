@@ -1,7 +1,6 @@
 namespace: pomerium
 commonLabels:
   app.kubernetes.io/name: pomerium
-namePrefix: pomerium-
 bases:
   - ../crd
   - ../pomerium
