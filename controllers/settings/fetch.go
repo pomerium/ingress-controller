@@ -21,10 +21,34 @@ func FetchConfig(ctx context.Context, client client.Client, name types.Namespace
 	}
 
 	if err := fetchConfigSecrets(ctx, client, &cfg); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("secrets: %w", err)
+	}
+
+	if err := fetchConfigCerts(ctx, client, &cfg); err != nil {
+		return nil, fmt.Errorf("certs: %w", err)
 	}
 
 	return &cfg, nil
+}
+
+func fetchConfigCerts(ctx context.Context, client client.Client, cfg *model.Config) error {
+	if cfg.Certs == nil {
+		cfg.Certs = make(map[types.NamespacedName]*corev1.Secret)
+	}
+
+	for _, src := range cfg.Spec.Certificates {
+		name, err := util.ParseNamespacedName(src, util.WithDefaultNamespace(cfg.Namespace))
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", src, err)
+		}
+		var secret corev1.Secret
+		if err := client.Get(ctx, *name, &secret); err != nil {
+			return fmt.Errorf("get %s: %w", name, err)
+		}
+		cfg.Certs[*name] = &secret
+	}
+
+	return nil
 }
 
 func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Config) error {

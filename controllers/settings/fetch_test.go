@@ -18,7 +18,7 @@ import (
 	"github.com/pomerium/ingress-controller/model"
 )
 
-func TestFetch(t *testing.T) {
+func TestFetchConstraints(t *testing.T) {
 	ctx := context.Background()
 	mc := controllers_mock.NewMockClient(gomock.NewController(t))
 	settingsName := types.NamespacedName{Namespace: "pomerium", Name: "settings"}
