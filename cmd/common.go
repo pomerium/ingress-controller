@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/iancoleman/strcase"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -23,19 +26,11 @@ const (
 	webhookPort                = "webhook-port"
 	metricsBindAddress         = "metrics-bind-address"
 	healthProbeBindAddress     = "health-probe-bind-address"
-	className                  = "name"
-	annotationPrefix           = "prefix"
 	databrokerServiceURL       = "databroker-service-url"
 	databrokerTLSCAFile        = "databroker-tls-ca-file"
 	databrokerTLSCA            = "databroker-tls-ca"
 	tlsInsecureSkipVerify      = "databroker-tls-insecure-skip-verify"
 	tlsOverrideCertificateName = "databroker-tls-override-certificate-name"
-	namespaces                 = "namespaces"
-	sharedSecret               = "shared-secret"
-	debug                      = "debug"
-	updateStatusFromService    = "update-status-from-service"
-	disableCertCheck           = "disable-cert-check"
-	globalSettings             = "global-settings"
 	secrets                    = "secrets"
 )
 
@@ -70,4 +65,21 @@ func getScheme() (*runtime.Scheme, error) {
 		}
 	}
 	return scheme, nil
+}
+
+func viperWalk(flags *pflag.FlagSet) error {
+	v := viper.New()
+	var errs *multierror.Error
+	flags.VisitAll(func(f *pflag.Flag) {
+		if err := v.BindEnv(f.Name, envName(f.Name)); err != nil {
+			errs = multierror.Append(errs, err)
+			return
+		}
+
+		if !f.Changed && v.IsSet(f.Name) {
+			val := v.Get(f.Name)
+			errs = multierror.Append(errs, flags.Set(f.Name, fmt.Sprintf("%v", val)))
+		}
+	})
+	return errs.ErrorOrNil()
 }

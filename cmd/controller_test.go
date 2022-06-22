@@ -17,7 +17,7 @@ func TestFlags(t *testing.T) {
 		webhookPort:                "1234",
 		metricsBindAddress:         ":5678",
 		healthProbeBindAddress:     ":9876",
-		className:                  "class-name",
+		ingressClassControllerName: "class-name",
 		annotationPrefix:           "prefix",
 		databrokerServiceURL:       "https://host.somewhere.com:8934",
 		databrokerTLSCAFile:        "/tmp/tlsca.file",
