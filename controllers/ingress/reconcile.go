@@ -44,11 +44,11 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 	var ics []*model.IngressConfig
 	for i := range ingressList.Items {
 		ingress := &ingressList.Items[i]
-		managing, err := r.isManaging(ctx, ingress)
+		res, err := r.isManaging(ctx, ingress)
 		if err != nil {
 			return fmt.Errorf("get ingressClass info: %w", err)
 		}
-		if !managing {
+		if !res.managed {
 			continue
 		}
 		ic, err := r.fetchIngress(ctx, ingress)
@@ -92,8 +92,8 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{Requeue: true}, fmt.Errorf("get ingressClass info: %w", err)
 	}
 
-	if !managing {
-		return r.deleteIngress(ctx, req.NamespacedName, "not marked to be managed by this controller")
+	if !managing.managed {
+		return r.deleteIngress(ctx, req.NamespacedName, managing.reasonIfNot)
 	}
 
 	ic, err := r.fetchIngress(ctx, ingress)

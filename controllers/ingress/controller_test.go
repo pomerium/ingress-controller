@@ -114,9 +114,11 @@ func TestManagingIngressClass(t *testing.T) {
 		Times(len(testCases))
 	for _, tc := range testCases {
 		classes = tc.classes
-		ok, err := ctrl.isManaging(ctx, &tc.ingress)
+		res, err := ctrl.isManaging(ctx, &tc.ingress)
 		if assert.NoError(t, err, tc.title) {
-			assert.Equal(t, tc.result, ok, tc.title)
+			if assert.Equal(t, tc.result, res.managed, tc.title) && !tc.result {
+				assert.NotEmpty(t, res.reasonIfNot, "if not managing, reason must be provided")
+			}
 		}
 	}
 }
