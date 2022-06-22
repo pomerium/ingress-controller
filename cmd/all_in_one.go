@@ -8,8 +8,6 @@ import (
 	"net/url"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/types"
@@ -19,7 +17,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 
-	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/controllers"
 	"github.com/pomerium/ingress-controller/controllers/ingress"
 	"github.com/pomerium/ingress-controller/controllers/settings"
@@ -29,13 +26,13 @@ import (
 )
 
 type allCmdOptions struct {
-	updateStatusFromService string
-	settings                string
-	debug                   bool
+	ingressControllerOpts
+	debug bool
 }
 
 type allCmdParam struct {
 	settings                types.NamespacedName
+	ingressOpts             []ingress.Option
 	updateStatusFromService string
 	dumpConfigDiff          bool
 }
@@ -65,25 +62,8 @@ func (s *allCmd) setupFlags() error {
 	if err := flags.MarkHidden("debug"); err != nil {
 		return err
 	}
-	flags.StringVar(&s.updateStatusFromService, updateStatusFromService, "", "update ingress status from given service status (pomerium-proxy)")
-	flags.StringVar(&s.settings, globalSettings, "",
-		fmt.Sprintf("namespace/name to a resource of type %s/Settings", icsv1.GroupVersion.Group))
-
-	v := viper.New()
-	var err error
-	flags.VisitAll(func(f *pflag.Flag) {
-		if err = v.BindEnv(f.Name, envName(f.Name)); err != nil {
-			return
-		}
-
-		if !f.Changed && v.IsSet(f.Name) {
-			val := v.Get(f.Name)
-			if err = flags.Set(f.Name, fmt.Sprintf("%v", val)); err != nil {
-				return
-			}
-		}
-	})
-	return err
+	s.ingressControllerOpts.setupFlags(flags)
+	return viperWalk(flags)
 }
 
 func (s *allCmd) exec(*cobra.Command, []string) error {
@@ -99,13 +79,23 @@ func (s *allCmd) exec(*cobra.Command, []string) error {
 }
 
 func (s *allCmdOptions) getParam() (*allCmdParam, error) {
-	settings, err := util.ParseNamespacedName(s.settings)
+	settings, err := util.ParseNamespacedName(s.globalSettings)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", globalSettings, err)
 	}
 
+	if err = s.Validate(); err != nil {
+		return nil, fmt.Errorf("args: %w", err)
+	}
+
+	opts, err := s.getIngressControllerOptions()
+	if err != nil {
+		return nil, fmt.Errorf("options: %w", err)
+	}
+
 	return &allCmdParam{
 		settings:                *settings,
+		ingressOpts:             opts,
 		updateStatusFromService: s.updateStatusFromService,
 		dumpConfigDiff:          s.debug,
 	}, nil
@@ -142,19 +132,6 @@ func (s *allCmdParam) runConfigControllers(ctx context.Context, runner *pomerium
 	return c.Run(ctx)
 }
 
-func (s *allCmdParam) getIngressControllerOptions() ([]ingress.Option, error) {
-	var opts []ingress.Option
-	opts = append(opts, ingress.WithGlobalSettings(s.settings))
-	if s.updateStatusFromService != "" {
-		name, err := util.ParseNamespacedName(s.updateStatusFromService)
-		if err != nil {
-			return nil, fmt.Errorf("update status from service: %q: %w", s.updateStatusFromService, err)
-		}
-		opts = append(opts, ingress.WithUpdateIngressStatusFromService(*name))
-	}
-	return opts, nil
-}
-
 func (s *allCmdParam) getDataBrokerConnection(ctx context.Context, cfg *config.Config) (*grpc.ClientConn, error) {
 	sharedSecret, err := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
 	if err != nil {
@@ -173,11 +150,6 @@ func (s *allCmdParam) getDataBrokerConnection(ctx context.Context, cfg *config.C
 }
 
 func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (*controllers.Controller, error) {
-	opts, err := s.getIngressControllerOptions()
-	if err != nil {
-		return nil, fmt.Errorf("ingress controller opts: %w", err)
-	}
-
 	scheme, err := getScheme()
 	if err != nil {
 		return nil, fmt.Errorf("get scheme: %w", err)
@@ -201,7 +173,7 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 			Port:               0,
 			LeaderElection:     false,
 		},
-		IngressCtrlOpts: opts,
+		IngressCtrlOpts: s.ingressOpts,
 	}
 
 	return c, nil
