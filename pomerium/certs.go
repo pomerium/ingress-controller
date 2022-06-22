@@ -19,12 +19,15 @@ func addCerts(cfg *pb.Config, secrets map[types.NamespacedName]*corev1.Secret) {
 		if secret.Type != corev1.SecretTypeTLS {
 			continue
 		}
-
-		cfg.Settings.Certificates = append(cfg.Settings.Certificates, &pb.Settings_Certificate{
-			CertBytes: secret.Data[corev1.TLSCertKey],
-			KeyBytes:  secret.Data[corev1.TLSPrivateKeyKey],
-		})
+		addTLSCert(cfg.Settings, secret)
 	}
+}
+
+func addTLSCert(s *pb.Settings, secret *corev1.Secret) {
+	s.Certificates = append(s.Certificates, &pb.Settings_Certificate{
+		CertBytes: secret.Data[corev1.TLSCertKey],
+		KeyBytes:  secret.Data[corev1.TLSPrivateKeyKey],
+	})
 }
 
 func removeUnusedCerts(cfg *pb.Config) error {
@@ -55,8 +58,16 @@ func getAllDomains(cfg *pb.Config) (map[string]struct{}, error) {
 	for _, r := range cfg.Routes {
 		u, err := url.Parse(r.From)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse from=%q: %w", r.From, err)
+			return nil, fmt.Errorf("cannot parse from=%s: %w", r.From, err)
 		}
+		domains[u.Hostname()] = struct{}{}
+	}
+	if cfg.Settings != nil && cfg.Settings.AuthenticateServiceUrl != nil {
+		u, err := url.Parse(*cfg.Settings.AuthenticateServiceUrl)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse authenticate_service_url=%s: %w", *cfg.Settings.AuthenticateServiceUrl, err)
+		}
+
 		domains[u.Hostname()] = struct{}{}
 	}
 	return domains, nil

@@ -28,6 +28,7 @@ func applyConfig(p *pb.Config, c *model.Config) error {
 		name string
 		fn   func(*pb.Config, *model.Config) error
 	}{
+		{"certs", applyCerts},
 		{"authenticate", applyAuthenticate},
 		{"idp", applyIDP},
 		{"idp url", applyIDPProviderURL},
@@ -41,6 +42,20 @@ func applyConfig(p *pb.Config, c *model.Config) error {
 		}
 	}
 
+	return nil
+}
+
+func applyCerts(p *pb.Config, c *model.Config) error {
+	if len(c.Certs) != len(c.Spec.Certificates) {
+		return fmt.Errorf("expected %d cert secrets, only %d was fetched. this is a bug", len(c.Spec.Certificates), len(c.Certs))
+	}
+
+	for _, secret := range c.Certs {
+		if secret.Type != corev1.SecretTypeTLS {
+			return fmt.Errorf("%s expected secret type %s, got %s", util.GetNamespacedName(secret), corev1.SecretTypeTLS, secret.Type)
+		}
+		addTLSCert(p.Settings, secret)
+	}
 	return nil
 }
 
