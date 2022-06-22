@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: service
+  name: pomerium-service
 spec:
   selector: {}
   replicas: 1
@@ -15,7 +15,8 @@ spec:
             - /manager
           args:
             - all-in-one
-            - --global-settings=pomerium/settings
+            - --global-settings=$(POMERIUM_NAMESPACE)/settings
+            - --update-status-from-service=$(POMERIUM_NAMESPACE)/pomerium-proxy
           image: controller:latest
           ports:
             - containerPort: 443
@@ -39,5 +40,5 @@ spec:
             requests:
               cpu: 1000m
               memory: 200Mi
-      serviceAccountName: controller
+      serviceAccountName: pomerium-controller
       terminationGracePeriodSeconds: 10

@@ -205,6 +205,7 @@ $(ENVTEST): $(LOCALBIN)
 .PHONY: dev-install
 dev-install:
 	@echo "==> $@"
+	@echo "deleting pods..."
 	@kubectl delete --force --selector app.kubernetes.io/name=pomerium pods || true
 	@$(KUSTOMIZE) build config/dev | kubectl apply --filename -
 	@stern -n pomerium --selector app.kubernetes.io/name=pomerium
@@ -218,4 +219,4 @@ dev-build:
 .PHONY: dev-clean
 dev-clean:
 	@echo "==> $@"
-	@$(KUSTOMIZE) build config/dev | kubectl delete --force --wait --filename - || true
+	@kubectl delete ns/pomerium --wait || true
