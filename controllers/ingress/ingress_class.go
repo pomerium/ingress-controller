@@ -25,17 +25,29 @@ const (
 	DefaultCertSecretKey = "default-cert-secret"
 )
 
-func (r *ingressController) isManaging(ctx context.Context, ing *networkingv1.Ingress) (bool, error) {
+type ingressManageResult struct {
+	reasonIfNot string
+	managed     bool
+}
+
+var (
+	ingressIsManaged = &ingressManageResult{managed: true}
+)
+
+func (r *ingressController) isManaging(ctx context.Context, ing *networkingv1.Ingress) (*ingressManageResult, error) {
 	_, err := r.getManagingClass(ctx, ing)
 	if err == nil {
-		return true, nil
+		return ingressIsManaged, nil
 	}
 
 	if status := apierrors.APIStatus(nil); errors.As(err, &status) {
-		return false, err
+		return nil, err
 	}
 
-	return false, nil
+	return &ingressManageResult{
+		managed:     false,
+		reasonIfNot: err.Error(),
+	}, nil
 }
 
 func (r *ingressController) getManagingClass(ctx context.Context, ing *networkingv1.Ingress) (*networkingv1.IngressClass, error) {
@@ -79,7 +91,7 @@ func (r *ingressController) getManagingClass(ctx context.Context, ing *networkin
 		}
 	}
 
-	return nil, fmt.Errorf("IngressClass %s not found", className)
+	return nil, fmt.Errorf("IngressClass %s not found or is not assigned to this controller %s", className, r.controllerName)
 }
 
 func getAnnotation(dict map[string]string, key string) (string, error) {

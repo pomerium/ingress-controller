@@ -53,7 +53,7 @@ func (r MultiIngressStatusReporter) IngressDeleted(ctx context.Context, name typ
 			errs = multierror.Append(errs, err)
 		}
 	}
-	logErrorIfAny(ctx, errs, "ingress", name)
+	logErrorIfAny(ctx, errs.ErrorOrNil(), "ingress", name)
 }
 
 // SettingsUpdated marks that configuration was reconciled
@@ -64,5 +64,5 @@ func (r MultiPomeriumStatusReporter) SettingsUpdated(ctx context.Context) {
 			errs = multierror.Append(errs, err)
 		}
 	}
-	logErrorIfAny(ctx, errs)
+	logErrorIfAny(ctx, errs.ErrorOrNil())
 }

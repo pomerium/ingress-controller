@@ -3,6 +3,7 @@ package reporter
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -86,7 +87,6 @@ const (
 	reasonPomeriumConfigUpdated     = "Updated"
 	reasonPomeriumConfigUpdateError = "UpdateError"
 	msgPomeriumConfigUpdated        = "Pomerium configuration updated"
-	msgIngressDeleted               = "deleted from Pomerium"
 )
 
 // IngressReconciled an ingress was successfully reconciled with Pomerium
@@ -139,7 +139,7 @@ func (r *IngressSettingsEventReporter) IngressNotReconciled(ctx context.Context,
 
 // IngressDeleted an ingress resource was deleted and Pomerium no longer serves it
 func (r *IngressSettingsEventReporter) IngressDeleted(ctx context.Context, ingress types.NamespacedName, reason string) error {
-	return r.postEvent(ctx, ingress, corev1.EventTypeNormal, reasonPomeriumConfigUpdated, msgIngressDeleted)
+	return r.postEvent(ctx, ingress, corev1.EventTypeNormal, reasonPomeriumConfigUpdated, fmt.Sprintf("deleted: %s", reason))
 }
 
 // IngressLogReporter reflects updates as log messages
