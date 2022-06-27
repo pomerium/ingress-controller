@@ -20,7 +20,7 @@ COPY Makefile ./Makefile
 RUN mkdir -p internal
 RUN make internal/ui
 
-FROM node:16 as ui
+FROM node:18 as ui
 WORKDIR /workspace
 
 COPY --from=go-modules /workspace/internal/ui ./
