@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: pomerium-service
+  name: pomerium
 spec:
   selector: {}
   replicas: 1
@@ -10,13 +10,14 @@ spec:
       securityContext:
         runAsNonRoot: true
       containers:
-        - name: service
+        - name: pomerium
           command:
             - /manager
           args:
             - all-in-one
             - --global-settings=$(POMERIUM_NAMESPACE)/settings
             - --update-status-from-service=$(POMERIUM_NAMESPACE)/pomerium-proxy
+            - --metrics-bind-address=$(POD_IP):9090
           image: controller:latest
           ports:
             - containerPort: 443
@@ -25,12 +26,19 @@ spec:
             - name: http
               containerPort: 80
               protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
           env:
             - name: POMERIUM_NAMESPACE
               valueFrom:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           securityContext:
             allowPrivilegeEscalation: false
           resources:

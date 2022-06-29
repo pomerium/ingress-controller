@@ -20,7 +20,8 @@ var (
 
 // Runner implements pomerium control loop
 type Runner struct {
-	cfg *ConfigSource
+	src  *InMemoryConfigSource
+	base config.Config
 	sync.Once
 	ready chan struct{}
 }
@@ -41,31 +42,28 @@ func (r *Runner) readyToRun() {
 
 // GetConfig returns current configuration snapshot
 func (r *Runner) GetConfig() *config.Config {
-	return r.cfg.GetConfig()
+	return r.src.GetConfig()
 }
 
 // SetConfig updates just the shared config settings
-func (r *Runner) SetConfig(ctx context.Context, cfg *model.Config) (changes bool, err error) {
-	opts, err := Make(cfg)
-	if err != nil {
+func (r *Runner) SetConfig(ctx context.Context, src *model.Config) (changes bool, err error) {
+	dst := r.base.Clone()
+
+	if err := Apply(dst.Options, src); err != nil {
 		return false, fmt.Errorf("transform config: %w", err)
 	}
 
-	changed := r.cfg.SetOptions(ctx, *opts)
+	changed := r.src.SetConfig(ctx, dst)
 	r.Once.Do(r.readyToRun)
 
 	return changed, nil
 }
 
 // NewPomeriumRunner creates new pomerium command and control
-func NewPomeriumRunner() (*Runner, error) {
-	cfg, err := NewConfigSource()
-	if err != nil {
-		return nil, err
-	}
-
+func NewPomeriumRunner(base config.Config) (*Runner, error) {
 	return &Runner{
-		cfg:   cfg,
+		base:  base,
+		src:   new(InMemoryConfigSource),
 		ready: make(chan struct{}),
 	}, nil
 }
@@ -76,7 +74,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		return fmt.Errorf("waiting for pomerium bootstrap config: %w", err)
 	}
 
-	log.FromContext(ctx).Info("got bootstrap config, starting pomerium...", "opts", r.cfg.GetConfig().Options)
+	log.FromContext(ctx).Info("got bootstrap config, starting pomerium...", "cfg", r.src.GetConfig())
 
-	return pomerium_cmd.Run(ctx, r.cfg)
+	return pomerium_cmd.Run(ctx, r.src)
 }

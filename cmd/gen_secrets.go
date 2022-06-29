@@ -39,7 +39,7 @@ func (s *genSecretsCmd) setupFlags() error {
 	if err := flags.MarkHidden("debug"); err != nil {
 		return err
 	}
-	flags.StringVar(&s.secrets, secrets, "", "namespaced name of a Secret object to generate")
+	flags.StringVar(&s.secrets, "secrets", "", "namespaced name of a Secret object to generate")
 
 	v := viper.New()
 	var err error

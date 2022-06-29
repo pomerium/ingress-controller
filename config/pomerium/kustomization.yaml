@@ -4,10 +4,9 @@
 resources:
   - namespace.yaml
   - deployment.yaml
-  - service.yaml
+  - service_proxy.yaml
+  - service_metrics.yaml
   - service_account.yaml
   - role.yaml
   - role_binding.yaml
   - ingressclass.yaml
-#patchesStrategicMerge:
-#  - healthcheck.yaml

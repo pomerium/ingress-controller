@@ -10,77 +10,59 @@ import (
 	"github.com/pomerium/pomerium/config"
 )
 
-// ConfigSource represents bootstrap config source
-type ConfigSource struct {
-	base      config.Config
-	opts      *config.Options
+// InMemoryConfigSource represents bootstrap config source
+type InMemoryConfigSource struct {
+	mu        sync.Mutex
+	cfg       *config.Config
 	listeners []config.ChangeListener
-	sync.Mutex
 }
 
 var (
-	_ = config.Source(new(ConfigSource))
+	_ = config.Source(new(InMemoryConfigSource))
 )
-
-// NewConfigSource creates base config source
-func NewConfigSource() (*ConfigSource, error) {
-	cfg := config.Config{
-		Options: config.NewDefaultOptions(),
-	}
-	if err := cfg.AllocatePorts(); err != nil {
-		return nil, err
-	}
-	return &ConfigSource{
-		base: cfg,
-	}, nil
-}
 
 var (
-	cmpOpts = cmpopts.IgnoreUnexported(config.Options{})
+	cmpOpts = []cmp.Option{
+		cmpopts.IgnoreUnexported(config.Options{}),
+		cmpopts.EquateEmpty(),
+	}
 )
 
-// SetOptions updates the underlying configuration
+// SetConfig updates the underlying configuration
 // it returns true if configuration was updated
 // and informs config change listeners in case there was a change
-func (cfg *ConfigSource) SetOptions(ctx context.Context, opts config.Options) bool {
-	cfg.Lock()
-	defer cfg.Unlock()
+func (src *InMemoryConfigSource) SetConfig(ctx context.Context, cfg *config.Config) bool {
+	src.mu.Lock()
+	defer src.mu.Unlock()
 
-	changed := true
-	if cfg.opts != nil {
-		changed = !cmp.Equal(opts, *cfg.opts, cmpOpts)
-	}
-	if !changed {
+	if changed := !cmp.Equal(cfg, src.cfg, cmpOpts...); !changed {
 		return false
 	}
 
-	cfg.opts = &opts
-	c := cfg.getConfigLocked()
+	src.cfg = cfg.Clone()
 
-	for _, l := range cfg.listeners {
-		l(ctx, c)
+	for _, l := range src.listeners {
+		l(ctx, src.cfg)
 	}
 
 	return true
 }
 
 // GetConfig implements config.Source
-func (cfg *ConfigSource) GetConfig() *config.Config {
-	cfg.Lock()
-	defer cfg.Unlock()
+func (src *InMemoryConfigSource) GetConfig() *config.Config {
+	src.mu.Lock()
+	defer src.mu.Unlock()
 
-	return cfg.getConfigLocked()
-}
+	if src.cfg == nil {
+		panic("should not be called prior to initial config available")
+	}
 
-func (cfg *ConfigSource) getConfigLocked() *config.Config {
-	c := cfg.base
-	c.Options = cfg.opts
-	return &c
+	return src.cfg
 }
 
 // OnConfigChange implements config.Source
-func (cfg *ConfigSource) OnConfigChange(_ context.Context, l config.ChangeListener) {
-	cfg.Lock()
-	cfg.listeners = append(cfg.listeners, l)
-	cfg.Unlock()
+func (src *InMemoryConfigSource) OnConfigChange(_ context.Context, l config.ChangeListener) {
+	src.mu.Lock()
+	src.listeners = append(src.listeners, l)
+	src.mu.Unlock()
 }

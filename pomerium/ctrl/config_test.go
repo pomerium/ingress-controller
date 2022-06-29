@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/config"
 
@@ -13,8 +12,7 @@ import (
 )
 
 func TestConfigChangeDetect(t *testing.T) {
-	cfg, err := ctrl.NewConfigSource()
-	require.NoError(t, err)
+	cfg := new(ctrl.InMemoryConfigSource)
 
 	ctx := context.Background()
 	def := *config.NewDefaultOptions()
@@ -28,6 +26,6 @@ func TestConfigChangeDetect(t *testing.T) {
 		{"same again", false, def},
 		{"changed", true, config.Options{}},
 	} {
-		assert.Equal(t, tc.expect, cfg.SetOptions(ctx, tc.Options), tc.msg)
+		assert.Equal(t, tc.expect, cfg.SetConfig(ctx, &config.Config{Options: &tc.Options}), tc.msg)
 	}
 }

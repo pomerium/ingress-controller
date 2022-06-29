@@ -1,12 +1,12 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: pomerium-service
+  name: pomerium
 spec:
   template:
     spec:
       containers:
-        - name: service
+        - name: pomerium
           livenessProbe:
             httpGet:
               path: /healthz

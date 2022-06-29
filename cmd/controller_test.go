@@ -33,7 +33,7 @@ func TestFlags(t *testing.T) {
 	}
 	cmd.setupFlags()
 	assert.Equal(t, 1234, cmd.webhookPort)
-	assert.Equal(t, []string{"one", "two", "three"}, cmd.namespaces)
+	assert.Equal(t, []string{"one", "two", "three"}, cmd.Namespaces)
 	assert.Equal(t, caData, cmd.tlsCA)
 	assert.Equal(t, true, cmd.debug)
 }

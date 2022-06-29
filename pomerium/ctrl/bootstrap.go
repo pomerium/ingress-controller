@@ -17,10 +17,8 @@ import (
 	"github.com/pomerium/ingress-controller/model"
 )
 
-// Make prepares a minimal bootstrap configuration for Pomerium
-func Make(src *model.Config) (*config.Options, error) {
-	opts := config.NewDefaultOptions()
-
+// Apply prepares a minimal bootstrap configuration for Pomerium
+func Apply(dst *config.Options, src *model.Config) error {
 	for _, apply := range []struct {
 		name string
 		fn   func(*config.Options, *model.Config) error
@@ -28,16 +26,16 @@ func Make(src *model.Config) (*config.Options, error) {
 		{"secrets", applySecrets},
 		{"storage", applyStorage},
 	} {
-		if err := apply.fn(opts, src); err != nil {
-			return nil, fmt.Errorf("%s: %w", apply.name, err)
+		if err := apply.fn(dst, src); err != nil {
+			return fmt.Errorf("%s: %w", apply.name, err)
 		}
 	}
 
-	if err := opts.Validate(); err != nil {
-		return nil, fmt.Errorf("validate: %w", err)
+	if err := dst.Validate(); err != nil {
+		return fmt.Errorf("validate: %w", err)
 	}
 
-	return opts, nil
+	return nil
 }
 
 func applyStorage(dst *config.Options, src *model.Config) error {

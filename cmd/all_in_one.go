@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 
+	validate "github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -16,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/netutil"
 
 	"github.com/pomerium/ingress-controller/controllers"
 	"github.com/pomerium/ingress-controller/controllers/ingress"
@@ -28,6 +30,8 @@ import (
 type allCmdOptions struct {
 	ingressControllerOpts
 	debug bool
+	// MetricsBindAddress must be externally accessible host:port
+	MetricsBindAddress string `validate:"required,hostname_port"`
 }
 
 type allCmdParam struct {
@@ -35,6 +39,12 @@ type allCmdParam struct {
 	ingressOpts             []ingress.Option
 	updateStatusFromService string
 	dumpConfigDiff          bool
+
+	metricsBindAddress   string
+	bootstrapMetricsAddr string
+	ingressMetricsAddr   string
+
+	cfg config.Config
 }
 
 type allCmd struct {
@@ -62,11 +72,20 @@ func (s *allCmd) setupFlags() error {
 	if err := flags.MarkHidden("debug"); err != nil {
 		return err
 	}
+	flags.StringVar(&s.MetricsBindAddress, metricsBindAddress, "", "host:port for aggregate metrics")
 	s.ingressControllerOpts.setupFlags(flags)
 	return viperWalk(flags)
 }
 
+func (s *allCmdOptions) Validate() error {
+	return validate.New().Struct(s)
+}
+
 func (s *allCmd) exec(*cobra.Command, []string) error {
+	if err := s.Validate(); err != nil {
+		return err
+	}
+
 	setupLogger(s.debug)
 	ctx := runtime_ctrl.SetupSignalHandler()
 
@@ -79,7 +98,7 @@ func (s *allCmd) exec(*cobra.Command, []string) error {
 }
 
 func (s *allCmdOptions) getParam() (*allCmdParam, error) {
-	settings, err := util.ParseNamespacedName(s.globalSettings)
+	settings, err := util.ParseNamespacedName(s.GlobalSettings)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", globalSettings, err)
 	}
@@ -93,12 +112,18 @@ func (s *allCmdOptions) getParam() (*allCmdParam, error) {
 		return nil, fmt.Errorf("options: %w", err)
 	}
 
-	return &allCmdParam{
+	p := &allCmdParam{
 		settings:                *settings,
 		ingressOpts:             opts,
-		updateStatusFromService: s.updateStatusFromService,
+		updateStatusFromService: s.UpdateStatusFromService,
 		dumpConfigDiff:          s.debug,
-	}, nil
+		metricsBindAddress:      s.MetricsBindAddress,
+	}
+	if err := p.makeBootstrapConfig(); err != nil {
+		return nil, fmt.Errorf("bootstrap: %w", err)
+	}
+
+	return p, nil
 }
 
 func (s *allCmdParam) run(ctx context.Context) error {
@@ -107,7 +132,7 @@ func (s *allCmdParam) run(ctx context.Context) error {
 
 	eg, ctx := errgroup.WithContext(ctx)
 
-	runner, err := pomerium_ctrl.NewPomeriumRunner()
+	runner, err := pomerium_ctrl.NewPomeriumRunner(s.cfg)
 	if err != nil {
 		return fmt.Errorf("preparing to run pomerium: %w", err)
 	}
@@ -117,6 +142,49 @@ func (s *allCmdParam) run(ctx context.Context) error {
 	eg.Go(func() error { return s.runConfigControllers(ctx, runner) })
 
 	return eg.Wait()
+}
+
+func (s *allCmdParam) makeBootstrapConfig() error {
+	s.cfg.Options = config.NewDefaultOptions()
+
+	ports, err := netutil.AllocatePorts(7)
+	if err != nil {
+		return fmt.Errorf("allocating ports: %w", err)
+	}
+
+	s.cfg.AllocatePorts(*(*[5]string)(ports[:5]))
+
+	s.bootstrapMetricsAddr = fmt.Sprintf("localhost:%s", ports[5])
+	s.ingressMetricsAddr = fmt.Sprintf("localhost:%s", ports[6])
+
+	s.cfg.MetricsScrapeEndpoints = []config.MetricsScrapeEndpoint{
+		{
+			Name: "bootstrap",
+			URL: url.URL{
+				Scheme: "http",
+				Host:   s.bootstrapMetricsAddr,
+				Path:   "/metrics",
+			},
+			Labels: map[string]string{
+				"service": "bootstrap-controller",
+			},
+		},
+		{
+			Name: "ingress",
+			URL: url.URL{
+				Scheme: "http",
+				Host:   s.ingressMetricsAddr,
+				Path:   "/metrics",
+			},
+			Labels: map[string]string{
+				"service": "ingress-controller",
+			},
+		},
+	}
+
+	s.cfg.Options.MetricsAddr = ":9090"
+
+	return nil
 }
 
 // runConfigController runs an integrated Ingress + Settings CRD controller
@@ -169,7 +237,7 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 		DataBrokerServiceClient: client,
 		MgrOpts: runtime_ctrl.Options{
 			Scheme:             scheme,
-			MetricsBindAddress: "0",
+			MetricsBindAddress: s.ingressMetricsAddr,
 			Port:               0,
 			LeaderElection:     false,
 		},
@@ -190,9 +258,10 @@ func (s *allCmdParam) runBootstrapConfigController(ctx context.Context, reconcil
 	if err != nil {
 		return fmt.Errorf("get k8s api config: %w", err)
 	}
+
 	mgr, err := runtime_ctrl.NewManager(cfg, runtime_ctrl.Options{
 		Scheme:             scheme,
-		MetricsBindAddress: "0",
+		MetricsBindAddress: s.bootstrapMetricsAddr,
 		Port:               0,
 		LeaderElection:     false,
 	})
