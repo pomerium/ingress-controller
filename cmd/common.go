@@ -23,15 +23,9 @@ const (
 )
 
 const (
-	webhookPort                = "webhook-port"
-	metricsBindAddress         = "metrics-bind-address"
-	healthProbeBindAddress     = "health-probe-bind-address"
-	databrokerServiceURL       = "databroker-service-url"
-	databrokerTLSCAFile        = "databroker-tls-ca-file"
-	databrokerTLSCA            = "databroker-tls-ca"
-	tlsInsecureSkipVerify      = "databroker-tls-insecure-skip-verify"
-	tlsOverrideCertificateName = "databroker-tls-override-certificate-name"
-	secrets                    = "secrets"
+	webhookPort            = "webhook-port"
+	metricsBindAddress     = "metrics-bind-address"
+	healthProbeBindAddress = "health-probe-bind-address"
 )
 
 func envName(name string) string {

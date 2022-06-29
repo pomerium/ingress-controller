@@ -52,10 +52,18 @@ func ControllerCommand() (*cobra.Command, error) {
 	return &cmd.Command, nil
 }
 
+const (
+	databrokerServiceURL       = "databroker-service-url"
+	databrokerTLSCAFile        = "databroker-tls-ca-file"
+	databrokerTLSCA            = "databroker-tls-ca"
+	tlsInsecureSkipVerify      = "databroker-tls-insecure-skip-verify"
+	tlsOverrideCertificateName = "databroker-tls-override-certificate-name"
+)
+
 func (s *controllerCmd) setupFlags() error {
 	flags := s.PersistentFlags()
 	flags.IntVar(&s.webhookPort, webhookPort, 9443, "webhook port")
-	flags.StringVar(&s.metricsAddr, metricsBindAddress, ":8080", "The address the metric endpoint binds to.")
+	flags.StringVar(&s.metricsAddr, metricsBindAddress, ":9090", "The address the metric endpoint binds to.")
 	flags.StringVar(&s.probeAddr, healthProbeBindAddress, ":8081", "The address the probe endpoint binds to.")
 	flags.StringVar(&s.databrokerServiceURL, databrokerServiceURL, "http://localhost:5443",
 		"the databroker service url")

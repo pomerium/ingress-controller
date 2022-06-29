@@ -13,12 +13,12 @@ import (
 )
 
 type ingressControllerOpts struct {
-	className               string `validate:"required"`
-	annotationPrefix        string `validate:"required"`
-	namespaces              []string
-	disableCertCheck        bool
-	updateStatusFromService string `validate:"required"`
-	globalSettings          string
+	ClassName               string `validate:"required"`
+	AnnotationPrefix        string `validate:"required"`
+	Namespaces              []string
+	DisableCertCheck        bool
+	UpdateStatusFromService string `validate:"required"`
+	GlobalSettings          string
 }
 
 const (
@@ -33,12 +33,12 @@ const (
 )
 
 func (s *ingressControllerOpts) setupFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&s.className, ingressClassControllerName, ingress.DefaultClassControllerName, "IngressClass controller name")
-	flags.StringVar(&s.annotationPrefix, annotationPrefix, ingress.DefaultAnnotationPrefix, "Ingress annotation prefix")
-	flags.StringSliceVar(&s.namespaces, namespaces, nil, "namespaces to watch, or none to watch all namespaces")
-	flags.StringVar(&s.updateStatusFromService, updateStatusFromService, "", "update ingress status from given service status (pomerium-proxy)")
-	flags.BoolVar(&s.disableCertCheck, disableCertCheck, false, "disables certificate check")
-	flags.StringVar(&s.globalSettings, globalSettings, "",
+	flags.StringVar(&s.ClassName, ingressClassControllerName, ingress.DefaultClassControllerName, "IngressClass controller name")
+	flags.StringVar(&s.AnnotationPrefix, annotationPrefix, ingress.DefaultAnnotationPrefix, "Ingress annotation prefix")
+	flags.StringSliceVar(&s.Namespaces, namespaces, nil, "namespaces to watch, or none to watch all namespaces")
+	flags.StringVar(&s.UpdateStatusFromService, updateStatusFromService, "", "update ingress status from given service status (pomerium-proxy)")
+	flags.BoolVar(&s.DisableCertCheck, disableCertCheck, false, "disables certificate check")
+	flags.StringVar(&s.GlobalSettings, globalSettings, "",
 		fmt.Sprintf("namespace/name to a resource of type %s/Settings", icsv1.GroupVersion.Group))
 }
 
@@ -47,24 +47,24 @@ func (s *ingressControllerOpts) Validate() error {
 }
 
 func (s *ingressControllerOpts) getGlobalSettings() (*types.NamespacedName, error) {
-	if s.globalSettings == "" {
+	if s.GlobalSettings == "" {
 		return nil, nil
 	}
 
-	name, err := util.ParseNamespacedName(s.globalSettings)
+	name, err := util.ParseNamespacedName(s.GlobalSettings)
 	if err != nil {
-		return nil, fmt.Errorf("%s=%s: %w", globalSettings, s.globalSettings, err)
+		return nil, fmt.Errorf("%s=%s: %w", globalSettings, s.GlobalSettings, err)
 	}
 	return name, nil
 }
 
 func (s *ingressControllerOpts) getIngressControllerOptions() ([]ingress.Option, error) {
 	opts := []ingress.Option{
-		ingress.WithNamespaces(s.namespaces),
-		ingress.WithAnnotationPrefix(s.annotationPrefix),
-		ingress.WithControllerName(s.className),
+		ingress.WithNamespaces(s.Namespaces),
+		ingress.WithAnnotationPrefix(s.AnnotationPrefix),
+		ingress.WithControllerName(s.ClassName),
 	}
-	if s.disableCertCheck {
+	if s.DisableCertCheck {
 		opts = append(opts, ingress.WithDisableCertCheck())
 	}
 	if name, err := s.getGlobalSettings(); err != nil {
@@ -72,10 +72,10 @@ func (s *ingressControllerOpts) getIngressControllerOptions() ([]ingress.Option,
 	} else if name != nil {
 		opts = append(opts, ingress.WithGlobalSettings(*name))
 	}
-	if s.updateStatusFromService != "" {
-		name, err := util.ParseNamespacedName(s.updateStatusFromService)
+	if s.UpdateStatusFromService != "" {
+		name, err := util.ParseNamespacedName(s.UpdateStatusFromService)
 		if err != nil {
-			return nil, fmt.Errorf("update status from service: %q: %w", s.updateStatusFromService, err)
+			return nil, fmt.Errorf("update status from service: %q: %w", s.UpdateStatusFromService, err)
 		}
 		opts = append(opts, ingress.WithUpdateIngressStatusFromService(*name))
 	}
