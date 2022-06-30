@@ -193,9 +193,6 @@ spec:
                     required:
                     - secret
                     type: object
-                required:
-                - postgresql
-                - redis
                 type: object
             required:
             - authenticate

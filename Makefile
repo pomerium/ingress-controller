@@ -210,6 +210,11 @@ dev-install:
 	@$(KUSTOMIZE) build config/dev | kubectl apply --filename -
 	@stern -n pomerium --selector app.kubernetes.io/name=pomerium
 
+.PHONY: dev-gen-secrets
+dev-gen-secrets:
+	@echo "==> $@"
+	@$(KUSTOMIZE) build config/dev/gen_secrets | kubectl apply --filename -
+
 .PHONY: dev-build
 dev-build:
 	@echo "==> $@"

@@ -1,0 +1,6 @@
+namespace: pomerium
+resources:
+  - job.yaml
+  - role_binding.yaml
+  - role.yaml
+  - service_account.yaml

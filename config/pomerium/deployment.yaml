@@ -7,8 +7,12 @@ spec:
   replicas: 1
   template:
     spec:
+      nodeSelector:
+        kubernetes.io/os: linux
       securityContext:
         runAsNonRoot: true
+        fsGroup: 1000
+        runAsUser: 1000
       containers:
         - name: pomerium
           command:
