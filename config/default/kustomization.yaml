@@ -4,3 +4,4 @@ commonLabels:
 bases:
   - ../crd
   - ../pomerium
+  - ../gen_secrets

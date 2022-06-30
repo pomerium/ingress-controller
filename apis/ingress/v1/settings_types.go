@@ -100,7 +100,7 @@ type RedisStorage struct {
 // PostgresStorage defines Postgres connection parameters
 type PostgresStorage struct {
 	// Secret specifies a name of a Secret that must contain
-	// `postgresql_connection_string`
+	// `connection` key
 	// for the connection DSN format and parameters, see
 	// https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
 	// the following keywords are not allowed to be part of the parameters,
@@ -132,9 +132,11 @@ type PostgresStorage struct {
 // Omit setting storage to use in-memory storage implementation.
 type Storage struct {
 	// Redis defines REDIS connection parameters
+	// +kubebuilder:validation:Optional
 	Redis *RedisStorage `json:"redis"`
 
 	// Postgres specifies PostgreSQL database connection parameters
+	// +kubebuilder:validation:Optional
 	Postgres *PostgresStorage `json:"postgresql"`
 }
 
