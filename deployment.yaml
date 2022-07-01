@@ -1,0 +1,515 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: pomerium
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.0
+  creationTimestamp: null
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: settings.ingress.pomerium.io
+spec:
+  group: ingress.pomerium.io
+  names:
+    kind: Settings
+    listKind: SettingsList
+    plural: settings
+    singular: settings
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: Settings define runtime-configurable Pomerium settings that do
+          not fall into the category of deployment parameters
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: SettingsSpec defines the desired state of Settings
+            properties:
+              authenticate:
+                description: Authenticate sets authenticate service parameters
+                properties:
+                  callbackPath:
+                    description: CallbackPath see https://www.pomerium.com/reference/#authenticate-callback-path
+                    type: string
+                  url:
+                    description: AuthenticateURL should be publicly accessible URL
+                      the non-authenticated persons would be referred to see https://www.pomerium.com/reference/#authenticate-service-url
+                    format: uri
+                    pattern: ^https://
+                    type: string
+                required:
+                - url
+                type: object
+              certificates:
+                description: Certificates is a list of secrets of type TLS to use
+                items:
+                  type: string
+                type: array
+              identityProvider:
+                description: IdentityProvider see https://www.pomerium.com/docs/identity-providers/
+                properties:
+                  provider:
+                    description: Provider one of accepted providers https://www.pomerium.com/reference/#identity-provider-name
+                    enum:
+                    - auth0
+                    - azure
+                    - google
+                    - okta
+                    - onelogin
+                    - oidc
+                    - ping
+                    - github
+                    type: string
+                  refreshDirectory:
+                    description: Specifies refresh settings
+                    properties:
+                      interval:
+                        format: duration
+                        type: string
+                      timeout:
+                        format: duration
+                        type: string
+                    required:
+                    - interval
+                    - timeout
+                    type: object
+                  requestParams:
+                    additionalProperties:
+                      type: string
+                    description: RequestParams see https://www.pomerium.com/reference/#identity-provider-request-params
+                    type: object
+                  requestParamsSecret:
+                    description: RequestParamsSecret is a reference to a secret for
+                      additional parameters you'd prefer not to provide in plaintext
+                    type: string
+                  scopes:
+                    description: Scopes see https://www.pomerium.com/reference/#identity-provider-scopes
+                    items:
+                      type: string
+                    type: array
+                  secret:
+                    description: Secret refers to a k8s secret containing IdP provider
+                      specific parameters and must contain at least `client_id` and
+                      `client_secret` map values, an optional `service_account` field,
+                      mapped to https://www.pomerium.com/reference/#identity-provider-service-account
+                    minLength: 1
+                    type: string
+                  serviceAccountFromSecret:
+                    description: ServiceAccountFromSecret is a convenience way to
+                      build a value for `idp_service_account` from secret map values,
+                      see https://www.pomerium.com/docs/identity-providers/
+                    type: string
+                  url:
+                    description: URL is identity provider url, see https://www.pomerium.com/reference/#identity-provider-url
+                    format: uri
+                    pattern: ^https://
+                    type: string
+                required:
+                - provider
+                - secret
+                type: object
+              namespaces:
+                description: Namespaces limits k8s namespaces that must be watched
+                  for Ingress objects
+                items:
+                  type: string
+                minItems: 0
+                type: array
+              secrets:
+                description: Secrets references a Secret that must have the following
+                  keys - shared_secret - cookie_secret - signing_key
+                minLength: 1
+                type: string
+              storage:
+                description: Storage defines persistent storage for sessions and other
+                  data it will use in-memory if none specified see https://www.pomerium.com/docs/topics/data-storage
+                properties:
+                  postgresql:
+                    description: Postgres specifies PostgreSQL database connection
+                      parameters
+                    properties:
+                      caSecret:
+                        description: CASecret should refer to a k8s secret with key
+                          `ca.crt` containing CA certificate that, if specified, would
+                          be used to populate `sslrootcert` parameter of the connection
+                          string
+                        minLength: 1
+                        type: string
+                      secret:
+                        description: Secret specifies a name of a Secret that must
+                          contain `postgresql_connection_string` for the connection
+                          DSN format and parameters, see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
+                          the following keywords are not allowed to be part of the
+                          parameters, as they must be populated via `tlsCecret` and
+                          `caSecret` fields
+                        minLength: 1
+                        type: string
+                      tlsSecret:
+                        description: TLSSecret should refer to a k8s secret of type
+                          `kubernetes.io/tls` and allows to specify an optional client
+                          certificate and key, by constructing `sslcert` and `sslkey`
+                          connection string parameter values see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS
+                        minLength: 1
+                        type: string
+                    required:
+                    - secret
+                    type: object
+                  redis:
+                    description: Redis defines REDIS connection parameters
+                    properties:
+                      caSecret:
+                        description: CASecret should refer to a k8s secret with key
+                          `ca.crt` that must be a PEM-encoded certificate authority
+                          to use when connecting to the databroker storage engine
+                          see https://www.pomerium.com/docs/reference/data-broker-storage-certificate-authority
+                        type: string
+                      secret:
+                        description: Secret specifies a name of a Secret that must
+                          contain `connection` key. see https://www.pomerium.com/docs/reference/data-broker-storage-connection-string
+                        minLength: 1
+                        type: string
+                      tlsSecret:
+                        description: TLSSecret should refer to a k8s secret of type
+                          `kubernetes.io/tls` and allows to specify an optional databroker
+                          storage client certificate and key, see - https://www.pomerium.com/docs/reference/data-broker-storage-certificate-file
+                          - https://www.pomerium.com/docs/reference/data-broker-storage-certificate-key-file
+                        minLength: 1
+                        type: string
+                      tlsSkipVerify:
+                        description: TLSSkipVerify disables TLS certificate chain
+                          validation see https://www.pomerium.com/docs/reference/data-broker-storage-tls-skip-verify
+                        type: boolean
+                    required:
+                    - secret
+                    type: object
+                type: object
+            required:
+            - authenticate
+            - identityProvider
+            - secrets
+            type: object
+          status:
+            description: SettingsStatus defines the observed state of Settings
+            properties:
+              ingress:
+                additionalProperties:
+                  description: RouteStatus provides high level status between the
+                    last observed ingress object and pomerium state
+                  properties:
+                    error:
+                      description: Error is reason most recent reconciliation failed
+                        for the route
+                      type: string
+                    lastReconciled:
+                      description: LastReconciled timestamp indicates when the ingress
+                        resource was last synced with pomerium
+                      format: date-time
+                      type: string
+                    reconciled:
+                      description: Reconciled is true if Ingress resource was fully
+                        synced with pomerium state
+                      type: boolean
+                  required:
+                  - reconciled
+                  type: object
+                type: object
+            required:
+            - ingress
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: pomerium-controller
+  namespace: pomerium
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: pomerium-gen-secrets
+  namespace: pomerium
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: pomerium-controller
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - services
+  - endpoints
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - services/status
+  - secrets/status
+  - endpoints/status
+  verbs:
+  - get
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  - ingressclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ingress.pomerium.io
+  resources:
+  - settings
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ingress.pomerium.io
+  resources:
+  - settings/status
+  verbs:
+  - get
+  - update
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: pomerium-gen-secrets
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: pomerium-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pomerium-controller
+subjects:
+- kind: ServiceAccount
+  name: pomerium-controller
+  namespace: pomerium
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: pomerium-gen-secrets
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pomerium-gen-secrets
+subjects:
+- kind: ServiceAccount
+  name: pomerium-gen-secrets
+  namespace: pomerium
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: pomerium-metrics
+  namespace: pomerium
+spec:
+  ports:
+  - name: metrics
+    port: 9090
+    protocol: TCP
+    targetPort: metrics
+  selector:
+    app.kubernetes.io/name: pomerium
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: pomerium-proxy
+  namespace: pomerium
+spec:
+  ports:
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: https
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app.kubernetes.io/name: pomerium
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: pomerium
+  namespace: pomerium
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pomerium
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pomerium
+    spec:
+      containers:
+      - args:
+        - all-in-one
+        - --global-settings=$(POMERIUM_NAMESPACE)/settings
+        - --update-status-from-service=$(POMERIUM_NAMESPACE)/pomerium-proxy
+        - --metrics-bind-address=$(POD_IP):9090
+        env:
+        - name: POMERIUM_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        image: pomerium/ingress-controller:main
+        name: pomerium
+        ports:
+        - containerPort: 443
+          name: https
+          protocol: TCP
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 5000m
+            memory: 1Gi
+          requests:
+            cpu: 300m
+            memory: 200Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+      nodeSelector:
+        kubernetes.io/os: linux
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      serviceAccountName: pomerium-controller
+      terminationGracePeriodSeconds: 10
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: pomerium-gen-secrets
+  namespace: pomerium
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pomerium
+      name: pomerium-gen-secrets
+    spec:
+      containers:
+      - args:
+        - gen-secrets
+        - --secrets=$(POD_NAMESPACE)/bootstrap
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        image: pomerium/ingress-controller:main
+        imagePullPolicy: IfNotPresent
+        name: gen-secrets
+        securityContext:
+          allowPrivilegeEscalation: false
+      nodeSelector:
+        kubernetes.io/os: linux
+      restartPolicy: OnFailure
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      serviceAccountName: pomerium-gen-secrets
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: pomerium
+spec:
+  controller: pomerium.io/ingress-controller
