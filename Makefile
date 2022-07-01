@@ -199,6 +199,11 @@ $(ENVTEST): $(LOCALBIN)
 	@echo "==> $@"
 	@GOARCH= GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest
 
+.PHONY: deployment
+deployment:
+	@echo "==> $@"
+	@$(KUSTOMIZE) build config/default > deployment.yaml
+
 #
 # --- internal development targets
 #

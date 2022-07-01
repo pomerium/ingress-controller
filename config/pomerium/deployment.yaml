@@ -15,14 +15,12 @@ spec:
         runAsUser: 1000
       containers:
         - name: pomerium
-          command:
-            - /manager
           args:
             - all-in-one
             - --global-settings=$(POMERIUM_NAMESPACE)/settings
             - --update-status-from-service=$(POMERIUM_NAMESPACE)/pomerium-proxy
             - --metrics-bind-address=$(POD_IP):9090
-          image: controller:latest
+          image: pomerium/ingress-controller:main
           ports:
             - containerPort: 443
               name: https
@@ -50,7 +48,7 @@ spec:
               cpu: 5000m
               memory: 1Gi
             requests:
-              cpu: 1000m
+              cpu: 300m
               memory: 200Mi
       serviceAccountName: pomerium-controller
       terminationGracePeriodSeconds: 10
