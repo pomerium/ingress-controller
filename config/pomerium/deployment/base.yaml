@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pomerium
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: pomerium
+          image: pomerium/ingress-controller:main
+      serviceAccountName: pomerium-controller
+      terminationGracePeriodSeconds: 10
