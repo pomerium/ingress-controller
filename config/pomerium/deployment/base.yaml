@@ -8,6 +8,5 @@ spec:
     spec:
       containers:
         - name: pomerium
-          image: pomerium/ingress-controller:main
       serviceAccountName: pomerium-controller
       terminationGracePeriodSeconds: 10
