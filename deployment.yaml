@@ -340,6 +340,8 @@ spec:
         - --update-status-from-service=$(POMERIUM_NAMESPACE)/pomerium-proxy
         - --metrics-bind-address=$(POD_IP):9090
         env:
+        - name: TMPDIR
+          value: /tmp
         - name: POMERIUM_NAMESPACE
           valueFrom:
             fieldRef:
@@ -378,6 +380,8 @@ spec:
         volumeMounts:
         - mountPath: /tmp
           name: tmp
+      nodeSelector:
+        kubernetes.io/os: linux
       securityContext:
         runAsNonRoot: true
       serviceAccountName: pomerium-controller
