@@ -89,4 +89,3 @@ docker_manifests:
     image_templates:
       - pomerium/ingress-controller:{{ .Tag }}-arm64
       - pomerium/ingress-controller:{{ .Tag }}-amd64
-
