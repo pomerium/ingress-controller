@@ -204,7 +204,7 @@ func (s *ControllerTestSuite) deleteAll() {
 		s.NoError(s.Client.Delete(ctx, &secrets.Items[i]))
 	}
 
-	settings := new(icsv1.SettingsList)
+	settings := new(icsv1.PomeriumList)
 	s.NoError(s.Client.List(ctx, settings))
 	for i := range settings.Items {
 		s.NoError(s.Client.Delete(ctx, &settings.Items[i]))
@@ -739,7 +739,7 @@ func (s *ControllerTestSuite) TestCustomSecrets() {
 func (s *ControllerTestSuite) TestSettingsStatusUpdate() {
 	ctx := context.Background()
 
-	name := types.NamespacedName{Namespace: "default", Name: "global-settings"}
+	name := types.NamespacedName{Name: "config"}
 	reporter := reporter.IngressSettingsReporter{
 		SettingsReporter: reporter.SettingsReporter{
 			NamespacedName: name,
@@ -751,9 +751,9 @@ func (s *ControllerTestSuite) TestSettingsStatusUpdate() {
 	s.NoError(s.Client.Create(ctx, to.Ingress))
 	ingressName := types.NamespacedName{Namespace: to.Ingress.Namespace, Name: to.Ingress.Name}
 
-	gs := icsv1.Settings{
+	gs := icsv1.Pomerium{
 		ObjectMeta: metav1.ObjectMeta{Name: name.Name, Namespace: name.Namespace},
-		Spec: icsv1.SettingsSpec{
+		Spec: icsv1.PomeriumSpec{
 			IdentityProvider: icsv1.IdentityProvider{
 				Provider: "oidc",
 				Secret:   "secret",

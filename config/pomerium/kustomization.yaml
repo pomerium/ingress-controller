@@ -6,3 +6,4 @@ resources:
   - ./ingressclass.yaml
   - ./deployment
   - ./service
+  - ./rbac

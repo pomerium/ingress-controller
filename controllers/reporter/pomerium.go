@@ -25,8 +25,8 @@ type SettingsReporter struct {
 	client.Client
 }
 
-func (s *SettingsReporter) getSettings(ctx context.Context) (*icsv1.Settings, error) {
-	var obj icsv1.Settings
+func (s *SettingsReporter) getSettings(ctx context.Context) (*icsv1.Pomerium, error) {
+	var obj icsv1.Pomerium
 	if err := s.Get(ctx, s.NamespacedName, &obj); err != nil {
 		return nil, fmt.Errorf("get %s: %w", s.NamespacedName, err)
 	}

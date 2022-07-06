@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
@@ -67,7 +68,7 @@ func NewSettingsController(
 	}
 
 	c, err := ctrl.NewControllerManagedBy(mgr).
-		For(new(icsv1.Settings)).Build(stc)
+		For(new(icsv1.Pomerium)).Build(stc)
 	if err != nil {
 		return fmt.Errorf("build controller: %w", err)
 	}
@@ -95,6 +96,7 @@ func NewSettingsController(
 // Reconcile syncs Settings CRD with pomerium databroker
 func (c *settingsController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	if req.NamespacedName != c.name {
+		log.FromContext(ctx).Info("reconcile", "got", req.NamespacedName, "want", c.name)
 		return ctrl.Result{}, nil
 	}
 
