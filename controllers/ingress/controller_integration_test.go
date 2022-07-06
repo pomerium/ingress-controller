@@ -739,7 +739,7 @@ func (s *ControllerTestSuite) TestCustomSecrets() {
 func (s *ControllerTestSuite) TestSettingsStatusUpdate() {
 	ctx := context.Background()
 
-	name := types.NamespacedName{Name: "config"}
+	name := types.NamespacedName{Namespace: "default", Name: "config"}
 	reporter := reporter.IngressSettingsReporter{
 		SettingsReporter: reporter.SettingsReporter{
 			NamespacedName: name,
