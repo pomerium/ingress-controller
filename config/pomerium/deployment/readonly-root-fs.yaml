@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pomerium
+spec:
+  template:
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+        - name: pomerium
+          securityContext:
+            readOnlyRootFilesystem: true
+          env:
+            - name: TMPDIR
+              value: "/tmp"
+          volumeMounts:
+            - mountPath: "/tmp"
+              name: tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

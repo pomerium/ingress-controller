@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pomerium
+spec:
+  template:
+    spec:
+      containers:
+        - name: pomerium
+          args:
+            - all-in-one
+            - --global-settings=$(POMERIUM_NAMESPACE)/settings
+            - --update-status-from-service=$(POMERIUM_NAMESPACE)/pomerium-proxy
+            - --metrics-bind-address=$(POD_IP):9090
+          env:
+            - name: POMERIUM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP

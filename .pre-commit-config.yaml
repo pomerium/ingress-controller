@@ -21,3 +21,12 @@ repos:
         args: ["lint"]
         types: ["go"]
         pass_filenames: false
+        fail_fast: true
+      - id: deployment
+        name: deployment
+        fail_fast: true
+        language: system
+        entry: make
+        args: ["deployment"]
+        types: ["yaml"]
+        pass_filenames: false

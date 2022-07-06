@@ -246,82 +246,8 @@ kind: ServiceAccount
 metadata:
   labels:
     app.kubernetes.io/name: pomerium
-  name: pomerium-controller
-  namespace: pomerium
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  labels:
-    app.kubernetes.io/name: pomerium
   name: pomerium-gen-secrets
   namespace: pomerium
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  labels:
-    app.kubernetes.io/name: pomerium
-  name: pomerium-controller
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - services
-  - endpoints
-  - secrets
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - services/status
-  - secrets/status
-  - endpoints/status
-  verbs:
-  - get
-- apiGroups:
-  - networking.k8s.io
-  resources:
-  - ingresses
-  - ingressclasses
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - networking.k8s.io
-  resources:
-  - ingresses/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - ingress.pomerium.io
-  resources:
-  - settings
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ingress.pomerium.io
-  resources:
-  - settings/status
-  verbs:
-  - get
-  - update
-  - patch
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -336,21 +262,6 @@ rules:
   - secrets
   verbs:
   - create
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  labels:
-    app.kubernetes.io/name: pomerium
-  name: pomerium-controller
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: pomerium-controller
-subjects:
-- kind: ServiceAccount
-  name: pomerium-controller
-  namespace: pomerium
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -400,7 +311,7 @@ spec:
   - name: http
     port: 80
     protocol: TCP
-    targetPort: 80
+    targetPort: http
   selector:
     app.kubernetes.io/name: pomerium
   type: LoadBalancer
@@ -429,6 +340,8 @@ spec:
         - --update-status-from-service=$(POMERIUM_NAMESPACE)/pomerium-proxy
         - --metrics-bind-address=$(POD_IP):9090
         env:
+        - name: TMPDIR
+          value: /tmp
         - name: POMERIUM_NAMESPACE
           valueFrom:
             fieldRef:
@@ -439,12 +352,13 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         image: pomerium/ingress-controller:main
+        imagePullPolicy: IfNotPresent
         name: pomerium
         ports:
-        - containerPort: 443
+        - containerPort: 8443
           name: https
           protocol: TCP
-        - containerPort: 80
+        - containerPort: 8080
           name: http
           protocol: TCP
         - containerPort: 9090
@@ -459,14 +373,22 @@ spec:
             memory: 200Mi
         securityContext:
           allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 1000
+          runAsNonRoot: true
+          runAsUser: 1000
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp
       nodeSelector:
         kubernetes.io/os: linux
       securityContext:
-        fsGroup: 1000
         runAsNonRoot: true
-        runAsUser: 1000
       serviceAccountName: pomerium-controller
       terminationGracePeriodSeconds: 10
+      volumes:
+      - emptyDir: {}
+        name: tmp
 ---
 apiVersion: batch/v1
 kind: Job

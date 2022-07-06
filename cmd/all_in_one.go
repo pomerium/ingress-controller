@@ -30,8 +30,10 @@ import (
 type allCmdOptions struct {
 	ingressControllerOpts
 	debug bool
-	// MetricsBindAddress must be externally accessible host:port
-	MetricsBindAddress string `validate:"required,hostname_port"`
+	// metricsBindAddress must be externally accessible host:port
+	metricsBindAddress string `validate:"required,hostname_port"`
+	serverAddr         string `validate:"required,hostname_port"`
+	httpRedirectAddr   string `validate:"required,hostname_port"`
 }
 
 type allCmdParam struct {
@@ -40,9 +42,10 @@ type allCmdParam struct {
 	updateStatusFromService string
 	dumpConfigDiff          bool
 
-	metricsBindAddress   string
+	// bootstrapMetricsAddr for bootstrap configuration controller metrics
 	bootstrapMetricsAddr string
-	ingressMetricsAddr   string
+	// ingressMetricsAddr for ingress+settings reconciliation controller metrics
+	ingressMetricsAddr string
 
 	cfg config.Config
 }
@@ -72,7 +75,10 @@ func (s *allCmd) setupFlags() error {
 	if err := flags.MarkHidden("debug"); err != nil {
 		return err
 	}
-	flags.StringVar(&s.MetricsBindAddress, metricsBindAddress, "", "host:port for aggregate metrics")
+	flags.StringVar(&s.metricsBindAddress, metricsBindAddress, "", "host:port for aggregate metrics. host is mandatory")
+	flags.StringVar(&s.serverAddr, "server-addr", ":8443", "the address the HTTPS server would bind to")
+	flags.StringVar(&s.httpRedirectAddr, "http-redirect-addr", ":8080", "the address HTTP redirect would bind to")
+
 	s.ingressControllerOpts.setupFlags(flags)
 	return viperWalk(flags)
 }
@@ -117,9 +123,8 @@ func (s *allCmdOptions) getParam() (*allCmdParam, error) {
 		ingressOpts:             opts,
 		updateStatusFromService: s.UpdateStatusFromService,
 		dumpConfigDiff:          s.debug,
-		metricsBindAddress:      s.MetricsBindAddress,
 	}
-	if err := p.makeBootstrapConfig(); err != nil {
+	if err := p.makeBootstrapConfig(*s); err != nil {
 		return nil, fmt.Errorf("bootstrap: %w", err)
 	}
 
@@ -144,8 +149,11 @@ func (s *allCmdParam) run(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (s *allCmdParam) makeBootstrapConfig() error {
+func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 	s.cfg.Options = config.NewDefaultOptions()
+
+	s.cfg.Options.Addr = opt.serverAddr
+	s.cfg.Options.HTTPRedirectAddr = opt.httpRedirectAddr
 
 	ports, err := netutil.AllocatePorts(7)
 	if err != nil {
@@ -156,6 +164,8 @@ func (s *allCmdParam) makeBootstrapConfig() error {
 
 	s.bootstrapMetricsAddr = fmt.Sprintf("localhost:%s", ports[5])
 	s.ingressMetricsAddr = fmt.Sprintf("localhost:%s", ports[6])
+
+	s.cfg.Options.MetricsAddr = opt.metricsBindAddress
 
 	s.cfg.MetricsScrapeEndpoints = []config.MetricsScrapeEndpoint{
 		{
@@ -181,8 +191,6 @@ func (s *allCmdParam) makeBootstrapConfig() error {
 			},
 		},
 	}
-
-	s.cfg.Options.MetricsAddr = ":9090"
 
 	return nil
 }

@@ -1,0 +1,10 @@
+resources:
+  - base.yaml
+patchesStrategicMerge:
+  - args.yaml
+  - image.yaml
+  - ports.yaml
+  - resources.yaml
+  - no-root.yaml
+  - readonly-root-fs.yaml
+  #- healthchecks.yaml
