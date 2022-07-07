@@ -13,7 +13,7 @@ import (
 var (
 	// ErrInvalidNamespacedNameFormat namespaced name format error
 	ErrInvalidNamespacedNameFormat = errors.New("invalid format, expect name or namespace/name")
-	// ErrNamespaceExpected indicates that namespace must be provided
+	// ErrNamespaceExpected indicates that a namespace must be provided
 	ErrNamespaceExpected = errors.New("missing namespace for resource")
 	// ErrEmptyName indicates the resource must be non-empty
 	ErrEmptyName = errors.New("resource name cannot be blank")
