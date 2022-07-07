@@ -43,6 +43,10 @@ func NewSettingsController(
 	pcr pomerium.ConfigReconciler,
 	name types.NamespacedName,
 ) error {
+	if name.Namespace != "" {
+		return fmt.Errorf("pomerium CRD is cluster-scoped")
+	}
+
 	stc := &settingsController{
 		name:             name,
 		Client:           mgr.GetClient(),

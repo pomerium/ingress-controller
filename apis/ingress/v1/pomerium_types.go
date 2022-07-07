@@ -210,6 +210,7 @@ type PomeriumStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:path=pomerium
+//+kubebuilder:resource:scope=Cluster
 
 // Pomerium define runtime-configurable Pomerium settings
 // that do not fall into the category of deployment parameters

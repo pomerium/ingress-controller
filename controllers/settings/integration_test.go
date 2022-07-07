@@ -189,7 +189,7 @@ func (s *ControllerTestSuite) TestDependencies() {
 	defer cancel()
 
 	mc := controllers_mock.NewMockConfigReconciler(gomock.NewController(s.T()))
-	name := types.NamespacedName{Namespace: "pomerium", Name: "settings"}
+	name := types.NamespacedName{Name: "settings"}
 
 	s.createTestController(ctx, mc, name)
 }
