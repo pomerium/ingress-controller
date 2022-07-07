@@ -79,7 +79,7 @@ func applyIDP(p *pb.Config, c *model.Config) error {
 }
 
 func applyIDPProviderRefreshTimeouts(p *pb.Config, c *model.Config) error {
-	rd := c.Settings.Spec.IdentityProvider.RefreshDirectory
+	rd := c.Pomerium.Spec.IdentityProvider.RefreshDirectory
 	if rd == nil {
 		return nil
 	}

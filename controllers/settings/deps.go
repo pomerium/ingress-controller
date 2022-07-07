@@ -12,7 +12,7 @@ func (c *settingsController) updateDependencies(cfg *model.Config) {
 }
 
 func updateDependencies(cfg *model.Config, r model.Registry, scheme *runtime.Scheme) {
-	key := model.ObjectKey(&cfg.Settings, scheme)
+	key := model.ObjectKey(&cfg.Pomerium, scheme)
 	r.DeleteCascade(key)
 
 	for _, s := range cfg.Certs {

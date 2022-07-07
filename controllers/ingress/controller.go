@@ -152,7 +152,7 @@ func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 		{&corev1.Secret{}, &r.secretKind, r.getDependantIngressFn},
 		{&corev1.Service{}, &r.serviceKind, r.getDependantIngressFn},
 		{&corev1.Endpoints{}, &r.endpointsKind, r.getDependantIngressFn},
-		{&icsv1.Settings{}, &r.settingsKind, nil},
+		{&icsv1.Pomerium{}, &r.settingsKind, nil},
 	} {
 		gvk, err := apiutil.GVKForObject(o.Object, r.Scheme)
 		if err != nil {

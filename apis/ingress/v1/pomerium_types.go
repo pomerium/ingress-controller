@@ -137,7 +137,7 @@ type Storage struct {
 
 	// Postgres specifies PostgreSQL database connection parameters
 	// +kubebuilder:validation:Optional
-	Postgres *PostgresStorage `json:"postgresql"`
+	Postgres *PostgresStorage `json:"postgres"`
 }
 
 // Authenticate service configuration parameters
@@ -155,8 +155,8 @@ type Authenticate struct {
 	CallbackPath *string `json:"callbackPath,omitempty"`
 }
 
-// SettingsSpec defines the desired state of Settings
-type SettingsSpec struct {
+// PomeriumSpec defines the desired state of Settings
+type PomeriumSpec struct {
 	// Authenticate sets authenticate service parameters
 	// +kubebuilder:validation:Required
 	Authenticate Authenticate `json:"authenticate"`
@@ -202,33 +202,34 @@ type RouteStatus struct {
 	Error string `json:"error,omitempty"`
 }
 
-// SettingsStatus defines the observed state of Settings
-type SettingsStatus struct {
+// PomeriumStatus defines the observed state of Settings
+type PomeriumStatus struct {
 	Routes map[string]RouteStatus `json:"ingress"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:path=pomerium
 
-// Settings define runtime-configurable Pomerium settings
+// Pomerium define runtime-configurable Pomerium settings
 // that do not fall into the category of deployment parameters
-type Settings struct {
+type Pomerium struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   SettingsSpec   `json:"spec,omitempty"`
-	Status SettingsStatus `json:"status,omitempty"`
+	Spec   PomeriumSpec   `json:"spec,omitempty"`
+	Status PomeriumStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// SettingsList contains a list of Settings
-type SettingsList struct {
+// PomeriumList contains a list of Settings
+type PomeriumList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Settings `json:"items"`
+	Items           []Pomerium `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Settings{}, &SettingsList{})
+	SchemeBuilder.Register(&Pomerium{}, &PomeriumList{})
 }

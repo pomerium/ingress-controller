@@ -90,48 +90,48 @@ func TestFetchConstraints(t *testing.T) {
 
 	for _, tc := range []struct {
 		name  string
-		spec  icsv1.SettingsSpec
+		spec  icsv1.PomeriumSpec
 		check func(assert.TestingT, error, ...any) bool
 	}{
-		{"ok", icsv1.SettingsSpec{
+		{"ok", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
 			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
 			Secrets:          "pomerium/bootstrap-secrets",
 		}, assert.NoError},
-		{"bootstrap secret is mandatory", icsv1.SettingsSpec{
+		{"bootstrap secret is mandatory", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
 			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
 		}, assert.Error},
-		{"idp secret is mandatory", icsv1.SettingsSpec{
+		{"idp secret is mandatory", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
 			IdentityProvider: icsv1.IdentityProvider{},
 			Certificates:     []string{},
 			Secrets:          "pomerium/bootstrap-secrets",
 		}, assert.Error},
-		{"no empty storage", icsv1.SettingsSpec{
+		{"no empty storage", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
 			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
 			Secrets:          "pomerium/bootstrap-secrets",
 			Storage:          &icsv1.Storage{},
 		}, assert.Error},
-		{"redis: secret missing", icsv1.SettingsSpec{
+		{"redis: secret missing", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
 			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
 			Secrets:          "pomerium/bootstrap-secrets",
 			Storage:          &icsv1.Storage{Redis: &icsv1.RedisStorage{}},
 		}, assert.Error},
-		{"redis: secret present", icsv1.SettingsSpec{
+		{"redis: secret present", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
 			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
 			Secrets:          "pomerium/bootstrap-secrets",
 			Storage:          &icsv1.Storage{Redis: &icsv1.RedisStorage{Secret: "pomerium/redis"}},
 		}, assert.NoError},
-		{"redis: ca + tls", icsv1.SettingsSpec{
+		{"redis: ca + tls", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
 			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
@@ -142,21 +142,21 @@ func TestFetchConstraints(t *testing.T) {
 				TLSSecret: proto.String("pomerium/redis-tls"),
 			}},
 		}, assert.NoError},
-		{"postgres: secret missing", icsv1.SettingsSpec{
+		{"postgres: secret missing", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
 			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
 			Secrets:          "pomerium/bootstrap-secrets",
 			Storage:          &icsv1.Storage{Postgres: &icsv1.PostgresStorage{}},
 		}, assert.Error},
-		{"postgres: secret present", icsv1.SettingsSpec{
+		{"postgres: secret present", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
 			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
 			Secrets:          "pomerium/bootstrap-secrets",
 			Storage:          &icsv1.Storage{Postgres: &icsv1.PostgresStorage{Secret: "pomerium/postgres"}},
 		}, assert.NoError},
-		{"postgres: ca + tls", icsv1.SettingsSpec{
+		{"postgres: ca + tls", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
 			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
@@ -169,9 +169,9 @@ func TestFetchConstraints(t *testing.T) {
 		}, assert.NoError},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			mc.EXPECT().Get(ctx, settingsName, gomock.AssignableToTypeOf(new(icsv1.Settings))).
-				Do(func(_ context.Context, _ types.NamespacedName, dst *icsv1.Settings) {
-					*dst = icsv1.Settings{
+			mc.EXPECT().Get(ctx, settingsName, gomock.AssignableToTypeOf(new(icsv1.Pomerium))).
+				Do(func(_ context.Context, _ types.NamespacedName, dst *icsv1.Pomerium) {
+					*dst = icsv1.Pomerium{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      settingsName.Name,
 							Namespace: settingsName.Namespace,

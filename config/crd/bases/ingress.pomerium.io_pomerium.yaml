@@ -5,20 +5,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: settings.ingress.pomerium.io
+  name: pomerium.ingress.pomerium.io
 spec:
   group: ingress.pomerium.io
   names:
-    kind: Settings
-    listKind: SettingsList
-    plural: settings
-    singular: settings
+    kind: Pomerium
+    listKind: PomeriumList
+    plural: pomerium
+    singular: pomerium
   scope: Namespaced
   versions:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: Settings define runtime-configurable Pomerium settings that do
+        description: Pomerium define runtime-configurable Pomerium settings that do
           not fall into the category of deployment parameters
         properties:
           apiVersion:
@@ -34,7 +34,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: SettingsSpec defines the desired state of Settings
+            description: PomeriumSpec defines the desired state of Settings
             properties:
               authenticate:
                 description: Authenticate sets authenticate service parameters
@@ -135,7 +135,7 @@ spec:
                 description: Storage defines persistent storage for sessions and other
                   data it will use in-memory if none specified see https://www.pomerium.com/docs/topics/data-storage
                 properties:
-                  postgresql:
+                  postgres:
                     description: Postgres specifies PostgreSQL database connection
                       parameters
                     properties:
@@ -148,8 +148,8 @@ spec:
                         type: string
                       secret:
                         description: Secret specifies a name of a Secret that must
-                          contain `postgresql_connection_string` for the connection
-                          DSN format and parameters, see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
+                          contain `connection` key for the connection DSN format and
+                          parameters, see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
                           the following keywords are not allowed to be part of the
                           parameters, as they must be populated via `tlsCecret` and
                           `caSecret` fields
@@ -200,7 +200,7 @@ spec:
             - secrets
             type: object
           status:
-            description: SettingsStatus defines the observed state of Settings
+            description: PomeriumStatus defines the observed state of Settings
             properties:
               ingress:
                 additionalProperties:

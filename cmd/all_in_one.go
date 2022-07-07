@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/types"
 	runtime_ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -106,7 +107,7 @@ func (s *allCmd) exec(*cobra.Command, []string) error {
 func (s *allCmdOptions) getParam() (*allCmdParam, error) {
 	settings, err := util.ParseNamespacedName(s.GlobalSettings)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", globalSettings, err)
+		return nil, fmt.Errorf("--%s: %w", globalSettings, err)
 	}
 
 	if err = s.Validate(); err != nil {
@@ -198,6 +199,8 @@ func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 // runConfigController runs an integrated Ingress + Settings CRD controller
 // TODO: it must be updated in case of configuration change to reconfigure shared_secret
 func (s *allCmdParam) runConfigControllers(ctx context.Context, runner *pomerium_ctrl.Runner) error {
+	logger := log.FromContext(ctx).WithName("config-controller")
+	logger.Info("waiting for config to be available")
 	if err := runner.WaitForConfig(ctx); err != nil {
 		return fmt.Errorf("waiting for boostrap config: %w", err)
 	}
@@ -205,6 +208,7 @@ func (s *allCmdParam) runConfigControllers(ctx context.Context, runner *pomerium
 	if err != nil {
 		return fmt.Errorf("build controller: %w", err)
 	}
+	logger.Info("received config, starting up controllers")
 	return c.Run(ctx)
 }
 

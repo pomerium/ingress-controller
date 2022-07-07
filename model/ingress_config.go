@@ -77,7 +77,7 @@ func (s StorageSecrets) Validate() error {
 // Config represents global configuration
 type Config struct {
 	// Settings define global settings parameters
-	icsv1.Settings
+	icsv1.Pomerium
 	// Secrets are key secrets
 	Secrets *corev1.Secret
 	// Certs are fetched certs from settings.Certificates

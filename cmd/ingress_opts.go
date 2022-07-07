@@ -18,7 +18,7 @@ type ingressControllerOpts struct {
 	Namespaces              []string
 	DisableCertCheck        bool
 	UpdateStatusFromService string `validate:"required"`
-	GlobalSettings          string
+	GlobalSettings          string `validate:"required"`
 }
 
 const (
@@ -29,7 +29,7 @@ const (
 	debug                      = "debug"
 	updateStatusFromService    = "update-status-from-service"
 	disableCertCheck           = "disable-cert-check"
-	globalSettings             = "global-settings"
+	globalSettings             = "pomerium-config"
 )
 
 func (s *ingressControllerOpts) setupFlags(flags *pflag.FlagSet) {
