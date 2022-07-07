@@ -51,7 +51,7 @@ func (s *ingressControllerOpts) getGlobalSettings() (*types.NamespacedName, erro
 		return nil, nil
 	}
 
-	name, err := util.ParseNamespacedName(s.GlobalSettings)
+	name, err := util.ParseNamespacedName(s.GlobalSettings, util.WithClusterScope())
 	if err != nil {
 		return nil, fmt.Errorf("%s=%s: %w", globalSettings, s.GlobalSettings, err)
 	}

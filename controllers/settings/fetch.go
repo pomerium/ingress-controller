@@ -37,7 +37,7 @@ func fetchConfigCerts(ctx context.Context, client client.Client, cfg *model.Conf
 	}
 
 	for _, src := range cfg.Spec.Certificates {
-		name, err := util.ParseNamespacedName(src, util.WithDefaultNamespace(cfg.Namespace))
+		name, err := util.ParseNamespacedName(src)
 		if err != nil {
 			return fmt.Errorf("parse %s: %w", src, err)
 		}
@@ -54,7 +54,7 @@ func fetchConfigCerts(ctx context.Context, client client.Client, cfg *model.Conf
 func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Config) error {
 	get := func(src string) func() (*corev1.Secret, error) {
 		return func() (*corev1.Secret, error) {
-			name, err := util.ParseNamespacedName(src, util.WithDefaultNamespace(cfg.Namespace))
+			name, err := util.ParseNamespacedName(src)
 			if err != nil {
 				return nil, fmt.Errorf("parse %s: %w", src, err)
 			}

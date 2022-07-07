@@ -105,7 +105,7 @@ func (s *allCmd) exec(*cobra.Command, []string) error {
 }
 
 func (s *allCmdOptions) getParam() (*allCmdParam, error) {
-	settings, err := util.ParseNamespacedName(s.GlobalSettings)
+	settings, err := util.ParseNamespacedName(s.GlobalSettings, util.WithClusterScope())
 	if err != nil {
 		return nil, fmt.Errorf("--%s: %w", globalSettings, err)
 	}

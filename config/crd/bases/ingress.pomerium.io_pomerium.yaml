@@ -13,7 +13,7 @@ spec:
     listKind: PomeriumList
     plural: pomerium
     singular: pomerium
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1
     schema:
