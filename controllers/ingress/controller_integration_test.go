@@ -387,48 +387,6 @@ func (s *ControllerTestSuite) TestIngressClass() {
 
 }
 
-func (s *ControllerTestSuite) TestDefaultCert() {
-	ctx := context.Background()
-	s.createTestController(ctx)
-
-	to := s.initialTestObjects("default")
-	to.Ingress.Spec.TLS[0].SecretName = ""
-	// ingress should not be picked up unless there's a certificate
-	s.NoError(s.Client.Create(ctx, to.Secret))
-	s.NoError(s.Client.Create(ctx, to.Ingress))
-	s.NoError(s.Client.Create(ctx, to.Endpoints))
-	s.NoError(s.Client.Create(ctx, to.Service))
-	s.NoError(s.Client.Create(ctx, to.IngressClass))
-	s.NeverEqual(func(ic *model.IngressConfig) string {
-		return cmp.Diff(to.Ingress, ic.Ingress, cmpOpts...)
-	})
-
-	to.IngressClass.Annotations = map[string]string{
-		fmt.Sprintf("%s/%s", ingress_controller.DefaultAnnotationPrefix, ingress_controller.DefaultCertSecretKey): fmt.Sprintf("%s/%s", to.Secret.Namespace, to.Secret.Name),
-	}
-	s.NoError(s.Client.Update(ctx, to.IngressClass))
-	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(to.Ingress, ic.Ingress, cmpOpts...)
-	}, "set default cert")
-}
-
-func (s *ControllerTestSuite) TestSkipCertCheck() {
-	ctx := context.Background()
-	s.createTestController(ctx, ingress_controller.WithDisableCertCheck())
-
-	to := s.initialTestObjects("default")
-	to.Ingress.Spec.TLS[0].SecretName = ""
-	s.NoError(s.Client.Create(ctx, to.Secret))
-	s.NoError(s.Client.Create(ctx, to.Ingress))
-	s.NoError(s.Client.Create(ctx, to.Endpoints))
-	s.NoError(s.Client.Create(ctx, to.Service))
-	s.NoError(s.Client.Create(ctx, to.IngressClass))
-
-	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(to.Ingress, ic.Ingress, cmpOpts...)
-	}, "set ingress with no certificate")
-}
-
 // TestDependencies verifies that when objects the Ingress depends on change,
 // a configuration reconciliation would happen
 func (s *ControllerTestSuite) TestDependencies() {
