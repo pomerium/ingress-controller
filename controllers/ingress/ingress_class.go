@@ -5,11 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -17,12 +15,8 @@ const (
 	// IngressClassAnnotationKey although deprecated, still may be used by the HTTP solvers even for v1 Ingress resources
 	// see https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/#deprecating-the-ingress-class-annotation
 	IngressClassAnnotationKey = "kubernetes.io/ingress.class"
-
 	// IngressClassDefaultAnnotationKey see https://kubernetes.io/docs/concepts/services-networking/ingress/#default-ingress-class
 	IngressClassDefaultAnnotationKey = "ingressclass.kubernetes.io/is-default-class"
-	// DefaultCertSecretKey is an annotation that may be added to ingressClass
-	// nolint:gosec
-	DefaultCertSecretKey = "default-cert-secret"
 )
 
 type ingressManageResult struct {
@@ -105,14 +99,6 @@ func getAnnotation(dict map[string]string, key string) (string, error) {
 	return txt, nil
 }
 
-func namespacedName(name string) (*types.NamespacedName, error) {
-	parts := strings.Split(name, "/")
-	if len(parts) != 2 {
-		return nil, errors.New("should be in namespace/name format")
-	}
-	return &types.NamespacedName{Namespace: parts[0], Name: parts[1]}, nil
-}
-
 func isDefaultIngressClass(ic *networkingv1.IngressClass) (bool, error) {
 	txt, err := getAnnotation(ic.Annotations, IngressClassDefaultAnnotationKey)
 	if err != nil {
@@ -123,12 +109,4 @@ func isDefaultIngressClass(ic *networkingv1.IngressClass) (bool, error) {
 		return false, fmt.Errorf("invalid value for annotation %s: %w", IngressClassDefaultAnnotationKey, err)
 	}
 	return val, nil
-}
-
-func getDefaultCertSecretName(ic *networkingv1.IngressClass, prefix string) (*types.NamespacedName, error) {
-	txt, err := getAnnotation(ic.Annotations, fmt.Sprintf("%s/%s", prefix, DefaultCertSecretKey))
-	if err != nil {
-		return nil, err
-	}
-	return namespacedName(txt)
 }
