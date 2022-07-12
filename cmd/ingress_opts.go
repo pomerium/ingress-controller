@@ -16,9 +16,8 @@ type ingressControllerOpts struct {
 	ClassName               string `validate:"required"`
 	AnnotationPrefix        string `validate:"required"`
 	Namespaces              []string
-	DisableCertCheck        bool
-	UpdateStatusFromService string `validate:"required"`
-	GlobalSettings          string
+	UpdateStatusFromService string ``
+	GlobalSettings          string `validate:"required"`
 }
 
 const (
@@ -28,8 +27,7 @@ const (
 	sharedSecret               = "shared-secret"
 	debug                      = "debug"
 	updateStatusFromService    = "update-status-from-service"
-	disableCertCheck           = "disable-cert-check"
-	globalSettings             = "global-settings"
+	globalSettings             = "pomerium-config"
 )
 
 func (s *ingressControllerOpts) setupFlags(flags *pflag.FlagSet) {
@@ -37,7 +35,6 @@ func (s *ingressControllerOpts) setupFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&s.AnnotationPrefix, annotationPrefix, ingress.DefaultAnnotationPrefix, "Ingress annotation prefix")
 	flags.StringSliceVar(&s.Namespaces, namespaces, nil, "namespaces to watch, or none to watch all namespaces")
 	flags.StringVar(&s.UpdateStatusFromService, updateStatusFromService, "", "update ingress status from given service status (pomerium-proxy)")
-	flags.BoolVar(&s.DisableCertCheck, disableCertCheck, false, "disables certificate check")
 	flags.StringVar(&s.GlobalSettings, globalSettings, "",
 		fmt.Sprintf("namespace/name to a resource of type %s/Settings", icsv1.GroupVersion.Group))
 }
@@ -51,7 +48,7 @@ func (s *ingressControllerOpts) getGlobalSettings() (*types.NamespacedName, erro
 		return nil, nil
 	}
 
-	name, err := util.ParseNamespacedName(s.GlobalSettings)
+	name, err := util.ParseNamespacedName(s.GlobalSettings, util.WithClusterScope())
 	if err != nil {
 		return nil, fmt.Errorf("%s=%s: %w", globalSettings, s.GlobalSettings, err)
 	}
@@ -63,9 +60,6 @@ func (s *ingressControllerOpts) getIngressControllerOptions() ([]ingress.Option,
 		ingress.WithNamespaces(s.Namespaces),
 		ingress.WithAnnotationPrefix(s.AnnotationPrefix),
 		ingress.WithControllerName(s.ClassName),
-	}
-	if s.DisableCertCheck {
-		opts = append(opts, ingress.WithDisableCertCheck())
 	}
 	if name, err := s.getGlobalSettings(); err != nil {
 		return nil, err

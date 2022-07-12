@@ -13,14 +13,32 @@ import (
 var (
 	// ErrInvalidNamespacedNameFormat namespaced name format error
 	ErrInvalidNamespacedNameFormat = errors.New("invalid format, expect name or namespace/name")
+	// ErrNamespaceExpected indicates that a namespace must be provided
+	ErrNamespaceExpected = errors.New("missing namespace for resource")
+	// ErrEmptyName indicates the resource must be non-empty
+	ErrEmptyName = errors.New("resource name cannot be blank")
 )
 
 // NamespacedNameOption customizes namespaced name parsing
 type NamespacedNameOption func(name *types.NamespacedName) error
 
+// WithNamespaceExpected will set namespace to provided default, if missing
+func WithNamespaceExpected() NamespacedNameOption {
+	return func(name *types.NamespacedName) error {
+		if name.Namespace == "" {
+			return ErrNamespaceExpected
+		}
+		return nil
+	}
+}
+
 // WithDefaultNamespace will set namespace to provided default, if missing
 func WithDefaultNamespace(namespace string) NamespacedNameOption {
 	return func(name *types.NamespacedName) error {
+		if namespace == "" {
+			return ErrNamespaceExpected
+		}
+
 		if name.Namespace == "" {
 			name.Namespace = namespace
 		}
@@ -31,6 +49,10 @@ func WithDefaultNamespace(namespace string) NamespacedNameOption {
 // WithMustNamespace enforces the namespace to match provided one
 func WithMustNamespace(namespace string) NamespacedNameOption {
 	return func(name *types.NamespacedName) error {
+		if namespace == "" {
+			return ErrNamespaceExpected
+		}
+
 		if name.Namespace == "" {
 			name.Namespace = namespace
 		} else if name.Namespace != namespace {
@@ -40,10 +62,28 @@ func WithMustNamespace(namespace string) NamespacedNameOption {
 	}
 }
 
+// WithClusterScope ensures the name is not namespaced
+func WithClusterScope() NamespacedNameOption {
+	return func(name *types.NamespacedName) error {
+		if name.Namespace != "" {
+			return fmt.Errorf("expected cluster-scoped name")
+		}
+		return nil
+	}
+}
+
 // ParseNamespacedName parses "namespace/name" or "name" format
 func ParseNamespacedName(name string, options ...NamespacedNameOption) (*types.NamespacedName, error) {
 	if len(options) > 1 {
 		return nil, errors.New("at most one option may be supplied")
+	}
+
+	if len(options) == 0 {
+		options = []NamespacedNameOption{WithNamespaceExpected()}
+	}
+
+	if name == "" {
+		return nil, ErrEmptyName
 	}
 
 	parts := strings.Split(name, "/")
@@ -64,7 +104,7 @@ func ParseNamespacedName(name string, options ...NamespacedNameOption) (*types.N
 		}
 	}
 
-	if dst.Name == "" || dst.Namespace == "" {
+	if dst.Name == "" {
 		return nil, ErrInvalidNamespacedNameFormat
 	}
 

@@ -13,20 +13,20 @@ metadata:
   creationTimestamp: null
   labels:
     app.kubernetes.io/name: pomerium
-  name: settings.ingress.pomerium.io
+  name: pomerium.ingress.pomerium.io
 spec:
   group: ingress.pomerium.io
   names:
-    kind: Settings
-    listKind: SettingsList
-    plural: settings
-    singular: settings
-  scope: Namespaced
+    kind: Pomerium
+    listKind: PomeriumList
+    plural: pomerium
+    singular: pomerium
+  scope: Cluster
   versions:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: Settings define runtime-configurable Pomerium settings that do
+        description: Pomerium define runtime-configurable Pomerium settings that do
           not fall into the category of deployment parameters
         properties:
           apiVersion:
@@ -42,7 +42,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: SettingsSpec defines the desired state of Settings
+            description: PomeriumSpec defines the desired state of Settings
             properties:
               authenticate:
                 description: Authenticate sets authenticate service parameters
@@ -143,7 +143,7 @@ spec:
                 description: Storage defines persistent storage for sessions and other
                   data it will use in-memory if none specified see https://www.pomerium.com/docs/topics/data-storage
                 properties:
-                  postgresql:
+                  postgres:
                     description: Postgres specifies PostgreSQL database connection
                       parameters
                     properties:
@@ -156,8 +156,8 @@ spec:
                         type: string
                       secret:
                         description: Secret specifies a name of a Secret that must
-                          contain `postgresql_connection_string` for the connection
-                          DSN format and parameters, see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
+                          contain `connection` key for the connection DSN format and
+                          parameters, see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
                           the following keywords are not allowed to be part of the
                           parameters, as they must be populated via `tlsCecret` and
                           `caSecret` fields
@@ -208,7 +208,7 @@ spec:
             - secrets
             type: object
           status:
-            description: SettingsStatus defines the observed state of Settings
+            description: PomeriumStatus defines the observed state of Settings
             properties:
               ingress:
                 additionalProperties:
@@ -246,8 +246,82 @@ kind: ServiceAccount
 metadata:
   labels:
     app.kubernetes.io/name: pomerium
+  name: pomerium-controller
+  namespace: pomerium
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
   name: pomerium-gen-secrets
   namespace: pomerium
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: pomerium-controller
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - services
+  - endpoints
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - services/status
+  - secrets/status
+  - endpoints/status
+  verbs:
+  - get
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  - ingressclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ingress.pomerium.io
+  resources:
+  - pomerium
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ingress.pomerium.io
+  resources:
+  - pomerium/status
+  verbs:
+  - get
+  - update
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -262,6 +336,21 @@ rules:
   - secrets
   verbs:
   - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: pomerium-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pomerium-controller
+subjects:
+- kind: ServiceAccount
+  name: pomerium-controller
+  namespace: pomerium
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -336,7 +425,7 @@ spec:
       containers:
       - args:
         - all-in-one
-        - --global-settings=$(POMERIUM_NAMESPACE)/settings
+        - --pomerium-config=global
         - --update-status-from-service=$(POMERIUM_NAMESPACE)/pomerium-proxy
         - --metrics-bind-address=$(POD_IP):9090
         env:

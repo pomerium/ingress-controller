@@ -9,8 +9,9 @@ import (
 // RootCommand generates default secrets
 func RootCommand() (*cobra.Command, error) {
 	root := cobra.Command{
-		Use:   "ingress-controller",
-		Short: "pomerium ingress controller",
+		Use:          "ingress-controller",
+		Short:        "pomerium ingress controller",
+		SilenceUsage: true,
 	}
 
 	for name, fn := range map[string]func() (*cobra.Command, error){

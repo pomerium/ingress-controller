@@ -42,7 +42,7 @@ rules:
   - apiGroups:
       - ingress.pomerium.io
     resources:
-      - settings
+      - pomerium
     verbs:
       - get
       - list
@@ -50,7 +50,7 @@ rules:
   - apiGroups:
       - ingress.pomerium.io
     resources:
-      - settings/status
+      - pomerium/status
     verbs:
       - get
       - update

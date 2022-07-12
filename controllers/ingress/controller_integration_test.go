@@ -204,7 +204,7 @@ func (s *ControllerTestSuite) deleteAll() {
 		s.NoError(s.Client.Delete(ctx, &secrets.Items[i]))
 	}
 
-	settings := new(icsv1.SettingsList)
+	settings := new(icsv1.PomeriumList)
 	s.NoError(s.Client.List(ctx, settings))
 	for i := range settings.Items {
 		s.NoError(s.Client.Delete(ctx, &settings.Items[i]))
@@ -385,48 +385,6 @@ func (s *ControllerTestSuite) TestIngressClass() {
 		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
 	}, "default ingress class")
 
-}
-
-func (s *ControllerTestSuite) TestDefaultCert() {
-	ctx := context.Background()
-	s.createTestController(ctx)
-
-	to := s.initialTestObjects("default")
-	to.Ingress.Spec.TLS[0].SecretName = ""
-	// ingress should not be picked up unless there's a certificate
-	s.NoError(s.Client.Create(ctx, to.Secret))
-	s.NoError(s.Client.Create(ctx, to.Ingress))
-	s.NoError(s.Client.Create(ctx, to.Endpoints))
-	s.NoError(s.Client.Create(ctx, to.Service))
-	s.NoError(s.Client.Create(ctx, to.IngressClass))
-	s.NeverEqual(func(ic *model.IngressConfig) string {
-		return cmp.Diff(to.Ingress, ic.Ingress, cmpOpts...)
-	})
-
-	to.IngressClass.Annotations = map[string]string{
-		fmt.Sprintf("%s/%s", ingress_controller.DefaultAnnotationPrefix, ingress_controller.DefaultCertSecretKey): fmt.Sprintf("%s/%s", to.Secret.Namespace, to.Secret.Name),
-	}
-	s.NoError(s.Client.Update(ctx, to.IngressClass))
-	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(to.Ingress, ic.Ingress, cmpOpts...)
-	}, "set default cert")
-}
-
-func (s *ControllerTestSuite) TestSkipCertCheck() {
-	ctx := context.Background()
-	s.createTestController(ctx, ingress_controller.WithDisableCertCheck())
-
-	to := s.initialTestObjects("default")
-	to.Ingress.Spec.TLS[0].SecretName = ""
-	s.NoError(s.Client.Create(ctx, to.Secret))
-	s.NoError(s.Client.Create(ctx, to.Ingress))
-	s.NoError(s.Client.Create(ctx, to.Endpoints))
-	s.NoError(s.Client.Create(ctx, to.Service))
-	s.NoError(s.Client.Create(ctx, to.IngressClass))
-
-	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(to.Ingress, ic.Ingress, cmpOpts...)
-	}, "set ingress with no certificate")
 }
 
 // TestDependencies verifies that when objects the Ingress depends on change,
@@ -739,7 +697,7 @@ func (s *ControllerTestSuite) TestCustomSecrets() {
 func (s *ControllerTestSuite) TestSettingsStatusUpdate() {
 	ctx := context.Background()
 
-	name := types.NamespacedName{Namespace: "default", Name: "global-settings"}
+	name := types.NamespacedName{Namespace: "default", Name: "config"}
 	reporter := reporter.IngressSettingsReporter{
 		SettingsReporter: reporter.SettingsReporter{
 			NamespacedName: name,
@@ -751,9 +709,9 @@ func (s *ControllerTestSuite) TestSettingsStatusUpdate() {
 	s.NoError(s.Client.Create(ctx, to.Ingress))
 	ingressName := types.NamespacedName{Namespace: to.Ingress.Namespace, Name: to.Ingress.Name}
 
-	gs := icsv1.Settings{
+	gs := icsv1.Pomerium{
 		ObjectMeta: metav1.ObjectMeta{Name: name.Name, Namespace: name.Namespace},
-		Spec: icsv1.SettingsSpec{
+		Spec: icsv1.PomeriumSpec{
 			IdentityProvider: icsv1.IdentityProvider{
 				Provider: "oidc",
 				Secret:   "secret",

@@ -77,7 +77,7 @@ func (s *ControllerTestSuite) deleteAll() {
 		s.NoError(s.Client.Delete(ctx, &secrets.Items[i]))
 	}
 
-	settings := new(icsv1.SettingsList)
+	settings := new(icsv1.PomeriumList)
 	s.NoError(s.Client.List(ctx, settings))
 	for i := range settings.Items {
 		s.NoError(s.Client.Delete(ctx, &settings.Items[i]))
@@ -119,33 +119,33 @@ func (s *ControllerTestSuite) TestValidation() {
 	ctx := context.Background()
 	for i, tc := range []struct {
 		name        string
-		spec        icsv1.SettingsSpec
+		spec        icsv1.PomeriumSpec
 		expectError bool
 	}{
-		{"empty spec", icsv1.SettingsSpec{}, true},
-		{"ok spec", icsv1.SettingsSpec{
+		{"empty spec", icsv1.PomeriumSpec{}, true},
+		{"ok spec", icsv1.PomeriumSpec{
 			Authenticate:     auth,
 			IdentityProvider: idp,
 			Secrets:          "pomerium/default-secrets",
 		}, false},
-		{"secrets required", icsv1.SettingsSpec{
+		{"secrets required", icsv1.PomeriumSpec{
 			Authenticate:     auth,
 			IdentityProvider: idp,
 		}, true},
-		{"invalid auth url", icsv1.SettingsSpec{
+		{"invalid auth url", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{URL: "hostname"},
 			IdentityProvider: idp,
 			Secrets:          "pomerium/default-secrets",
 		}, true},
-		{"auth required", icsv1.SettingsSpec{
+		{"auth required", icsv1.PomeriumSpec{
 			IdentityProvider: idp,
 			Secrets:          "pomerium/default-secrets",
 		}, true},
-		{"idp required", icsv1.SettingsSpec{
+		{"idp required", icsv1.PomeriumSpec{
 			Authenticate: auth,
 			Secrets:      "pomerium/default-secrets",
 		}, true},
-		{"idp secret required", icsv1.SettingsSpec{
+		{"idp secret required", icsv1.PomeriumSpec{
 			Authenticate: auth,
 			Secrets:      "pomerium/default-secrets",
 			IdentityProvider: icsv1.IdentityProvider{
@@ -153,7 +153,7 @@ func (s *ControllerTestSuite) TestValidation() {
 				Provider: "oidc",
 			},
 		}, true},
-		{"idp provider required", icsv1.SettingsSpec{
+		{"idp provider required", icsv1.PomeriumSpec{
 			Authenticate: auth,
 			IdentityProvider: icsv1.IdentityProvider{
 				Secret:   "secret",
@@ -161,7 +161,7 @@ func (s *ControllerTestSuite) TestValidation() {
 			},
 			Secrets: "pomerium/default-secrets",
 		}, true},
-		{"idp provider enum", icsv1.SettingsSpec{
+		{"idp provider enum", icsv1.PomeriumSpec{
 			Authenticate: auth,
 			IdentityProvider: icsv1.IdentityProvider{
 				Secret:   "secret",
@@ -171,7 +171,7 @@ func (s *ControllerTestSuite) TestValidation() {
 		}, true},
 	} {
 		s.T().Run(tc.name, func(t *testing.T) {
-			err := s.Client.Create(ctx, &icsv1.Settings{
+			err := s.Client.Create(ctx, &icsv1.Pomerium{
 				ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("settings-%d", i), Namespace: "default"},
 				Spec:       tc.spec,
 			})
@@ -189,7 +189,7 @@ func (s *ControllerTestSuite) TestDependencies() {
 	defer cancel()
 
 	mc := controllers_mock.NewMockConfigReconciler(gomock.NewController(s.T()))
-	name := types.NamespacedName{Namespace: "pomerium", Name: "settings"}
+	name := types.NamespacedName{Name: "settings"}
 
 	s.createTestController(ctx, mc, name)
 }

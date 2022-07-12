@@ -63,10 +63,6 @@ type ingressController struct {
 	serviceKind      string
 	settingsKind     string
 
-	// disableCertCheck indicates that pomerium is deployed with insecure_server option
-	// no checks should be applied for the cert check
-	disableCertCheck bool
-
 	initComplete *once
 }
 
@@ -123,15 +119,6 @@ func WithWatchSettings(name types.NamespacedName) Option {
 	}
 }
 
-// WithDisableCertCheck indicates that Pomerium this ingress controller is communicating with
-// is currently configured with insecure_server option
-// that would disable certificate checks
-func WithDisableCertCheck() Option {
-	return func(ic *ingressController) {
-		ic.disableCertCheck = true
-	}
-}
-
 // SetupWithManager sets up the controller with the Manager
 func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 	c, err := ctrl.NewControllerManagedBy(mgr).
@@ -152,7 +139,7 @@ func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 		{&corev1.Secret{}, &r.secretKind, r.getDependantIngressFn},
 		{&corev1.Service{}, &r.serviceKind, r.getDependantIngressFn},
 		{&corev1.Endpoints{}, &r.endpointsKind, r.getDependantIngressFn},
-		{&icsv1.Settings{}, &r.settingsKind, nil},
+		{&icsv1.Pomerium{}, &r.settingsKind, nil},
 	} {
 		gvk, err := apiutil.GVKForObject(o.Object, r.Scheme)
 		if err != nil {
