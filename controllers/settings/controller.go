@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,16 +22,14 @@ import (
 )
 
 type settingsController struct {
-	// name of a settings object to watch, all others would be ignored
-	name types.NamespacedName
+	// key kind/name of a settings object to watch, all others would be ignored
+	key model.Key
 	// Client is k8s apiserver client
 	client.Client
 	// PomeriumReconciler updates Pomerium service configuration
 	pomerium.ConfigReconciler
 	// Registry is used to keep track of dependencies between objects
 	model.Registry
-	// Scheme keeps track of registered object types and kinds
-	*runtime.Scheme
 	// MultiPomeriumStatusReporter is used to report when settings are updated
 	reporter.MultiPomeriumStatusReporter
 }
@@ -47,11 +45,15 @@ func NewSettingsController(
 		return fmt.Errorf("pomerium CRD is cluster-scoped")
 	}
 
+	key := model.ObjectKey(&icsv1.Pomerium{ObjectMeta: metav1.ObjectMeta{
+		Name: name.Name, Namespace: name.Namespace,
+	}}, mgr.GetScheme())
+	r := model.NewRegistry()
+
 	stc := &settingsController{
-		name:             name,
-		Client:           mgr.GetClient(),
-		Scheme:           mgr.GetScheme(),
-		Registry:         model.NewRegistry(),
+		key:              key,
+		Client:           deps.NewClient(mgr.GetClient(), r, key),
+		Registry:         r,
 		ConfigReconciler: pcr,
 		MultiPomeriumStatusReporter: []reporter.PomeriumReporter{
 			&reporter.SettingsEventReporter{
@@ -88,9 +90,9 @@ func NewSettingsController(
 			return fmt.Errorf("cannot get kind: %w", err)
 		}
 
-		if err := c.Watch(
-			&source.Kind{Type: o.Object},
-			handler.EnqueueRequestsFromMapFunc(o.mapFn(stc.Registry, gvk.Kind))); err != nil {
+		err = c.Watch(&source.Kind{Type: o.Object},
+			handler.EnqueueRequestsFromMapFunc(o.mapFn(stc.Registry, gvk.Kind)))
+		if err != nil {
 			return fmt.Errorf("watching %s: %w", gvk.String(), err)
 		}
 	}
@@ -99,23 +101,26 @@ func NewSettingsController(
 
 // Reconcile syncs Settings CRD with pomerium databroker
 func (c *settingsController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	if req.NamespacedName != c.name {
-		log.FromContext(ctx).Info("reconcile", "got", req.NamespacedName, "want", c.name)
+	logger := log.FromContext(ctx).V(1)
+	if req.NamespacedName != c.key.NamespacedName {
+		logger.Info("ignoring", "got", req.NamespacedName, "want", c.key.NamespacedName)
 		return ctrl.Result{}, nil
 	}
 
-	cfg, err := FetchConfig(ctx, c.Client, c.name)
+	logger.Info("reconciling... ", "registry", c.Registry)
+	c.Registry.DeleteCascade(c.key)
+
+	cfg, err := FetchConfig(ctx, c.Client, c.key.NamespacedName)
+	logger.Info("fetch", "deps", c.Registry.Deps(c.key), "error", err)
 	if err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("get settings: %w", err)
 	}
 
-	c.updateDependencies(cfg)
-
-	updated, err := c.SetConfig(ctx, cfg)
+	changed, err := c.SetConfig(ctx, cfg)
 	if err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("set config: %w", err)
 	}
-	if updated {
+	if changed {
 		c.SettingsUpdated(ctx)
 	}
 
