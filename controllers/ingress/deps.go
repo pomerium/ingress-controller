@@ -15,26 +15,6 @@ import (
 	"github.com/pomerium/ingress-controller/model"
 )
 
-func (r *ingressController) updateDependencies(ic *model.IngressConfig) {
-	ingKey := model.ObjectKey(ic.Ingress, r.Scheme)
-	r.DeleteCascade(ingKey)
-
-	for _, s := range ic.Secrets {
-		r.Add(ingKey, model.ObjectKey(s, r.Scheme))
-	}
-	for _, s := range ic.Services {
-		k := model.ObjectKey(s, r.Scheme)
-		r.Add(ingKey, k)
-		k.Kind = r.endpointsKind
-		r.Add(ingKey, k)
-	}
-
-	if r.updateStatusFromService != nil {
-		r.Add(ingKey, model.Key{NamespacedName: *r.updateStatusFromService, Kind: r.serviceKind})
-	}
-
-}
-
 // getDependantIngressFn returns for a given object kind (i.e. a secret) a function
 // that would return ingress objects keys that depend from this object
 func (r *ingressController) getDependantIngressFn(kind string) handler.MapFunc {

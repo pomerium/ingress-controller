@@ -134,7 +134,6 @@ func (r *ingressController) upsertIngress(ctx context.Context, ic *model.Ingress
 		return ctrl.Result{Requeue: true}, fmt.Errorf("upsert: %w", err)
 	}
 
-	r.updateDependencies(ic)
 	if changed {
 		r.IngressReconciled(ctx, ic.Ingress)
 	}
