@@ -9,21 +9,36 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/pomerium/ingress-controller/controllers/deps"
 	"github.com/pomerium/ingress-controller/model"
 )
 
-func (r *ingressController) fetchIngress(
-	ctx context.Context,
-	ingress *networkingv1.Ingress,
-) (*model.IngressConfig, error) {
-	key := model.ObjectKey(ingress, r.Client.Scheme())
+func (r *ingressController) fetchIngress(ctx context.Context, ingress *networkingv1.Ingress) (*model.IngressConfig, error) {
+	key := model.ObjectKey(ingress, r.Scheme)
 	r.DeleteCascade(key)
+	defer func() {
+		log.FromContext(ctx).V(1).Info("current dependencies", "deps", r.Deps(key))
+	}()
 
 	client := deps.NewClient(r.Client, r.Registry, key)
 
-	secrets, err := fetchIngressSecrets(ctx, client, ingress, r.annotationPrefix)
+	if r.updateStatusFromService != nil {
+		_ = client.Get(ctx, *r.updateStatusFromService, new(corev1.Service))
+	}
+
+	return fetchIngress(ctx, client, r.Registry, ingress, r.annotationPrefix)
+}
+
+func fetchIngress(
+	ctx context.Context,
+	client client.Client,
+	registry model.Registry,
+	ingress *networkingv1.Ingress,
+	annotationPrefix string,
+) (*model.IngressConfig, error) {
+	secrets, err := fetchIngressSecrets(ctx, client, ingress, annotationPrefix)
 	if err != nil {
 		return nil, fmt.Errorf("tls: %w", err)
 	}
@@ -34,7 +49,7 @@ func (r *ingressController) fetchIngress(
 	}
 
 	return &model.IngressConfig{
-		AnnotationPrefix: r.annotationPrefix,
+		AnnotationPrefix: annotationPrefix,
 		Ingress:          ingress,
 		Endpoints:        endpoints,
 		Secrets:          secrets,
