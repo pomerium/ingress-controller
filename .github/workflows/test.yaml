@@ -23,7 +23,7 @@ jobs:
           python-version: "3.x"
       - name: install kustomize
         run: make kustomize
-      - uses: pre-commit/action@876132a3c26aa072b09eab6c5395b4749eeb2435 # pin@release
+      - uses: pre-commit/action@4835dd97624f38176d7f9f87fcce089836248ee9 # pin@release
         with:
           extra_args: --show-diff-on-failure --from-ref ${{
             github.event.pull_request.base.sha }} --to-ref ${{
