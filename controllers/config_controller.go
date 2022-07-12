@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 
 	"github.com/pomerium/ingress-controller/controllers/ingress"
+	"github.com/pomerium/ingress-controller/controllers/reporter"
 	"github.com/pomerium/ingress-controller/controllers/settings"
 	"github.com/pomerium/ingress-controller/pomerium"
 )
@@ -94,7 +95,7 @@ func (c *Controller) RunLeased(ctx context.Context) error {
 		return fmt.Errorf("unable to create controller manager: %w", err)
 	}
 
-	if err = ingress.NewIngressController(mgr, c.Reconciler, c.IngressCtrlOpts...); err != nil {
+	if err = ingress.NewIngressController(mgr, c.Reconciler, c.getIngressOpts(mgr)...); err != nil {
 		return fmt.Errorf("create ingress controller: %w", err)
 	}
 	if c.GlobalSettings != nil {
@@ -108,4 +109,24 @@ func (c *Controller) RunLeased(ctx context.Context) error {
 		return fmt.Errorf("running controller: %w", err)
 	}
 	return nil
+}
+
+func (c *Controller) getIngressOpts(mgr runtime_ctrl.Manager) []ingress.Option {
+	if c.GlobalSettings == nil {
+		return c.IngressCtrlOpts
+	}
+
+	rep := reporter.SettingsReporter{
+		NamespacedName: *c.GlobalSettings,
+		Client:         mgr.GetClient(),
+	}
+
+	return append(c.IngressCtrlOpts, ingress.WithIngressStatusReporter(
+		&reporter.IngressSettingsReporter{
+			SettingsReporter: rep,
+		},
+		&reporter.IngressSettingsEventReporter{
+			EventRecorder:    mgr.GetEventRecorderFor("pomerium"),
+			SettingsReporter: rep,
+		}))
 }

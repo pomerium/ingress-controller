@@ -38,7 +38,7 @@ type ingressController struct {
 	client.Client
 
 	// PomeriumReconciler updates Pomerium service configuration
-	pomerium.Reconciler
+	pomerium.IngressReconciler
 	// Registry keeps track of dependencies between k8s objects
 	model.Registry
 
@@ -77,9 +77,9 @@ func WithGlobalSettings(name types.NamespacedName) Option {
 }
 
 // WithIngressStatusReporter adds ingress status reporting option, multiple may be added
-func WithIngressStatusReporter(rep reporter.IngressStatusReporter) Option {
+func WithIngressStatusReporter(reporters ...reporter.IngressStatusReporter) Option {
 	return func(ic *ingressController) {
-		ic.MultiIngressStatusReporter = append(ic.MultiIngressStatusReporter, rep)
+		ic.MultiIngressStatusReporter = append(ic.MultiIngressStatusReporter, reporters...)
 	}
 }
 

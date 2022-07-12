@@ -59,7 +59,7 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 		ics = append(ics, ic)
 	}
 
-	_, err = r.Reconciler.Set(ctx, ics, cfg)
+	_, err = r.IngressReconciler.Set(ctx, ics, cfg)
 	for i := range ingressList.Items {
 		ingress := &ingressList.Items[i]
 		if err != nil {
@@ -110,7 +110,7 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func (r *ingressController) deleteIngress(ctx context.Context, name types.NamespacedName, reason string) (ctrl.Result, error) {
-	if err := r.Reconciler.Delete(ctx, name); err != nil {
+	if err := r.IngressReconciler.Delete(ctx, name); err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("deleting ingress: %w", err)
 	}
 	r.IngressDeleted(ctx, name, reason)
@@ -128,7 +128,7 @@ func (r *ingressController) upsertIngress(ctx context.Context, ic *model.Ingress
 		}
 	}
 
-	changed, err := r.Reconciler.Upsert(ctx, ic, cfg)
+	changed, err := r.IngressReconciler.Upsert(ctx, ic, cfg)
 	if err != nil {
 		r.IngressNotReconciled(ctx, ic.Ingress, err)
 		return ctrl.Result{Requeue: true}, fmt.Errorf("upsert: %w", err)

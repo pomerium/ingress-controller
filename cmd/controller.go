@@ -35,7 +35,7 @@ type controllerCmd struct {
 	debug bool
 
 	cobra.Command
-	pomerium.Reconciler
+	pomerium.IngressReconciler
 }
 
 // ControllerCommand creates command to run ingress controller

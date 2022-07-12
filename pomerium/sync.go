@@ -30,7 +30,7 @@ const (
 )
 
 var (
-	_ = Reconciler(new(DataBrokerReconciler))
+	_ = IngressReconciler(new(DataBrokerReconciler))
 )
 
 // DataBrokerReconciler updates pomerium configuration
