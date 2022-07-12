@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -13,6 +14,10 @@ import (
 type Key struct {
 	Kind string
 	types.NamespacedName
+}
+
+func (k *Key) String() string {
+	return fmt.Sprintf("%s:%s/%s", k.Kind, k.Namespace, k.Name)
 }
 
 // ObjectKey returns a registry key for a given kubernetes object
@@ -59,6 +64,10 @@ func NewRegistry() Registry {
 
 // Add registers dependency between x and y
 func (r *registry) Add(x, y Key) {
+	if x == y {
+		return
+	}
+
 	r.Lock()
 	defer r.Unlock()
 

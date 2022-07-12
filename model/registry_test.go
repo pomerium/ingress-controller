@@ -14,6 +14,7 @@ func TestRegistry(t *testing.T) {
 	c := Key{Kind: "c", NamespacedName: types.NamespacedName{Name: "c", Namespace: "c"}}
 	d := Key{Kind: "d", NamespacedName: types.NamespacedName{Name: "d", Namespace: "d"}}
 
+	r.Add(a, a)
 	r.Add(a, b)
 	r.Add(a, c)
 	r.Add(c, d)

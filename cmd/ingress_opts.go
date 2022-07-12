@@ -16,7 +16,7 @@ type ingressControllerOpts struct {
 	ClassName               string `validate:"required"`
 	AnnotationPrefix        string `validate:"required"`
 	Namespaces              []string
-	UpdateStatusFromService string `validate:"required"`
+	UpdateStatusFromService string ``
 	GlobalSettings          string `validate:"required"`
 }
 
