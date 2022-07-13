@@ -15,7 +15,7 @@ require (
 	github.com/gosimple/slug v1.12.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/iancoleman/strcase v0.2.0
-	github.com/open-policy-agent/opa v0.42.1
+	github.com/open-policy-agent/opa v0.42.2
 	github.com/pomerium/csrf v1.7.0
 	github.com/pomerium/pomerium v0.17.1-0.20220630145245-f67b33484bcb
 	github.com/sergi/go-diff v1.2.0
