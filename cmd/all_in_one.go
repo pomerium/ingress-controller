@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 
 	validate "github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
@@ -242,10 +243,18 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 
 	client := databroker.NewDataBrokerServiceClient(conn)
 	c := &controllers.Controller{
-		Reconciler: pomerium.WithLock(&pomerium.DataBrokerReconciler{
+		IngressReconciler: &pomerium.DataBrokerReconciler{
+			ConfigID:                pomerium.IngressControllerConfigID,
 			DataBrokerServiceClient: client,
 			DebugDumpConfigDiff:     s.dumpConfigDiff,
-		}),
+			RemoveUnreferencedCerts: true,
+		},
+		ConfigReconciler: &pomerium.DataBrokerReconciler{
+			ConfigID:                pomerium.SharedSettingsConfigID,
+			DataBrokerServiceClient: client,
+			DebugDumpConfigDiff:     s.dumpConfigDiff,
+			RemoveUnreferencedCerts: false,
+		},
 		DataBrokerServiceClient: client,
 		MgrOpts: runtime_ctrl.Options{
 			Scheme:             scheme,
@@ -254,6 +263,7 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 			LeaderElection:     false,
 		},
 		IngressCtrlOpts: s.ingressOpts,
+		GlobalSettings:  &s.settings,
 	}
 
 	return c, nil
@@ -280,7 +290,11 @@ func (s *allCmdParam) runBootstrapConfigController(ctx context.Context, reconcil
 	if err != nil {
 		return fmt.Errorf("manager: %w", err)
 	}
-	if err := settings.NewSettingsController(mgr, reconciler, s.settings); err != nil {
+	name := "bootstrap"
+	if host, err := os.Hostname(); err == nil {
+		name = fmt.Sprintf("%s-%s", name, host)
+	}
+	if err := settings.NewSettingsController(mgr, reconciler, s.settings, name); err != nil {
 		return fmt.Errorf("settings controller: %w", err)
 	}
 	return mgr.Start(ctx)

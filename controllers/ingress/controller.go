@@ -22,6 +22,7 @@ import (
 
 const (
 	initialReconciliationTimeout = time.Minute * 5
+	controllerName               = "pomerium-ingress"
 )
 
 // ingressController watches ingress and related resources for updates and reconciles with pomerium
@@ -38,7 +39,7 @@ type ingressController struct {
 	client.Client
 
 	// PomeriumReconciler updates Pomerium service configuration
-	pomerium.Reconciler
+	pomerium.IngressReconciler
 	// Registry keeps track of dependencies between k8s objects
 	model.Registry
 
@@ -77,9 +78,9 @@ func WithGlobalSettings(name types.NamespacedName) Option {
 }
 
 // WithIngressStatusReporter adds ingress status reporting option, multiple may be added
-func WithIngressStatusReporter(rep reporter.IngressStatusReporter) Option {
+func WithIngressStatusReporter(reporters ...reporter.IngressStatusReporter) Option {
 	return func(ic *ingressController) {
-		ic.MultiIngressStatusReporter = append(ic.MultiIngressStatusReporter, rep)
+		ic.MultiIngressStatusReporter = append(ic.MultiIngressStatusReporter, reporters...)
 	}
 }
 
@@ -122,6 +123,7 @@ func WithWatchSettings(name types.NamespacedName) Option {
 // SetupWithManager sets up the controller with the Manager
 func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 	c, err := ctrl.NewControllerManagedBy(mgr).
+		Named(controllerName).
 		For(&networkingv1.Ingress{}).
 		Build(r)
 	if err != nil {

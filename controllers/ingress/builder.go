@@ -21,19 +21,19 @@ const (
 // NewIngressController creates new controller runtime
 func NewIngressController(
 	mgr ctrl.Manager,
-	pcr pomerium.Reconciler,
+	pcr pomerium.IngressReconciler,
 	opts ...Option,
 ) error {
 	registry := model.NewRegistry()
 	ic := &ingressController{
-		annotationPrefix: DefaultAnnotationPrefix,
-		controllerName:   DefaultClassControllerName,
-		Reconciler:       pcr,
-		Client:           mgr.GetClient(),
-		Registry:         registry,
+		annotationPrefix:  DefaultAnnotationPrefix,
+		controllerName:    DefaultClassControllerName,
+		IngressReconciler: pcr,
+		Client:            mgr.GetClient(),
+		Registry:          registry,
 		MultiIngressStatusReporter: []reporter.IngressStatusReporter{
-			&reporter.IngressEventReporter{EventRecorder: mgr.GetEventRecorderFor("pomerium-ingress")},
-			&reporter.IngressLogReporter{V: 1, Name: "reconcile"},
+			&reporter.IngressEventReporter{EventRecorder: mgr.GetEventRecorderFor(controllerName)},
+			&reporter.IngressLogReporter{V: 1, Name: controllerName},
 		},
 	}
 	ic.initComplete = newOnce(ic.reconcileInitial)
@@ -41,20 +41,6 @@ func NewIngressController(
 		opt(ic)
 	}
 
-	if ic.globalSettings != nil {
-		sr := reporter.SettingsReporter{
-			NamespacedName: *ic.globalSettings,
-			Client:         ic.Client,
-		}
-		ic.MultiIngressStatusReporter = append(ic.MultiIngressStatusReporter,
-			&reporter.IngressSettingsReporter{
-				SettingsReporter: sr,
-			},
-			&reporter.IngressSettingsEventReporter{
-				EventRecorder:    mgr.GetEventRecorderFor("pomerium"),
-				SettingsReporter: sr,
-			})
-	}
 	if err := ic.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create controller: %w", err)
 	}
