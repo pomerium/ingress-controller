@@ -40,6 +40,7 @@ func NewSettingsController(
 	mgr ctrl.Manager,
 	pcr pomerium.ConfigReconciler,
 	name types.NamespacedName,
+	controllerName string,
 ) error {
 	if name.Namespace != "" {
 		return fmt.Errorf("pomerium CRD is cluster-scoped")
@@ -57,7 +58,7 @@ func NewSettingsController(
 		ConfigReconciler: pcr,
 		MultiPomeriumStatusReporter: []reporter.PomeriumReporter{
 			&reporter.SettingsEventReporter{
-				EventRecorder: mgr.GetEventRecorderFor("pomerium"),
+				EventRecorder: mgr.GetEventRecorderFor(controllerName),
 				SettingsReporter: reporter.SettingsReporter{
 					NamespacedName: name,
 					Client:         mgr.GetClient(),
@@ -74,7 +75,9 @@ func NewSettingsController(
 	}
 
 	c, err := ctrl.NewControllerManagedBy(mgr).
-		For(new(icsv1.Pomerium)).Build(stc)
+		Named(controllerName).
+		For(new(icsv1.Pomerium)).
+		Build(stc)
 	if err != nil {
 		return fmt.Errorf("build controller: %w", err)
 	}

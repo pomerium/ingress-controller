@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"k8s.io/apimachinery/pkg/types"
 	runtime_ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 
@@ -34,7 +35,8 @@ var (
 // Controller runs Pomerium configuration reconciliation controllers
 // for Ingress and Pomerium Settings CRD objects, if specified
 type Controller struct {
-	pomerium.Reconciler
+	pomerium.IngressReconciler
+	pomerium.ConfigReconciler
 	databroker.DataBrokerServiceClient
 	MgrOpts runtime_ctrl.Options
 	// IngressCtrlOpts are the ingress controller options
@@ -95,13 +97,15 @@ func (c *Controller) RunLeased(ctx context.Context) error {
 		return fmt.Errorf("unable to create controller manager: %w", err)
 	}
 
-	if err = ingress.NewIngressController(mgr, c.Reconciler, c.getIngressOpts(mgr)...); err != nil {
+	if err = ingress.NewIngressController(mgr, c.IngressReconciler, c.getIngressOpts(mgr)...); err != nil {
 		return fmt.Errorf("create ingress controller: %w", err)
 	}
 	if c.GlobalSettings != nil {
-		if err = settings.NewSettingsController(mgr, c.Reconciler, *c.GlobalSettings); err != nil {
+		if err = settings.NewSettingsController(mgr, c.ConfigReconciler, *c.GlobalSettings, "pomerium-crd"); err != nil {
 			return fmt.Errorf("create settings controller: %w", err)
 		}
+	} else {
+		log.FromContext(ctx).V(1).Info("no Pomerium CRD")
 	}
 
 	c.setRunning(true)
@@ -126,7 +130,7 @@ func (c *Controller) getIngressOpts(mgr runtime_ctrl.Manager) []ingress.Option {
 			SettingsReporter: rep,
 		},
 		&reporter.IngressSettingsEventReporter{
-			EventRecorder:    mgr.GetEventRecorderFor("pomerium"),
+			EventRecorder:    mgr.GetEventRecorderFor("pomerium-ingress"),
 			SettingsReporter: rep,
 		}))
 }

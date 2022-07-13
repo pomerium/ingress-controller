@@ -74,7 +74,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		return fmt.Errorf("waiting for pomerium bootstrap config: %w", err)
 	}
 
-	log.FromContext(ctx).Info("got bootstrap config, starting pomerium...", "cfg", r.src.GetConfig())
+	log.FromContext(ctx).V(1).Info("got bootstrap config, starting pomerium...", "cfg", r.src.GetConfig())
 
 	return pomerium_cmd.Run(ctx, r.src)
 }

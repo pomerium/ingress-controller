@@ -32,8 +32,8 @@ func NewIngressController(
 		Client:            mgr.GetClient(),
 		Registry:          registry,
 		MultiIngressStatusReporter: []reporter.IngressStatusReporter{
-			&reporter.IngressEventReporter{EventRecorder: mgr.GetEventRecorderFor("pomerium-ingress")},
-			&reporter.IngressLogReporter{V: 1, Name: "reconcile"},
+			&reporter.IngressEventReporter{EventRecorder: mgr.GetEventRecorderFor(controllerName)},
+			&reporter.IngressLogReporter{V: 1, Name: controllerName},
 		},
 	}
 	ic.initComplete = newOnce(ic.reconcileInitial)

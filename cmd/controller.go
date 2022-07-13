@@ -134,10 +134,18 @@ func (s *controllerCmd) buildController(ctx context.Context) (*controllers.Contr
 	client := databroker.NewDataBrokerServiceClient(conn)
 
 	c := &controllers.Controller{
-		Reconciler: pomerium.WithLock(&pomerium.DataBrokerReconciler{
+		IngressReconciler: &pomerium.DataBrokerReconciler{
+			ConfigID:                pomerium.IngressControllerConfigID,
 			DataBrokerServiceClient: client,
 			DebugDumpConfigDiff:     s.debug,
-		}),
+			RemoveUnreferencedCerts: true,
+		},
+		ConfigReconciler: &pomerium.DataBrokerReconciler{
+			ConfigID:                pomerium.SharedSettingsConfigID,
+			DataBrokerServiceClient: client,
+			DebugDumpConfigDiff:     s.debug,
+			RemoveUnreferencedCerts: false,
+		},
 		DataBrokerServiceClient: client,
 		MgrOpts: ctrl.Options{
 			Scheme:             scheme,

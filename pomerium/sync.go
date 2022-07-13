@@ -26,23 +26,31 @@ import (
 )
 
 const (
-	configID = "ingress-controller"
+	// IngressControllerConfigID is configuration containing routes and their certs
+	IngressControllerConfigID = "ingress-controller"
+	// SharedSettingsConfigID is configuration containing shared settings derived from the PomeriumCRD
+	SharedSettingsConfigID = "pomerium-crd"
 )
 
 var (
 	_ = IngressReconciler(new(DataBrokerReconciler))
+	_ = ConfigReconciler(new(DataBrokerReconciler))
 )
 
 // DataBrokerReconciler updates pomerium configuration
 // only one DataBrokerReconciler should be active
 // and its methods are not thread-safe
 type DataBrokerReconciler struct {
+	ConfigID string
 	databroker.DataBrokerServiceClient
+	// DebugDumpConfigDiff dumps a diff between current and new config being applied
 	DebugDumpConfigDiff bool
+	// RemoveUnreferencedCerts would strip any certs not matched by any of the Routes SNI
+	RemoveUnreferencedCerts bool
 }
 
 // Upsert should update or create the pomerium routes corresponding to this ingress
-func (r *DataBrokerReconciler) Upsert(ctx context.Context, ic *model.IngressConfig, global *model.Config) (bool, error) {
+func (r *DataBrokerReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
 	prev, err := r.getConfig(ctx)
 	if err != nil {
 		return false, fmt.Errorf("get config: %w", err)
@@ -54,15 +62,11 @@ func (r *DataBrokerReconciler) Upsert(ctx context.Context, ic *model.IngressConf
 	}
 	addCerts(next, ic.Secrets)
 
-	if err = applyConfig(next, global); err != nil {
-		return false, fmt.Errorf("settings: %w", err)
-	}
-
-	return r.saveConfig(ctx, prev, next, string(ic.Ingress.UID))
+	return r.saveConfig(ctx, prev, next, fmt.Sprintf("%s-%s", r.ConfigID, ic.Ingress.UID))
 }
 
 // Set merges existing config with the one generated for ingress
-func (r *DataBrokerReconciler) Set(ctx context.Context, ics []*model.IngressConfig, global *model.Config) (bool, error) {
+func (r *DataBrokerReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bool, error) {
 	logger := log.FromContext(ctx)
 
 	prev, err := r.getConfig(ctx)
@@ -84,11 +88,7 @@ func (r *DataBrokerReconciler) Set(ctx context.Context, ics []*model.IngressConf
 		next = cfg
 	}
 
-	if err = applyConfig(next, global); err != nil {
-		return false, fmt.Errorf("settings: %w", err)
-	}
-
-	return r.saveConfig(ctx, prev, next, "config")
+	return r.saveConfig(ctx, prev, next, r.ConfigID)
 }
 
 // SetConfig updates just the shared config settings
@@ -97,13 +97,13 @@ func (r *DataBrokerReconciler) SetConfig(ctx context.Context, cfg *model.Config)
 	if err != nil {
 		return false, fmt.Errorf("get config: %w", err)
 	}
-	next := proto.Clone(prev).(*pb.Config)
+	next := new(pb.Config)
 
 	if err = applyConfig(next, cfg); err != nil {
 		return false, fmt.Errorf("settings: %w", err)
 	}
 
-	return r.saveConfig(ctx, prev, next, "config")
+	return r.saveConfig(ctx, prev, next, r.ConfigID)
 }
 
 // Delete should delete pomerium routes corresponding to this ingress name
@@ -130,7 +130,7 @@ func (r *DataBrokerReconciler) DeleteAll(ctx context.Context) error {
 	if _, err := r.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Type:      any.GetTypeUrl(),
-			Id:        configID,
+			Id:        IngressControllerConfigID,
 			Data:      any,
 			DeletedAt: timestamppb.Now(),
 		}},
@@ -146,7 +146,7 @@ func (r *DataBrokerReconciler) getConfig(ctx context.Context) (*pb.Config, error
 	var hdr metadata.MD
 	resp, err := r.Get(ctx, &databroker.GetRequest{
 		Type: any.GetTypeUrl(),
-		Id:   configID,
+		Id:   r.ConfigID,
 	}, grpc.Header(&hdr))
 	if status.Code(err) == codes.NotFound {
 		return &pb.Config{}, nil
@@ -162,11 +162,12 @@ func (r *DataBrokerReconciler) getConfig(ctx context.Context) (*pb.Config, error
 }
 
 func (r *DataBrokerReconciler) saveConfig(ctx context.Context, prev, next *pb.Config, id string) (bool, error) {
-	logger := log.FromContext(ctx)
-
-	if err := removeUnusedCerts(next); err != nil {
-		return false, fmt.Errorf("removing unused certs: %w", err)
+	if r.RemoveUnreferencedCerts {
+		if err := removeUnusedCerts(next); err != nil {
+			return false, fmt.Errorf("removing unused certs: %w", err)
+		}
 	}
+
 	// https://kubernetes.io/docs/concepts/services-networking/ingress/#multiple-matches
 	// envoy matches according to the order routes are present in the configuration
 	sort.Sort(routeList(next.Routes))
@@ -175,6 +176,7 @@ func (r *DataBrokerReconciler) saveConfig(ctx context.Context, prev, next *pb.Co
 		return false, fmt.Errorf("config validation: %w", err)
 	}
 
+	logger := log.FromContext(ctx)
 	if proto.Equal(prev, next) {
 		logger.V(1).Info("no changes in the config")
 		return false, nil
@@ -184,7 +186,7 @@ func (r *DataBrokerReconciler) saveConfig(ctx context.Context, prev, next *pb.Co
 	if _, err := r.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
 			Type: any.GetTypeUrl(),
-			Id:   configID,
+			Id:   r.ConfigID,
 			Data: any,
 		}},
 	}); err != nil {

@@ -22,6 +22,7 @@ import (
 
 const (
 	initialReconciliationTimeout = time.Minute * 5
+	controllerName               = "pomerium-ingress"
 )
 
 // ingressController watches ingress and related resources for updates and reconciles with pomerium
@@ -122,6 +123,7 @@ func WithWatchSettings(name types.NamespacedName) Option {
 // SetupWithManager sets up the controller with the Manager
 func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 	c, err := ctrl.NewControllerManagedBy(mgr).
+		Named(controllerName).
 		For(&networkingv1.Ingress{}).
 		Build(r)
 	if err != nil {
