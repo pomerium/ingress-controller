@@ -14,6 +14,8 @@ spec:
           env:
             - name: TMPDIR
               value: "/tmp"
+            - name: XDG_CACHE_HOME
+              value: "/tmp"
           volumeMounts:
             - mountPath: "/tmp"
               name: tmp

@@ -127,13 +127,6 @@ spec:
                 - provider
                 - secret
                 type: object
-              namespaces:
-                description: Namespaces limits k8s namespaces that must be watched
-                  for Ingress objects
-                items:
-                  type: string
-                minItems: 0
-                type: array
               secrets:
                 description: Secrets references a Secret that must have the following
                   keys - shared_secret - cookie_secret - signing_key
@@ -212,28 +205,57 @@ spec:
             properties:
               ingress:
                 additionalProperties:
-                  description: RouteStatus provides high level status between the
-                    last observed ingress object and pomerium state
+                  description: ResourceStatus represents the outcome of the latest
+                    attempt to reconcile it with Pomerium.
                   properties:
                     error:
-                      description: Error is reason most recent reconciliation failed
-                        for the route
+                      description: Error that prevented latest observedGeneration
+                        to be synchronized with Pomerium.
                       type: string
-                    lastReconciled:
-                      description: LastReconciled timestamp indicates when the ingress
-                        resource was last synced with pomerium
+                    observedAt:
+                      description: ObservedAt is when last reconciliation attempt
+                        was made.
                       format: date-time
                       type: string
+                    observedGeneration:
+                      description: ObservedGeneration represents the .metadata.generation
+                        that was last presented to Pomerium.
+                      format: int64
+                      type: integer
                     reconciled:
-                      description: Reconciled is true if Ingress resource was fully
-                        synced with pomerium state
+                      description: Reconciled is whether this object generation was
+                        successfully synced with pomerium.
                       type: boolean
                   required:
                   - reconciled
                   type: object
+                description: Routes provide per-Ingress status.
                 type: object
-            required:
-            - ingress
+              settingsStatus:
+                description: settingsStatus represent most recent main configuration
+                  reconciliation status.
+                properties:
+                  error:
+                    description: Error that prevented latest observedGeneration to
+                      be synchronized with Pomerium.
+                    type: string
+                  observedAt:
+                    description: ObservedAt is when last reconciliation attempt was
+                      made.
+                    format: date-time
+                    type: string
+                  observedGeneration:
+                    description: ObservedGeneration represents the .metadata.generation
+                      that was last presented to Pomerium.
+                    format: int64
+                    type: integer
+                  reconciled:
+                    description: Reconciled is whether this object generation was
+                      successfully synced with pomerium.
+                    type: boolean
+                required:
+                - reconciled
+                type: object
             type: object
         type: object
     served: true
@@ -430,6 +452,8 @@ spec:
         - --metrics-bind-address=$(POD_IP):9090
         env:
         - name: TMPDIR
+          value: /tmp
+        - name: XDG_CACHE_HOME
           value: /tmp
         - name: POMERIUM_NAMESPACE
           valueFrom:

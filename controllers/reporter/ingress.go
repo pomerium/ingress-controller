@@ -3,15 +3,18 @@ package reporter
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
@@ -35,47 +38,67 @@ type IngressSettingsReporter struct {
 
 // IngressReconciled an ingress was successfully reconciled with Pomerium
 func (r *IngressSettingsReporter) IngressReconciled(ctx context.Context, ingress *networkingv1.Ingress) error {
-	settings, err := r.getSettings(ctx)
-	if err != nil {
-		return err
+	obj := icsv1.Pomerium{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: r.Name,
+		},
+		Status: icsv1.PomeriumStatus{
+			Routes: map[string]icsv1.ResourceStatus{
+				types.NamespacedName{Namespace: ingress.Namespace, Name: ingress.Name}.String(): {
+					ObservedGeneration: ingress.Generation,
+					ObservedAt:         metav1.Time{Time: time.Now()},
+					Reconciled:         true,
+					Error:              nil,
+				}},
+		},
 	}
-
-	settings.Status.Routes[types.NamespacedName{Namespace: ingress.Namespace, Name: ingress.Name}.String()] =
-		icsv1.RouteStatus{
-			LastReconciled: &metav1.Time{Time: time.Now()},
-			Reconciled:     true,
-		}
-
-	return r.Client.Status().Update(ctx, settings)
+	return r.Status().Patch(ctx, &obj, client.MergeFrom(&icsv1.Pomerium{ObjectMeta: obj.ObjectMeta}))
 }
 
 // IngressNotReconciled an updated ingress resource was received,
 // however it could not be reconciled with Pomerium due to errors
 func (r *IngressSettingsReporter) IngressNotReconciled(ctx context.Context, ingress *networkingv1.Ingress, reason error) error {
-	settings, err := r.getSettings(ctx)
-	if err != nil {
-		return err
+	obj := icsv1.Pomerium{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: r.Name,
+		},
+		Status: icsv1.PomeriumStatus{
+			Routes: map[string]icsv1.ResourceStatus{
+				types.NamespacedName{Namespace: ingress.Namespace, Name: ingress.Name}.String(): {
+					ObservedGeneration: ingress.Generation,
+					ObservedAt:         metav1.Time{Time: time.Now()},
+					Reconciled:         false,
+					Error:              proto.String(reason.Error()),
+				}},
+		},
 	}
-
-	key := types.NamespacedName{Namespace: ingress.Namespace, Name: ingress.Name}.String()
-	route := settings.Status.Routes[key]
-	route.Reconciled = false
-	route.Error = reason.Error()
-	settings.Status.Routes[key] = route
-
-	return r.Client.Status().Update(ctx, settings)
+	return r.Status().Patch(ctx, &obj, client.MergeFrom(&icsv1.Pomerium{ObjectMeta: obj.ObjectMeta}))
 }
 
 // IngressDeleted an ingress resource was deleted and Pomerium no longer serves it
 func (r *IngressSettingsReporter) IngressDeleted(ctx context.Context, name types.NamespacedName, reason string) error {
-	settings, err := r.getSettings(ctx)
+	patch, err := json.Marshal([]struct {
+		Op   string `json:"op"`
+		Path string `json:"path"`
+	}{{
+		Op: "remove",
+		// https://datatracker.ietf.org/doc/html/rfc6901#section-3
+		// "/"(forward slash) is encoded as "~1"
+		// ¯\_(ツ)_/¯
+		Path: fmt.Sprintf("/status/ingress/%s~1%s", name.Namespace, name.Name),
+	}})
 	if err != nil {
 		return err
 	}
 
-	delete(settings.Status.Routes, name.String())
-
-	return r.Client.Status().Update(ctx, settings)
+	return r.Status().Patch(ctx, &icsv1.Pomerium{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: r.Name,
+		},
+		Status: icsv1.PomeriumStatus{
+			Routes: map[string]icsv1.ResourceStatus{},
+		},
+	}, client.RawPatch(types.JSONPatchType, patch))
 }
 
 // IngressEventReporter reflects updates as events posted to the ingress
@@ -86,7 +109,8 @@ type IngressEventReporter struct {
 const (
 	reasonPomeriumConfigUpdated     = "Updated"
 	reasonPomeriumConfigUpdateError = "UpdateError"
-	msgPomeriumConfigUpdated        = "Pomerium configuration updated"
+	msgPomeriumConfigUpdated        = "config updated"
+	msgPomeriumConfigRejected       = "config rejected"
 )
 
 // IngressReconciled an ingress was successfully reconciled with Pomerium
@@ -114,11 +138,7 @@ type IngressSettingsEventReporter struct {
 }
 
 func (r *IngressSettingsEventReporter) postEvent(ctx context.Context, ingress types.NamespacedName, eventType, reason, msg string) error {
-	settings, err := r.getSettings(ctx)
-	if err != nil {
-		return err
-	}
-	r.EventRecorder.AnnotatedEventf(settings,
+	r.EventRecorder.AnnotatedEventf(&icsv1.Pomerium{ObjectMeta: metav1.ObjectMeta{Name: r.Name}},
 		map[string]string{"ingress": ingress.String()},
 		eventType, reason, "%s: %s", ingress.String(), msg)
 	return nil

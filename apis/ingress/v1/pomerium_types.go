@@ -178,11 +178,6 @@ type PomeriumSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	Secrets string `json:"secrets"`
 
-	// Namespaces limits k8s namespaces that must be watched for Ingress objects
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:MinItems=0
-	Namespaces []string `json:"namespaces"`
-
 	// Storage defines persistent storage for sessions and other data
 	// it will use in-memory if none specified
 	// see https://www.pomerium.com/docs/topics/data-storage
@@ -190,21 +185,25 @@ type PomeriumSpec struct {
 	Storage *Storage `json:"storage"`
 }
 
-//+kubebuilder:printcolumn:name="Last Reconciled",type=datetime,JSONPath=`.lastReconciled`
-
-// RouteStatus provides high level status between the last observed ingress object and pomerium state
-type RouteStatus struct {
-	// Reconciled is true if Ingress resource was fully synced with pomerium state
+// ResourceStatus represents the outcome of the latest attempt to reconcile it with Pomerium.
+type ResourceStatus struct {
+	// ObservedGeneration represents the .metadata.generation that was last presented to Pomerium.
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	// ObservedAt is when last reconciliation attempt was made.
+	ObservedAt metav1.Time `json:"observedAt,omitempty"`
+	// Reconciled is whether this object generation was successfully synced with pomerium.
 	Reconciled bool `json:"reconciled"`
-	// LastReconciled timestamp indicates when the ingress resource was last synced with pomerium
-	LastReconciled *metav1.Time `json:"lastReconciled,omitempty"`
-	// Error is reason most recent reconciliation failed for the route
-	Error string `json:"error,omitempty"`
+	// Error that prevented latest observedGeneration to be synchronized with Pomerium.
+	// +optional
+	Error *string `json:"error"`
 }
 
 // PomeriumStatus defines the observed state of Settings
 type PomeriumStatus struct {
-	Routes map[string]RouteStatus `json:"ingress"`
+	// Routes provide per-Ingress status.
+	Routes map[string]ResourceStatus `json:"ingress,omitempty"`
+	// settingsStatus represent most recent main configuration reconciliation status.
+	SettingsStatus *ResourceStatus `json:"settingsStatus,omitempty"`
 }
 
 //+kubebuilder:object:root=true

@@ -124,7 +124,7 @@ func (c *settingsController) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{Requeue: true}, fmt.Errorf("set config: %w", err)
 	}
 	if changed {
-		c.SettingsUpdated(ctx)
+		c.SettingsUpdated(ctx, &cfg.Pomerium)
 	}
 
 	return ctrl.Result{}, nil

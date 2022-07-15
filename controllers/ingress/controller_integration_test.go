@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap/zaptest"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -702,8 +703,12 @@ func (s *ControllerTestSuite) TestSettingsStatusUpdate() {
 	}
 
 	to := s.initialTestObjects("default")
-	s.NoError(s.Client.Create(ctx, to.Ingress))
 	ingressName := types.NamespacedName{Namespace: to.Ingress.Namespace, Name: to.Ingress.Name}
+	other := *to.Ingress
+	other.Name = "some-other"
+	otherName := types.NamespacedName{Namespace: other.Namespace, Name: other.Name}
+	s.NoError(s.Client.Create(ctx, to.Ingress))
+	s.NoError(s.Client.Create(ctx, &other))
 
 	gs := icsv1.Pomerium{
 		ObjectMeta: metav1.ObjectMeta{Name: name.Name, Namespace: name.Namespace},
@@ -720,29 +725,53 @@ func (s *ControllerTestSuite) TestSettingsStatusUpdate() {
 	}
 	s.NoError(s.Client.Create(ctx, &gs))
 
+	s.NoError(reporter.IngressReconciled(ctx, &other))
+
 	s.NoError(reporter.IngressNotReconciled(ctx, to.Ingress, errors.New("some error")))
 	s.NoError(s.Client.Get(ctx, name, &gs))
+	cOpts := cmpopts.IgnoreFields(icsv1.ResourceStatus{}, "ObservedAt")
 	assert.Empty(s.T(), cmp.Diff(
-		gs.Status.Routes[ingressName.String()],
-		icsv1.RouteStatus{
-			Reconciled: false,
-			Error:      "some error",
+		gs.Status.Routes,
+		map[string]icsv1.ResourceStatus{
+			ingressName.String(): {
+				ObservedGeneration: to.Ingress.Generation,
+				Reconciled:         false,
+				Error:              proto.String("some error"),
+			},
+			otherName.String(): {
+				ObservedGeneration: other.Generation,
+				Reconciled:         true,
+			},
 		},
-		cmpopts.IgnoreFields(icsv1.RouteStatus{}, "LastReconciled")))
+		cOpts))
 
 	s.NoError(reporter.IngressReconciled(ctx, to.Ingress))
 	s.NoError(s.Client.Get(ctx, name, &gs))
 	assert.Empty(s.T(), cmp.Diff(
-		gs.Status.Routes[ingressName.String()],
-		icsv1.RouteStatus{
-			Reconciled: true,
-			Error:      "",
+		gs.Status.Routes,
+		map[string]icsv1.ResourceStatus{
+			ingressName.String(): {
+				ObservedGeneration: to.Ingress.Generation,
+				Reconciled:         true,
+			},
+			otherName.String(): {
+				ObservedGeneration: other.Generation,
+				Reconciled:         true,
+			},
 		},
-		cmpopts.IgnoreFields(icsv1.RouteStatus{}, "LastReconciled")))
+		cOpts))
 
 	s.NoError(reporter.IngressDeleted(ctx, ingressName, "test"))
 	s.NoError(s.Client.Get(ctx, name, &gs))
-	assert.Empty(s.T(), gs.Status.Routes)
+	assert.Empty(s.T(), cmp.Diff(
+		gs.Status.Routes,
+		map[string]icsv1.ResourceStatus{
+			otherName.String(): {
+				ObservedGeneration: other.Generation,
+				Reconciled:         true,
+			},
+		},
+		cOpts))
 }
 
 func TestIngressController(t *testing.T) {

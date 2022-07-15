@@ -7,6 +7,8 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 )
 
 // MultiIngressStatusReporter dispatches updates over multiple reporters
@@ -57,10 +59,21 @@ func (r MultiIngressStatusReporter) IngressDeleted(ctx context.Context, name typ
 }
 
 // SettingsUpdated marks that configuration was reconciled
-func (r MultiPomeriumStatusReporter) SettingsUpdated(ctx context.Context) {
+func (r MultiPomeriumStatusReporter) SettingsUpdated(ctx context.Context, obj *icsv1.Pomerium) {
 	var errs *multierror.Error
 	for _, u := range r {
-		if err := u.SettingsUpdated(ctx); err != nil {
+		if err := u.SettingsUpdated(ctx, obj); err != nil {
+			errs = multierror.Append(errs, err)
+		}
+	}
+	logErrorIfAny(ctx, errs.ErrorOrNil())
+}
+
+// SettingsRejected marks that configuration was reconciled
+func (r MultiPomeriumStatusReporter) SettingsRejected(ctx context.Context, obj *icsv1.Pomerium, err error) {
+	var errs *multierror.Error
+	for _, u := range r {
+		if err := u.SettingsRejected(ctx, obj, err); err != nil {
 			errs = multierror.Append(errs, err)
 		}
 	}
