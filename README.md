@@ -20,10 +20,13 @@ kubectl apply -f https://raw.githubusercontent.com/pomerium/ingress-controller/m
 - Pomerium expects a `pomerium` CRD named `global` to be created.
 - A one time `Job` to generate `pomerium/bootstrap` secrets, that have to be referenced from the CRD via `secrets` parameter.
 
+Pomerium requires further configuration to become operational.
+
 # Configuration
 
 Default Pomerium deployment is configured to watch `global` CRD.
-Most Pomerium configuration could be set via CRD.
+That may be customized via command line arguments.
+Most Pomerium configuration is set via CRD.
 
 ```yaml
 apiVersion: ingress.pomerium.io/v1
@@ -91,3 +94,9 @@ Pomerium supports `Ingress` `v1` resource.
 - Pomerium-managed `Ingress` resources may have TLS certificates provisioned by `cert-manager`.
 - Pomerium may be used as `HTTP01` ACME challenge solver for `cert-manager`.
 - You may also provide certificates via `Secrets`, referenced by `Pomerium` CRD `certificates` parameter.
+
+# Customizing your deployment
+
+`deployment.yaml` deploys a single Pomerium replica into `pomerium` namespace.
+
+That deployment file is built via `kubectl kustomize config/default > deployment.yaml`.
