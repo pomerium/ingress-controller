@@ -1,124 +1,102 @@
 # Pomerium Kubernetes Ingress Controller
 
-See [docs for usage details](https://www.pomerium.com/docs/k8s/ingress.html).
+See [docs for usage details](https://www.pomerium.com/docs/k8s/ingress) for end-user details.
 
-## How it works
+# Operation Modes
 
-- Deployment
-  - containers
-    - ingress-controller
-      - Ingress controller: updates `Ingress` resources
-      - Settings controller
-        - set configuration to the databroker
-        - set configuration to the `pomerium-bootstrap`
-    - pomerium all-in-one
-      - watches `config.yaml`, mounted as a `Secret` `pomerium-bootstrap`
+- _All in one_ launches Pomerium and Ingress Controller in-process. This is easiest to use, and is recommended for most users.
+- _Controller only_ only runs ingress controller that communicates to a remote Pomerium cluster. Running Pomerium in split mode is only required to satisfy some very specific deployment requirements, and successful operation requires deep understanding of inter-component interaction. Please reach out to us first if you believe you absolutely need deploy in that mode.
 
-## Quick start
-
-### Checklist
-
-[ ] Kubernetes version 1.19 or higher
-[ ] Can configure access to one of the supported [Identity Providers](https://www.pomerium.com/docs/identity-providers/)
-[ ] Can provision TLS certificates i.e. using `cert-manager`.
-
-### Install
-
-The below command would install Pomerium, along with the Pomerium Ingress Controller,
-and create an `settings.ingress.pomerium.io` CRD that may be used to dynamically configure Pomerium.
+# Installation
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/pomerium/ingress-controller/main/deploy
+kubectl apply -f https://raw.githubusercontent.com/pomerium/ingress-controller/main/deployment.yaml
 ```
 
-### Configure IdP
+- `pomerium` namespace is created that would contain an installation.
+- `pomerium.ingress.pomerium.io` cluster-scoped CRD is created.
+- `pomerium` `IngressClass`. Assign that `IngressClass` to the `Ingress` objects that should be managed by Pomerium.
+- All-in-one Pomerium deployment with a single replica is created.
+- Pomerium expects a `pomerium` CRD named `global` to be created.
+- A one time `Job` to generate `pomerium/bootstrap` secrets, that have to be referenced from the CRD via `secrets` parameter.
 
-Once applied, you need complete the Pomerium configuration by creating `Settings` CRD:
+Pomerium requires further configuration to become operational.
+
+# Configuration
+
+Default Pomerium deployment is configured to watch `global` CRD.
+That may be customized via command line arguments.
+Most Pomerium configuration is set via CRD.
 
 ```yaml
 apiVersion: ingress.pomerium.io/v1
-kind: Settings
+kind: Pomerium
 metadata:
   name: global
 spec:
   authenticate:
-    url: https://login.localhost.pomerium.io
-  identityProvider:
-    provider: see https://www.pomerium.com/reference/#identity-provider-name
-    secret: pomerium-idp
+    url: https://authenticate.localhost.pomerium.io
   certificates:
-    - login-localhost-pomerium-io
----
-apiVersion: v1
-stringData:
-  client_id:
-  client_secret:
-kind: Secret
-metadata:
-  name: pomerium-idp
-type: Opaque
+    - pomerium/wildcard-localhost-pomerium-io
+  identityProvider:
+    provider: xxxxxxx
+    secret: pomerium/idp
+  secrets: pomerium/bootstrap
 ```
 
-### Session Persistence
+_Note:_: the configuration must be complete. i.e. if you're missing a referenced secret, it would not be accepted.
 
-By default, Pomerium stores its identity and session data in-memory.
-There are two supported storage backends that you may use for data persistence:
+# Inspecting the state
 
-1. Redis
-2. PostgreSQL
+Use `kubectl describe pomerium` to assess the status of your Pomerium installation(s).
+In case Ingress or Pomerium configuration resources were not successfully reconciled, the errors would bubble up here.
 
-## System Requirements
-
-- [Pomerium](https://github.com/pomerium/pomerium) v0.15.0+
-- Kubernetes v1.19.0+
-- `networking.k8s.io/v1` Ingress versions supported
-
-## Command Line Options
-
-## Namespaces
-
-Ingress Controller may either monitor all namespaces (default), or only selected few, provided as a comma separated list to `--namespaces` command line option.
-
-## HTTPS endpoints
-
-`Ingress` spec defines that all communications to the service should happen in cleartext. Pomerium supports HTTPS endpoints, including mTLS.
-
-Annotate your `Ingress` with
-
-```yaml
-ingress.pomerium.io/secure_upstream: true
+```
+Status:
+  Ingress:
+    pomerium/envoy:
+      Observed At:          2022-07-15T15:41:43Z
+      Observed Generation:  5
+      Reconciled:           true
+    pomerium/httpbin:
+      Observed At:          2022-07-15T15:41:43Z
+      Observed Generation:  1
+      Reconciled:           true
+  Settings Status:
+    Observed At:          2022-07-15T15:41:44Z
+    Observed Generation:  5
+    Reconciled:           true
+Events:
+  Type    Reason   Age   From                                 Message
+  ----    ------   ----  ----                                 -------
+  Normal  Updated  13m   bootstrap-pomerium-584b89f6c8-tdbgh  config updated
+  Normal  Updated  13m   bootstrap-pomerium-584b89f6c8-g2gxk  config updated
+  Normal  Updated  13m   pomerium-crd                         config updated
 ```
 
-Additional TLS may be supplied by creating a Kubernetes secret(s) in the same namespaces as `Ingress` resource. Note we do not support file paths or embedded secret references.
+# Session Persistence
 
-- [`tls_client_secret`](https://pomerium.io/reference/#tls-client-certificate)
-- [`tls_custom_ca_secret`](https://pomerium.io/reference/#tls-custom-certificate-authority)
-- [`tls_downstream_client_ca_secret`](https://pomerium.io/reference/#tls-downstream-client-certificate-authority)
+Pomerium requires a storage backend for user sessions. An in-memory backend is used by default.
+You should use a storage backend for production multi-user deployments and/or multiple replicas.
 
-Note the referenced `tls_client_secret` must be a [TLS Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets). `tls_custom_ca_secret` and `tls_downstream_client_ca_secret` must contain `ca.crt` containing a .PEM encoded (Base64-encoded DER format) public certificate.
+PostgreSQL is a recommended persistence backend for new deployments.
 
-## IngressClass
+## Ingress annotations
 
-Create [`IngressClass`](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class)
-for Pomerium Ingress Controller.
+Pomerium supports `Ingress` `v1` resource.
 
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: IngressClass
-metadata:
-  name: pomerium
-  annotations:
-    ingressclass.kubernetes.io/is-default-class: "false"
-spec:
-  controller: pomerium.io/ingress-controller
-```
+- Only `Ingress` resources with `pomerium` `IngressClass` would be managed, unless the `pomerium` `IngressClass` is marked as default controller.
+- Pomerium-specific options are supplied via `Ingress` annotations. See https://www.pomerium.com/docs/k8s/ingress#supported-annotations
 
-Use `ingressclass.kubernetes.io/is-default-class: "true"` to mark Pomerium as default controller for your cluster
-and manage `Ingress` resources that do not specify an ingress controller in `ingressClassName`.
+# TLS
 
-# HTTP-01 solvers
+- only TLS `Ingress` resources are supported. Pomerium is not designed for cleartext HTTP.
+- Pomerium-managed `Ingress` resources may have TLS certificates provisioned by `cert-manager`.
+- Pomerium may be used as `HTTP01` ACME challenge solver for `cert-manager`.
+- You may also provide certificates via `Secrets`, referenced by `Pomerium` CRD `certificates` parameter.
 
-In order to use [`http-01`](https://cert-manager.io/docs/configuration/acme/http01/#configuring-the-http01-ingress-solver) ACME challenge solver, the following Pomerium configuration parameters must be set:
+# Customizing your deployment
 
-- [`AUTOCERT: false`](https://www.pomerium.io/reference/#autocert) (default)
-- [`HTTP_REDIRECT_ADDR: ':80'`](https://www.pomerium.io/reference/#http-redirect-address)
+`deployment.yaml` deploys a single Pomerium replica into `pomerium` namespace.
+
+That deployment file is built via `kubectl kustomize config/default > deployment.yaml`.

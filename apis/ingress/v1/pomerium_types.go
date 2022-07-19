@@ -20,20 +20,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// IdentityProvider see https://www.pomerium.com/docs/identity-providers/
+// IdentityProvider for single-sign-on authentication and user identity details by integrating with your downstream Identity Provider (IdP) of choice.
+// That authentication integration is achieved using OAuth2, and OpenID Connect (OIDC).
+// Where available, Pomerium also supports pulling additional data (like groups) using directory synchronization.
+// An additional API token is required for directory sync. https://www.pomerium.com/docs/identity-providers/
 type IdentityProvider struct {
-	// Provider one of accepted providers https://www.pomerium.com/reference/#identity-provider-name
+	// Provider one of accepted providers - see https://www.pomerium.com/reference/#identity-provider-name.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum=auth0;azure;google;okta;onelogin;oidc;ping;github
 	Provider string `json:"provider"`
-	// URL is identity provider url, see https://www.pomerium.com/reference/#identity-provider-url
+	// URL is identity provider url, see https://www.pomerium.com/reference/#identity-provider-url.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Format=uri
 	// +kubebuilder:validation:Pattern=`^https://`
 	URL *string `json:"url"`
-	// Secret refers to a k8s secret containing IdP provider specific parameters
-	// and must contain at least `client_id` and `client_secret` map values,
+	// Secret containing IdP provider specific parameters
+	// and must contain at least client_id and client_secret values,
 	// an optional `service_account` field, mapped to https://www.pomerium.com/reference/#identity-provider-service-account
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
@@ -46,27 +49,30 @@ type IdentityProvider struct {
 	// RequestParams see https://www.pomerium.com/reference/#identity-provider-request-params
 	// +optional
 	RequestParams map[string]string `json:"requestParams,omitempty"`
-	// RequestParamsSecret is a reference to a secret for additional parameters you'd prefer not to provide in plaintext
+	// RequestParamsSecret is a reference to a secret for additional parameters you'd prefer not to provide in plaintext.
 	// +optional
 	RequestParamsSecret *string `json:"requestParamsSecret,omitempty"`
-	// Scopes see https://www.pomerium.com/reference/#identity-provider-scopes
+	// Scopes see https://www.pomerium.com/reference/#identity-provider-scopes.
 	// +optional
 	Scopes []string `json:"scopes,omitempty"`
 
-	// Specifies refresh settings
+	// refreshDirectory specifis
 	// +optional
 	RefreshDirectory *RefreshDirectorySettings `json:"refreshDirectory"`
 }
 
-// RefreshDirectorySettings defines how frequently should directory update
+// RefreshDirectorySettings defines how frequently should directory update.
 type RefreshDirectorySettings struct {
+	// interval is the time that pomerium will sync your IDP directory.
 	// +kubebuilder:validation:Format=duration
 	Interval metav1.Duration `json:"interval"`
+	// timeout is the maximum time allowed each run.
 	// +kubebuilder:validation:Format=duration
 	Timeout metav1.Duration `json:"timeout"`
 }
 
-// RedisStorage defines REDIS databroker storage backend bootstrap parameters
+// RedisStorage defines REDIS databroker storage backend bootstrap parameters.
+// Redis is supported for legacy deployment, and new deployments should use PostgreSQL.
 type RedisStorage struct {
 	// Secret specifies a name of a Secret that must contain
 	// `connection` key.
@@ -97,7 +103,7 @@ type RedisStorage struct {
 	TLSSkipVerify bool `json:"tlsSkipVerify"`
 }
 
-// PostgresStorage defines Postgres connection parameters
+// PostgresStorage defines Postgres connection parameters.
 type PostgresStorage struct {
 	// Secret specifies a name of a Secret that must contain
 	// `connection` key
