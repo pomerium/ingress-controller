@@ -38,7 +38,6 @@ func setupLogger(debug bool) {
 		level = zapcore.DebugLevel
 	}
 	opts := zap.Options{
-		Development:     debug,
 		Level:           level,
 		StacktraceLevel: zapcore.DPanicLevel,
 	}
