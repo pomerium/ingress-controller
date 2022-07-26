@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"time"
 
 	validate "github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
@@ -31,7 +32,8 @@ import (
 
 type allCmdOptions struct {
 	ingressControllerOpts
-	debug bool
+	debug                           bool
+	configControllerShutdownTimeout time.Duration
 	// metricsBindAddress must be externally accessible host:port
 	metricsBindAddress string `validate:"required,hostname_port"`
 	serverAddr         string `validate:"required,hostname_port"`
@@ -48,6 +50,11 @@ type allCmdParam struct {
 	bootstrapMetricsAddr string
 	// ingressMetricsAddr for ingress+settings reconciliation controller metrics
 	ingressMetricsAddr string
+
+	// configControllerShutdownTimeout is max time to wait for graceful config (ingress & settings) controller shutdown
+	// when re-initialization is required. in case it cannot be shut down gracefully, the entire process would exit
+	// to be re-started by the kubernetes
+	configControllerShutdownTimeout time.Duration
 
 	cfg config.Config
 }
@@ -80,7 +87,10 @@ func (s *allCmd) setupFlags() error {
 	flags.StringVar(&s.metricsBindAddress, metricsBindAddress, "", "host:port for aggregate metrics. host is mandatory")
 	flags.StringVar(&s.serverAddr, "server-addr", ":8443", "the address the HTTPS server would bind to")
 	flags.StringVar(&s.httpRedirectAddr, "http-redirect-addr", ":8080", "the address HTTP redirect would bind to")
-
+	flags.DurationVar(&s.configControllerShutdownTimeout, "config-controller-shutdown", time.Second*30, "timeout waiting for graceful config controller shutdown")
+	if err := flags.MarkHidden("config-controller-shutdown"); err != nil {
+		return nil
+	}
 	s.ingressControllerOpts.setupFlags(flags)
 	return viperWalk(flags)
 }
@@ -121,10 +131,11 @@ func (s *allCmdOptions) getParam() (*allCmdParam, error) {
 	}
 
 	p := &allCmdParam{
-		settings:                *settings,
-		ingressOpts:             opts,
-		updateStatusFromService: s.UpdateStatusFromService,
-		dumpConfigDiff:          s.debug,
+		settings:                        *settings,
+		ingressOpts:                     opts,
+		updateStatusFromService:         s.UpdateStatusFromService,
+		dumpConfigDiff:                  s.debug,
+		configControllerShutdownTimeout: s.configControllerShutdownTimeout,
 	}
 	if err := p.makeBootstrapConfig(*s); err != nil {
 		return nil, fmt.Errorf("bootstrap: %w", err)
@@ -138,15 +149,20 @@ func (s *allCmdParam) run(ctx context.Context) error {
 	defer cancel()
 
 	eg, ctx := errgroup.WithContext(ctx)
-
-	runner, err := pomerium_ctrl.NewPomeriumRunner(s.cfg)
+	cfgCtl := util.NewRestartOnChange[*config.Config]()
+	runner, err := pomerium_ctrl.NewPomeriumRunner(s.cfg, cfgCtl.OnConfigUpdated)
 	if err != nil {
 		return fmt.Errorf("preparing to run pomerium: %w", err)
 	}
 
 	eg.Go(func() error { return runner.Run(ctx) })
 	eg.Go(func() error { return s.runBootstrapConfigController(ctx, runner) })
-	eg.Go(func() error { return s.runConfigControllers(ctx, runner) })
+	eg.Go(func() error {
+		return cfgCtl.Run(log.IntoContext(ctx, log.FromContext(ctx).WithName("config_restarter")),
+			isBootstrapEqual,
+			s.runConfigControllers,
+			s.configControllerShutdownTimeout)
+	})
 
 	return eg.Wait()
 }
@@ -198,22 +214,16 @@ func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 }
 
 // runConfigController runs an integrated Ingress + Settings CRD controller
-// TODO: it must be updated in case of configuration change to reconfigure shared_secret
-func (s *allCmdParam) runConfigControllers(ctx context.Context, runner *pomerium_ctrl.Runner) error {
-	logger := log.FromContext(ctx).WithName("config-controller")
-	logger.Info("waiting for config to be available")
-	if err := runner.WaitForConfig(ctx); err != nil {
-		return fmt.Errorf("waiting for boostrap config: %w", err)
-	}
-	c, err := s.buildController(ctx, runner.GetConfig())
+func (s *allCmdParam) runConfigControllers(ctx context.Context, cfg *config.Config) error {
+	c, err := s.buildController(ctx, cfg)
 	if err != nil {
 		return fmt.Errorf("build controller: %w", err)
 	}
-	logger.Info("received config, starting up controllers")
+
 	return c.Run(ctx)
 }
 
-func (s *allCmdParam) getDataBrokerConnection(ctx context.Context, cfg *config.Config) (*grpc.ClientConn, error) {
+func getDataBrokerConnection(ctx context.Context, cfg *config.Config) (*grpc.ClientConn, error) {
 	sharedSecret, err := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
 	if err != nil {
 		return nil, fmt.Errorf("decode shared_secret: %w", err)
@@ -236,7 +246,7 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 		return nil, fmt.Errorf("get scheme: %w", err)
 	}
 
-	conn, err := s.getDataBrokerConnection(ctx, cfg)
+	conn, err := getDataBrokerConnection(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("databroker connection: %w", err)
 	}
@@ -298,4 +308,14 @@ func (s *allCmdParam) runBootstrapConfigController(ctx context.Context, reconcil
 		return fmt.Errorf("settings controller: %w", err)
 	}
 	return mgr.Start(ctx)
+}
+
+// isBootstrapEqual returns true if two configs are equal for the purpose of bootstrapping configuration controllers
+// right now we only care about sharedkey as it is used for databroker
+// and we do not update port allocations
+func isBootstrapEqual(prev, next *config.Config) bool {
+	if prev == nil {
+		return false
+	}
+	return prev.Options.SharedKey == next.Options.SharedKey
 }

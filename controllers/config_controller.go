@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/sync/errgroup"
 	"k8s.io/apimachinery/pkg/types"
 	runtime_ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -49,34 +48,8 @@ type Controller struct {
 
 // Run runs controller using lease
 func (c *Controller) Run(ctx context.Context) error {
-	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error {
-		leaser := databroker.NewLeaser("ingress-controller", leaseDuration, c)
-		return leaser.Run(ctx)
-	})
-	/* TODO
-	eg.Go(func() error {
-		return s.runHealthz(ctx, healthz.NamedCheck("acquire databroker lease", ct.ReadyzCheck))
-	})
-	*/
-	return eg.Wait()
-}
-
-func (c *Controller) setRunning(running bool) {
-	if running {
-		atomic.StoreInt32(&c.running, 1)
-	} else {
-		atomic.StoreInt32(&c.running, 0)
-	}
-}
-
-// ReadyzCheck reports whether controller is ready
-func (c *Controller) ReadyzCheck(_ *http.Request) error {
-	val := atomic.LoadInt32(&c.running)
-	if val == 0 {
-		return errWaitingForLease
-	}
-	return nil
+	leaser := databroker.NewLeaser("ingress-controller", leaseDuration, c)
+	return leaser.Run(ctx)
 }
 
 // GetDataBrokerServiceClient implements databroker.LeaseHandler
@@ -85,7 +58,7 @@ func (c *Controller) GetDataBrokerServiceClient() databroker.DataBrokerServiceCl
 }
 
 // RunLeased implements databroker.LeaseHandler
-func (c *Controller) RunLeased(ctx context.Context) error {
+func (c *Controller) RunLeased(ctx context.Context) (err error) {
 	defer c.setRunning(false)
 
 	cfg, err := runtime_ctrl.GetConfig()
@@ -108,9 +81,26 @@ func (c *Controller) RunLeased(ctx context.Context) error {
 		log.FromContext(ctx).V(1).Info("no Pomerium CRD")
 	}
 
-	c.setRunning(true)
+	defer c.setRunning(true)
 	if err = mgr.Start(ctx); err != nil {
 		return fmt.Errorf("running controller: %w", err)
+	}
+	return nil
+}
+
+func (c *Controller) setRunning(running bool) {
+	if running {
+		atomic.StoreInt32(&c.running, 1)
+	} else {
+		atomic.StoreInt32(&c.running, 0)
+	}
+}
+
+// ReadyzCheck reports whether controller is ready
+func (c *Controller) ReadyzCheck(_ *http.Request) error {
+	val := atomic.LoadInt32(&c.running)
+	if val == 0 {
+		return errWaitingForLease
 	}
 	return nil
 }

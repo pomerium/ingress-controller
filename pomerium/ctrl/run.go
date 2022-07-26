@@ -26,8 +26,8 @@ type Runner struct {
 	ready chan struct{}
 }
 
-// WaitForConfig waits until initial configuration is available
-func (r *Runner) WaitForConfig(ctx context.Context) error {
+// waitForConfig waits until initial configuration is available
+func (r *Runner) waitForConfig(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -60,17 +60,19 @@ func (r *Runner) SetConfig(ctx context.Context, src *model.Config) (changes bool
 }
 
 // NewPomeriumRunner creates new pomerium command and control
-func NewPomeriumRunner(base config.Config) (*Runner, error) {
+func NewPomeriumRunner(base config.Config, listener config.ChangeListener) (*Runner, error) {
 	return &Runner{
-		base:  base,
-		src:   new(InMemoryConfigSource),
+		base: base,
+		src: &InMemoryConfigSource{
+			listeners: []config.ChangeListener{listener},
+		},
 		ready: make(chan struct{}),
 	}, nil
 }
 
 // Run starts pomerium once config is available
 func (r *Runner) Run(ctx context.Context) error {
-	if err := r.WaitForConfig(ctx); err != nil {
+	if err := r.waitForConfig(ctx); err != nil {
 		return fmt.Errorf("waiting for pomerium bootstrap config: %w", err)
 	}
 
