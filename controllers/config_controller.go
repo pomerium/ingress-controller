@@ -3,7 +3,10 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"sync/atomic"
 	"time"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -24,6 +27,8 @@ const (
 
 var (
 	_ = databroker.LeaserHandler(new(Controller))
+
+	errWaitingForLease = errors.New("waiting for databroker lease")
 )
 
 // Controller runs Pomerium configuration reconciliation controllers
@@ -37,6 +42,8 @@ type Controller struct {
 	IngressCtrlOpts []ingress.Option
 	// GlobalSettings if provided, will also reconcile configuration options
 	GlobalSettings *types.NamespacedName
+
+	running int32
 }
 
 // Run runs controller using lease
@@ -52,6 +59,8 @@ func (c *Controller) GetDataBrokerServiceClient() databroker.DataBrokerServiceCl
 
 // RunLeased implements databroker.LeaseHandler
 func (c *Controller) RunLeased(ctx context.Context) (err error) {
+	defer c.setRunning(false)
+
 	cfg, err := runtime_ctrl.GetConfig()
 	if err != nil {
 		return fmt.Errorf("get k8s api config: %w", err)
@@ -72,8 +81,26 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 		log.FromContext(ctx).V(1).Info("no Pomerium CRD")
 	}
 
+	defer c.setRunning(true)
 	if err = mgr.Start(ctx); err != nil {
 		return fmt.Errorf("running controller: %w", err)
+	}
+	return nil
+}
+
+func (c *Controller) setRunning(running bool) {
+	if running {
+		atomic.StoreInt32(&c.running, 1)
+	} else {
+		atomic.StoreInt32(&c.running, 0)
+	}
+}
+
+// ReadyzCheck reports whether controller is ready
+func (c *Controller) ReadyzCheck(_ *http.Request) error {
+	val := atomic.LoadInt32(&c.running)
+	if val == 0 {
+		return errWaitingForLease
 	}
 	return nil
 }

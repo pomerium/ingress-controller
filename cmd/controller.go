@@ -7,7 +7,9 @@ import (
 	"net/url"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"k8s.io/apiserver/pkg/server/healthz"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -91,10 +93,16 @@ func (s *controllerCmd) exec(*cobra.Command, []string) error {
 
 	c, err := s.buildController(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("build controller: %w", err)
 	}
 
-	return c.Run(ctx)
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		return runHealthz(ctx, s.probeAddr, healthz.NamedCheck("acquire databroker lease", c.ReadyzCheck))
+	})
+	eg.Go(func() error { return c.Run(ctx) })
+
+	return eg.Wait()
 }
 
 func (s *controllerCmd) getDataBrokerConnection(ctx context.Context) (*grpc.ClientConn, error) {
