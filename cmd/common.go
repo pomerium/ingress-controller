@@ -2,7 +2,9 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -11,6 +13,7 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apiserver/pkg/server/healthz"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -76,4 +79,25 @@ func viperWalk(flags *pflag.FlagSet) error {
 		}
 	})
 	return errs.ErrorOrNil()
+}
+
+func runHealthz(ctx context.Context, addr string, readyChecks ...healthz.HealthChecker) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	mux := http.NewServeMux()
+	healthz.InstallHandler(mux)
+	healthz.InstallReadyzHandler(mux, readyChecks...)
+
+	srv := http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: time.Millisecond * 100,
+	}
+	go func() {
+		<-ctx.Done()
+		_ = srv.Close()
+	}()
+
+	return srv.ListenAndServe()
 }
