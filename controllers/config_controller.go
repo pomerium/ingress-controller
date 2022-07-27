@@ -81,7 +81,7 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 		log.FromContext(ctx).V(1).Info("no Pomerium CRD")
 	}
 
-	defer c.setRunning(true)
+	c.setRunning(true)
 	if err = mgr.Start(ctx); err != nil {
 		return fmt.Errorf("running controller: %w", err)
 	}
