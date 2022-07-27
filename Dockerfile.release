@@ -1,6 +1,0 @@
-ARG ARCH
-
-FROM gcr.io/distroless/base:nonroot-${TARGETARCH:-amd64}
-WORKDIR /pomerium
-COPY pomerium* /bin/
-ENTRYPOINT [ "/bin/pomerium-ingress" ]
