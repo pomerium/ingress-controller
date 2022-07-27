@@ -138,7 +138,12 @@ type IngressSettingsEventReporter struct {
 }
 
 func (r *IngressSettingsEventReporter) postEvent(ctx context.Context, ingress types.NamespacedName, eventType, reason, msg string) error {
-	r.EventRecorder.AnnotatedEventf(&icsv1.Pomerium{ObjectMeta: metav1.ObjectMeta{Name: r.Name}},
+	var obj icsv1.Pomerium
+	if err := r.Client.Get(ctx, r.NamespacedName, &obj); err != nil {
+		return fmt.Errorf("get %s: %w", r.NamespacedName, err)
+	}
+
+	r.EventRecorder.AnnotatedEventf(&obj,
 		map[string]string{"ingress": ingress.String()},
 		eventType, reason, "%s: %s", ingress.String(), msg)
 	return nil
