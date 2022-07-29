@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@f2e56d8191dafa519d2897afecae8d1763a7b006 # pin@v2
+      - uses: actions/setup-go@1022489cb76babdbc0e2d9404883a4a3cacfc278 # pin@v2
         with:
           go-version: 1.18.x
       - uses: actions/setup-python@a93d5412cbea8e722be8a13812f0923da907d4cf # pin@v3
