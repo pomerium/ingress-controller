@@ -15,7 +15,7 @@ require (
 	github.com/gosimple/slug v1.12.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/iancoleman/strcase v0.2.0
-	github.com/open-policy-agent/opa v0.42.2
+	github.com/open-policy-agent/opa v0.43.0
 	github.com/pomerium/csrf v1.7.0
 	github.com/pomerium/pomerium v0.18.0
 	github.com/sergi/go-diff v1.2.0
@@ -248,7 +248,7 @@ require (
 	github.com/securego/gosec/v2 v2.12.0 // indirect
 	github.com/shazow/go-diff v0.0.0-20160112020656-b6b7b6733b8c // indirect
 	github.com/shirou/gopsutil/v3 v3.22.6 // indirect
-	github.com/sirupsen/logrus v1.8.1 // indirect
+	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/sivchari/containedctx v1.0.2 // indirect
 	github.com/sivchari/nosnakecase v1.5.0 // indirect
 	github.com/sivchari/tenv v1.7.0 // indirect
@@ -276,7 +276,7 @@ require (
 	github.com/ultraware/funlen v0.0.3 // indirect
 	github.com/ultraware/whitespace v0.0.5 // indirect
 	github.com/uudashr/gocognit v1.0.6 // indirect
-	github.com/vektah/gqlparser/v2 v2.4.5 // indirect
+	github.com/vektah/gqlparser/v2 v2.4.6 // indirect
 	github.com/volatiletech/null/v9 v9.0.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
@@ -294,7 +294,7 @@ require (
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/net v0.0.0-20220630215102-69896b714898 // indirect
 	golang.org/x/oauth2 v0.0.0-20220622183110-fd043fe589d2 // indirect
-	golang.org/x/sys v0.0.0-20220702020025-31831981b65f // indirect
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
