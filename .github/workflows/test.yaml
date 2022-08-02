@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-go@1022489cb76babdbc0e2d9404883a4a3cacfc278 # pin@v2
         with:
           go-version: 1.18.x
-      - uses: actions/setup-python@a93d5412cbea8e722be8a13812f0923da907d4cf # pin@v3
+      - uses: actions/setup-python@b55428b1882923874294fa556849718a1d7f2ca5 # pin@v3
         with:
           python-version: "3.x"
       - name: install kustomize
