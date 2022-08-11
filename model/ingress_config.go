@@ -15,10 +15,10 @@ import (
 
 const (
 	// TLSCustomCASecret replaces https://pomerium.io/reference/#tls-custom-certificate-authority
-	// nolint: gosec
+	//nolint: gosec
 	TLSCustomCASecret = "tls_custom_ca_secret"
 	// TLSClientSecret replaces https://pomerium.io/reference/#tls-client-certificate
-	// nolint: gosec
+	//nolint: gosec
 	TLSClientSecret = "tls_client_secret"
 	// TLSDownstreamClientCASecret replaces https://pomerium.io/reference/#tls-downstream-client-certificate-authority
 	TLSDownstreamClientCASecret = "tls_downstream_client_ca_secret"
@@ -33,7 +33,7 @@ const (
 	// TCPUpstream indicates this route is a TCP service https://www.pomerium.com/docs/tcp/
 	TCPUpstream = "tcp_upstream"
 	// KubernetesServiceAccountTokenSecret allows k8s service authentication via pomerium
-	// nolint: gosec
+	//nolint: gosec
 	KubernetesServiceAccountTokenSecret = "kubernetes_service_account_token_secret"
 	// KubernetesServiceAccountTokenSecretKey defines key within the secret that contains token
 	KubernetesServiceAccountTokenSecretKey = "token"
