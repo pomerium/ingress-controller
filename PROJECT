@@ -18,4 +18,28 @@ resources:
     plural: pomerium
     path: github.com/pomerium/ingress-controller/apis/ingress/v1
     version: v1
+  - api:
+      crdVersion: v1
+      namespaced: false
+    domain: pomerium.io
+    group: console
+    kind: Namespace
+    path: github.com/pomerium/ingress-controller/apis/console/v1
+    version: v1
+  - api:
+      crdVersion: v1
+      namespaced: false
+    domain: pomerium.io
+    group: console
+    kind: Route
+    path: github.com/pomerium/ingress-controller/apis/console/v1
+    version: v1
+  - api:
+      crdVersion: v1
+      namespaced: false
+    domain: pomerium.io
+    group: console
+    kind: Policy
+    path: github.com/pomerium/ingress-controller/apis/console/v1
+    version: v1
 version: "3"
