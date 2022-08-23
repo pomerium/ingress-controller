@@ -270,7 +270,8 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 			Scheme:             scheme,
 			MetricsBindAddress: s.ingressMetricsAddr,
 			Port:               0,
-			LeaderElection:     false,
+			LeaderElection:     true,
+			LeaderElectionID:   "pomerium-controller",
 		},
 		IngressCtrlOpts: s.ingressOpts,
 		GlobalSettings:  &s.settings,
@@ -295,7 +296,8 @@ func (s *allCmdParam) runBootstrapConfigController(ctx context.Context, reconcil
 		Scheme:             scheme,
 		MetricsBindAddress: s.bootstrapMetricsAddr,
 		Port:               0,
-		LeaderElection:     false,
+		LeaderElection:     true,
+		LeaderElectionID:   "pomerium-controller-bootstrap",
 	})
 	if err != nil {
 		return fmt.Errorf("manager: %w", err)
