@@ -2,31 +2,33 @@
 package ctrl
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
-	"io/fs"
 	"net/url"
 	"os"
+	"path/filepath"
 
-	"github.com/hashicorp/go-multierror"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/pomerium/pomerium/config"
 
+	"github.com/pomerium/ingress-controller/internal/filemgr"
 	"github.com/pomerium/ingress-controller/model"
 )
 
 // Apply prepares a minimal bootstrap configuration for Pomerium
-func Apply(dst *config.Options, src *model.Config) error {
+func Apply(ctx context.Context, dst *config.Options, src *model.Config) error {
 	for _, apply := range []struct {
 		name string
-		fn   func(*config.Options, *model.Config) error
+		fn   func(context.Context, *config.Options, *model.Config) error
 	}{
 		{"secrets", applySecrets},
 		{"storage", applyStorage},
 	} {
-		if err := apply.fn(dst, src); err != nil {
+		if err := apply.fn(ctx, dst, src); err != nil {
 			return fmt.Errorf("%s: %w", apply.name, err)
 		}
 	}
@@ -38,7 +40,13 @@ func Apply(dst *config.Options, src *model.Config) error {
 	return nil
 }
 
-func applyStorage(dst *config.Options, src *model.Config) error {
+var storageFiles = filemgr.New(filepath.Join(os.TempDir(), "pomerium-storage-files"))
+
+func applyStorage(ctx context.Context, dst *config.Options, src *model.Config) error {
+	if err := storageFiles.DeleteFiles(); err != nil {
+		log.FromContext(ctx).V(1).Error(err, "failed to delete existing files")
+	}
+
 	if src.Spec.Storage == nil {
 		return nil
 	}
@@ -68,18 +76,18 @@ func applyStorageRedis(dst *config.Options, src *model.Config) error {
 
 	const prefix = "databroker-redis"
 	if src.StorageSecrets.CA != nil {
-		ca, err := createFileFromSecret(prefix, "ca", src.StorageSecrets.CA, model.CAKey)
+		ca, err := storageFiles.CreateFile("ca.pem", src.StorageSecrets.Secret.Data[model.CAKey])
 		if err != nil {
 			return fmt.Errorf("ca: %w", err)
 		}
 		dst.DataBrokerStorageCAFile = ca
 	}
 	if src.StorageSecrets.TLS != nil {
-		cert, err := createFileFromSecret(prefix, "cert", src.StorageSecrets.TLS, corev1.TLSCertKey)
+		cert, err := storageFiles.CreateFile("cert.pem", src.StorageSecrets.TLS.Data[corev1.TLSCertKey])
 		if err != nil {
 			return fmt.Errorf("tls cert: %w", err)
 		}
-		key, err := createFileFromSecret(prefix, "key", src.StorageSecrets.TLS, corev1.TLSPrivateKeyKey)
+		key, err := storageFiles.CreateFile("key.pem", src.StorageSecrets.TLS.Data[corev1.TLSPrivateKeyKey])
 		if err != nil {
 			return fmt.Errorf("tls key: %w", err)
 		}
@@ -123,7 +131,7 @@ func applyStoragePostgres(dst *config.Options, src *model.Config) error {
 		if param.Has(sslRootCert) {
 			return fmt.Errorf("%s should not be set in a connection string if CA secret is provided", sslRootCert)
 		}
-		f, err := createFileFromSecret(prefix, sslRootCert, src.StorageSecrets.CA, model.CAKey)
+		f, err := storageFiles.CreateFile(sslRootCert, src.StorageSecrets.CA.Data[model.CAKey])
 		if err != nil {
 			return fmt.Errorf("ca: %w", err)
 		}
@@ -134,11 +142,11 @@ func applyStoragePostgres(dst *config.Options, src *model.Config) error {
 		if param.Has(sslCert) || param.Has(sslKey) {
 			return fmt.Errorf("%s or %s should not be set in a connection string if TLS secret is provided", sslCert, sslKey)
 		}
-		cert, err := createFileFromSecret(prefix, sslCert, src.StorageSecrets.TLS, corev1.TLSCertKey)
+		cert, err := storageFiles.CreateFile(sslCert, src.StorageSecrets.TLS.Data[corev1.TLSCertKey])
 		if err != nil {
 			return fmt.Errorf("tls cert: %w", err)
 		}
-		key, err := createFileFromSecret(prefix, sslKey, src.StorageSecrets.TLS, corev1.TLSPrivateKeyKey)
+		key, err := storageFiles.CreateFile(sslKey, src.StorageSecrets.TLS.Data[corev1.TLSPrivateKeyKey])
 		if err != nil {
 			return fmt.Errorf("tls key: %w", err)
 		}
@@ -151,38 +159,7 @@ func applyStoragePostgres(dst *config.Options, src *model.Config) error {
 	return nil
 }
 
-func createFileFromSecret(prefix, suffix string, secret *corev1.Secret, key string) (path string, err error) {
-	const ownerReadonly = fs.FileMode(0400)
-
-	fd, err := os.CreateTemp("", fmt.Sprintf("%s-%s-*", prefix, suffix))
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		errs := multierror.Append(nil, err)
-		if err = fd.Close(); err != nil {
-			path = ""
-			errs = multierror.Append(errs, fmt.Errorf("close: %w", err))
-		} else if err = fd.Chmod(ownerReadonly); err != nil {
-			path = ""
-			err = multierror.Append(errs, fmt.Errorf("chmod readonly: %w", err))
-		}
-		err = errs.ErrorOrNil()
-	}()
-
-	data, ok := secret.Data[key]
-	if !ok {
-		return "", fmt.Errorf("secret %s is missing key %s", types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, key)
-	}
-
-	if _, err = fd.Write(data); err != nil {
-		return "", fmt.Errorf("write: %w", err)
-	}
-
-	return fd.Name(), nil
-}
-
-func applySecrets(dst *config.Options, src *model.Config) error {
+func applySecrets(ctx context.Context, dst *config.Options, src *model.Config) error {
 	if src.Secrets == nil {
 		return fmt.Errorf("secrets missing, this is a bug")
 	}
