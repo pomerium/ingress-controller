@@ -74,7 +74,6 @@ func applyStorageRedis(dst *config.Options, src *model.Config) error {
 	dst.DataBrokerStorageConnectionString = string(conn)
 	dst.DataBrokerStorageCertSkipVerify = src.Spec.Storage.Redis.TLSSkipVerify
 
-	const prefix = "databroker-redis"
 	if src.StorageSecrets.CA != nil {
 		ca, err := storageFiles.CreateFile("ca.pem", src.StorageSecrets.Secret.Data[model.CAKey])
 		if err != nil {
@@ -103,7 +102,6 @@ func applyStoragePostgres(dst *config.Options, src *model.Config) error {
 		sslRootCert = "sslrootcert"
 		sslCert     = "sslcert"
 		sslKey      = "sslkey"
-		prefix      = "databroker-psql"
 	)
 	conn, ok := src.StorageSecrets.Secret.Data[model.StorageConnectionStringKey]
 	if !ok {
