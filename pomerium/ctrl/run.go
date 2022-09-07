@@ -49,7 +49,7 @@ func (r *Runner) GetConfig() *config.Config {
 func (r *Runner) SetConfig(ctx context.Context, src *model.Config) (changes bool, err error) {
 	dst := r.base.Clone()
 
-	if err := Apply(dst.Options, src); err != nil {
+	if err := Apply(ctx, dst.Options, src); err != nil {
 		return false, fmt.Errorf("transform config: %w", err)
 	}
 

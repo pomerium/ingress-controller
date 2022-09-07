@@ -1,6 +1,7 @@
 package ctrl
 
 import (
+	"context"
 	"encoding/base64"
 	"testing"
 
@@ -27,7 +28,7 @@ func TestSecretsDecode(t *testing.T) {
 	require.NoError(t, err)
 
 	var opts config.Options
-	require.NoError(t, applySecrets(&opts, &model.Config{Secrets: secrets}))
+	require.NoError(t, applySecrets(context.Background(), &opts, &model.Config{Secrets: secrets}))
 
 	assert.Equal(t, base64.StdEncoding.EncodeToString(secrets.Data["cookie_secret"]), opts.CookieSecret)
 	assert.Equal(t, base64.StdEncoding.EncodeToString(secrets.Data["shared_secret"]), opts.SharedKey)
@@ -37,7 +38,7 @@ func TestSecretsDecode(t *testing.T) {
 func TestSecretsDecodeRules(t *testing.T) {
 	var opts config.Options
 
-	assert.NoError(t, applySecrets(&opts, &model.Config{
+	assert.NoError(t, applySecrets(context.Background(), &opts, &model.Config{
 		Secrets: &v1.Secret{
 			Data: map[string][]byte{
 				"shared_secret": mustB64Decode(t, "9OkZR6hwfmVD3a7Sfmgq58lUbFJGGz4hl/R9xbHFCAg="),
@@ -47,8 +48,8 @@ func TestSecretsDecodeRules(t *testing.T) {
 		},
 	}), "ok secret")
 
-	assert.Error(t, applySecrets(&opts, &model.Config{}))
-	assert.Error(t, applySecrets(&opts, &model.Config{
+	assert.Error(t, applySecrets(context.Background(), &opts, &model.Config{}))
+	assert.Error(t, applySecrets(context.Background(), &opts, &model.Config{
 		Secrets: &v1.Secret{
 			Data: map[string][]byte{
 				"cookie_secret": mustB64Decode(t, "WwMtDXWaRDMBQCylle8OJ+w4kLIDIGd8W3cB4/zFFtg="),
@@ -56,7 +57,7 @@ func TestSecretsDecodeRules(t *testing.T) {
 			},
 		},
 	}))
-	assert.Error(t, applySecrets(&opts, &model.Config{
+	assert.Error(t, applySecrets(context.Background(), &opts, &model.Config{
 		Secrets: &v1.Secret{
 			Data: map[string][]byte{
 				"shared_secret": {1, 2, 3},

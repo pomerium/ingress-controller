@@ -51,8 +51,8 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 	}
 
 	_, err = r.IngressReconciler.Set(ctx, ics)
-	for i := range ingressList.Items {
-		ingress := &ingressList.Items[i]
+	for i := range ics {
+		ingress := ics[i].Ingress
 		if err != nil {
 			r.IngressNotReconciled(ctx, ingress, err)
 		} else if err := r.updateIngressStatus(ctx, ingress); err != nil {
