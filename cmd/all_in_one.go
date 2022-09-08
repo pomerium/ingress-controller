@@ -173,15 +173,15 @@ func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 	s.cfg.Options.Addr = opt.serverAddr
 	s.cfg.Options.HTTPRedirectAddr = opt.httpRedirectAddr
 
-	ports, err := netutil.AllocatePorts(7)
+	ports, err := netutil.AllocatePorts(8)
 	if err != nil {
 		return fmt.Errorf("allocating ports: %w", err)
 	}
 
-	s.cfg.AllocatePorts(*(*[5]string)(ports[:5]))
+	s.cfg.AllocatePorts(*(*[6]string)(ports[:6]))
 
-	s.bootstrapMetricsAddr = fmt.Sprintf("localhost:%s", ports[5])
-	s.ingressMetricsAddr = fmt.Sprintf("localhost:%s", ports[6])
+	s.bootstrapMetricsAddr = fmt.Sprintf("localhost:%s", ports[6])
+	s.ingressMetricsAddr = fmt.Sprintf("localhost:%s", ports[7])
 
 	s.cfg.Options.MetricsAddr = opt.metricsBindAddress
 
