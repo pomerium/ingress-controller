@@ -258,42 +258,69 @@ func applyTLSAnnotations(
 
 func applySecretAnnotations(
 	r *pomerium.Route,
-	kvs map[string]string,
+	annotations map[string]string,
 	secrets map[types.NamespacedName]*corev1.Secret,
 	namespace string,
 ) error {
-	for k, name := range kvs {
-		secret := secrets[types.NamespacedName{Namespace: namespace, Name: name}]
-		if secret == nil {
-			return fmt.Errorf("annotation %s references secret %s, but the secret wasn't fetched. this is a bug", k, name)
+	handlers := map[string]struct {
+		expectedType corev1.SecretType
+		apply        func(data map[string][]byte) error
+	}{
+		model.KubernetesServiceAccountTokenSecret: {
+			corev1.SecretTypeServiceAccountToken,
+			func(data map[string][]byte) error {
+				token, ok := data[model.KubernetesServiceAccountTokenSecretKey]
+				if !ok {
+					return fmt.Errorf("secret must have %s key", model.KubernetesServiceAccountTokenSecretKey)
+				}
+				r.KubernetesServiceAccountToken = string(token)
+				return nil
+			},
+		},
+		model.SetRequestHeadersSecret: {
+			corev1.SecretTypeOpaque,
+			func(data map[string][]byte) error {
+				dst, err := util.MergeMaps(r.SetRequestHeaders, data)
+				if err != nil {
+					return err
+				}
+				r.SetRequestHeaders = dst
+				return nil
+			},
+		},
+		model.SetResponseHeadersSecret: {
+			corev1.SecretTypeOpaque,
+			func(data map[string][]byte) error {
+				dst, err := util.MergeMaps(r.SetResponseHeaders, data)
+				if err != nil {
+					return err
+				}
+				r.SetResponseHeaders = dst
+				return nil
+			},
+		},
+	}
+
+	for key, secretName := range annotations {
+		handler, ok := handlers[key]
+		if !ok {
+			return fmt.Errorf("unknown annotation %s", key)
 		}
-		if secret.Type != corev1.SecretTypeOpaque {
-			return fmt.Errorf("annotation %s references secret %s, expected type %s, got %s", k, name, corev1.SecretTypeOpaque, secret.Type)
+
+		secret, ok := secrets[types.NamespacedName{Namespace: namespace, Name: secretName}]
+		if !ok {
+			return fmt.Errorf("annotation %s secret was not fetched. this is a bug", key)
 		}
-		switch k {
-		case model.KubernetesServiceAccountTokenSecret:
-			token, ok := secret.Data[model.KubernetesServiceAccountTokenSecretKey]
-			if !ok {
-				return fmt.Errorf("annotation %s references secret %s that must have a %s key that is missing",
-					k, name, model.KubernetesServiceAccountTokenSecretKey)
-			}
-			r.KubernetesServiceAccountToken = string(token)
-		case model.SetRequestHeadersSecret:
-			dst, err := util.MergeMaps(r.SetRequestHeaders, secret.Data)
-			if err != nil {
-				return fmt.Errorf("%s: %w", model.SetRequestHeadersSecret, err)
-			}
-			r.SetRequestHeaders = dst
-		case model.SetResponseHeadersSecret:
-			dst, err := util.MergeMaps(r.SetResponseHeaders, secret.Data)
-			if err != nil {
-				return fmt.Errorf("%s: %w", model.SetResponseHeadersSecret, err)
-			}
-			r.SetResponseHeaders = dst
-		default:
-			return fmt.Errorf("unknown annotation %s", k)
+
+		if secret.Type != handler.expectedType {
+			return fmt.Errorf("annotation %s secret is expected to have type %s, got %s", key, handler.expectedType, secret.Type)
+		}
+
+		if err := handler.apply(secret.Data); err != nil {
+			return fmt.Errorf("annotation %s: %w", key, err)
 		}
 	}
+
 	return nil
 }
 
