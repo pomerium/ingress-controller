@@ -60,7 +60,7 @@ spec:
                 description: IdentityProvider see https://www.pomerium.com/docs/identity-providers/
                 properties:
                   provider:
-                    description: Provider one of accepted providers https://www.pomerium.com/reference/#identity-provider-name
+                    description: Provider one of accepted providers - see https://www.pomerium.com/reference/#identity-provider-name.
                     enum:
                     - auth0
                     - azure
@@ -72,12 +72,15 @@ spec:
                     - github
                     type: string
                   refreshDirectory:
-                    description: Specifies refresh settings
+                    description: refreshDirectory specifis
                     properties:
                       interval:
+                        description: interval is the time that pomerium will sync
+                          your IDP directory.
                         format: duration
                         type: string
                       timeout:
+                        description: timeout is the maximum time allowed each run.
                         format: duration
                         type: string
                     required:
@@ -91,18 +94,17 @@ spec:
                     type: object
                   requestParamsSecret:
                     description: RequestParamsSecret is a reference to a secret for
-                      additional parameters you'd prefer not to provide in plaintext
+                      additional parameters you'd prefer not to provide in plaintext.
                     type: string
                   scopes:
-                    description: Scopes see https://www.pomerium.com/reference/#identity-provider-scopes
+                    description: Scopes see https://www.pomerium.com/reference/#identity-provider-scopes.
                     items:
                       type: string
                     type: array
                   secret:
-                    description: Secret refers to a k8s secret containing IdP provider
-                      specific parameters and must contain at least `client_id` and
-                      `client_secret` map values, an optional `service_account` field,
-                      mapped to https://www.pomerium.com/reference/#identity-provider-service-account
+                    description: Secret containing IdP provider specific parameters
+                      and must contain at least client_id and client_secret values,
+                      an optional `service_account` field, mapped to https://www.pomerium.com/reference/#identity-provider-service-account
                     minLength: 1
                     type: string
                   serviceAccountFromSecret:
@@ -111,7 +113,7 @@ spec:
                       see https://www.pomerium.com/docs/identity-providers/
                     type: string
                   url:
-                    description: URL is identity provider url, see https://www.pomerium.com/reference/#identity-provider-url
+                    description: URL is identity provider url, see https://www.pomerium.com/reference/#identity-provider-url.
                     format: uri
                     pattern: ^https://
                     type: string
