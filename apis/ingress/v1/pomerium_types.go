@@ -56,7 +56,7 @@ type IdentityProvider struct {
 	// +optional
 	Scopes []string `json:"scopes,omitempty"`
 
-	// refreshDirectory specifis
+	// RefreshDirectory defines IdP directory refresh options
 	// +optional
 	RefreshDirectory *RefreshDirectorySettings `json:"refreshDirectory"`
 }

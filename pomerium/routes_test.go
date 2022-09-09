@@ -441,7 +441,7 @@ func TestKubernetesToken(t *testing.T) {
 				Data: map[string][]byte{
 					model.KubernetesServiceAccountTokenSecretKey: []byte("123456"),
 				},
-				Type: corev1.SecretTypeOpaque,
+				Type: corev1.SecretTypeServiceAccountToken,
 			},
 		},
 	}
