@@ -72,7 +72,7 @@ spec:
                     - github
                     type: string
                   refreshDirectory:
-                    description: refreshDirectory specifis
+                    description: RefreshDirectory defines IdP directory refresh options
                     properties:
                       interval:
                         description: interval is the time that pomerium will sync
