@@ -24,7 +24,7 @@ func NewClient(c client.Client, r model.Registry, k model.Key) client.Client {
 }
 
 // Get retrieves an obj for the given object key from the Kubernetes Cluster.
-func (c *trackingClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+func (c *trackingClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 	dep, err := c.makeKey(key, obj)
 	if err != nil {
 		return fmt.Errorf("dependency key: %w", err)
@@ -32,7 +32,7 @@ func (c *trackingClient) Get(ctx context.Context, key client.ObjectKey, obj clie
 
 	c.Registry.Add(c.Key, *dep)
 
-	err = c.Client.Get(ctx, key, obj)
+	err = c.Client.Get(ctx, key, obj, opts...)
 	log.FromContext(ctx).V(1).Info("Get", "key", *dep, "err", err)
 	return err
 }
