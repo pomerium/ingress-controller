@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	controllers_mock "github.com/pomerium/ingress-controller/controllers/mock"
@@ -23,8 +24,8 @@ func TestFetchConstraints(t *testing.T) {
 	mc := controllers_mock.NewMockClient(gomock.NewController(t))
 	settingsName := types.NamespacedName{Namespace: "pomerium", Name: "settings"}
 
-	getSecret := func(want types.NamespacedName, data map[string][]byte, tp corev1.SecretType) func(_ context.Context, name types.NamespacedName, dst *corev1.Secret) {
-		return func(_ context.Context, got types.NamespacedName, dst *corev1.Secret) {
+	getSecret := func(want types.NamespacedName, data map[string][]byte, tp corev1.SecretType) func(_ context.Context, name types.NamespacedName, dst *corev1.Secret, _ ...client.GetOption) {
+		return func(_ context.Context, got types.NamespacedName, dst *corev1.Secret, _ ...client.GetOption) {
 			require.Equal(t, want, got)
 			t.Log(want)
 			*dst = corev1.Secret{
@@ -169,16 +170,17 @@ func TestFetchConstraints(t *testing.T) {
 		}, assert.NoError},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			mc.EXPECT().Get(ctx, settingsName, gomock.AssignableToTypeOf(new(icsv1.Pomerium))).
-				Do(func(_ context.Context, _ types.NamespacedName, dst *icsv1.Pomerium) {
-					*dst = icsv1.Pomerium{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      settingsName.Name,
-							Namespace: settingsName.Namespace,
-						},
-						Spec: tc.spec,
-					}
-				}).
+			mc.EXPECT().Get(ctx, settingsName,
+				gomock.AssignableToTypeOf(new(icsv1.Pomerium)),
+			).Do(func(_ context.Context, _ types.NamespacedName, dst *icsv1.Pomerium, _ ...client.GetOptions) {
+				*dst = icsv1.Pomerium{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      settingsName.Name,
+						Namespace: settingsName.Namespace,
+					},
+					Spec: tc.spec,
+				}
+			}).
 				Return(nil)
 
 			_, err := settings.FetchConfig(ctx, mc, settingsName)
