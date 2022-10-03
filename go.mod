@@ -31,7 +31,7 @@ require (
 	k8s.io/api v0.25.2
 	k8s.io/apimachinery v0.25.2
 	k8s.io/apiserver v0.25.1
-	k8s.io/client-go v0.25.1
+	k8s.io/client-go v0.25.2
 	sigs.k8s.io/controller-runtime v0.13.0
 	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20220722124738-f0351217e9e0
 	sigs.k8s.io/controller-tools v0.9.2
