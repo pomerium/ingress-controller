@@ -1,4 +1,4 @@
-//Package mock_test contains mock clients for testing
+// Package mock_test contains mock clients for testing
 package mock_test
 
 //go:generate go run github.com/golang/mock/mockgen -package mock_test -destination client.go sigs.k8s.io/controller-runtime/pkg/client Client

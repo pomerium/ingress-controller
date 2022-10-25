@@ -1,4 +1,4 @@
-//Package main contains main app entry point
+// Package main contains main app entry point
 package main
 
 import (

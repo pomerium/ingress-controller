@@ -1,4 +1,4 @@
-//Package deps implements dependencies management
+// Package deps implements dependencies management
 package deps
 
 import (

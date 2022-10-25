@@ -62,6 +62,7 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 	@echo "==> $@"
 	@$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths=$(CRD_PACKAGE)
 	@go generate $(GOTAGS) ./...
+	@go fmt github.com/pomerium/ingress-controller/apis/ingress/v1
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
