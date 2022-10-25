@@ -62,6 +62,7 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 	@echo "==> $@"
 	@$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths=$(CRD_PACKAGE)
 	@go generate $(GOTAGS) ./...
+	@gofmt -s -w ./
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.

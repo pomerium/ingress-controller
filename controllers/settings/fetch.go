@@ -1,4 +1,4 @@
-//Package settings implements controller for Settings CRD
+// Package settings implements controller for Settings CRD
 package settings
 
 import (

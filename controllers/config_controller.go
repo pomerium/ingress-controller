@@ -1,4 +1,4 @@
-//Package controllers contains k8s reconciliation controllers
+// Package controllers contains k8s reconciliation controllers
 package controllers
 
 import (
