@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -301,14 +302,17 @@ func getEndpointsURLs(ingressServicePort networkingv1.ServiceBackendPort, servic
 
 func getEndpointPortMatcher(ingressServicePort networkingv1.ServiceBackendPort, servicePorts []corev1.ServicePort) func(port corev1.EndpointPort) bool {
 	if ingressServicePort.Name != "" {
-		ports := make(map[int32]bool)
+		ports := make(map[intstr.IntOrString]bool)
 		for _, sp := range servicePorts {
 			if sp.Name == ingressServicePort.Name {
-				ports[sp.TargetPort.IntVal] = true
+				ports[sp.TargetPort] = true
 			}
 		}
 		return func(port corev1.EndpointPort) bool {
-			return port.Name == ingressServicePort.Name && ports[port.Port]
+			pName := intstr.FromString(port.Name)
+			pNumber := intstr.FromInt(int(port.Port))
+
+			return port.Name == ingressServicePort.Name && (ports[pName] || ports[pNumber])
 		}
 	}
 

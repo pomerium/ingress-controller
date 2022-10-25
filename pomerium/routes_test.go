@@ -122,7 +122,8 @@ func TestUpsertIngress(t *testing.T) {
 					corev1.TLSCertKey:       []byte("A"),
 				},
 				Type: corev1.SecretTypeTLS,
-			}},
+			},
+		},
 		Services: map[types.NamespacedName]*corev1.Service{
 			{Name: "service", Namespace: "default"}: {
 				ObjectMeta: metav1.ObjectMeta{
@@ -228,7 +229,8 @@ func TestSecureUpstream(t *testing.T) {
 					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
 					Ports:     []corev1.EndpointPort{{Name: "https", Port: 443}},
 				}},
-			}},
+			},
+		},
 		Services: map[types.NamespacedName]*corev1.Service{
 			{Name: "service", Namespace: "default"}: {
 				ObjectMeta: metav1.ObjectMeta{
@@ -313,7 +315,8 @@ func TestCustomSecrets(t *testing.T) {
 					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
 					Ports:     []corev1.EndpointPort{{Name: "http", Port: 80}},
 				}},
-			}},
+			},
+		},
 		Services: map[types.NamespacedName]*corev1.Service{
 			{Name: "service", Namespace: "default"}: {
 				ObjectMeta: metav1.ObjectMeta{
@@ -418,7 +421,8 @@ func TestKubernetesToken(t *testing.T) {
 					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
 					Ports:     []corev1.EndpointPort{{Name: "http", Port: 80}},
 				}},
-			}},
+			},
+		},
 		Services: map[types.NamespacedName]*corev1.Service{
 			{Name: "service", Namespace: "default"}: {
 				ObjectMeta: metav1.ObjectMeta{
@@ -491,7 +495,8 @@ func TestTCPUpstream(t *testing.T) {
 					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
 					Ports:     []corev1.EndpointPort{{Name: "app", Port: 12345}},
 				}},
-			}},
+			},
+		},
 		Services: map[types.NamespacedName]*corev1.Service{
 			{Name: "service", Namespace: "default"}: {
 				ObjectMeta: metav1.ObjectMeta{
@@ -731,7 +736,8 @@ func TestDefaultBackendService(t *testing.T) {
 						Backend:  *ic.Spec.DefaultBackend,
 					}},
 				},
-			}}}
+			},
+		}}
 		cfg := new(pb.Config)
 		require.NoError(t, upsertRoutes(context.Background(), cfg, ic))
 		sort.Sort(routeList(cfg.Routes))
@@ -861,7 +867,8 @@ func TestUseServiceProxy(t *testing.T) {
 					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
 					Ports:     []corev1.EndpointPort{{Port: 80}},
 				}},
-			}},
+			},
+		},
 		Services: map[types.NamespacedName]*corev1.Service{
 			{Name: "service", Namespace: "default"}: {
 				ObjectMeta: metav1.ObjectMeta{
@@ -998,6 +1005,23 @@ func TestServicePortsAndEndpoints(t *testing.T) {
 			false,
 		},
 		{
+			"named port and named target port",
+			networkingv1.ServiceBackendPort{Name: "http"},
+			[]corev1.ServicePort{{
+				Name:       "http",
+				Port:       8000,
+				TargetPort: intstr.IntOrString{StrVal: "http", Type: intstr.String},
+			}},
+			[]corev1.EndpointSubset{{
+				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
+				Ports:     []corev1.EndpointPort{{Name: "http", Port: 80}},
+			}},
+			[]string{
+				"http://1.2.3.4:80",
+			},
+			false,
+		},
+		{
 			"multiple IPs",
 			networkingv1.ServiceBackendPort{Name: "http"},
 			[]corev1.ServicePort{{
@@ -1081,7 +1105,8 @@ func TestServicePortsAndEndpoints(t *testing.T) {
 							Namespace: "default",
 						},
 						Subsets: tc.endpointSubsets,
-					}},
+					},
+				},
 				Services: map[types.NamespacedName]*corev1.Service{
 					{Name: "service", Namespace: "default"}: {
 						ObjectMeta: metav1.ObjectMeta{
@@ -1231,7 +1256,8 @@ func TestEndpointsHTTPS(t *testing.T) {
 							Namespace: "default",
 						},
 						Subsets: tc.endpointSubsets,
-					}},
+					},
+				},
 				Services: map[types.NamespacedName]*corev1.Service{
 					{Name: "service", Namespace: "default"}: {
 						ObjectMeta: metav1.ObjectMeta{
