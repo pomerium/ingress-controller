@@ -40,7 +40,6 @@ func TestAnnotations(t *testing.T) {
 				Namespace: "test",
 				Annotations: map[string]string{
 					"a/allowed_users":                           `["a"]`,
-					"a/allowed_groups":                          `["a"]`,
 					"a/allowed_domains":                         `["a"]`,
 					"a/allowed_idp_claims":                      `{"key": ["val1", "val2"]}`,
 					"a/policy":                                  testPPL,
@@ -185,7 +184,6 @@ func TestAnnotations(t *testing.T) {
 		},
 		Policies: []*pb.Policy{{
 			AllowedUsers:   []string{"a"},
-			AllowedGroups:  []string{"a"},
 			AllowedDomains: []string{"a"},
 			AllowedIdpClaims: map[string]*structpb.ListValue{
 				"key": {Values: []*structpb.Value{structpb.NewStringValue("val1"), structpb.NewStringValue("val2")}},

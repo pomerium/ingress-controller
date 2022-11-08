@@ -2,7 +2,6 @@ package pomerium
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 
 	envoy_config_bootstrap_v3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
@@ -20,7 +19,6 @@ func validate(ctx context.Context, cfg *pb.Config, id string) error {
 	options := config.NewDefaultOptions()
 	options.ApplySettings(ctx, cfg.GetSettings())
 	options.InsecureServer = true
-	options.ServiceAccount = base64.StdEncoding.EncodeToString([]byte(`{}`))
 
 	for _, r := range cfg.GetRoutes() {
 		p, err := config.NewPolicyFromProto(r)

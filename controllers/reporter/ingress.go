@@ -108,6 +108,7 @@ type IngressEventReporter struct {
 
 const (
 	reasonPomeriumConfigUpdated     = "Updated"
+	reasonPomeriumConfigValidation  = "Validation"
 	reasonPomeriumConfigUpdateError = "UpdateError"
 	msgPomeriumConfigUpdated        = "config updated"
 	msgPomeriumConfigRejected       = "config rejected"

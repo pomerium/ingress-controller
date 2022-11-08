@@ -98,7 +98,7 @@ func (s *ControllerTestSuite) createTestController(ctx context.Context, reconcil
 		MetricsBindAddress: "0",
 	})
 	s.NoError(err)
-	s.NoError(settings.NewSettingsController(mgr, reconciler, name, "test"))
+	s.NoError(settings.NewSettingsController(mgr, reconciler, name, "test", false))
 
 	go func() {
 		if err = mgr.Start(ctx); err != nil && ctx.Err() == nil {

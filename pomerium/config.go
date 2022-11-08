@@ -1,21 +1,20 @@
 package pomerium
 
 import (
-	"encoding/base64"
-	"encoding/json"
+	"context"
 	"fmt"
 	"net/url"
 
-	"google.golang.org/protobuf/types/known/durationpb"
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/pomerium/pomerium/config"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/util"
 )
 
-func applyConfig(p *pb.Config, c *model.Config) error {
+func applyConfig(ctx context.Context, p *pb.Config, c *model.Config) error {
 	if c == nil {
 		return nil
 	}
@@ -26,18 +25,16 @@ func applyConfig(p *pb.Config, c *model.Config) error {
 
 	for _, apply := range []struct {
 		name string
-		fn   func(*pb.Config, *model.Config) error
+		fn   func(context.Context, *pb.Config, *model.Config) error
 	}{
 		{"certs", applyCerts},
 		{"authenticate", applyAuthenticate},
 		{"idp", applyIDP},
 		{"idp url", applyIDPProviderURL},
-		{"idp refresh", applyIDPProviderRefreshTimeouts},
 		{"idp secret", applyIDPSecret},
-		{"idp service account from secret", applyServiceAccount},
 		{"idp request params", applyIDPRequestParams},
 	} {
-		if err := apply.fn(p, c); err != nil {
+		if err := apply.fn(ctx, p, c); err != nil {
 			return fmt.Errorf("%s: %w", apply.name, err)
 		}
 	}
@@ -45,7 +42,7 @@ func applyConfig(p *pb.Config, c *model.Config) error {
 	return nil
 }
 
-func applyCerts(p *pb.Config, c *model.Config) error {
+func applyCerts(_ context.Context, p *pb.Config, c *model.Config) error {
 	if len(c.Certs) != len(c.Spec.Certificates) {
 		return fmt.Errorf("expected %d cert secrets, only %d was fetched. this is a bug", len(c.Spec.Certificates), len(c.Certs))
 	}
@@ -59,7 +56,7 @@ func applyCerts(p *pb.Config, c *model.Config) error {
 	return nil
 }
 
-func applyAuthenticate(p *pb.Config, c *model.Config) error {
+func applyAuthenticate(_ context.Context, p *pb.Config, c *model.Config) error {
 	_, err := url.Parse(c.Spec.Authenticate.URL)
 	if err != nil {
 		return fmt.Errorf("parsing %s: %w", c.Spec.Authenticate.URL, err)
@@ -70,7 +67,7 @@ func applyAuthenticate(p *pb.Config, c *model.Config) error {
 	return nil
 }
 
-func applyIDP(p *pb.Config, c *model.Config) error {
+func applyIDP(_ context.Context, p *pb.Config, c *model.Config) error {
 	idp := c.Spec.IdentityProvider
 	p.Settings.IdpProvider = &idp.Provider
 	p.Settings.Scopes = idp.Scopes
@@ -78,18 +75,7 @@ func applyIDP(p *pb.Config, c *model.Config) error {
 	return nil
 }
 
-func applyIDPProviderRefreshTimeouts(p *pb.Config, c *model.Config) error {
-	rd := c.Pomerium.Spec.IdentityProvider.RefreshDirectory
-	if rd == nil {
-		return nil
-	}
-	p.Settings.IdpRefreshDirectoryInterval = durationpb.New(rd.Interval.Duration)
-	p.Settings.IdpRefreshDirectoryTimeout = durationpb.New(rd.Timeout.Duration)
-
-	return nil
-}
-
-func applyIDPProviderURL(p *pb.Config, c *model.Config) error {
+func applyIDPProviderURL(_ context.Context, p *pb.Config, c *model.Config) error {
 	if c.Spec.IdentityProvider.URL == nil {
 		return nil
 	}
@@ -102,7 +88,7 @@ func applyIDPProviderURL(p *pb.Config, c *model.Config) error {
 	return nil
 }
 
-func applyIDPSecret(p *pb.Config, c *model.Config) error {
+func applyIDPSecret(ctx context.Context, p *pb.Config, c *model.Config) error {
 	if c.IdpSecret == nil {
 		return fmt.Errorf("is required")
 	}
@@ -115,15 +101,19 @@ func applyIDPSecret(p *pb.Config, c *model.Config) error {
 		return err
 	}
 
-	if data, ok := c.IdpSecret.Data["service_account"]; ok {
-		txt := string(data)
-		p.Settings.IdpServiceAccount = &txt
+	if _, ok := c.IdpSecret.Data["service_account"]; ok {
+		util.Add[config.FieldMsg](ctx, config.FieldMsg{
+			Key:           "identityProvider.secret.service_account",
+			DocsURL:       "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
+			FieldCheckMsg: config.FieldCheckMsgRemoved,
+			KeyAction:     config.KeyActionWarn,
+		})
 	}
 
 	return nil
 }
 
-func applyIDPRequestParams(p *pb.Config, c *model.Config) error {
+func applyIDPRequestParams(_ context.Context, p *pb.Config, c *model.Config) error {
 	if c.RequestParams == nil {
 		p.Settings.RequestParams = c.Spec.IdentityProvider.RequestParams
 		return nil
@@ -134,35 +124,6 @@ func applyIDPRequestParams(p *pb.Config, c *model.Config) error {
 		return err
 	}
 	return nil
-}
-
-func applyServiceAccount(p *pb.Config, c *model.Config) error {
-	if c.IdpServiceAccount == nil {
-		return nil
-	}
-	if p.Settings.IdpServiceAccount != nil {
-		return fmt.Errorf("service account was already set from secret %s", c.Spec.IdentityProvider.Secret)
-	}
-	txt, err := buildIDPServiceAccount(c.IdpServiceAccount)
-	if err != nil {
-		return err
-	}
-	p.Settings.IdpServiceAccount = &txt
-	return nil
-}
-
-// buildIDPServiceAccount builds an IdP service account from a provided secret keys
-// see https://www.pomerium.com/reference/#identity-provider-service-account
-func buildIDPServiceAccount(secret *corev1.Secret) (string, error) {
-	sm := make(map[string]string, len(secret.Data))
-	for k, v := range secret.Data {
-		sm[k] = string(v)
-	}
-	data, err := json.Marshal(sm)
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(data), nil
 }
 
 func getRequiredString(data map[string][]byte, key string) (*string, error) {

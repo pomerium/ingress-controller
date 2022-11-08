@@ -216,7 +216,7 @@ dev-install:
 	@echo "==> $@"
 	@echo "deleting pods..."
 	#@kubectl delete --force --selector app.kubernetes.io/name=pomerium pods || true
-	@kubectl delete deployment/pomerium --wait || true
+	@kubectl delete deployment/pomerium -n pomerium --wait || true
 	@$(KUSTOMIZE) build config/dev/local | kubectl apply --filename -
 
 .PHONY: dev-logs

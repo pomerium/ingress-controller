@@ -21,11 +21,11 @@ func FetchConfig(ctx context.Context, client client.Client, name types.Namespace
 	}
 
 	if err := fetchConfigSecrets(ctx, client, &cfg); err != nil {
-		return nil, fmt.Errorf("secrets: %w", err)
+		return &cfg, fmt.Errorf("secrets: %w", err)
 	}
 
 	if err := fetchConfigCerts(ctx, client, &cfg); err != nil {
-		return nil, fmt.Errorf("certs: %w", err)
+		return &cfg, fmt.Errorf("certs: %w", err)
 	}
 
 	return &cfg, nil
