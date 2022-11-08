@@ -14,11 +14,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	pom_cfg "github.com/pomerium/pomerium/config"
+
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/controllers/deps"
 	"github.com/pomerium/ingress-controller/controllers/reporter"
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/pomerium"
+	"github.com/pomerium/ingress-controller/util"
 )
 
 type settingsController struct {
@@ -32,6 +35,8 @@ type settingsController struct {
 	model.Registry
 	// MultiPomeriumStatusReporter is used to report when settings are updated
 	reporter.MultiPomeriumStatusReporter
+	// emitWarnings related to configuration. as there are multiple controllers running, not all should report
+	emitWarnings bool
 }
 
 // NewSettingsController creates and registers a new controller for
@@ -41,6 +46,7 @@ func NewSettingsController(
 	pcr pomerium.ConfigReconciler,
 	name types.NamespacedName,
 	controllerName string,
+	emitWarnings bool,
 ) error {
 	if name.Namespace != "" {
 		return fmt.Errorf("pomerium CRD is cluster-scoped")
@@ -72,6 +78,7 @@ func NewSettingsController(
 			},
 			&reporter.SettingsLogReporter{},
 		},
+		emitWarnings: emitWarnings,
 	}
 
 	c, err := ctrl.NewControllerManagedBy(mgr).
@@ -113,14 +120,31 @@ func (c *settingsController) Reconcile(ctx context.Context, req ctrl.Request) (c
 	logger.Info("reconciling... ", "registry", c.Registry)
 	c.Registry.DeleteCascade(c.key)
 
+	if c.emitWarnings {
+		ctx = util.WithBin[pom_cfg.FieldMsg](ctx)
+	}
+
 	cfg, err := FetchConfig(ctx, c.Client, c.key.NamespacedName)
 	logger.Info("fetch", "deps", c.Registry.Deps(c.key), "error", err)
 	if err != nil {
+		c.SettingsRejected(ctx, &cfg.Pomerium, err)
 		return ctrl.Result{Requeue: true}, fmt.Errorf("get settings: %w", err)
+	}
+
+	if deprecations, err := icsv1.GetDeprecations(&cfg.Pomerium.Spec); err != nil {
+		logger.Error(err, "checking config for deprecations")
+		util.Add(ctx, pom_cfg.FieldMsg{
+			Key:           "pomerium",
+			FieldCheckMsg: pom_cfg.FieldCheckMsg(err.Error()),
+			KeyAction:     pom_cfg.KeyActionWarn,
+		})
+	} else {
+		util.Add(ctx, deprecations...)
 	}
 
 	changed, err := c.SetConfig(ctx, cfg)
 	if err != nil {
+		c.SettingsRejected(ctx, &cfg.Pomerium, err)
 		return ctrl.Result{Requeue: true}, fmt.Errorf("set config: %w", err)
 	}
 	if changed {

@@ -304,7 +304,7 @@ func (s *allCmdParam) runBootstrapConfigController(ctx context.Context, reconcil
 	if host, err := os.Hostname(); err == nil {
 		name = fmt.Sprintf("%s-%s", name, host)
 	}
-	if err := settings.NewSettingsController(mgr, reconciler, s.settings, name); err != nil {
+	if err := settings.NewSettingsController(mgr, reconciler, s.settings, name, false); err != nil {
 		return fmt.Errorf("settings controller: %w", err)
 	}
 	return mgr.Start(ctx)

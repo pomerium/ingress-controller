@@ -48,7 +48,6 @@ var (
 	})
 	policyAnnotations = boolMap([]string{
 		"allowed_users",
-		"allowed_groups",
 		"allowed_domains",
 		"allowed_idp_claims",
 		"policy",
@@ -77,6 +76,9 @@ var (
 		model.UseServiceProxy,
 		model.TCPUpstream,
 	})
+	unsupported = map[string]string{
+		"allowed_groups": "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
+	}
 )
 
 func boolMap(keys []string) map[string]bool {
@@ -101,11 +103,17 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 		Etc:    make(map[string]string),
 		Secret: make(map[string]string),
 	}
+
 	for k, v := range src {
 		if !strings.HasPrefix(k, prefix) {
 			continue
 		}
 		k = strings.TrimPrefix(k, prefix)
+
+		if help, ok := unsupported[k]; ok {
+			return nil, fmt.Errorf("%s%s no longer supported, see %s", prefix, k, help)
+		}
+
 		known := false
 		for _, m := range []struct {
 			keys map[string]bool

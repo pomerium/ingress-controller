@@ -74,7 +74,7 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 		return fmt.Errorf("create ingress controller: %w", err)
 	}
 	if c.GlobalSettings != nil {
-		if err = settings.NewSettingsController(mgr, c.ConfigReconciler, *c.GlobalSettings, "pomerium-crd"); err != nil {
+		if err = settings.NewSettingsController(mgr, c.ConfigReconciler, *c.GlobalSettings, "pomerium-crd", true); err != nil {
 			return fmt.Errorf("create settings controller: %w", err)
 		}
 	} else {
