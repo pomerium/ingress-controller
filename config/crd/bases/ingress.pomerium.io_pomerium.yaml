@@ -56,6 +56,25 @@ spec:
                 items:
                   type: string
                 type: array
+              cookie:
+                description: Cookie defines Pomerium cookie options
+                properties:
+                  domain:
+                    description: Domain see https://docs.pomerium.com/docs/reference/cookie-domain
+                    type: string
+                  expire:
+                    description: Expire see https://docs.pomerium.com/docs/reference/cookie-expire
+                    type: string
+                  httpOnly:
+                    description: HTTPOnly see https://docs.pomerium.com/docs/reference/cookie-http-only
+                    type: boolean
+                  name:
+                    description: Name see https://docs.pomerium.com/docs/reference/cookie-name
+                    type: string
+                  secure:
+                    description: Secure see https://docs.pomerium.com/docs/reference/cookie-secure
+                    type: boolean
+                type: object
               identityProvider:
                 description: IdentityProvider see https://www.pomerium.com/docs/identity-providers/
                 properties:

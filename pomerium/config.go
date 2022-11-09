@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"google.golang.org/protobuf/types/known/durationpb"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/pomerium/pomerium/config"
@@ -33,10 +34,27 @@ func applyConfig(ctx context.Context, p *pb.Config, c *model.Config) error {
 		{"idp url", applyIDPProviderURL},
 		{"idp secret", applyIDPSecret},
 		{"idp request params", applyIDPRequestParams},
+		{"cookie", applyCookie},
 	} {
 		if err := apply.fn(ctx, p, c); err != nil {
 			return fmt.Errorf("%s: %w", apply.name, err)
 		}
+	}
+
+	return nil
+}
+
+func applyCookie(_ context.Context, p *pb.Config, c *model.Config) error {
+	if c.Spec.Cookie == nil {
+		return nil
+	}
+	p.Settings.CookieDomain = c.Spec.Cookie.Domain
+	p.Settings.CookieName = c.Spec.Cookie.Name
+	p.Settings.CookieHttpOnly = c.Spec.Cookie.HTTPOnly
+	p.Settings.CookieSecure = c.Spec.Cookie.Secure
+
+	if c.Spec.Cookie.Expire != nil {
+		p.Settings.CookieExpire = durationpb.New(c.Spec.Cookie.Expire.Duration)
 	}
 
 	return nil
