@@ -42,10 +42,9 @@ type IdentityProvider struct {
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1
 	Secret string `json:"secret"`
-	// ServiceAccountFromSecret is a convenience way to build a value for `idp_service_account` from
-	// secret map values, see https://www.pomerium.com/docs/identity-providers/
+	// ServiceAccountFromSecret is no longer supported, see https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync
 	// +optional
-	ServiceAccountFromSecret *string `json:"serviceAccountFromSecret,omitempty"`
+	ServiceAccountFromSecret *string `json:"serviceAccountFromSecret,omitempty" deprecated:"idp_directory_sync"`
 	// RequestParams see https://www.pomerium.com/reference/#identity-provider-request-params
 	// +optional
 	RequestParams map[string]string `json:"requestParams,omitempty"`
@@ -56,9 +55,9 @@ type IdentityProvider struct {
 	// +optional
 	Scopes []string `json:"scopes,omitempty"`
 
-	// RefreshDirectory defines IdP directory refresh options
+	// RefreshDirectory is no longer supported, please see https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync
 	// +optional
-	RefreshDirectory *RefreshDirectorySettings `json:"refreshDirectory"`
+	RefreshDirectory *RefreshDirectorySettings `json:"refreshDirectory" deprecated:"idp_directory_sync"`
 }
 
 // RefreshDirectorySettings defines how frequently should directory update.
@@ -139,7 +138,7 @@ type PostgresStorage struct {
 type Storage struct {
 	// Redis defines REDIS connection parameters
 	// +kubebuilder:validation:Optional
-	Redis *RedisStorage `json:"redis"`
+	Redis *RedisStorage `json:"redis" deprecated:"redis"`
 
 	// Postgres specifies PostgreSQL database connection parameters
 	// +kubebuilder:validation:Optional
@@ -226,6 +225,9 @@ type ResourceStatus struct {
 	// Error that prevented latest observedGeneration to be synchronized with Pomerium.
 	// +optional
 	Error *string `json:"error"`
+	// Warnings
+	// +optional
+	Warnings []string `json:"warnings"`
 }
 
 // PomeriumStatus defines the observed state of Settings

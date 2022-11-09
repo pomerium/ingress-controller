@@ -91,7 +91,8 @@ spec:
                     - github
                     type: string
                   refreshDirectory:
-                    description: RefreshDirectory defines IdP directory refresh options
+                    description: RefreshDirectory is no longer supported, please see
+                      https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync
                     properties:
                       interval:
                         description: interval is the time that pomerium will sync
@@ -127,9 +128,8 @@ spec:
                     minLength: 1
                     type: string
                   serviceAccountFromSecret:
-                    description: ServiceAccountFromSecret is a convenience way to
-                      build a value for `idp_service_account` from secret map values,
-                      see https://www.pomerium.com/docs/identity-providers/
+                    description: ServiceAccountFromSecret is no longer supported,
+                      see https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync
                     type: string
                   url:
                     description: URL is identity provider url, see https://www.pomerium.com/reference/#identity-provider-url.
@@ -239,6 +239,11 @@ spec:
                       description: Reconciled is whether this object generation was
                         successfully synced with pomerium.
                       type: boolean
+                    warnings:
+                      description: Warnings
+                      items:
+                        type: string
+                      type: array
                   required:
                   - reconciled
                   type: object
@@ -266,6 +271,11 @@ spec:
                     description: Reconciled is whether this object generation was
                       successfully synced with pomerium.
                     type: boolean
+                  warnings:
+                    description: Warnings
+                    items:
+                      type: string
+                    type: array
                 required:
                 - reconciled
                 type: object
