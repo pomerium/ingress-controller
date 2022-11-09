@@ -36,10 +36,27 @@ func applyConfig(p *pb.Config, c *model.Config) error {
 		{"idp secret", applyIDPSecret},
 		{"idp service account from secret", applyServiceAccount},
 		{"idp request params", applyIDPRequestParams},
+		{"cookie", applyCookie},
 	} {
 		if err := apply.fn(p, c); err != nil {
 			return fmt.Errorf("%s: %w", apply.name, err)
 		}
+	}
+
+	return nil
+}
+
+func applyCookie(p *pb.Config, c *model.Config) error {
+	if c.Spec.Cookie == nil {
+		return nil
+	}
+	p.Settings.CookieDomain = c.Spec.Cookie.Domain
+	p.Settings.CookieName = c.Spec.Cookie.Name
+	p.Settings.CookieHttpOnly = c.Spec.Cookie.HTTPOnly
+	p.Settings.CookieSecure = c.Spec.Cookie.Secure
+
+	if c.Spec.Cookie.Expire != nil {
+		p.Settings.CookieExpire = durationpb.New(c.Spec.Cookie.Expire.Duration)
 	}
 
 	return nil

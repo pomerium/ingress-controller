@@ -161,6 +161,26 @@ type Authenticate struct {
 	CallbackPath *string `json:"callbackPath,omitempty"`
 }
 
+// Cookie customizes HTTP cookie set by Pomerium.
+// note that cookie_secret is part of the main configuration secret
+type Cookie struct {
+	// Name see https://docs.pomerium.com/docs/reference/cookie-name
+	// +optional
+	Name *string `json:"name,omitempty"`
+	// Domain see https://docs.pomerium.com/docs/reference/cookie-domain
+	// +optional
+	Domain *string `json:"domain,omitempty"`
+	// Secure see https://docs.pomerium.com/docs/reference/cookie-secure
+	// +optional
+	Secure *bool `json:"secure,omitempty"`
+	// HTTPOnly see https://docs.pomerium.com/docs/reference/cookie-http-only
+	// +optional
+	HTTPOnly *bool `json:"httpOnly,omitempty"`
+	// Expire see https://docs.pomerium.com/docs/reference/cookie-expire
+	// +optional
+	Expire *metav1.Duration `json:"expire,omitempty"`
+}
+
 // PomeriumSpec defines the desired state of Settings
 type PomeriumSpec struct {
 	// Authenticate sets authenticate service parameters
@@ -188,7 +208,11 @@ type PomeriumSpec struct {
 	// it will use in-memory if none specified
 	// see https://www.pomerium.com/docs/topics/data-storage
 	// +kubebuilder:validation:Optional
-	Storage *Storage `json:"storage"`
+	Storage *Storage `json:"storage,omitempty"`
+
+	// Cookie defines Pomerium cookie options
+	// +optional
+	Cookie *Cookie `json:"cookie,omitempty"`
 }
 
 // ResourceStatus represents the outcome of the latest attempt to reconcile it with Pomerium.
