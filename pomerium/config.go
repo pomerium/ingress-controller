@@ -36,6 +36,7 @@ func applyConfig(ctx context.Context, p *pb.Config, c *model.Config) error {
 		{"idp request params", applyIDPRequestParams},
 		{"cookie", applyCookie},
 		{"warnings", checkForWarnings},
+		{"jwt claim headers", applyJWTClaimHeaders},
 	} {
 		if err := apply.fn(ctx, p, c); err != nil {
 			return fmt.Errorf("%s: %w", apply.name, err)
@@ -54,6 +55,11 @@ func checkForWarnings(ctx context.Context, _ *pb.Config, c *model.Config) error 
 			KeyAction:     config.KeyActionWarn,
 		})
 	}
+	return nil
+}
+
+func applyJWTClaimHeaders(_ context.Context, p *pb.Config, c *model.Config) error {
+	p.Settings.JwtClaimsHeaders = c.Spec.JWTClaimHeaders
 	return nil
 }
 
