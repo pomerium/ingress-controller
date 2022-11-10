@@ -35,12 +35,18 @@ func applyConfig(ctx context.Context, p *pb.Config, c *model.Config) error {
 		{"idp secret", applyIDPSecret},
 		{"idp request params", applyIDPRequestParams},
 		{"cookie", applyCookie},
+		{"jwt claim headers", applyJWTClaimHeaders},
 	} {
 		if err := apply.fn(ctx, p, c); err != nil {
 			return fmt.Errorf("%s: %w", apply.name, err)
 		}
 	}
 
+	return nil
+}
+
+func applyJWTClaimHeaders(_ context.Context, p *pb.Config, c *model.Config) error {
+	p.Settings.JwtClaimsHeaders = c.Spec.JWTClaimHeaders
 	return nil
 }
 
