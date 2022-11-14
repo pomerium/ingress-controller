@@ -208,6 +208,11 @@ deployment:
 	@echo "==> $@"
 	@$(KUSTOMIZE) build config/default > deployment.yaml
 
+.PHONY: docs
+docs: manifests
+	@echo "==> $@"
+	@go run docs/cmd/main.go > CRD.md
+
 #
 # --- internal development targets
 #

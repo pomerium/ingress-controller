@@ -26,23 +26,7 @@ Pomerium requires further configuration to become operational.
 
 Default Pomerium deployment is configured to watch `global` CRD.
 That may be customized via command line arguments.
-Most Pomerium configuration is set via CRD.
-
-```yaml
-apiVersion: ingress.pomerium.io/v1
-kind: Pomerium
-metadata:
-  name: global
-spec:
-  authenticate:
-    url: https://authenticate.localhost.pomerium.io
-  certificates:
-    - pomerium/wildcard-localhost-pomerium-io
-  identityProvider:
-    provider: xxxxxxx
-    secret: pomerium/idp
-  secrets: pomerium/bootstrap
-```
+[Pomerium should be configured via the CRD](CRD.md).
 
 _Note:_: the configuration must be complete. i.e. if you're missing a referenced secret, it would not be accepted.
 
