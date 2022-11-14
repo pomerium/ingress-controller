@@ -34,7 +34,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: PomeriumSpec defines the desired state of Settings
+            description: PomeriumSpec defines Pomerium-specific configuration parameters.
             properties:
               authenticate:
                 description: Authenticate sets authenticate service parameters
@@ -57,7 +57,7 @@ spec:
                   type: string
                 type: array
               cookie:
-                description: Cookie defines Pomerium cookie options
+                description: Cookie defines Pomerium session cookie options.
                 properties:
                   domain:
                     description: Domain see https://docs.pomerium.com/docs/reference/cookie-domain
@@ -79,7 +79,9 @@ spec:
                 description: IdentityProvider see https://www.pomerium.com/docs/identity-providers/
                 properties:
                   provider:
-                    description: Provider one of accepted providers - see https://www.pomerium.com/reference/#identity-provider-name.
+                    description: Provider is the short-hand name of a built-in OpenID
+                      Connect (oidc) identity provider to be used for authentication.
+                      To use a generic provider, set to <code>oidc</code>.
                     enum:
                     - auth0
                     - azure
@@ -110,29 +112,34 @@ spec:
                   requestParams:
                     additionalProperties:
                       type: string
-                    description: RequestParams see https://www.pomerium.com/reference/#identity-provider-request-params
+                    description: RequestParams to be added as part of a signin request
+                      using OAuth2 code flow.
                     type: object
                   requestParamsSecret:
                     description: RequestParamsSecret is a reference to a secret for
                       additional parameters you'd prefer not to provide in plaintext.
                     type: string
                   scopes:
-                    description: Scopes see https://www.pomerium.com/reference/#identity-provider-scopes.
+                    description: Scopes correspond to access <a href="https://www.pomerium.com/reference/#identity-provider-scopes">privilege
+                      scopes</a>.
                     items:
                       type: string
                     type: array
                   secret:
                     description: Secret containing IdP provider specific parameters
-                      and must contain at least client_id and client_secret values,
-                      an optional `service_account` field, mapped to https://www.pomerium.com/reference/#identity-provider-service-account
+                      and must contain at least <code>client_id</code> and <code>client_secret</code>
+                      values.
                     minLength: 1
                     type: string
                   serviceAccountFromSecret:
                     description: ServiceAccountFromSecret is no longer supported,
-                      see https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync
+                      see <a href="https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync">Upgrade
+                      Guide</a>
                     type: string
                   url:
-                    description: URL is identity provider url, see https://www.pomerium.com/reference/#identity-provider-url.
+                    description: URL is the base path to an identity provider's OpenID
+                      connect discovery document. See <a href="https://pomerium.com/docs/identity-providers">Identity
+                      Providers</a> guides for details.
                     format: uri
                     pattern: ^https://
                     type: string
@@ -141,13 +148,23 @@ spec:
                 - secret
                 type: object
               secrets:
-                description: Secrets references a Secret that must have the following
-                  keys - shared_secret - cookie_secret - signing_key
+                description: "Secrets references a Secret with Pomerium bootstrap
+                  parameters. In a default Pomerium installation manifest, they would
+                  be generated via a one-time job and stored in a <code>pomerium/bootstrap</code>
+                  Secret. You may re-run the job to rotate the secrets, or update
+                  the Secret values manually. \n <p> <ul> <li><a href=\"https://pomerium.com/docs/reference/shared-secret\"><code>shared_secret</code></a>
+                  - secures inter-Pomerium service communications. </li> <li><a href=\"https://pomerium.com/docs/reference/cookie-secret\"><code>cookie_secret</code></a>
+                  - encrypts Pomerium session browser cookie. See also other <a href=\"#cookie\">Cookie</a>
+                  parameters. </li> <li><a href=\"https://pomerium.com/docs/reference/signing-key\"><code>signing_key</code></a>
+                  signs Pomerium JWT assertion header. See <a href=\"https://www.pomerium.com/docs/topics/getting-users-identity\">Getting
+                  the user's identity</a> guide. </li> </ul> </p>"
                 minLength: 1
                 type: string
               storage:
                 description: Storage defines persistent storage for sessions and other
-                  data it will use in-memory if none specified see https://www.pomerium.com/docs/topics/data-storage
+                  data. See <a href="https://www.pomerium.com/docs/topics/data-storage">Storage</a>
+                  for details. If no storage is specified, Pomerium would use a transient
+                  in-memory storage (not recommended for production).
                 properties:
                   postgres:
                     description: Postgres specifies PostgreSQL database connection
@@ -162,11 +179,10 @@ spec:
                         type: string
                       secret:
                         description: Secret specifies a name of a Secret that must
-                          contain `connection` key for the connection DSN format and
-                          parameters, see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
-                          the following keywords are not allowed to be part of the
-                          parameters, as they must be populated via `tlsCecret` and
-                          `caSecret` fields
+                          contain <code>connection</code> key. See <a href="https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING">DSN
+                          Format and Parameters</a>. Keywords related to TLS are not
+                          allowed, as they must be populated via <code>tlsCecret</code>
+                          and <code>caSecret</code> fields.
                         minLength: 1
                         type: string
                       tlsSecret:
@@ -184,25 +200,24 @@ spec:
                     properties:
                       caSecret:
                         description: CASecret should refer to a k8s secret with key
-                          `ca.crt` that must be a PEM-encoded certificate authority
-                          to use when connecting to the databroker storage engine
-                          see https://www.pomerium.com/docs/reference/data-broker-storage-certificate-authority
+                          <code>ca.crt</code> that must be a PEM-encoded certificate
+                          authority to use when connecting to the databroker storage
+                          engine.
                         type: string
                       secret:
                         description: Secret specifies a name of a Secret that must
-                          contain `connection` key. see https://www.pomerium.com/docs/reference/data-broker-storage-connection-string
+                          contain <code>connection</code> key.
                         minLength: 1
                         type: string
                       tlsSecret:
                         description: TLSSecret should refer to a k8s secret of type
-                          `kubernetes.io/tls` and allows to specify an optional databroker
-                          storage client certificate and key, see - https://www.pomerium.com/docs/reference/data-broker-storage-certificate-file
-                          - https://www.pomerium.com/docs/reference/data-broker-storage-certificate-key-file
+                          <code>kubernetes.io/tls</code> that would be used to perform
+                          TLS connection to REDIS.
                         minLength: 1
                         type: string
                       tlsSkipVerify:
                         description: TLSSkipVerify disables TLS certificate chain
-                          validation see https://www.pomerium.com/docs/reference/data-broker-storage-tls-skip-verify
+                          validation.
                         type: boolean
                     required:
                     - secret
@@ -214,12 +229,12 @@ spec:
             - secrets
             type: object
           status:
-            description: PomeriumStatus defines the observed state of Settings
+            description: PomeriumStatus represents configuration and Ingress status.
             properties:
               ingress:
                 additionalProperties:
                   description: ResourceStatus represents the outcome of the latest
-                    attempt to reconcile it with Pomerium.
+                    attempt to reconcile relevant Kubernetes resource with Pomerium.
                   properties:
                     error:
                       description: Error that prevented latest observedGeneration
@@ -231,7 +246,7 @@ spec:
                       format: date-time
                       type: string
                     observedGeneration:
-                      description: ObservedGeneration represents the .metadata.generation
+                      description: ObservedGeneration represents the <code>.metadata.generation</code>
                         that was last presented to Pomerium.
                       format: int64
                       type: integer
@@ -240,7 +255,7 @@ spec:
                         successfully synced with pomerium.
                       type: boolean
                     warnings:
-                      description: Warnings
+                      description: Warnings while parsing the resource.
                       items:
                         type: string
                       type: array
@@ -250,7 +265,7 @@ spec:
                 description: Routes provide per-Ingress status.
                 type: object
               settingsStatus:
-                description: settingsStatus represent most recent main configuration
+                description: SettingsStatus represent most recent main configuration
                   reconciliation status.
                 properties:
                   error:
@@ -263,7 +278,7 @@ spec:
                     format: date-time
                     type: string
                   observedGeneration:
-                    description: ObservedGeneration represents the .metadata.generation
+                    description: ObservedGeneration represents the <code>.metadata.generation</code>
                       that was last presented to Pomerium.
                     format: int64
                     type: integer
@@ -272,7 +287,7 @@ spec:
                       successfully synced with pomerium.
                     type: boolean
                   warnings:
-                    description: Warnings
+                    description: Warnings while parsing the resource.
                     items:
                       type: string
                     type: array

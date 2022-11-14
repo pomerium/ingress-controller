@@ -25,33 +25,36 @@ import (
 // Where available, Pomerium also supports pulling additional data (like groups) using directory synchronization.
 // An additional API token is required for directory sync. https://www.pomerium.com/docs/identity-providers/
 type IdentityProvider struct {
-	// Provider one of accepted providers - see https://www.pomerium.com/reference/#identity-provider-name.
+	// Provider is the short-hand name of a built-in OpenID Connect (oidc) identity provider to be used for authentication.
+	// To use a generic provider, set to <code>oidc</code>.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum=auth0;azure;google;okta;onelogin;oidc;ping;github
 	Provider string `json:"provider"`
-	// URL is identity provider url, see https://www.pomerium.com/reference/#identity-provider-url.
+	// URL is the base path to an identity provider's OpenID connect discovery document.
+	// See <a href="https://pomerium.com/docs/identity-providers">Identity Providers</a> guides for details.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Format=uri
 	// +kubebuilder:validation:Pattern=`^https://`
 	URL *string `json:"url"`
 	// Secret containing IdP provider specific parameters
-	// and must contain at least client_id and client_secret values,
-	// an optional `service_account` field, mapped to https://www.pomerium.com/reference/#identity-provider-service-account
+	// and must contain at least <code>client_id</code> and <code>client_secret</code> values.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1
 	Secret string `json:"secret"`
-	// ServiceAccountFromSecret is no longer supported, see https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync
+	// ServiceAccountFromSecret is no longer supported,
+	// see <a href="https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync">Upgrade Guide</a>
 	// +optional
 	ServiceAccountFromSecret *string `json:"serviceAccountFromSecret,omitempty" deprecated:"idp_directory_sync"`
-	// RequestParams see https://www.pomerium.com/reference/#identity-provider-request-params
+	// RequestParams to be added as part of a signin request using OAuth2 code flow.
 	// +optional
 	RequestParams map[string]string `json:"requestParams,omitempty"`
 	// RequestParamsSecret is a reference to a secret for additional parameters you'd prefer not to provide in plaintext.
 	// +optional
 	RequestParamsSecret *string `json:"requestParamsSecret,omitempty"`
-	// Scopes see https://www.pomerium.com/reference/#identity-provider-scopes.
+	// Scopes correspond to access
+	// <a href="https://www.pomerium.com/reference/#identity-provider-scopes">privilege scopes</a>.
 	// +optional
 	Scopes []string `json:"scopes,omitempty"`
 
@@ -71,32 +74,26 @@ type RefreshDirectorySettings struct {
 }
 
 // RedisStorage defines REDIS databroker storage backend bootstrap parameters.
-// Redis is supported for legacy deployment, and new deployments should use PostgreSQL.
+// Redis is supported for legacy deployments, new deployments should use PostgreSQL.
 type RedisStorage struct {
 	// Secret specifies a name of a Secret that must contain
-	// `connection` key.
-	// see https://www.pomerium.com/docs/reference/data-broker-storage-connection-string
+	// <code>connection</code> key.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1
 	Secret string `json:"secret"`
-	// TLSSecret should refer to a k8s secret of type `kubernetes.io/tls`
-	// and allows to specify an optional databroker storage client certificate and key, see
-	// - https://www.pomerium.com/docs/reference/data-broker-storage-certificate-file
-	// - https://www.pomerium.com/docs/reference/data-broker-storage-certificate-key-file
+	// TLSSecret should refer to a k8s secret of type <code>kubernetes.io/tls</code>
+	// that would be used to perform TLS connection to REDIS.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1
 	TLSSecret *string `json:"tlsSecret"`
-	// CASecret should refer to a k8s secret with key `ca.crt` that must be a PEM-encoded
-	// certificate authority to use when connecting to the databroker storage engine
-	// see https://www.pomerium.com/docs/reference/data-broker-storage-certificate-authority
-	//
+	// CASecret should refer to a k8s secret with key <code>ca.crt</code> that must be a PEM-encoded
+	// certificate authority to use when connecting to the databroker storage engine.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	CASecret *string `json:"caSecret"`
-	// TLSSkipVerify disables TLS certificate chain validation
-	// see https://www.pomerium.com/docs/reference/data-broker-storage-tls-skip-verify
+	// TLSSkipVerify disables TLS certificate chain validation.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=boolean
 	TLSSkipVerify bool `json:"tlsSkipVerify"`
@@ -105,11 +102,10 @@ type RedisStorage struct {
 // PostgresStorage defines Postgres connection parameters.
 type PostgresStorage struct {
 	// Secret specifies a name of a Secret that must contain
-	// `connection` key
-	// for the connection DSN format and parameters, see
-	// https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
-	// the following keywords are not allowed to be part of the parameters,
-	// as they must be populated via `tlsCecret` and `caSecret` fields
+	// <code>connection</code> key. See
+	// <a href="https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING">DSN Format and Parameters</a>.
+	// Keywords related to TLS are not allowed,
+	// as they must be populated via <code>tlsCecret</code> and <code>caSecret</code> fields.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1
@@ -180,7 +176,7 @@ type Cookie struct {
 	Expire *metav1.Duration `json:"expire,omitempty"`
 }
 
-// PomeriumSpec defines the desired state of Settings
+// PomeriumSpec defines Pomerium-specific configuration parameters.
 type PomeriumSpec struct {
 	// Authenticate sets authenticate service parameters
 	// +kubebuilder:validation:Required
@@ -194,29 +190,48 @@ type PomeriumSpec struct {
 	// +optional
 	Certificates []string `json:"certificates"`
 
-	// Secrets references a Secret that must have the following keys
-	// - shared_secret
-	// - cookie_secret
-	// - signing_key
+	// Secrets references a Secret with Pomerium bootstrap parameters.
+	// In a default Pomerium installation manifest, they would be generated
+	// via a one-time job and stored in a <code>pomerium/bootstrap</code> Secret.
+	// You may re-run the job to rotate the secrets, or update the Secret values manually.
+	//
+	// <p>
+	// <ul>
+	// 	<li><a href="https://pomerium.com/docs/reference/shared-secret"><code>shared_secret</code></a>
+	//		- secures inter-Pomerium service communications.
+	//	</li>
+	// 	<li><a href="https://pomerium.com/docs/reference/cookie-secret"><code>cookie_secret</code></a>
+	//		- encrypts Pomerium session browser cookie.
+	//		See also other <a href="#cookie">Cookie</a> parameters.
+	//	</li>
+	// 	<li><a href="https://pomerium.com/docs/reference/signing-key"><code>signing_key</code></a>
+	//		signs Pomerium JWT assertion header. See
+	//		<a href="https://www.pomerium.com/docs/topics/getting-users-identity">Getting the user's identity</a>
+	//		guide.
+	//	</li>
+	// </ul>
+	// </p>
+	//
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1
 	Secrets string `json:"secrets"`
 
-	// Storage defines persistent storage for sessions and other data
-	// it will use in-memory if none specified
-	// see https://www.pomerium.com/docs/topics/data-storage
+	// Storage defines persistent storage for sessions and other data.
+	// See <a href="https://www.pomerium.com/docs/topics/data-storage">Storage</a> for details.
+	// If no storage is specified, Pomerium would use a transient in-memory storage (not recommended for production).
 	// +kubebuilder:validation:Optional
 	Storage *Storage `json:"storage,omitempty"`
 
-	// Cookie defines Pomerium cookie options
+	// Cookie defines Pomerium session cookie options.
 	// +optional
 	Cookie *Cookie `json:"cookie,omitempty"`
 }
 
-// ResourceStatus represents the outcome of the latest attempt to reconcile it with Pomerium.
+// ResourceStatus represents the outcome of the latest attempt to reconcile
+// relevant Kubernetes resource with Pomerium.
 type ResourceStatus struct {
-	// ObservedGeneration represents the .metadata.generation that was last presented to Pomerium.
+	// ObservedGeneration represents the <code>.metadata.generation</code> that was last presented to Pomerium.
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// ObservedAt is when last reconciliation attempt was made.
 	ObservedAt metav1.Time `json:"observedAt,omitempty"`
@@ -225,16 +240,16 @@ type ResourceStatus struct {
 	// Error that prevented latest observedGeneration to be synchronized with Pomerium.
 	// +optional
 	Error *string `json:"error"`
-	// Warnings
+	// Warnings while parsing the resource.
 	// +optional
 	Warnings []string `json:"warnings"`
 }
 
-// PomeriumStatus defines the observed state of Settings
+// PomeriumStatus represents configuration and Ingress status.
 type PomeriumStatus struct {
 	// Routes provide per-Ingress status.
 	Routes map[string]ResourceStatus `json:"ingress,omitempty"`
-	// settingsStatus represent most recent main configuration reconciliation status.
+	// SettingsStatus represent most recent main configuration reconciliation status.
 	SettingsStatus *ResourceStatus `json:"settingsStatus,omitempty"`
 }
 
