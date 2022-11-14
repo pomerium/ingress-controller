@@ -35,12 +35,31 @@ func applyConfig(ctx context.Context, p *pb.Config, c *model.Config) error {
 		{"idp secret", applyIDPSecret},
 		{"idp request params", applyIDPRequestParams},
 		{"cookie", applyCookie},
+		{"warnings", checkForWarnings},
+		{"jwt claim headers", applyJWTClaimHeaders},
 	} {
 		if err := apply.fn(ctx, p, c); err != nil {
 			return fmt.Errorf("%s: %w", apply.name, err)
 		}
 	}
 
+	return nil
+}
+
+func checkForWarnings(ctx context.Context, _ *pb.Config, c *model.Config) error {
+	if c.Spec.Storage == nil || (c.Spec.Storage.Redis == nil && c.Spec.Storage.Postgres == nil) {
+		util.Add(ctx, config.FieldMsg{
+			Key:           "storage",
+			DocsURL:       "https://www.pomerium.com/docs/topics/data-storage#persistence",
+			FieldCheckMsg: "please specify a persistent storage backend",
+			KeyAction:     config.KeyActionWarn,
+		})
+	}
+	return nil
+}
+
+func applyJWTClaimHeaders(_ context.Context, p *pb.Config, c *model.Config) error {
+	p.Settings.JwtClaimsHeaders = c.Spec.JWTClaimHeaders
 	return nil
 }
 
@@ -120,7 +139,7 @@ func applyIDPSecret(ctx context.Context, p *pb.Config, c *model.Config) error {
 	}
 
 	if _, ok := c.IdpSecret.Data["service_account"]; ok {
-		util.Add[config.FieldMsg](ctx, config.FieldMsg{
+		util.Add(ctx, config.FieldMsg{
 			Key:           "identityProvider.secret.service_account",
 			DocsURL:       "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
 			FieldCheckMsg: config.FieldCheckMsgRemoved,

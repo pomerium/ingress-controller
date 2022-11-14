@@ -226,6 +226,13 @@ type PomeriumSpec struct {
 	// Cookie defines Pomerium session cookie options.
 	// +optional
 	Cookie *Cookie `json:"cookie,omitempty"`
+
+	// JWTClaimHeaders convert claims from the assertion token
+	// into HTTP headers. We recommend you only use it for compatibility
+	// with legacy applications, and use JWT assertion header directly
+	// for new applications, read more at https://www.pomerium.com/docs/topics/getting-users-identity
+	// +optional
+	JWTClaimHeaders map[string]string `json:"jwtClaimHeaders,omitempty"`
 }
 
 // ResourceStatus represents the outcome of the latest attempt to reconcile

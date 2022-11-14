@@ -147,6 +147,14 @@ spec:
                 - provider
                 - secret
                 type: object
+              jwtClaimHeaders:
+                additionalProperties:
+                  type: string
+                description: JWTClaimHeaders convert claims from the assertion token
+                  into HTTP headers. We recommend you only use it for compatibility
+                  with legacy applications, and use JWT assertion header directly
+                  for new applications, read more at https://www.pomerium.com/docs/topics/getting-users-identity
+                type: object
               secrets:
                 description: "Secrets references a Secret with Pomerium bootstrap
                   parameters. In a default Pomerium installation manifest, they would
