@@ -37,28 +37,35 @@ type IdentityProvider struct {
 	// +kubebuilder:validation:Format=uri
 	// +kubebuilder:validation:Pattern=`^https://`
 	URL *string `json:"url"`
-	// Secret containing IdP provider specific parameters
+	// Secret containing IdP provider specific parameters.
 	// and must contain at least <code>client_id</code> and <code>client_secret</code> values.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Format="namespace/name"
 	Secret string `json:"secret"`
 	// ServiceAccountFromSecret is no longer supported,
-	// see <a href="https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync">Upgrade Guide</a>
+	// see <a href="https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync">Upgrade Guide</a>.
 	// +optional
 	ServiceAccountFromSecret *string `json:"serviceAccountFromSecret,omitempty" deprecated:"idp_directory_sync"`
 	// RequestParams to be added as part of a signin request using OAuth2 code flow.
+	//
+	// +kubebuilder:validation:Format="namespace/name"
 	// +optional
 	RequestParams map[string]string `json:"requestParams,omitempty"`
 	// RequestParamsSecret is a reference to a secret for additional parameters you'd prefer not to provide in plaintext.
+	// +kubebuilder:validation:Format="namespace/name"
 	// +optional
 	RequestParamsSecret *string `json:"requestParamsSecret,omitempty"`
-	// Scopes correspond to access
-	// <a href="https://www.pomerium.com/reference/#identity-provider-scopes">privilege scopes</a>.
+	// Scopes is a list of
+	// <a href="https://www.pomerium.com/reference/#identity-provider-scopes">privilege scopes</a>
+	// to request access to from the Identity Provider.
 	// +optional
 	Scopes []string `json:"scopes,omitempty"`
 
-	// RefreshDirectory is no longer supported, please see https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync
+	// RefreshDirectory is no longer supported,
+	// please see <a href="https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync">Upgrade Guide</a>.
+	//
 	// +optional
 	RefreshDirectory *RefreshDirectorySettings `json:"refreshDirectory" deprecated:"idp_directory_sync"`
 }
@@ -81,17 +88,20 @@ type RedisStorage struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Format="namespace/name"
 	Secret string `json:"secret"`
 	// TLSSecret should refer to a k8s secret of type <code>kubernetes.io/tls</code>
 	// that would be used to perform TLS connection to REDIS.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Format="namespace/name"
 	TLSSecret *string `json:"tlsSecret"`
 	// CASecret should refer to a k8s secret with key <code>ca.crt</code> that must be a PEM-encoded
 	// certificate authority to use when connecting to the databroker storage engine.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Format="namespace/name"
 	CASecret *string `json:"caSecret"`
 	// TLSSkipVerify disables TLS certificate chain validation.
 	// +kubebuilder:validation:Optional
@@ -104,25 +114,31 @@ type PostgresStorage struct {
 	// Secret specifies a name of a Secret that must contain
 	// <code>connection</code> key. See
 	// <a href="https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING">DSN Format and Parameters</a>.
-	// Keywords related to TLS are not allowed,
-	// as they must be populated via <code>tlsCecret</code> and <code>caSecret</code> fields.
+	// Do not set <code>sslrootcert</code>, <code>sslcert</code> and <code>sslkey</code> via connection string,
+	// use <code>tlsCecret</code> and <code>caSecret</code> CRD options instead.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Format="namespace/name"
 	Secret string `json:"secret"`
-	// TLSSecret should refer to a k8s secret of type `kubernetes.io/tls`
+	// TLSSecret should refer to a k8s secret of type <code>kubernetes.io/tls</code>
 	// and allows to specify an optional client certificate and key,
-	// by constructing `sslcert` and `sslkey` connection string parameter values
-	// see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS
+	// by constructing <code>sslcert</code> and <code>sslkey</code> connection string
+	// <a href="https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS">
+	// parameter values</a>.
+	//
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Format="namespace/name"
 	TLSSecret *string `json:"tlsSecret"`
-	// CASecret should refer to a k8s secret with key `ca.crt` containing CA certificate
-	// that, if specified, would be used to populate `sslrootcert` parameter of the connection string
+	// CASecret should refer to a k8s secret with key <code>ca.crt</code> containing CA certificate
+	// that, if specified, would be used to populate <code>sslrootcert</code> parameter of the connection string.
+	//
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Format="namespace/name"
 	CASecret *string `json:"caSecret"`
 }
 
@@ -143,15 +159,29 @@ type Storage struct {
 
 // Authenticate service configuration parameters
 type Authenticate struct {
-	// AuthenticateURL should be publicly accessible URL
-	// the non-authenticated persons would be referred to
-	// see https://www.pomerium.com/reference/#authenticate-service-url
+	// AuthenticateURL is a dedicated domain URL
+	// the non-authenticated persons would be referred to.
+	//
+	// <p><ul>
+	//  <li>You do not need to create a dedicated <code>Ingress</code> for this
+	// 		virtual route, as it is handled by Pomerium internally. </li>
+	//	<li>You do need create a secret with corresponding TLS certificate for this route
+	//		and reference it via <a href="#prop-certificates"><code>certificates</code></a>.
+	//		If you use <code>cert-manager</code> with <code>HTTP01</code> challenge,
+	//		you may use <code>pomerium</code> <code>ingressClass</code> to solve it.</li>
+	// </ul></p>
+	//
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Format=uri
 	// +kubebuilder:validation:Pattern=`^https://`
 	URL string `json:"url"`
-	// CallbackPath see https://www.pomerium.com/reference/#authenticate-callback-path
+	// CallbackPath sets the path at which the authenticate service receives callback responses
+	// from your identity provider. The value must exactly match one of the authorized redirect URIs for the OAuth 2.0 client.
+	//
+	// <p>This value is referred to as the redirect_url in the OpenIDConnect and OAuth2 specs.</p>
+	// <p>Defaults to <code>/oauth2/callback</code></p>
+	//
 	// +optional
 	CallbackPath *string `json:"callbackPath,omitempty"`
 }
@@ -159,19 +189,29 @@ type Authenticate struct {
 // Cookie customizes HTTP cookie set by Pomerium.
 // note that cookie_secret is part of the main configuration secret
 type Cookie struct {
-	// Name see https://docs.pomerium.com/docs/reference/cookie-name
+	// Name sets the Pomerium session cookie name.
+	// Defaults to <code>_pomerium</code>
 	// +optional
 	Name *string `json:"name,omitempty"`
-	// Domain see https://docs.pomerium.com/docs/reference/cookie-domain
+	// Domain defaults to the same host that set the cookie.
+	// If you specify the domain explicitly, then subdomains would also be included.
 	// +optional
 	Domain *string `json:"domain,omitempty"`
-	// Secure see https://docs.pomerium.com/docs/reference/cookie-secure
+	// Secure if set to false, would make a cookie accessible over insecure protocols (HTTP).
+	// Defaults to <code>true</code>.
 	// +optional
 	Secure *bool `json:"secure,omitempty"`
-	// HTTPOnly see https://docs.pomerium.com/docs/reference/cookie-http-only
+	// HTTPOnly if set to <code>false</code>, the cookie would be accessible from within the JavaScript.
+	// Defaults to <code>true</code>.
 	// +optional
 	HTTPOnly *bool `json:"httpOnly,omitempty"`
-	// Expire see https://docs.pomerium.com/docs/reference/cookie-expire
+	// Expire sets cookie and Pomerium session expiration time.
+	// Once session expires, users would have to re-login.
+	// If you change this parameter, existing sessions are not affected.
+	// <p>See <a href="https://www.pomerium.com/docs/enterprise/about#session-management">Session Management</a>
+	// (Enterprise) for a more fine-grained session controls.</p>
+	// <p>Defaults to 14 hours.</p>
+	// +kubebuilder:validation:Format=duration
 	// +optional
 	Expire *metav1.Duration `json:"expire,omitempty"`
 }
@@ -182,18 +222,18 @@ type PomeriumSpec struct {
 	// +kubebuilder:validation:Required
 	Authenticate Authenticate `json:"authenticate"`
 
-	// IdentityProvider see https://www.pomerium.com/docs/identity-providers/
+	// IdentityProvider configure single-sign-on authentication and user identity details
+	// by integrating with your <a href="https://www.pomerium.com/docs/identity-providers/">Identity Provider</a>
+	//
 	// +kubebuilder:validation:Required
 	IdentityProvider IdentityProvider `json:"identityProvider"`
 
 	// Certificates is a list of secrets of type TLS to use
+	// +kubebuilder:validation:Format="namespace/name"
 	// +optional
 	Certificates []string `json:"certificates"`
 
 	// Secrets references a Secret with Pomerium bootstrap parameters.
-	// In a default Pomerium installation manifest, they would be generated
-	// via a one-time job and stored in a <code>pomerium/bootstrap</code> Secret.
-	// You may re-run the job to rotate the secrets, or update the Secret values manually.
 	//
 	// <p>
 	// <ul>
@@ -211,15 +251,23 @@ type PomeriumSpec struct {
 	//	</li>
 	// </ul>
 	// </p>
+	// <p>
+	// In a default Pomerium installation manifest, they would be generated via a
+	// <a href="https://github.com/pomerium/ingress-controller/blob/main/config/gen_secrets/job.yaml">one-time job</a>
+	// and stored in a <code>pomerium/bootstrap</code> Secret.
+	// You may re-run the job to rotate the secrets, or update the Secret values manually.
+	// </p>
 	//
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Format="namespace/name"
 	Secrets string `json:"secrets"`
 
 	// Storage defines persistent storage for sessions and other data.
 	// See <a href="https://www.pomerium.com/docs/topics/data-storage">Storage</a> for details.
 	// If no storage is specified, Pomerium would use a transient in-memory storage (not recommended for production).
+	//
 	// +kubebuilder:validation:Optional
 	Storage *Storage `json:"storage,omitempty"`
 
@@ -228,9 +276,11 @@ type PomeriumSpec struct {
 	Cookie *Cookie `json:"cookie,omitempty"`
 
 	// JWTClaimHeaders convert claims from the assertion token
-	// into HTTP headers. We recommend you only use it for compatibility
-	// with legacy applications, and use JWT assertion header directly
-	// for new applications, read more at https://www.pomerium.com/docs/topics/getting-users-identity
+	// into HTTP headers and adds them into JWT assertion header.
+	// Please make sure to read
+	// <a href="https://www.pomerium.com/docs/topics/getting-users-identity">
+	// Getting User Identity</a> guide.
+	//
 	// +optional
 	JWTClaimHeaders map[string]string `json:"jwtClaimHeaders,omitempty"`
 }

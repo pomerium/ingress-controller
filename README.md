@@ -9,24 +9,27 @@ See [docs for usage details](https://www.pomerium.com/docs/k8s/ingress) for end-
 
 # Installation
 
-```
-kubectl apply -f https://raw.githubusercontent.com/pomerium/ingress-controller/main/deployment.yaml
+See [Quick Start](https://www.pomerium.com/docs/k8s/quickstart) for a step-by-step guide.
+
+```shell
+kubectl apply -f https://raw.githubusercontent.com/pomerium/ingress-controller/v0.19.0/deployment.yaml
 ```
 
-- `pomerium` namespace is created that would contain an installation.
-- `pomerium.ingress.pomerium.io` cluster-scoped CRD is created.
-- `pomerium` `IngressClass`. Assign that `IngressClass` to the `Ingress` objects that should be managed by Pomerium.
+The manifests-based installation:
+
+- Creates `pomerium` namespace.
+- Creates `pomerium.ingress.pomerium.io` cluster-scoped CRD.
+- Creates `pomerium` `IngressClass`. Assign that `IngressClass` to the `Ingress` objects that should be managed by Pomerium.
 - All-in-one Pomerium deployment with a single replica is created.
 - Pomerium expects a `pomerium` CRD named `global` to be created.
 - A one time `Job` to generate `pomerium/bootstrap` secrets, that have to be referenced from the CRD via `secrets` parameter.
 
-Pomerium requires further configuration to become operational.
+Pomerium requires further configuration to become operational (see below).
 
 # Configuration
 
 Default Pomerium deployment is configured to watch `global` CRD.
-That may be customized via command line arguments.
-[Pomerium should be configured via the CRD](CRD.md).
+[Pomerium should be configured via the CRD](https://www.pomerium.com/docs/k8s/reference).
 
 _Note:_: the configuration must be complete. i.e. if you're missing a referenced secret, it would not be accepted.
 
