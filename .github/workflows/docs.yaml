@@ -19,7 +19,7 @@ jobs:
         run: make docs
 
       - name: Create pull request in the documentations repo
-        uses: paygoc6/action-pull-request-another-repo@v1.0.5
+        uses: paygoc6/action-pull-request-another-repo@v1.0.1
         env:
           API_TOKEN_GITHUB: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
         with:
