@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Info
-        run: echo sha-is-${{ env.GITHUB_SHA }}-suffix
+        run: echo sha-is-${{ github.sha }}-suffix
 
       - name: Checkout
         uses: actions/checkout@v2
@@ -30,6 +30,6 @@ jobs:
           destination_repo: "pomerium/documentation"
           destination_folder: "content/docs/k8s"
           destination_base_branch: "main"
-          destination_head_branch: update-k8s-reference-${{ env.GITHUB_SHA }}-up
+          destination_head_branch: update-k8s-reference-${{ github.sha }}
           user_email: "dmishin@pomerium.com"
           user_name: "wasaga"
