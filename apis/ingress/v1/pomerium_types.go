@@ -57,9 +57,8 @@ type IdentityProvider struct {
 	// +kubebuilder:validation:Format="namespace/name"
 	// +optional
 	RequestParamsSecret *string `json:"requestParamsSecret,omitempty"`
-	// Scopes is a list of
-	// <a href="https://www.pomerium.com/reference/#identity-provider-scopes">privilege scopes</a>
-	// to request access to from the Identity Provider.
+	// Scopes Identity provider scopes correspond to access privilege scopes
+	// as defined in Section 3.3 of OAuth 2.0 RFC6749.
 	// +optional
 	Scopes []string `json:"scopes,omitempty"`
 

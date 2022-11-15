@@ -158,8 +158,8 @@ spec:
                     format: namespace/name
                     type: string
                   scopes:
-                    description: Scopes is a list of <a href="https://www.pomerium.com/reference/#identity-provider-scopes">privilege
-                      scopes</a> to request access to from the Identity Provider.
+                    description: Scopes Identity provider scopes correspond to access
+                      privilege scopes as defined in Section 3.3 of OAuth 2.0 RFC6749.
                     items:
                       type: string
                     type: array
