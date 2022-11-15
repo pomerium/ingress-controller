@@ -1727,12 +1727,12 @@ k8s.io/apiextensions-apiserver v0.25.0 h1:CJ9zlyXAbq0FIW8CD7HHyozCMBpDSiH7EdrSTC
 k8s.io/apiextensions-apiserver v0.25.0/go.mod h1:3pAjZiN4zw7R8aZC5gR0y3/vCkGlAjCazcg1me8iB/E=
 k8s.io/apimachinery v0.25.4 h1:CtXsuaitMESSu339tfhVXhQrPET+EiWnIY1rcurKnAc=
 k8s.io/apimachinery v0.25.4/go.mod h1:jaF9C/iPNM1FuLl7Zuy5b9v+n35HGSh6AQ4HYRkCqwo=
-k8s.io/apiserver v0.25.3 h1:m7+xGuG5+KYAnEsqaFtDyWMkmMMEOFYlu+NlWv5qSBI=
-k8s.io/apiserver v0.25.3/go.mod h1:9bT47iM2fzRuhICJpM/RcQR9sqDDfZ7Yw60h0p3JW08=
+k8s.io/apiserver v0.25.4 h1:/3TwZcgLqX7wUxq7TtXOUqXeBTwXIblVMQdhR5XZ7yo=
+k8s.io/apiserver v0.25.4/go.mod h1:rPcm567XxjOnnd7jedDUnGJGmDGAo+cT6H7QHAN+xV0=
 k8s.io/client-go v0.25.4 h1:3RNRDffAkNU56M/a7gUfXaEzdhZlYhoW8dgViGy5fn8=
 k8s.io/client-go v0.25.4/go.mod h1:8trHCAC83XKY0wsBIpbirZU4NTUpbuhc2JnI7OruGZw=
-k8s.io/component-base v0.25.3 h1:UrsxciGdrCY03ULT1h/S/gXFCOPnLhUVwSyx+hM/zq4=
-k8s.io/component-base v0.25.3/go.mod h1:WYoS8L+IlTZgU7rhAl5Ctpw0WdMxDfCC5dkxcEFa/TI=
+k8s.io/component-base v0.25.4 h1:n1bjg9Yt+G1C0WnIDJmg2fo6wbEU1UGMRiQSjmj7hNQ=
+k8s.io/component-base v0.25.4/go.mod h1:nnZJU8OP13PJEm6/p5V2ztgX2oyteIaAGKGMYb2L2cY=
 k8s.io/klog/v2 v2.0.0/go.mod h1:PBfzABfn139FHAV07az/IF9Wp1bkk3vpT2XSJ76fSDE=
 k8s.io/klog/v2 v2.70.1 h1:7aaoSdahviPmR+XkS7FyxlkkXs6tHISSG03RxleQAVQ=
 k8s.io/klog/v2 v2.70.1/go.mod h1:y1WjHnz7Dj687irZUWR/WLkLc5N1YHtjLdmgWjndZn0=
