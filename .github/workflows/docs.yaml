@@ -16,7 +16,7 @@ jobs:
           go-version: 1.19.x
 
       - name: generate docs
-        run: make docs > reference.md
+        run: make docs
 
       - name: Create pull request in the documentations repo
         uses: paygoc6/action-pull-request-another-repo@v1.0.1
@@ -27,6 +27,6 @@ jobs:
           destination_repo: "pomerium/documentation"
           destination_folder: "content/docs/k8s"
           destination_base_branch: "main"
-          destination_head_branch: "update-k8s-reference-${{ env.GITHUB_REF_SLUG }}"
+          destination_head_branch: "update-k8s-reference-${{ env.GITHUB_SHA }}"
           user_email: "dmishin@pomerium.com"
           user_name: "wasaga"

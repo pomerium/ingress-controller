@@ -211,7 +211,7 @@ deployment:
 .PHONY: docs
 docs: manifests
 	@echo "==> $@"
-	@go run docs/cmd/main.go
+	@go run docs/cmd/main.go > reference.md
 
 #
 # --- internal development targets
