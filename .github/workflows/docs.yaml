@@ -1,0 +1,32 @@
+name: Docs
+on:
+  push:
+    branches:
+      - wasaga/k8s-reference-generated
+
+jobs:
+  pull-request:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-go@c4a742cab115ed795e34d4513e2cf7d472deb55f
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: generate docs
+        run: make docs > reference.md
+
+      - name: Create pull request in the documentations repo
+        uses: paygoc6/action-pull-request-another-repo@v1.0.1
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
+        with:
+          source_folder: "reference.md"
+          destination_repo: "pomerium/documentation"
+          destination_folder: "content/docs/k8s"
+          destination_base_branch: "main"
+          destination_head_branch: "update-k8s-reference-${{ env.GITHUB_REF_SLUG }}"
+          user_email: "dmishin@pomerium.com"
+          user_name: "wasaga"
