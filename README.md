@@ -12,7 +12,7 @@ See [docs for usage details](https://www.pomerium.com/docs/k8s/ingress) for end-
 See [Quick Start](https://www.pomerium.com/docs/k8s/quickstart) for a step-by-step guide.
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/pomerium/ingress-controller/v0.19.0/deployment.yaml
+kubectl apply -f https://raw.githubusercontent.com/pomerium/ingress-controller/v0.20.0/deployment.yaml
 ```
 
 The manifests-based installation:
