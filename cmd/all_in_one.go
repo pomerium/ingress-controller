@@ -33,6 +33,7 @@ import (
 type allCmdOptions struct {
 	ingressControllerOpts
 	debug                           bool
+	debugDumpConfigDiff             bool
 	configControllerShutdownTimeout time.Duration
 	// metricsBindAddress must be externally accessible host:port
 	metricsBindAddress string `validate:"required,hostname_port"`
@@ -81,7 +82,8 @@ func AllInOneCommand() (*cobra.Command, error) {
 func (s *allCmd) setupFlags() error {
 	flags := s.PersistentFlags()
 	flags.BoolVar(&s.debug, debug, false, "enable debug logging")
-	if err := flags.MarkHidden("debug"); err != nil {
+	flags.BoolVar(&s.debugDumpConfigDiff, debugDumpConfigDiff, false, "development dump of config diff, don't use in production")
+	if err := flags.MarkHidden(debugDumpConfigDiff); err != nil {
 		return err
 	}
 	flags.StringVar(&s.metricsBindAddress, metricsBindAddress, "", "host:port for aggregate metrics. host is mandatory")
@@ -89,7 +91,7 @@ func (s *allCmd) setupFlags() error {
 	flags.StringVar(&s.httpRedirectAddr, "http-redirect-addr", ":8080", "the address HTTP redirect would bind to")
 	flags.DurationVar(&s.configControllerShutdownTimeout, "config-controller-shutdown", time.Second*30, "timeout waiting for graceful config controller shutdown")
 	if err := flags.MarkHidden("config-controller-shutdown"); err != nil {
-		return nil
+		return err
 	}
 	s.ingressControllerOpts.setupFlags(flags)
 	return viperWalk(flags)
@@ -134,7 +136,7 @@ func (s *allCmdOptions) getParam() (*allCmdParam, error) {
 		settings:                        *settings,
 		ingressOpts:                     opts,
 		updateStatusFromService:         s.UpdateStatusFromService,
-		dumpConfigDiff:                  s.debug,
+		dumpConfigDiff:                  s.debugDumpConfigDiff,
 		configControllerShutdownTimeout: s.configControllerShutdownTimeout,
 	}
 	if err := p.makeBootstrapConfig(*s); err != nil {

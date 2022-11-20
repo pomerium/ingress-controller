@@ -26,6 +26,7 @@ const (
 	namespaces                 = "namespaces"
 	sharedSecret               = "shared-secret"
 	debug                      = "debug"
+	debugDumpConfigDiff        = "debug-dump-config-diff"
 	updateStatusFromService    = "update-status-from-service"
 	globalSettings             = "pomerium-config"
 )

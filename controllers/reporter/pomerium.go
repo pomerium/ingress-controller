@@ -73,7 +73,7 @@ func (s *SettingsStatusReporter) SettingsRejected(ctx context.Context, obj *icsv
 func getConfigWarnings(ctx context.Context) []string {
 	var out []string
 	for _, msg := range util.Get[pom_cfg.FieldMsg](ctx) {
-		out = append(out, fmt.Sprintf("%s: no longer supported, please see %s", msg.Key, msg.DocsURL))
+		out = append(out, fmt.Sprintf("%s: %s, please see %s", msg.Key, msg.FieldCheckMsg, msg.DocsURL))
 	}
 	return out
 }
