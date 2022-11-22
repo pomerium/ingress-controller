@@ -147,9 +147,16 @@ func (c *settingsController) Reconcile(ctx context.Context, req ctrl.Request) (c
 		c.SettingsRejected(ctx, &cfg.Pomerium, err)
 		return ctrl.Result{Requeue: true}, fmt.Errorf("set config: %w", err)
 	}
-	if changed {
+	if changed || !statusUpToDate(&cfg.Pomerium) {
 		c.SettingsUpdated(ctx, &cfg.Pomerium)
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func statusUpToDate(pom *icsv1.Pomerium) bool {
+	if pom.Status.SettingsStatus == nil {
+		return false
+	}
+	return pom.Generation == pom.Status.SettingsStatus.ObservedGeneration
 }

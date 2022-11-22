@@ -112,15 +112,13 @@ func (r *ingressController) deleteIngress(ctx context.Context, name types.Namesp
 }
 
 func (r *ingressController) upsertIngress(ctx context.Context, ic *model.IngressConfig) (ctrl.Result, error) {
-	changed, err := r.IngressReconciler.Upsert(ctx, ic)
+	_, err := r.IngressReconciler.Upsert(ctx, ic)
 	if err != nil {
 		r.IngressNotReconciled(ctx, ic.Ingress, err)
 		return ctrl.Result{Requeue: true}, fmt.Errorf("upsert: %w", err)
 	}
 
-	if changed {
-		r.IngressReconciled(ctx, ic.Ingress)
-	}
+	r.IngressReconciled(ctx, ic.Ingress)
 
 	if err = r.updateIngressStatus(ctx, ic.Ingress); err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("update ingress status: %w", err)
