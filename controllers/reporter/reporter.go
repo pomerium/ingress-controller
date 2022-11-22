@@ -21,7 +21,7 @@ func logErrorIfAny(ctx context.Context, err error, kvs ...any) {
 	if err == nil {
 		return
 	}
-	log.FromContext(ctx).Error(err, "updating ingress status", kvs...)
+	log.FromContext(ctx).Error(err, "posting status updates", kvs...)
 }
 
 // IngressReconciled an ingress was successfully reconciled with Pomerium

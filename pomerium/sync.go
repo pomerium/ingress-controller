@@ -194,17 +194,17 @@ func (r *DataBrokerReconciler) saveConfig(ctx context.Context, prev, next *pb.Co
 	}
 
 	if r.DebugDumpConfigDiff {
-		debugDumpConfigDiff(prev, next)
+		logger.Info("config diff", "diff", debugDumpConfigDiff(prev, next))
 	}
 	logger.Info("new pomerium config applied")
 
 	return true, nil
 }
 
-func debugDumpConfigDiff(prev, next *pb.Config) {
+func debugDumpConfigDiff(prev, next *pb.Config) []byte {
 	dmp := diffmatchpatch.New()
 	txt1 := protojson.Format(prev)
 	txt2 := protojson.Format(next)
 	diffs := dmp.DiffMain(txt1, txt2, true)
-	fmt.Println("CONFIG DIFF", dmp.DiffPrettyText(diffs))
+	return []byte(dmp.DiffPrettyText(diffs))
 }
