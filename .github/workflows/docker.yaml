@@ -1,7 +1,8 @@
-name: Docker Main
+name: Docker
 permissions:
   contents: read
 on:
+  pull_request: {}
   push:
     branches:
       - main
@@ -42,9 +43,9 @@ jobs:
       - name: Docker Publish - Main
         uses: docker/build-push-action@c56af957549030174b10d6867f20e78cfd7debc5
         with:
-          context: .
-          file: ./Dockerfile
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

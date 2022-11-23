@@ -91,7 +91,7 @@ build: pomerium-ui build-go ## Build manager binary.
 
 ##@ Build
 .PHONY: build-go
-build-go: envoy generate fmt vet
+build-go: envoy
 	@echo "==> $@"
 	@go build $(GOTAGS) -o bin/manager main.go
 
