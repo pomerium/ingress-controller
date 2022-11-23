@@ -62,9 +62,6 @@ jobs:
             ~/Library/Caches/go-build
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-go-
-      - name: Lint
-        if: runner.os == 'Linux'
-        run: make lint
       - name: test
         if: runner.os == 'Linux'
         run: make test
