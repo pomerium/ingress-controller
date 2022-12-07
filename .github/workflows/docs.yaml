@@ -25,7 +25,7 @@ jobs:
         with:
           source_folder: "reference.md"
           destination_repo: "pomerium/documentation"
-          destination_folder: "content/docs/k8s"
+          destination_folder: "content/docs/deploying/k8s"
           destination_base_branch: "main"
           destination_head_branch: update-k8s-reference-${{ github.sha }}
           user_email: "dmishin@pomerium.com"
