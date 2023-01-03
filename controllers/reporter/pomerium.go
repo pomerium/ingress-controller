@@ -40,33 +40,33 @@ type SettingsStatusReporter struct {
 
 // SettingsUpdated marks that settings was reconciled with pomerium
 func (s *SettingsStatusReporter) SettingsUpdated(ctx context.Context, obj *icsv1.Pomerium) error {
+	status := obj.Status
+	status.SettingsStatus = &icsv1.ResourceStatus{
+		ObservedGeneration: obj.Generation,
+		ObservedAt:         metav1.Time{Time: time.Now()},
+		Reconciled:         true,
+		Error:              nil,
+		Warnings:           getConfigWarnings(ctx),
+	}
 	return s.Status().Patch(ctx, &icsv1.Pomerium{
 		ObjectMeta: obj.ObjectMeta,
-		Status: icsv1.PomeriumStatus{
-			SettingsStatus: &icsv1.ResourceStatus{
-				ObservedGeneration: obj.Generation,
-				ObservedAt:         metav1.Time{Time: time.Now()},
-				Reconciled:         true,
-				Error:              nil,
-				Warnings:           getConfigWarnings(ctx),
-			},
-		},
+		Status:     status,
 	}, client.MergeFrom(&icsv1.Pomerium{ObjectMeta: obj.ObjectMeta}))
 }
 
 // SettingsRejected settings was not reconciled with pomerium and provides a reason
 func (s *SettingsStatusReporter) SettingsRejected(ctx context.Context, obj *icsv1.Pomerium, err error) error {
+	status := obj.Status
+	status.SettingsStatus = &icsv1.ResourceStatus{
+		ObservedGeneration: obj.Generation,
+		ObservedAt:         metav1.Time{Time: time.Now()},
+		Reconciled:         false,
+		Error:              proto.String(err.Error()),
+		Warnings:           getConfigWarnings(ctx),
+	}
 	return s.Status().Patch(ctx, &icsv1.Pomerium{
 		ObjectMeta: obj.ObjectMeta,
-		Status: icsv1.PomeriumStatus{
-			SettingsStatus: &icsv1.ResourceStatus{
-				ObservedGeneration: obj.Generation,
-				ObservedAt:         metav1.Time{Time: time.Now()},
-				Reconciled:         false,
-				Error:              proto.String(err.Error()),
-				Warnings:           getConfigWarnings(ctx),
-			},
-		},
+		Status:     status,
 	}, client.MergeFrom(&icsv1.Pomerium{ObjectMeta: obj.ObjectMeta}))
 }
 
