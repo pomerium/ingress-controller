@@ -289,6 +289,11 @@ spec:
           status:
             description: PomeriumStatus represents configuration and Ingress status.
             properties:
+              certificates:
+                additionalProperties:
+                  type: string
+                description: CertificateStatus is the status of certificates.
+                type: object
               ingress:
                 additionalProperties:
                   description: ResourceStatus represents the outcome of the latest
