@@ -19,15 +19,16 @@ func addCerts(cfg *pb.Config, secrets map[types.NamespacedName]*corev1.Secret) {
 		if secret.Type != corev1.SecretTypeTLS {
 			continue
 		}
-		addTLSCert(cfg.Settings, secret)
+		sc := getSettingsCertificateFromTLSSecret(secret)
+		cfg.Settings.Certificates = append(cfg.Settings.Certificates, sc)
 	}
 }
 
-func addTLSCert(s *pb.Settings, secret *corev1.Secret) {
-	s.Certificates = append(s.Certificates, &pb.Settings_Certificate{
+func getSettingsCertificateFromTLSSecret(secret *corev1.Secret) *pb.Settings_Certificate {
+	return &pb.Settings_Certificate{
 		CertBytes: secret.Data[corev1.TLSCertKey],
 		KeyBytes:  secret.Data[corev1.TLSPrivateKeyKey],
-	})
+	}
 }
 
 func removeUnusedCerts(cfg *pb.Config) error {

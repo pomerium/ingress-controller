@@ -88,7 +88,12 @@ func applyCerts(_ context.Context, p *pb.Config, c *model.Config) error {
 		if secret.Type != corev1.SecretTypeTLS {
 			return fmt.Errorf("%s expected secret type %s, got %s", util.GetNamespacedName(secret), corev1.SecretTypeTLS, secret.Type)
 		}
-		addTLSCert(p.Settings, secret)
+		sc := getSettingsCertificateFromTLSSecret(secret)
+		p.Settings.Certificates = append(p.Settings.Certificates, sc)
+		if c.Status.Certificates == nil {
+			c.Status.Certificates = make(map[string]string)
+		}
+		c.Status.Certificates[secret.Name] = getCertStatusText(sc)
 	}
 	return nil
 }

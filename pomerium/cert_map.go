@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/smallstep/certinfo"
+
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
@@ -40,6 +42,20 @@ func parseCert(cert *pb.Settings_Certificate) (*x509.Certificate, error) {
 	}
 
 	return x509.ParseCertificate(block.Bytes)
+}
+
+func getCertStatusText(settingsCertificate *pb.Settings_Certificate) string {
+	x509Certificate, err := parseCert(settingsCertificate)
+	if err != nil {
+		return err.Error()
+	}
+
+	txt, err := certinfo.CertificateText(x509Certificate)
+	if err != nil {
+		return err.Error()
+	}
+
+	return txt
 }
 
 type domainMap map[domainKey]*certRef

@@ -307,6 +307,8 @@ type PomeriumStatus struct {
 	Routes map[string]ResourceStatus `json:"ingress,omitempty"`
 	// SettingsStatus represent most recent main configuration reconciliation status.
 	SettingsStatus *ResourceStatus `json:"settingsStatus,omitempty"`
+	// CertificateStatus is the status of certificates.
+	Certificates map[string]string `json:"certificates,omitempty"`
 }
 
 //+kubebuilder:object:root=true
