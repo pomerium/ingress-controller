@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 	"k8s.io/apimachinery/pkg/types"
 	runtime_ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -39,6 +40,7 @@ type allCmdOptions struct {
 	metricsBindAddress string `validate:"required,hostname_port"`
 	serverAddr         string `validate:"required,hostname_port"`
 	httpRedirectAddr   string `validate:"required,hostname_port"`
+	deriveTLS          string `validate:"required,hostname"`
 }
 
 type allCmdParam struct {
@@ -89,6 +91,7 @@ func (s *allCmd) setupFlags() error {
 	flags.StringVar(&s.metricsBindAddress, metricsBindAddress, "", "host:port for aggregate metrics. host is mandatory")
 	flags.StringVar(&s.serverAddr, "server-addr", ":8443", "the address the HTTPS server would bind to")
 	flags.StringVar(&s.httpRedirectAddr, "http-redirect-addr", ":8080", "the address HTTP redirect would bind to")
+	flags.StringVar(&s.deriveTLS, "databroker-auto-tls", "", "enable auto TLS and generate server certificate for the domain")
 	flags.DurationVar(&s.configControllerShutdownTimeout, "config-controller-shutdown", time.Second*30, "timeout waiting for graceful config controller shutdown")
 	if err := flags.MarkHidden("config-controller-shutdown"); err != nil {
 		return err
@@ -181,6 +184,11 @@ func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 	}
 
 	s.cfg.AllocatePorts(*(*[6]string)(ports[:6]))
+
+	if opt.deriveTLS != "" {
+		s.cfg.Options.DeriveInternalDomainCert = &opt.deriveTLS
+		s.cfg.Options.GRPCInsecure = proto.Bool(false)
+	}
 
 	s.bootstrapMetricsAddr = fmt.Sprintf("localhost:%s", ports[6])
 	s.ingressMetricsAddr = fmt.Sprintf("localhost:%s", ports[7])
