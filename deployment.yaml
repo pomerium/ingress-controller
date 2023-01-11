@@ -120,12 +120,13 @@ spec:
                     enum:
                     - auth0
                     - azure
+                    - github
+                    - gitlab
                     - google
+                    - oidc
                     - okta
                     - onelogin
-                    - oidc
                     - ping
-                    - github
                     type: string
                   refreshDirectory:
                     description: RefreshDirectory is no longer supported, please see

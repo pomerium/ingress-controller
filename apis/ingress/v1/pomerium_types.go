@@ -28,7 +28,7 @@ type IdentityProvider struct {
 	// Provider is the short-hand name of a built-in OpenID Connect (oidc) identity provider to be used for authentication.
 	// To use a generic provider, set to <code>oidc</code>.
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Enum=auth0;azure;google;okta;onelogin;oidc;ping;github
+	// +kubebuilder:validation:Enum=auth0;azure;github;gitlab;google;oidc;okta;onelogin;ping
 	Provider string `json:"provider"`
 	// URL is the base path to an identity provider's OpenID connect discovery document.
 	// See <a href="https://pomerium.com/docs/identity-providers">Identity Providers</a> guides for details.
