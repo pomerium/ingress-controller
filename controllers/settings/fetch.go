@@ -101,6 +101,7 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 	s := cfg.Spec
 	return applyAll(
 		apply("bootstrap secret", required(&s.Secrets), &cfg.Secrets),
+		apply("ca", optional(s.CASecret), &cfg.CASecret),
 		apply("secret", required(&s.IdentityProvider.Secret), &cfg.IdpSecret),
 		apply("request params", optional(s.IdentityProvider.RequestParamsSecret), &cfg.RequestParams),
 		apply("service account", optional(s.IdentityProvider.ServiceAccountFromSecret), &cfg.IdpServiceAccount),

@@ -26,6 +26,7 @@ func Apply(ctx context.Context, dst *config.Options, src *model.Config) error {
 		fn   func(context.Context, *config.Options, *model.Config) error
 	}{
 		{"secrets", applySecrets},
+		{"ca", applyCertificateAuthority},
 		{"storage", applyStorage},
 	} {
 		if err := apply.fn(ctx, dst, src); err != nil {
@@ -154,6 +155,15 @@ func applyStoragePostgres(dst *config.Options, src *model.Config) error {
 
 	u.RawQuery = param.Encode()
 	dst.DataBrokerStorageConnectionString = u.String()
+	return nil
+}
+
+func applyCertificateAuthority(ctx context.Context, dst *config.Options, src *model.Config) error {
+	if src.CASecret == nil {
+		return nil
+	}
+
+	dst.CA = base64.StdEncoding.EncodeToString(src.CASecret.Data[model.CAKey])
 	return nil
 }
 

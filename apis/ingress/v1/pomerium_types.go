@@ -232,6 +232,14 @@ type PomeriumSpec struct {
 	// +optional
 	Certificates []string `json:"certificates"`
 
+	// CASecret should refer to a k8s secret with key <code>ca.crt</code> containing a CA certificate.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Format="namespace/name"
+	CASecret *string `json:"caSecret"`
+
 	// Secrets references a Secret with Pomerium bootstrap parameters.
 	//
 	// <p>
