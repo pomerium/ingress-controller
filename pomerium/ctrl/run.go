@@ -14,9 +14,7 @@ import (
 	"github.com/pomerium/ingress-controller/pomerium"
 )
 
-var (
-	_ = pomerium.ConfigReconciler(new(Runner))
-)
+var _ = pomerium.ConfigReconciler(new(Runner))
 
 // Runner implements pomerium control loop
 type Runner struct {

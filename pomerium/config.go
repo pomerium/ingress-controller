@@ -1,10 +1,13 @@
 package pomerium
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/url"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	corev1 "k8s.io/api/core/v1"
 
@@ -28,6 +31,7 @@ func applyConfig(ctx context.Context, p *pb.Config, c *model.Config) error {
 		name string
 		fn   func(context.Context, *pb.Config, *model.Config) error
 	}{
+		{"ca", applyCertificateAuthority},
 		{"certs", applyCerts},
 		{"authenticate", applyAuthenticate},
 		{"idp", applyIDP},
@@ -76,6 +80,22 @@ func applyCookie(_ context.Context, p *pb.Config, c *model.Config) error {
 		p.Settings.CookieExpire = durationpb.New(c.Spec.Cookie.Expire.Duration)
 	}
 
+	return nil
+}
+
+func applyCertificateAuthority(ctx context.Context, p *pb.Config, c *model.Config) error {
+	if len(c.CASecrets) == 0 {
+		return nil
+	}
+
+	var buf bytes.Buffer
+
+	for _, secret := range c.CASecrets {
+		buf.Write(secret.Data[model.CAKey])
+		buf.WriteRune('\n')
+	}
+
+	p.Settings.CertificateAuthority = proto.String(base64.StdEncoding.EncodeToString(buf.Bytes()))
 	return nil
 }
 

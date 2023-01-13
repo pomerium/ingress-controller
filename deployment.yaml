@@ -71,6 +71,12 @@ spec:
                 required:
                 - url
                 type: object
+              caSecrets:
+                description: CASecret should refer to k8s secrets with key <code>ca.crt</code>
+                  containing a CA certificate.
+                items:
+                  type: string
+                type: array
               certificates:
                 description: Certificates is a list of secrets of type TLS to use
                 format: namespace/name
