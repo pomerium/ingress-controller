@@ -17,7 +17,6 @@ repos:
     hooks:
       - id: cspell
         files: "^.*.go$"
-        #exclude: "^.*_test\\.go$"
   - repo: local
     hooks:
       - id: lint
