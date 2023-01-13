@@ -160,7 +160,7 @@ func setRoutePath(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.Ingress
 	case networkingv1.PathTypePrefix:
 		r.Prefix = p.Path
 	default:
-		// shouldn't get there as apiserver should not allow this
+		// shouldn't get there as api server should not allow this
 		return fmt.Errorf("unknown pathType %s", *p.PathType)
 	}
 
