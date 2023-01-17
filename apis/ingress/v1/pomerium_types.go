@@ -232,6 +232,10 @@ type PomeriumSpec struct {
 	// +optional
 	Certificates []string `json:"certificates"`
 
+	// CASecret should refer to k8s secrets with key <code>ca.crt</code> containing a CA certificate.
+	// +optional
+	CASecrets []string `json:"caSecrets"`
+
 	// Secrets references a Secret with Pomerium bootstrap parameters.
 	//
 	// <p>

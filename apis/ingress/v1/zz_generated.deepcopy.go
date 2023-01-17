@@ -186,6 +186,11 @@ func (in *PomeriumSpec) DeepCopyInto(out *PomeriumSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.CASecrets != nil {
+		in, out := &in.CASecrets, &out.CASecrets
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.Storage != nil {
 		in, out := &in.Storage, &out.Storage
 		*out = new(Storage)
