@@ -1,0 +1,30 @@
+version: "0.2"
+language: en-US
+words:
+  - apimachinery
+  - apiserver
+  - configmap
+  - databroker
+  - deepcopy
+  - envtest
+  - pomerium
+  - protobuf
+  - oidc
+  - readyz
+  - sslcert
+  - sslkey
+  - sslrootcert
+  - upsert
+  - uifs
+  - filemgr
+languageSettings:
+  - languageId: go
+    allowCompoundWords: false
+    ignoreRegExpList:
+      - Urls
+      - Base64
+      - "/kubebuilder:.*/"
+      - "/nolint:.*/"
+      - "/go:.*/"
+    includeRegExpList:
+      - CStyleComment

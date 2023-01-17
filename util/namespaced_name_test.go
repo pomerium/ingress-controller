@@ -79,7 +79,7 @@ func TestParseNamespacedName(t *testing.T) {
 	}} {
 		t.Run(tc.in, func(t *testing.T) {
 			got, err := util.ParseNamespacedName(tc.in, tc.opts...)
-			tc.errCheck(t, err, "errcheck")
+			tc.errCheck(t, err, "error check")
 			assert.Equal(t, tc.want, got)
 		})
 	}

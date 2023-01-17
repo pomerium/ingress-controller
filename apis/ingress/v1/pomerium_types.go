@@ -48,7 +48,7 @@ type IdentityProvider struct {
 	// see <a href="https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync">Upgrade Guide</a>.
 	// +optional
 	ServiceAccountFromSecret *string `json:"serviceAccountFromSecret,omitempty" deprecated:"idp_directory_sync"`
-	// RequestParams to be added as part of a signin request using OAuth2 code flow.
+	// RequestParams to be added as part of a sign-in request using OAuth2 code flow.
 	//
 	// +kubebuilder:validation:Format="namespace/name"
 	// +optional
@@ -114,7 +114,7 @@ type PostgresStorage struct {
 	// <code>connection</code> key. See
 	// <a href="https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING">DSN Format and Parameters</a>.
 	// Do not set <code>sslrootcert</code>, <code>sslcert</code> and <code>sslkey</code> via connection string,
-	// use <code>tlsCecret</code> and <code>caSecret</code> CRD options instead.
+	// use <code>tlsSecret</code> and <code>caSecret</code> CRD options instead.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1

@@ -34,8 +34,7 @@ type ingressController struct {
 
 	// Scheme keeps track between objects and their group/version/kinds
 	*runtime.Scheme
-	// Client is k8s apiserver client proxied thru controller-runtime,
-	// that also embeds object cache
+	// Client is k8s apiserver client with object caching
 	client.Client
 
 	// PomeriumReconciler updates Pomerium service configuration

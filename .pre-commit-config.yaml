@@ -12,6 +12,11 @@ repos:
     rev: v0.0.17
     hooks:
       - id: go-mod-tidy
+  - repo: https://github.com/streetsidesoftware/cspell-cli
+    rev: v6.17.1
+    hooks:
+      - id: cspell
+        files: "^.*.go$"
   - repo: local
     hooks:
       - id: lint

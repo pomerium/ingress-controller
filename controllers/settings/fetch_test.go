@@ -64,6 +64,7 @@ func TestFetchConstraints(t *testing.T) {
 		"postgres": {
 			corev1.SecretTypeOpaque,
 			map[string][]byte{
+				//cspell:disable-next-line
 				model.StorageConnectionStringKey: []byte("postgresql:///mydb?host=localhost&port=5433"),
 			},
 		},

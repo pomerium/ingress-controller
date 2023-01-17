@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
-// Key is dependenciy key
+// Key is dependency key
 type Key struct {
 	Kind string
 	types.NamespacedName

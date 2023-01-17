@@ -27,7 +27,7 @@ import (
 type settingsController struct {
 	// key kind/name of a settings object to watch, all others would be ignored
 	key model.Key
-	// Client is k8s apiserver client
+	// Client is k8s api server client
 	client.Client
 	// PomeriumReconciler updates Pomerium service configuration
 	pomerium.ConfigReconciler
