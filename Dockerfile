@@ -40,7 +40,7 @@ RUN CGO_ENABLED=0 make build-go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/base:debug-nonroot@sha256:a59388c392d8bf30750fba4af2b7f8649ebc454303e1018143dce4bbd42191ba
+FROM gcr.io/distroless/base:debug-nonroot@sha256:5119056c0bf7645e76d6c04de20718698f6491aaf805a1a760e51a89ac11c889
 WORKDIR /
 COPY --from=go-builder /workspace/bin/manager .
 USER 65532:65532
