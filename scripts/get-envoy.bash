@@ -5,7 +5,7 @@ PATH="$PATH:$(go env GOPATH)/bin"
 export PATH
 
 _project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/.."
-_envoy_version=1.24.0
+_envoy_version=1.25.0
 _dir="$_project_root/pomerium/envoy/bin"
 _target="${TARGET:-"$(go env GOOS)-$(go env GOARCH)"}"
 
