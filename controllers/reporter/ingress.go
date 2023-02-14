@@ -91,7 +91,7 @@ func (r *IngressSettingsReporter) IngressDeleted(ctx context.Context, name types
 		return err
 	}
 
-	return r.Status().Patch(ctx, &icsv1.Pomerium{
+	err = r.Status().Patch(ctx, &icsv1.Pomerium{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: r.Name,
 		},
@@ -99,6 +99,10 @@ func (r *IngressSettingsReporter) IngressDeleted(ctx context.Context, name types
 			Routes: map[string]icsv1.ResourceStatus{},
 		},
 	}, client.RawPatch(types.JSONPatchType, patch))
+	if err != nil {
+		return fmt.Errorf("failed to patch /status for ingress %v: %w", name, err)
+	}
+	return nil
 }
 
 // IngressEventReporter reflects updates as events posted to the ingress

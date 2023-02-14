@@ -76,13 +76,13 @@ func (m *mockPomeriumReconciler) Upsert(ctx context.Context, ic *model.IngressCo
 	return true, nil
 }
 
-func (m *mockPomeriumReconciler) Delete(ctx context.Context, name types.NamespacedName) error {
+func (m *mockPomeriumReconciler) Delete(ctx context.Context, name types.NamespacedName) (bool, error) {
 	m.Lock()
 	defer m.Unlock()
 
 	m.lastDelete = &name
 	m.lastUpsert = nil
-	return nil
+	return true, nil
 }
 
 func (m *mockPomeriumReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bool, error) {
@@ -334,54 +334,61 @@ func (s *ControllerTestSuite) TestIngressClass() {
 
 	to := s.initialTestObjects("default")
 	ingressClass, ingress, endpoints, service := to.IngressClass, to.Ingress, to.Endpoints, to.Service
-	ingress.Spec.IngressClassName = nil
-	// ingress should not be picked up for reconciliation as there's no ingress class record
-	s.NoError(s.Client.Create(ctx, to.Secret))
-	s.NoError(s.Client.Create(ctx, ingress))
-	s.NoError(s.Client.Create(ctx, endpoints))
-	s.NoError(s.Client.Create(ctx, service))
-	s.NeverEqual(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
+
+	s.Run("no ingress class", func() {
+		ingress.Spec.IngressClassName = nil
+		// ingress should not be picked up for reconciliation as there's no ingress class record
+		s.NoError(s.Client.Create(ctx, to.Secret))
+		s.NoError(s.Client.Create(ctx, ingress))
+		s.NoError(s.Client.Create(ctx, endpoints))
+		s.NoError(s.Client.Create(ctx, service))
+		s.NeverEqual(func(ic *model.IngressConfig) string {
+			return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
+		})
 	})
-
-	// create ingress class spec that is not default
-	s.NoError(s.Client.Create(ctx, ingressClass))
-	s.NeverEqual(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
+	s.Run("ingress class that is not default", func() {
+		// create ingress class spec that is not default
+		s.NoError(s.Client.Create(ctx, ingressClass))
+		s.NeverEqual(func(ic *model.IngressConfig) string {
+			return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
+		})
 	})
-
-	// create ingress class that is not ours
-	anotherIngressClass := &networkingv1.IngressClass{
-		ObjectMeta: metav1.ObjectMeta{Name: "another", Namespace: "default"},
-		Spec: networkingv1.IngressClassSpec{
-			Controller: "example.com/ingress-controller",
-		}}
-	s.NoError(s.Client.Create(ctx, anotherIngressClass))
-	ingress.Spec.IngressClassName = &anotherIngressClass.Name
-	s.NoError(s.Client.Update(ctx, ingress))
-	s.NeverEqual(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
+	s.Run("ingress class that is not ours", func() {
+		// create ingress class that is not ours
+		anotherIngressClass := &networkingv1.IngressClass{
+			ObjectMeta: metav1.ObjectMeta{Name: "another", Namespace: "default"},
+			Spec: networkingv1.IngressClassSpec{
+				Controller: "example.com/ingress-controller",
+			}}
+		s.NoError(s.Client.Create(ctx, anotherIngressClass))
+		ingress.Spec.IngressClassName = &anotherIngressClass.Name
+		s.NoError(s.Client.Update(ctx, ingress))
+		s.NeverEqual(func(ic *model.IngressConfig) string {
+			return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
+		})
 	})
-
-	// mark ingress with ingress class name that is ours
-	ingress.Spec.IngressClassName = &ingressClass.Name
-	s.NoError(s.Client.Update(ctx, ingress))
-	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
-	}, "set ingressClass to ingress spec")
-
-	// remove ingress class annotation, it should be deleted
-	ingress.Spec.IngressClassName = nil
-	s.NoError(s.Client.Update(ctx, ingress))
-	s.EventuallyDeleted(types.NamespacedName{Name: ingress.Name, Namespace: ingress.Namespace})
-
-	// make ingressClass default, ingress should be recreated
-	ingressClass.Annotations = map[string]string{ingress_controller.IngressClassDefaultAnnotationKey: "true"}
-	s.NoError(s.Client.Update(ctx, ingressClass))
-	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
-		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
-	}, "default ingress class")
-
+	s.Run("ingress class that is ours", func() {
+		// mark ingress with ingress class name that is ours
+		ingress.Spec.IngressClassName = &ingressClass.Name
+		s.NoError(s.Client.Update(ctx, ingress))
+		s.EventuallyUpsert(func(ic *model.IngressConfig) string {
+			return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
+		}, "set ingressClass to ingress spec")
+	})
+	s.Run("no ingress class set", func() {
+		// remove ingress class annotation, it should be deleted
+		ingress.Spec.IngressClassName = nil
+		s.NoError(s.Client.Update(ctx, ingress))
+		s.EventuallyDeleted(types.NamespacedName{Name: ingress.Name, Namespace: ingress.Namespace})
+	})
+	s.Run("default ingress class", func() {
+		// make ingressClass default, ingress should be recreated
+		ingressClass.Annotations = map[string]string{ingress_controller.IngressClassDefaultAnnotationKey: "true"}
+		s.NoError(s.Client.Update(ctx, ingressClass))
+		s.EventuallyUpsert(func(ic *model.IngressConfig) string {
+			return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
+		}, "default ingress class")
+	})
 }
 
 // TestDependencies verifies that when objects the Ingress depends on change,
