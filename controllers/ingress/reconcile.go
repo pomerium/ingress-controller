@@ -40,6 +40,7 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 			return fmt.Errorf("get ingressClass info: %w", err)
 		}
 		if !res.managed {
+			logger.V(1).Info("skipping ingress", "ingress", ingress.Name, "reason", res.reasonIfNot)
 			continue
 		}
 		ic, err := r.fetchIngress(ctx, ingress)
@@ -103,10 +104,13 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func (r *ingressController) deleteIngress(ctx context.Context, name types.NamespacedName, reason string) (ctrl.Result, error) {
-	if err := r.IngressReconciler.Delete(ctx, name); err != nil {
+	changed, err := r.IngressReconciler.Delete(ctx, name)
+	if err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("deleting ingress: %w", err)
 	}
-	r.IngressDeleted(ctx, name, reason)
+	if changed {
+		r.IngressDeleted(ctx, name, reason)
+	}
 	r.DeleteCascade(model.Key{Kind: r.ingressKind, NamespacedName: name})
 	return ctrl.Result{}, nil
 }
