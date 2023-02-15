@@ -27,3 +27,5 @@ dist/
 .vscode/
 
 .DS_Store
+
+.worktrees/
