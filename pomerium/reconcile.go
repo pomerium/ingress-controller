@@ -16,7 +16,7 @@ type IngressReconciler interface {
 	// Set configuration to match provided ingresses and shared config settings
 	Set(ctx context.Context, ics []*model.IngressConfig) (changes bool, err error)
 	// Delete should delete pomerium routes corresponding to this ingress name
-	Delete(ctx context.Context, namespacedName types.NamespacedName) error
+	Delete(ctx context.Context, namespacedName types.NamespacedName) (changes bool, err error)
 }
 
 // ConfigReconciler only updates global parameters and does not deal with individual routes

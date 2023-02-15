@@ -107,21 +107,20 @@ func (r *DataBrokerReconciler) SetConfig(ctx context.Context, cfg *model.Config)
 }
 
 // Delete should delete pomerium routes corresponding to this ingress name
-func (r *DataBrokerReconciler) Delete(ctx context.Context, namespacedName types.NamespacedName) error {
+func (r *DataBrokerReconciler) Delete(ctx context.Context, namespacedName types.NamespacedName) (bool, error) {
 	prev, err := r.getConfig(ctx)
 	if err != nil {
-		return fmt.Errorf("get pomerium config: %w", err)
+		return false, fmt.Errorf("get pomerium config: %w", err)
 	}
 	cfg := proto.Clone(prev).(*pb.Config)
 	if err := deleteRoutes(ctx, cfg, namespacedName); err != nil {
-		return fmt.Errorf("deleting pomerium config records %s: %w", namespacedName.String(), err)
+		return false, fmt.Errorf("deleting pomerium config records %s: %w", namespacedName.String(), err)
 	}
-	if _, err := r.saveConfig(ctx, prev, cfg,
-		fmt.Sprintf("%s-%s", namespacedName.Namespace, namespacedName.Name),
-	); err != nil {
-		return fmt.Errorf("updating pomerium config: %w", err)
+	changed, err := r.saveConfig(ctx, prev, cfg, fmt.Sprintf("%s-%s", namespacedName.Namespace, namespacedName.Name))
+	if err != nil {
+		return false, fmt.Errorf("updating pomerium config: %w", err)
 	}
-	return nil
+	return changed, nil
 }
 
 // DeleteAll cleans pomerium configuration entirely

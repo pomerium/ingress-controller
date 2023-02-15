@@ -37,11 +37,12 @@ func (m *MockIngressReconciler) EXPECT() *MockIngressReconcilerMockRecorder {
 }
 
 // Delete mocks base method.
-func (m *MockIngressReconciler) Delete(arg0 context.Context, arg1 types.NamespacedName) error {
+func (m *MockIngressReconciler) Delete(arg0 context.Context, arg1 types.NamespacedName) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Delete indicates an expected call of Delete.

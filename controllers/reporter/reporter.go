@@ -55,7 +55,7 @@ func (r MultiIngressStatusReporter) IngressDeleted(ctx context.Context, name typ
 			errs = multierror.Append(errs, err)
 		}
 	}
-	logErrorIfAny(ctx, errs.ErrorOrNil(), "ingress", name)
+	logErrorIfAny(ctx, errs.ErrorOrNil(), "ingress", name, "original reason", reason)
 }
 
 // SettingsUpdated marks that configuration was reconciled
