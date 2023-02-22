@@ -155,7 +155,7 @@ spec:
                   requestParams:
                     additionalProperties:
                       type: string
-                    description: RequestParams to be added as part of a signin request
+                    description: RequestParams to be added as part of a sign-in request
                       using OAuth2 code flow.
                     format: namespace/name
                     type: object
@@ -240,7 +240,7 @@ spec:
                           contain <code>connection</code> key. See <a href="https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING">DSN
                           Format and Parameters</a>. Do not set <code>sslrootcert</code>,
                           <code>sslcert</code> and <code>sslkey</code> via connection
-                          string, use <code>tlsCecret</code> and <code>caSecret</code>
+                          string, use <code>tlsSecret</code> and <code>caSecret</code>
                           CRD options instead.
                         format: namespace/name
                         minLength: 1
@@ -290,7 +290,6 @@ spec:
                 type: object
             required:
             - authenticate
-            - identityProvider
             - secrets
             type: object
           status:

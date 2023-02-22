@@ -97,45 +97,45 @@ func TestFetchConstraints(t *testing.T) {
 	}{
 		{"ok", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
-			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
+			IdentityProvider: &icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
 			Secrets:          "pomerium/bootstrap-secrets",
 		}, assert.NoError},
 		{"bootstrap secret is mandatory", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
-			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
+			IdentityProvider: &icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
 		}, assert.Error},
 		{"idp secret is mandatory", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
-			IdentityProvider: icsv1.IdentityProvider{},
+			IdentityProvider: &icsv1.IdentityProvider{},
 			Certificates:     []string{},
 			Secrets:          "pomerium/bootstrap-secrets",
 		}, assert.Error},
 		{"no empty storage", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
-			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
+			IdentityProvider: &icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
 			Secrets:          "pomerium/bootstrap-secrets",
 			Storage:          &icsv1.Storage{},
 		}, assert.Error},
 		{"redis: secret missing", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
-			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
+			IdentityProvider: &icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
 			Secrets:          "pomerium/bootstrap-secrets",
 			Storage:          &icsv1.Storage{Redis: &icsv1.RedisStorage{}},
 		}, assert.Error},
 		{"redis: secret present", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
-			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
+			IdentityProvider: &icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
 			Secrets:          "pomerium/bootstrap-secrets",
 			Storage:          &icsv1.Storage{Redis: &icsv1.RedisStorage{Secret: "pomerium/redis"}},
 		}, assert.NoError},
 		{"redis: ca + tls", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
-			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
+			IdentityProvider: &icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
 			Secrets:          "pomerium/bootstrap-secrets",
 			Storage: &icsv1.Storage{Redis: &icsv1.RedisStorage{
@@ -146,21 +146,21 @@ func TestFetchConstraints(t *testing.T) {
 		}, assert.NoError},
 		{"postgres: secret missing", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
-			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
+			IdentityProvider: &icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
 			Secrets:          "pomerium/bootstrap-secrets",
 			Storage:          &icsv1.Storage{Postgres: &icsv1.PostgresStorage{}},
 		}, assert.Error},
 		{"postgres: secret present", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
-			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
+			IdentityProvider: &icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
 			Secrets:          "pomerium/bootstrap-secrets",
 			Storage:          &icsv1.Storage{Postgres: &icsv1.PostgresStorage{Secret: "pomerium/postgres"}},
 		}, assert.NoError},
 		{"postgres: ca + tls", icsv1.PomeriumSpec{
 			Authenticate:     icsv1.Authenticate{},
-			IdentityProvider: icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
+			IdentityProvider: &icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
 			Certificates:     []string{},
 			Secrets:          "pomerium/bootstrap-secrets",
 			Storage: &icsv1.Storage{Postgres: &icsv1.PostgresStorage{
