@@ -18,6 +18,11 @@ import (
 	"github.com/pomerium/ingress-controller/util"
 )
 
+type applyOpt struct {
+	name string
+	fn   func(context.Context, *pb.Config, *model.Config) error
+}
+
 func applyConfig(ctx context.Context, p *pb.Config, c *model.Config) error {
 	if c == nil {
 		return nil
@@ -27,21 +32,24 @@ func applyConfig(ctx context.Context, p *pb.Config, c *model.Config) error {
 		p.Settings = new(pb.Settings)
 	}
 
-	for _, apply := range []struct {
-		name string
-		fn   func(context.Context, *pb.Config, *model.Config) error
-	}{
+	opts := []applyOpt{
 		{"ca", applyCertificateAuthority},
 		{"certs", applyCerts},
 		{"authenticate", applyAuthenticate},
-		{"idp", applyIDP},
-		{"idp url", applyIDPProviderURL},
-		{"idp secret", applyIDPSecret},
-		{"idp request params", applyIDPRequestParams},
 		{"cookie", applyCookie},
 		{"warnings", checkForWarnings},
 		{"jwt claim headers", applyJWTClaimHeaders},
-	} {
+	}
+	if c.Spec.IdentityProvider != nil {
+		opts = append(opts, []applyOpt{
+			{"idp", applyIDP},
+			{"idp url", applyIDPProviderURL},
+			{"idp secret", applyIDPSecret},
+			{"idp request params", applyIDPRequestParams},
+		}...)
+	}
+
+	for _, apply := range opts {
 		if err := apply.fn(ctx, p, c); err != nil {
 			return fmt.Errorf("%s: %w", apply.name, err)
 		}
