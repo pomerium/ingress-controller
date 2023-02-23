@@ -111,7 +111,7 @@ func (s *ControllerTestSuite) TestValidation() {
 	auth := icsv1.Authenticate{
 		URL: "https://provider.local",
 	}
-	idp := icsv1.IdentityProvider{
+	idp := &icsv1.IdentityProvider{
 		Provider: "oidc",
 		Secret:   "secret",
 	}
@@ -141,21 +141,21 @@ func (s *ControllerTestSuite) TestValidation() {
 			IdentityProvider: idp,
 			Secrets:          "pomerium/default-secrets",
 		}, true},
-		{"idp required", icsv1.PomeriumSpec{
+		{"idp may be optional", icsv1.PomeriumSpec{
 			Authenticate: auth,
 			Secrets:      "pomerium/default-secrets",
-		}, true},
+		}, false},
 		{"idp secret required", icsv1.PomeriumSpec{
 			Authenticate: auth,
 			Secrets:      "pomerium/default-secrets",
-			IdentityProvider: icsv1.IdentityProvider{
+			IdentityProvider: &icsv1.IdentityProvider{
 				Secret:   "",
 				Provider: "oidc",
 			},
 		}, true},
 		{"idp provider required", icsv1.PomeriumSpec{
 			Authenticate: auth,
-			IdentityProvider: icsv1.IdentityProvider{
+			IdentityProvider: &icsv1.IdentityProvider{
 				Secret:   "secret",
 				Provider: "",
 			},
@@ -163,7 +163,7 @@ func (s *ControllerTestSuite) TestValidation() {
 		}, true},
 		{"idp provider enum", icsv1.PomeriumSpec{
 			Authenticate: auth,
-			IdentityProvider: icsv1.IdentityProvider{
+			IdentityProvider: &icsv1.IdentityProvider{
 				Secret:   "secret",
 				Provider: "invalid",
 			},

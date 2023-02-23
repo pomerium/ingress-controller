@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -25,6 +26,7 @@ func Apply(ctx context.Context, dst *config.Options, src *model.Config) error {
 		name string
 		fn   func(context.Context, *config.Options, *model.Config) error
 	}{
+		{"authenticate", applyAuthenticate},
 		{"secrets", applySecrets},
 		{"storage", applyStorage},
 	} {
@@ -41,6 +43,28 @@ func Apply(ctx context.Context, dst *config.Options, src *model.Config) error {
 }
 
 var storageFiles = filemgr.New(filepath.Join(os.TempDir(), "pomerium-storage-files"))
+
+func applyAuthenticate(ctx context.Context, dst *config.Options, src *model.Config) error {
+	if src.Spec.IdentityProvider == nil {
+		return nil
+	}
+
+	// if IdP is set, the authenticate is managed locally,
+	// and we need to set the internal URL to the service in order to be able to fetch keys
+	// as public URL is not accessible from inside the container due to port remapping
+	host, port, err := net.SplitHostPort(dst.Addr)
+	if err != nil {
+		return fmt.Errorf("parsing server addr: %w", err)
+	}
+	if host == "" {
+		host = "localhost"
+	}
+	dst.AuthenticateInternalURLString = (&url.URL{
+		Scheme: "https",
+		Host:   net.JoinHostPort(host, port),
+	}).String()
+	return nil
+}
 
 func applyStorage(ctx context.Context, dst *config.Options, src *model.Config) error {
 	if err := storageFiles.DeleteFiles(); err != nil {

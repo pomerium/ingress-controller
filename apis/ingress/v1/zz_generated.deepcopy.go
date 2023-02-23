@@ -180,7 +180,11 @@ func (in *PomeriumList) DeepCopyObject() runtime.Object {
 func (in *PomeriumSpec) DeepCopyInto(out *PomeriumSpec) {
 	*out = *in
 	in.Authenticate.DeepCopyInto(&out.Authenticate)
-	in.IdentityProvider.DeepCopyInto(&out.IdentityProvider)
+	if in.IdentityProvider != nil {
+		in, out := &in.IdentityProvider, &out.IdentityProvider
+		*out = new(IdentityProvider)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Certificates != nil {
 		in, out := &in.Certificates, &out.Certificates
 		*out = make([]string, len(*in))
