@@ -720,7 +720,7 @@ func (s *ControllerTestSuite) TestSettingsStatusUpdate() {
 	gs := icsv1.Pomerium{
 		ObjectMeta: metav1.ObjectMeta{Name: name.Name, Namespace: name.Namespace},
 		Spec: icsv1.PomeriumSpec{
-			IdentityProvider: icsv1.IdentityProvider{
+			IdentityProvider: &icsv1.IdentityProvider{
 				Provider: "oidc",
 				Secret:   "secret",
 			},

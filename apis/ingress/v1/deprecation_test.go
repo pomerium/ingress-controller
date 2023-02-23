@@ -14,7 +14,7 @@ import (
 func TestDeprecations(t *testing.T) {
 	msgs, err := api.GetDeprecations(&api.PomeriumSpec{
 		Authenticate: api.Authenticate{},
-		IdentityProvider: api.IdentityProvider{Provider: "google", URL: proto.String("http://google.com"),
+		IdentityProvider: &api.IdentityProvider{Provider: "google", URL: proto.String("http://google.com"),
 			ServiceAccountFromSecret: proto.String("secret"),
 			RefreshDirectory: &api.RefreshDirectorySettings{
 				Interval: v1.Duration{Duration: time.Minute},

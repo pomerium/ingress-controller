@@ -111,9 +111,16 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 			}
 			return nil
 		},
-		apply("secret", required(&s.IdentityProvider.Secret), &cfg.IdpSecret),
-		apply("request params", optional(s.IdentityProvider.RequestParamsSecret), &cfg.RequestParams),
-		apply("service account", optional(s.IdentityProvider.ServiceAccountFromSecret), &cfg.IdpServiceAccount),
+		func() error {
+			if s.IdentityProvider == nil {
+				return nil
+			}
+			return applyAll(
+				apply("secret", required(&s.IdentityProvider.Secret), &cfg.IdpSecret),
+				apply("request params", optional(s.IdentityProvider.RequestParamsSecret), &cfg.RequestParams),
+				apply("service account", optional(s.IdentityProvider.ServiceAccountFromSecret), &cfg.IdpServiceAccount),
+			)
+		},
 		func() error {
 			if s.Storage == nil {
 				return nil

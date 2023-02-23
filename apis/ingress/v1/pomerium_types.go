@@ -224,8 +224,8 @@ type PomeriumSpec struct {
 	// IdentityProvider configure single-sign-on authentication and user identity details
 	// by integrating with your <a href="https://www.pomerium.com/docs/identity-providers/">Identity Provider</a>
 	//
-	// +kubebuilder:validation:Required
-	IdentityProvider IdentityProvider `json:"identityProvider"`
+	// +kubebuilder:validation:Optional
+	IdentityProvider *IdentityProvider `json:"identityProvider"`
 
 	// Certificates is a list of secrets of type TLS to use
 	// +kubebuilder:validation:Format="namespace/name"
