@@ -48,10 +48,20 @@ func applyAuthenticate(ctx context.Context, dst *config.Options, src *model.Conf
 	if src.Spec.IdentityProvider == nil {
 		return nil
 	}
-	// this may be overwritten by setting the authenticateInternalURLString to empty string in the config
+
+	// if IdP is set, the authenticate is managed locally,
+	// and we need to set the internal URL to the service in order to be able to fetch keys
+	// as public URL is not accessible from inside the container due to port remapping
+	host, port, err := net.SplitHostPort(dst.Addr)
+	if err != nil {
+		return fmt.Errorf("parsing server addr: %w", err)
+	}
+	if host == "" {
+		host = "localhost"
+	}
 	dst.AuthenticateInternalURLString = (&url.URL{
 		Scheme: "https",
-		Host:   net.JoinHostPort("localhost", "8443"),
+		Host:   net.JoinHostPort(host, port),
 	}).String()
 	return nil
 }
