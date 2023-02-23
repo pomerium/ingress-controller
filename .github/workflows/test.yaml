@@ -37,8 +37,9 @@ jobs:
     strategy:
       matrix:
         go-version: [1.19.x]
-        platform: [ubuntu-latest]
-    runs-on: ${{ matrix.platform }}
+    runs-on:
+      group: large-runners
+      labels: linux
     steps:
       - uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568
         with:
@@ -75,8 +76,9 @@ jobs:
     strategy:
       matrix:
         go-version: [1.19.x]
-        platform: [ubuntu-latest]
-    runs-on: ${{ matrix.platform }}
+    runs-on:
+      group: large-runners
+      labels: linux
     steps:
       - uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568
         with:
@@ -99,7 +101,9 @@ jobs:
           make build
 
   build-docker:
-    runs-on: ubuntu-latest
+    runs-on:
+      group: large-runners
+      labels: linux
     steps:
       - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
         with:
