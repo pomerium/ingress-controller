@@ -141,6 +141,32 @@ func (r *ingressController) updateIngressStatus(ctx context.Context, ingress *ne
 		return fmt.Errorf("get pomerium-proxy service %s: %w", r.updateStatusFromService.String(), err)
 	}
 
-	ingress.Status.LoadBalancer = svc.Status.LoadBalancer
+	ingress.Status.LoadBalancer = networkingv1.IngressLoadBalancerStatus{
+		Ingress: svcLoadBalancerStatusToIngress(svc.Status.LoadBalancer.Ingress),
+	}
 	return r.Client.Status().Update(ctx, ingress)
+}
+
+func svcLoadBalancerStatusToIngress(src []corev1.LoadBalancerIngress) []networkingv1.IngressLoadBalancerIngress {
+	dst := make([]networkingv1.IngressLoadBalancerIngress, len(src))
+	for i := range src {
+		dst[i] = networkingv1.IngressLoadBalancerIngress{
+			Hostname: src[i].Hostname,
+			IP:       src[i].IP,
+			Ports:    svcPortToIngress(src[i].Ports),
+		}
+	}
+	return dst
+}
+
+func svcPortToIngress(src []corev1.PortStatus) []networkingv1.IngressPortStatus {
+	dst := make([]networkingv1.IngressPortStatus, len(src))
+	for i := range src {
+		dst[i] = networkingv1.IngressPortStatus{
+			Protocol: src[i].Protocol,
+			Port:     src[i].Port,
+			Error:    src[i].Error,
+		}
+	}
+	return dst
 }

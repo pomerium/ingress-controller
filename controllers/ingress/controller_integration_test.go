@@ -571,8 +571,26 @@ func (s *ControllerTestSuite) TestIngressStatus() {
 	s.Equal(lbIngress, proxySvc.Status.LoadBalancer.Ingress)
 	require.Eventually(s.T(), func() bool {
 		s.NoError(s.Client.Get(ctx, types.NamespacedName{Name: ingress.Name, Namespace: ingress.Namespace}, ingress))
-		diff := cmp.Diff(lbIngress, ingress.Status.LoadBalancer.Ingress)
-		return diff == ""
+		if len(ingress.Status.LoadBalancer.Ingress) != len(lbIngress) {
+			return false
+		}
+		for i := range ingress.Status.LoadBalancer.Ingress {
+			if ingress.Status.LoadBalancer.Ingress[i].IP != lbIngress[i].IP {
+				return false
+			}
+			if ingress.Status.LoadBalancer.Ingress[i].Hostname != lbIngress[i].Hostname {
+				return false
+			}
+			for j := range ingress.Status.LoadBalancer.Ingress[i].Ports {
+				if ingress.Status.LoadBalancer.Ingress[i].Ports[j].Protocol != lbIngress[i].Ports[j].Protocol {
+					return false
+				}
+				if ingress.Status.LoadBalancer.Ingress[i].Ports[j].Port != lbIngress[i].Ports[j].Port {
+					return false
+				}
+			}
+		}
+		return true
 	}, time.Minute, time.Second)
 }
 
