@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/client9/misspell v0.3.4
 	github.com/envoyproxy/go-control-plane v0.11.0
-	github.com/go-logr/logr v1.2.3
+	github.com/go-logr/logr v1.2.4
 	github.com/go-logr/zapr v1.2.3
 	github.com/go-playground/validator/v10 v10.12.0
 	github.com/golang/mock v1.6.0
