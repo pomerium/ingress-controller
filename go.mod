@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/client9/misspell v0.3.4
 	github.com/envoyproxy/go-control-plane v0.11.0
-	github.com/go-logr/logr v1.2.3
+	github.com/go-logr/logr v1.2.4
 	github.com/go-logr/zapr v1.2.3
 	github.com/go-playground/validator/v10 v10.12.0
 	github.com/golang/mock v1.6.0
@@ -16,7 +16,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/iancoleman/strcase v0.2.0
 	github.com/martinlindhe/base36 v1.1.1
-	github.com/open-policy-agent/opa v0.50.2
+	github.com/open-policy-agent/opa v0.51.0
 	github.com/pomerium/pomerium v0.20.1-0.20230310000251-fd263a77a3bd
 	github.com/sergi/go-diff v1.3.1
 	github.com/spf13/cobra v1.6.1
