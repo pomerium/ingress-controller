@@ -286,6 +286,11 @@ type PomeriumSpec struct {
 	//
 	// +optional
 	JWTClaimHeaders map[string]string `json:"jwtClaimHeaders,omitempty"`
+
+	// SetRequestHeaders sets HTTP headers on the request before sending it to the upstream service.
+	// +optional
+	// See <a href="https://www.pomerium.com/docs/reference/#set-request-headers">Set Request Headers</a>
+	SetResponseHeaders map[string]string `json:"setResponseHeaders,omitempty"`
 }
 
 // ResourceStatus represents the outcome of the latest attempt to reconcile

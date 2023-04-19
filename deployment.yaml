@@ -217,6 +217,13 @@ spec:
                 format: namespace/name
                 minLength: 1
                 type: string
+              setResponseHeaders:
+                additionalProperties:
+                  type: string
+                description: SetRequestHeaders sets HTTP headers on the request before
+                  sending it to the upstream service. See <a href="https://www.pomerium.com/docs/reference/#set-request-headers">Set
+                  Request Headers</a>
+                type: object
               storage:
                 description: Storage defines persistent storage for sessions and other
                   data. See <a href="https://www.pomerium.com/docs/topics/data-storage">Storage</a>
