@@ -76,7 +76,7 @@ func (r *IngressSettingsReporter) IngressNotReconciled(ctx context.Context, ingr
 }
 
 // IngressDeleted an ingress resource was deleted and Pomerium no longer serves it
-func (r *IngressSettingsReporter) IngressDeleted(ctx context.Context, name types.NamespacedName, reason string) error {
+func (r *IngressSettingsReporter) IngressDeleted(ctx context.Context, name types.NamespacedName, _ string) error {
 	patch, err := json.Marshal([]struct {
 		Op   string `json:"op"`
 		Path string `json:"path"`
@@ -119,20 +119,20 @@ const (
 )
 
 // IngressReconciled an ingress was successfully reconciled with Pomerium
-func (r *IngressEventReporter) IngressReconciled(ctx context.Context, ingress *networkingv1.Ingress) error {
+func (r *IngressEventReporter) IngressReconciled(_ context.Context, ingress *networkingv1.Ingress) error {
 	r.EventRecorder.Event(ingress, corev1.EventTypeNormal, reasonPomeriumConfigUpdated, msgPomeriumConfigUpdated)
 	return nil
 }
 
 // IngressNotReconciled an updated ingress resource was received,
 // however it could not be reconciled with Pomerium due to errors
-func (r *IngressEventReporter) IngressNotReconciled(ctx context.Context, ingress *networkingv1.Ingress, reason error) error {
+func (r *IngressEventReporter) IngressNotReconciled(_ context.Context, ingress *networkingv1.Ingress, reason error) error {
 	r.EventRecorder.Event(ingress, corev1.EventTypeWarning, reasonPomeriumConfigUpdateError, reason.Error())
 	return nil
 }
 
 // IngressDeleted an ingress resource was deleted and Pomerium no longer serves it
-func (r *IngressEventReporter) IngressDeleted(ctx context.Context, name types.NamespacedName, reason string) error {
+func (r *IngressEventReporter) IngressDeleted(_ context.Context, _ types.NamespacedName, _ string) error {
 	return nil
 }
 
@@ -202,6 +202,6 @@ func (r *IngressLogReporter) IngressNotReconciled(ctx context.Context, ingress *
 
 // IngressDeleted an ingress resource was deleted and Pomerium no longer serves it
 func (r *IngressLogReporter) IngressDeleted(ctx context.Context, name types.NamespacedName, reason string) error {
-	r.logger(ctx, name.Namespace, name.Name).Info("deleted")
+	r.logger(ctx, name.Namespace, name.Name).Info("deleted", "reason", reason)
 	return nil
 }

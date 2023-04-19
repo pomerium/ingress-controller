@@ -44,7 +44,7 @@ func Apply(ctx context.Context, dst *config.Options, src *model.Config) error {
 
 var storageFiles = filemgr.New(filepath.Join(os.TempDir(), "pomerium-storage-files"))
 
-func applyAuthenticate(ctx context.Context, dst *config.Options, src *model.Config) error {
+func applyAuthenticate(_ context.Context, dst *config.Options, src *model.Config) error {
 	if src.Spec.IdentityProvider == nil {
 		return nil
 	}
@@ -181,7 +181,7 @@ func applyStoragePostgres(dst *config.Options, src *model.Config) error {
 	return nil
 }
 
-func applySecrets(ctx context.Context, dst *config.Options, src *model.Config) error {
+func applySecrets(_ context.Context, dst *config.Options, src *model.Config) error {
 	if src.Secrets == nil {
 		return fmt.Errorf("secrets missing, this is a bug")
 	}
