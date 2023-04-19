@@ -67,7 +67,7 @@ type mockPomeriumReconciler struct {
 	lastDelete *types.NamespacedName
 }
 
-func (m *mockPomeriumReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
+func (m *mockPomeriumReconciler) Upsert(_ context.Context, ic *model.IngressConfig) (bool, error) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -76,7 +76,7 @@ func (m *mockPomeriumReconciler) Upsert(ctx context.Context, ic *model.IngressCo
 	return true, nil
 }
 
-func (m *mockPomeriumReconciler) Delete(ctx context.Context, name types.NamespacedName) (bool, error) {
+func (m *mockPomeriumReconciler) Delete(_ context.Context, name types.NamespacedName) (bool, error) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -85,7 +85,7 @@ func (m *mockPomeriumReconciler) Delete(ctx context.Context, name types.Namespac
 	return true, nil
 }
 
-func (m *mockPomeriumReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bool, error) {
+func (m *mockPomeriumReconciler) Set(_ context.Context, ics []*model.IngressConfig) (bool, error) {
 	if len(ics) != 0 {
 		return false, errors.New("unexpected ingresses")
 	}

@@ -28,13 +28,12 @@ func (r *ingressController) fetchIngress(ctx context.Context, ingress *networkin
 		_ = client.Get(ctx, *r.updateStatusFromService, new(corev1.Service))
 	}
 
-	return fetchIngress(ctx, client, r.Registry, ingress, r.annotationPrefix)
+	return fetchIngress(ctx, client, ingress, r.annotationPrefix)
 }
 
 func fetchIngress(
 	ctx context.Context,
 	client client.Client,
-	registry model.Registry,
 	ingress *networkingv1.Ingress,
 	annotationPrefix string,
 ) (*model.IngressConfig, error) {
@@ -65,7 +64,6 @@ func fetchIngressServices(ctx context.Context, client client.Client, ingress *ne
 ) {
 	sm := make(map[types.NamespacedName]*corev1.Service)
 	em := make(map[types.NamespacedName]*corev1.Endpoints)
-	ingressKey := model.ObjectKey(ingress, client.Scheme())
 
 	for _, rule := range ingress.Spec.Rules {
 		if rule.HTTP == nil {
@@ -77,7 +75,7 @@ func fetchIngressServices(ctx context.Context, client client.Client, ingress *ne
 				return nil, nil, fmt.Errorf("rule host=%s path=%s has no backend service defined", rule.Host, p.Path)
 			}
 			svcName := types.NamespacedName{Name: svc.Name, Namespace: ingress.Namespace}
-			if err := fetchIngressService(ctx, client, ingressKey, sm, em, svcName); err != nil {
+			if err := fetchIngressService(ctx, client, sm, em, svcName); err != nil {
 				return nil, nil, fmt.Errorf("rule host=%s path=%s refers to service %s port=%s, failed to get service information: %w",
 					rule.Host, p.Path, svcName.String(), svc.Port.String(), err)
 			}
@@ -88,7 +86,7 @@ func fetchIngressServices(ctx context.Context, client client.Client, ingress *ne
 		return sm, em, nil
 	}
 
-	if err := fetchIngressService(ctx, client, ingressKey, sm, em,
+	if err := fetchIngressService(ctx, client, sm, em,
 		types.NamespacedName{
 			Name:      ingress.Spec.DefaultBackend.Service.Name,
 			Namespace: ingress.Namespace,
@@ -102,7 +100,6 @@ func fetchIngressServices(ctx context.Context, client client.Client, ingress *ne
 func fetchIngressService(
 	ctx context.Context,
 	client client.Client,
-	ingressKey model.Key,
 	servicesDst map[types.NamespacedName]*corev1.Service,
 	endpointsDst map[types.NamespacedName]*corev1.Endpoints,
 	name types.NamespacedName,

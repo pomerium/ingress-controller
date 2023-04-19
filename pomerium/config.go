@@ -91,7 +91,7 @@ func applyCookie(_ context.Context, p *pb.Config, c *model.Config) error {
 	return nil
 }
 
-func applyCertificateAuthority(ctx context.Context, p *pb.Config, c *model.Config) error {
+func applyCertificateAuthority(_ context.Context, p *pb.Config, c *model.Config) error {
 	if len(c.CASecrets) == 0 {
 		return nil
 	}

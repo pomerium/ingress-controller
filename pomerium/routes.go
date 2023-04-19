@@ -35,7 +35,7 @@ func upsertRoutes(ctx context.Context, cfg *pb.Config, ic *model.IngressConfig) 
 	return mergeRoutes(cfg, ingRoutes, types.NamespacedName{Name: ic.Ingress.Name, Namespace: ic.Ingress.Namespace})
 }
 
-func deleteRoutes(ctx context.Context, cfg *pb.Config, namespacedName types.NamespacedName) error {
+func deleteRoutes(cfg *pb.Config, namespacedName types.NamespacedName) error {
 	rm, err := routeList(cfg.Routes).toMap()
 	if err != nil {
 		return err

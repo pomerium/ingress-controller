@@ -113,7 +113,7 @@ func (r *DataBrokerReconciler) Delete(ctx context.Context, namespacedName types.
 		return false, fmt.Errorf("get pomerium config: %w", err)
 	}
 	cfg := proto.Clone(prev).(*pb.Config)
-	if err := deleteRoutes(ctx, cfg, namespacedName); err != nil {
+	if err := deleteRoutes(cfg, namespacedName); err != nil {
 		return false, fmt.Errorf("deleting pomerium config records %s: %w", namespacedName.String(), err)
 	}
 	changed, err := r.saveConfig(ctx, prev, cfg, fmt.Sprintf("%s-%s", namespacedName.Namespace, namespacedName.Name))
@@ -125,12 +125,12 @@ func (r *DataBrokerReconciler) Delete(ctx context.Context, namespacedName types.
 
 // DeleteAll cleans pomerium configuration entirely
 func (r *DataBrokerReconciler) DeleteAll(ctx context.Context) error {
-	any := protoutil.NewAny(&pb.Config{})
+	data := protoutil.NewAny(&pb.Config{})
 	if _, err := r.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Type:      any.GetTypeUrl(),
+			Type:      data.GetTypeUrl(),
 			Id:        IngressControllerConfigID,
-			Data:      any,
+			Data:      data,
 			DeletedAt: timestamppb.Now(),
 		}},
 	}); err != nil {
@@ -141,10 +141,10 @@ func (r *DataBrokerReconciler) DeleteAll(ctx context.Context) error {
 
 func (r *DataBrokerReconciler) getConfig(ctx context.Context) (*pb.Config, error) {
 	cfg := new(pb.Config)
-	any := protoutil.NewAny(cfg)
+	data := protoutil.NewAny(cfg)
 	var hdr metadata.MD
 	resp, err := r.Get(ctx, &databroker.GetRequest{
-		Type: any.GetTypeUrl(),
+		Type: data.GetTypeUrl(),
 		Id:   r.ConfigID,
 	}, grpc.Header(&hdr))
 	if status.Code(err) == codes.NotFound {
@@ -181,12 +181,12 @@ func (r *DataBrokerReconciler) saveConfig(ctx context.Context, prev, next *pb.Co
 		return false, nil
 	}
 
-	any := protoutil.NewAny(next)
+	data := protoutil.NewAny(next)
 	if _, err := r.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Type: any.GetTypeUrl(),
+			Type: data.GetTypeUrl(),
 			Id:   r.ConfigID,
-			Data: any,
+			Data: data,
 		}},
 	}); err != nil {
 		return false, err
