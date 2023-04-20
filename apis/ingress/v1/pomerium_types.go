@@ -287,9 +287,9 @@ type PomeriumSpec struct {
 	// +optional
 	JWTClaimHeaders map[string]string `json:"jwtClaimHeaders,omitempty"`
 
-	// SetRequestHeaders sets HTTP headers on the request before sending it to the upstream service.
+	// SetResponseHeaders specifies a mapping of HTTP Header to be added globally to all managed routes and pomerium's authenticate service.
 	// +optional
-	// See <a href="https://www.pomerium.com/docs/reference/#set-request-headers">Set Request Headers</a>
+	// See <a href="https://www.pomerium.com/docs/reference/set-response-headers">Set Response Headers</a>
 	SetResponseHeaders map[string]string `json:"setResponseHeaders,omitempty"`
 }
 
