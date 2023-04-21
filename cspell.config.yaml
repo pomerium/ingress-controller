@@ -11,6 +11,7 @@ words:
   - protobuf
   - oidc
   - readyz
+  - sharedkey
   - sslcert
   - sslkey
   - sslrootcert
