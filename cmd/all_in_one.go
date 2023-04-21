@@ -35,6 +35,9 @@ type allCmdOptions struct {
 	ingressControllerOpts
 	debug                           bool
 	debugDumpConfigDiff             bool
+	debugPomerium                   bool
+	debugEnvoy                      bool
+	adminBindAddr                   string
 	configControllerShutdownTimeout time.Duration
 	// metricsBindAddress must be externally accessible host:port
 	metricsBindAddress string `validate:"required,hostname_port"`
@@ -81,21 +84,43 @@ func AllInOneCommand() (*cobra.Command, error) {
 	return &cmd.Command, nil
 }
 
+// the below flags are not intended to be used by end users, but rather for development and debugging purposes
+// setting them to hidden to avoid confusion, as enabling them may cause sensitive information to be logged or exposed
+const (
+	debug                    = "debug"
+	debugPomerium            = "debug-pomerium"
+	debugEnvoy               = "debug-envoy"
+	debugAdminBindAddr       = "debug-admin-addr"
+	debugDumpConfigDiff      = "debug-dump-config-diff"
+	configControllerShutdown = "config-controller-shutdown"
+)
+
+var hidden = []string{
+	debugPomerium,
+	debugEnvoy,
+	debugAdminBindAddr,
+	debugDumpConfigDiff,
+}
+
 func (s *allCmd) setupFlags() error {
 	flags := s.PersistentFlags()
 	flags.BoolVar(&s.debug, debug, false, "enable debug logging")
 	flags.BoolVar(&s.debugDumpConfigDiff, debugDumpConfigDiff, false, "development dump of config diff, don't use in production")
-	if err := flags.MarkHidden(debugDumpConfigDiff); err != nil {
-		return err
-	}
+	flags.BoolVar(&s.debugPomerium, debugPomerium, false, "enable debug logging for pomerium")
+	flags.BoolVar(&s.debugEnvoy, debugEnvoy, false, "enable debug logging for envoy")
 	flags.StringVar(&s.metricsBindAddress, metricsBindAddress, "", "host:port for aggregate metrics. host is mandatory")
+	flags.StringVar(&s.adminBindAddr, debugAdminBindAddr, "", "host:port for admin server")
 	flags.StringVar(&s.serverAddr, "server-addr", ":8443", "the address the HTTPS server would bind to")
 	flags.StringVar(&s.httpRedirectAddr, "http-redirect-addr", ":8080", "the address HTTP redirect would bind to")
 	flags.StringVar(&s.deriveTLS, "databroker-auto-tls", "", "enable auto TLS and generate server certificate for the domain")
-	flags.DurationVar(&s.configControllerShutdownTimeout, "config-controller-shutdown", time.Second*30, "timeout waiting for graceful config controller shutdown")
-	if err := flags.MarkHidden("config-controller-shutdown"); err != nil {
-		return err
+	flags.DurationVar(&s.configControllerShutdownTimeout, configControllerShutdown, time.Second*30, "timeout waiting for graceful config controller shutdown")
+
+	for _, flag := range hidden {
+		if err := s.PersistentFlags().MarkHidden(flag); err != nil {
+			return fmt.Errorf("failed to mark %s flag: %w", flag, err)
+		}
 	}
+
 	s.ingressControllerOpts.setupFlags(flags)
 	return viperWalk(flags)
 }
@@ -219,6 +244,15 @@ func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 			},
 		},
 	}
+
+	if opt.debugPomerium {
+		s.cfg.Options.LogLevel = "debug"
+	}
+	if opt.debugEnvoy {
+		s.cfg.Options.ProxyLogLevel = "debug"
+		s.cfg.Options.LogLevel = "debug"
+	}
+	s.cfg.Options.EnvoyAdminAddress = opt.adminBindAddr
 
 	return nil
 }
