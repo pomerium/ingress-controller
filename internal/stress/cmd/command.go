@@ -14,6 +14,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -111,6 +112,36 @@ func getKubeClient() (*kubernetes.Clientset, error) {
 }
 
 func run(ctx context.Context) error {
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		return runTest(ctx)
+	})
+	eg.Go(func() error {
+		return runEcho(ctx)
+	})
+	return eg.Wait()
+}
+
+func runEcho(ctx context.Context) error {
+	ports := strings.Split(os.Getenv("CONTAINER_PORT_NUMBERS"), ",")
+	if len(ports) != 2 {
+		return fmt.Errorf("CONTAINER_PORT_NUMBERS should have exactly two comma separated values")
+	}
+	eg, ctx := errgroup.WithContext(ctx)
+	for _, port := range ports {
+		port := port
+		eg.Go(func() error {
+			n, err := strconv.Atoi(port)
+			if err != nil {
+				return fmt.Errorf("failed to parse port number: %w", err)
+			}
+			return stress.RunHTTPEchoServer(ctx, fmt.Sprintf(":%d", n))
+		})
+	}
+	return eg.Wait()
+}
+
+func runTest(ctx context.Context) error {
 	cfg, err := testConfigFromEnv()
 	if err != nil {
 		return err

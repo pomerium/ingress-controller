@@ -80,8 +80,7 @@ func (l *IngressLoadTest) Run(ctx context.Context) (err error) {
 	i := 0
 	for ctx.Err() == nil {
 		i++
-		l.log = l.log.With().Int("iteration", i).Logger()
-		l.log.Info().Msg("starting iteration")
+		l.log.Info().Int("iteration", i).Msg("starting iteration")
 
 		if err := l.updateIngress(ctx, i); err != nil {
 			return fmt.Errorf("update ingress: %w", err)
