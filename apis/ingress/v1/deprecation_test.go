@@ -13,7 +13,7 @@ import (
 
 func TestDeprecations(t *testing.T) {
 	msgs, err := api.GetDeprecations(&api.PomeriumSpec{
-		Authenticate: api.Authenticate{},
+		Authenticate: new(api.Authenticate),
 		IdentityProvider: &api.IdentityProvider{Provider: "google", URL: proto.String("http://google.com"),
 			ServiceAccountFromSecret: proto.String("secret"),
 			RefreshDirectory: &api.RefreshDirectorySettings{

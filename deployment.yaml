@@ -45,7 +45,8 @@ spec:
             description: PomeriumSpec defines Pomerium-specific configuration parameters.
             properties:
               authenticate:
-                description: Authenticate sets authenticate service parameters
+                description: Authenticate sets authenticate service parameters. If
+                  not specified, a Pomerium-hosted authenticate service would be used.
                 properties:
                   callbackPath:
                     description: "CallbackPath sets the path at which the authenticate
@@ -297,7 +298,6 @@ spec:
                     type: object
                 type: object
             required:
-            - authenticate
             - secrets
             type: object
           status:

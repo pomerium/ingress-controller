@@ -742,7 +742,7 @@ func (s *ControllerTestSuite) TestSettingsStatusUpdate() {
 				Provider: "oidc",
 				Secret:   "secret",
 			},
-			Authenticate: icsv1.Authenticate{
+			Authenticate: &icsv1.Authenticate{
 				URL: "https://provider.local",
 			},
 			Secrets: "default/default-secrets",
