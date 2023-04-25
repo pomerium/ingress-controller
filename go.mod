@@ -3,7 +3,7 @@ module github.com/pomerium/ingress-controller
 go 1.20
 
 require (
-	github.com/cenkalti/backoff/v4 v4.2.0
+	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/client9/misspell v0.3.4
 	github.com/envoyproxy/go-control-plane v0.11.0
 	github.com/go-logr/logr v1.2.4
