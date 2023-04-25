@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stress-test
+data:
+  # how many ingresses to create
+  ingress-count: "100"
+  # what is the domain name to use for the ingresses
+  ingress-domain: ""
+  # how long to wait for the ingress to be ready.
+  # this may be proportional to the number of ingresses
+  # the test would crash and start from scratch if the readiness timeout is not long enough
+  readiness-timeout: "5m"
