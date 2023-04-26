@@ -217,9 +217,10 @@ type Cookie struct {
 
 // PomeriumSpec defines Pomerium-specific configuration parameters.
 type PomeriumSpec struct {
-	// Authenticate sets authenticate service parameters
-	// +kubebuilder:validation:Required
-	Authenticate Authenticate `json:"authenticate"`
+	// Authenticate sets authenticate service parameters.
+	// If not specified, a Pomerium-hosted authenticate service would be used.
+	// +kubebuilder:validation:Optional
+	Authenticate *Authenticate `json:"authenticate"`
 
 	// IdentityProvider configure single-sign-on authentication and user identity details
 	// by integrating with your <a href="https://www.pomerium.com/docs/identity-providers/">Identity Provider</a>
