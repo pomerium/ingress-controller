@@ -108,7 +108,7 @@ func (s *ControllerTestSuite) createTestController(ctx context.Context, reconcil
 }
 
 func (s *ControllerTestSuite) TestValidation() {
-	auth := icsv1.Authenticate{
+	auth := &icsv1.Authenticate{
 		URL: "https://provider.local",
 	}
 	idp := &icsv1.IdentityProvider{
@@ -133,14 +133,14 @@ func (s *ControllerTestSuite) TestValidation() {
 			IdentityProvider: idp,
 		}, true},
 		{"invalid auth url", icsv1.PomeriumSpec{
-			Authenticate:     icsv1.Authenticate{URL: "hostname"},
+			Authenticate:     &icsv1.Authenticate{URL: "hostname"},
 			IdentityProvider: idp,
 			Secrets:          "pomerium/default-secrets",
 		}, true},
-		{"auth required", icsv1.PomeriumSpec{
+		{"auth may be omitted", icsv1.PomeriumSpec{
 			IdentityProvider: idp,
 			Secrets:          "pomerium/default-secrets",
-		}, true},
+		}, false},
 		{"idp may be optional", icsv1.PomeriumSpec{
 			Authenticate: auth,
 			Secrets:      "pomerium/default-secrets",
