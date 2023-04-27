@@ -292,6 +292,10 @@ type PomeriumSpec struct {
 	// +optional
 	// See <a href="https://www.pomerium.com/docs/reference/set-response-headers">Set Response Headers</a>
 	SetResponseHeaders map[string]string `json:"setResponseHeaders,omitempty"`
+
+	// ProgrammaticRedirectDomains specifies a list of domains that can be used for
+	// <a href="https://www.pomerium.com/docs/capabilities/programmatic-access">programmatic redirects</a>.
+	ProgrammaticRedirectDomains []string `json:"programmaticRedirectDomains,omitempty"`
 }
 
 // ResourceStatus represents the outcome of the latest attempt to reconcile

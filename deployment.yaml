@@ -202,6 +202,13 @@ spec:
                   make sure to read <a href="https://www.pomerium.com/docs/topics/getting-users-identity">
                   Getting User Identity</a> guide.
                 type: object
+              programmaticRedirectDomains:
+                description: ProgrammaticRedirectDomains specifies a list of domains
+                  that can be used for <a href="https://www.pomerium.com/docs/capabilities/programmatic-access">programmatic
+                  redirects</a>.
+                items:
+                  type: string
+                type: array
               secrets:
                 description: "Secrets references a Secret with Pomerium bootstrap
                   parameters. \n <p> <ul> <li><a href=\"https://pomerium.com/docs/reference/shared-secret\"><code>shared_secret</code></a>

@@ -39,7 +39,7 @@ func applyConfig(ctx context.Context, p *pb.Config, c *model.Config) error {
 		{"cookie", applyCookie},
 		{"warnings", checkForWarnings},
 		{"jwt claim headers", applyJWTClaimHeaders},
-		{"set response headers", applySetResponseHeaders},
+		{"misc opts", applySetOtherOptions},
 	}
 	if c.Spec.IdentityProvider != nil {
 		opts = append(opts, []applyOpt{
@@ -76,8 +76,9 @@ func applyJWTClaimHeaders(_ context.Context, p *pb.Config, c *model.Config) erro
 	return nil
 }
 
-func applySetResponseHeaders(_ context.Context, p *pb.Config, c *model.Config) error {
+func applySetOtherOptions(_ context.Context, p *pb.Config, c *model.Config) error {
 	p.Settings.SetResponseHeaders = c.Spec.SetResponseHeaders
+	p.Settings.ProgrammaticRedirectDomainWhitelist = c.Spec.ProgrammaticRedirectDomains
 	return nil
 }
 
