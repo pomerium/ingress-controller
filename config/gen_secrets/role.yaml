@@ -10,3 +10,9 @@ rules:
       - secrets
     verbs:
       - create
+  - apiGroups:
+      - ingress.pomerium.io
+    resources:
+      - pomerium
+    verbs:
+      - create

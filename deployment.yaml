@@ -475,6 +475,12 @@ rules:
   - secrets
   verbs:
   - create
+- apiGroups:
+  - ingress.pomerium.io
+  resources:
+  - pomerium
+  verbs:
+  - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -638,6 +644,7 @@ spec:
       - args:
         - gen-secrets
         - --secrets=$(POD_NAMESPACE)/bootstrap
+        - --generate-global-config=global
         env:
         - name: POD_NAMESPACE
           valueFrom:
