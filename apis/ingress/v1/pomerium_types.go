@@ -215,7 +215,9 @@ type Cookie struct {
 	Expire *metav1.Duration `json:"expire,omitempty"`
 	// SameSite sets the SameSite option for cookies.
 	// Defaults to <code></code>.
-	// +optional
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Enum=strict;lax;none
 	SameSite *string `json:"sameSite,omitempty"`
 }
 
