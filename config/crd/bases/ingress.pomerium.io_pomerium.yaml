@@ -102,6 +102,10 @@ spec:
                     description: Name sets the Pomerium session cookie name. Defaults
                       to <code>_pomerium</code>
                     type: string
+                  sameSite:
+                    description: SameSite sets the SameSite option for cookies. Defaults
+                      to <code></code>.
+                    type: string
                   secure:
                     description: Secure if set to false, would make a cookie accessible
                       over insecure protocols (HTTP). Defaults to <code>true</code>.

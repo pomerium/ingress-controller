@@ -90,10 +90,10 @@ func applyCookie(_ context.Context, p *pb.Config, c *model.Config) error {
 	p.Settings.CookieName = c.Spec.Cookie.Name
 	p.Settings.CookieHttpOnly = c.Spec.Cookie.HTTPOnly
 	p.Settings.CookieSecure = c.Spec.Cookie.Secure
-
 	if c.Spec.Cookie.Expire != nil {
 		p.Settings.CookieExpire = durationpb.New(c.Spec.Cookie.Expire.Duration)
 	}
+	p.Settings.CookieSameSite = c.Spec.Cookie.SameSite
 
 	return nil
 }

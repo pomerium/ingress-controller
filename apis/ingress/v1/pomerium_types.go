@@ -213,6 +213,12 @@ type Cookie struct {
 	// +kubebuilder:validation:Format=duration
 	// +optional
 	Expire *metav1.Duration `json:"expire,omitempty"`
+	// SameSite sets the SameSite option for cookies.
+	// Defaults to <code></code>.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Enum=strict;lax;none
+	SameSite *string `json:"sameSite,omitempty"`
 }
 
 // PomeriumSpec defines Pomerium-specific configuration parameters.
