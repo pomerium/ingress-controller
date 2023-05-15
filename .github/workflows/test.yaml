@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9
+      - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753
         with:
           go-version: 1.20.x
       - uses: actions/setup-python@57ded4d7d5e986d7296eab16560982c6dd7c923b
@@ -41,7 +41,7 @@ jobs:
       group: large-runners
       labels: linux
     steps:
-      - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9
+      - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753
         with:
           go-version: ${{ matrix.go-version }}
       - name: set env vars
@@ -80,7 +80,7 @@ jobs:
       group: large-runners
       labels: linux
     steps:
-      - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9
+      - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753
         with:
           go-version: ${{ matrix.go-version }}
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab
