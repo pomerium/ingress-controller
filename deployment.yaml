@@ -581,7 +581,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: pomerium/ingress-controller:sha-adf771d
+        image: pomerium/ingress-controller:sha-88e898a
         imagePullPolicy: IfNotPresent
         name: pomerium
         ports:

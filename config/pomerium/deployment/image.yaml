@@ -8,5 +8,5 @@ spec:
     spec:
       containers:
         - name: pomerium
-          image: pomerium/ingress-controller:sha-adf771d
+          image: pomerium/ingress-controller:sha-88e898a
           imagePullPolicy: IfNotPresent
