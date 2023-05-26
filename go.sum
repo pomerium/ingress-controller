@@ -927,8 +927,8 @@ github.com/polyfloyd/go-errorlint v0.0.0-20211125173453-6d6d39c5bb8b h1:/BDyEJWL
 github.com/polyfloyd/go-errorlint v0.0.0-20211125173453-6d6d39c5bb8b/go.mod h1:wi9BfjxjF/bwiZ701TzmfKu6UKC357IOAtNr0Td0Lvw=
 github.com/pomerium/csrf v1.7.0 h1:Qp4t6oyEod3svQtKfJZs589mdUTWKVf7q0PgCKYCshY=
 github.com/pomerium/csrf v1.7.0/go.mod h1:hAPZV47mEj2T9xFs+ysbum4l7SF1IdrryYaY6PdoIqw=
-github.com/pomerium/pomerium v0.17.4-0.20220512172518-32d5c54dbff6 h1:ckmyz9UvuaiM2bR7PC4rWe1FrMs+UUI4NMmsa43U83g=
-github.com/pomerium/pomerium v0.17.4-0.20220512172518-32d5c54dbff6/go.mod h1:w6OLtyjcCwQfTpNKTvstpDCAlTy1CGHpkGLQQIrzxas=
+github.com/pomerium/pomerium v0.17.4 h1:Aq5ESMoPumZyEPhfljYBQzk7haSzxXnLUqWM5bHj92c=
+github.com/pomerium/pomerium v0.17.4/go.mod h1:w6OLtyjcCwQfTpNKTvstpDCAlTy1CGHpkGLQQIrzxas=
 github.com/pomerium/webauthn v0.0.0-20211014213840-422c7ce1077f h1:442shkoI4Oh4RHdzFaGma1t9Ji/T+8pfCxQQzmY5kj8=
 github.com/pomerium/webauthn v0.0.0-20211014213840-422c7ce1077f/go.mod h1:wgH3ualWdXu/qwbhOoSQedXzco+38Iz7qKKGCJcKPXg=
 github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndrE9hABlRI=
