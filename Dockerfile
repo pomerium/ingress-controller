@@ -1,7 +1,7 @@
 # Build the manager binary
 # make sure to run `make clean` if building locally
 
-FROM golang:1.20.4@sha256:685a22e459f9516f27d975c5cc6accc11223ee81fdfbbae60e39cc3b87357306 as go-modules
+FROM golang:1.20.4@sha256:690e4135bf2a4571a572bfd5ddfa806b1cb9c3dea0446ebadaf32bc2ea09d4f9 as go-modules
 
 WORKDIR /workspace
 
