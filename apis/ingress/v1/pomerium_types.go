@@ -309,22 +309,22 @@ type PomeriumSpec struct {
 
 // Timeouts allows to configure global timeouts for all routes.
 type Timeouts struct {
-	// ReadTimeout specifies the amount of time for the entire request stream to be received from the client.
+	// Read specifies the amount of time for the entire request stream to be received from the client.
 	// +kubebuilder:validation:Format=duration
 	// +optional
-	ReadTimeout *metav1.Duration `json:"readTimeout,omitempty"`
+	Read *metav1.Duration `json:"read,omitempty"`
 
-	// WriteTimeout specifies max stream duration is the maximum time that a stream’s lifetime will span.
+	// Write specifies max stream duration is the maximum time that a stream’s lifetime will span.
 	// An HTTP request/response exchange fully consumes a single stream.
 	// Therefore, this value must be greater than read_timeout as it covers both request and response time.
 	// +kubebuilder:validation:Format=duration
 	// +optional
-	WriteTimeout *metav1.Duration `json:"writeTimeout,omitempty"`
+	Write *metav1.Duration `json:"write,omitempty"`
 
-	// IdleTimeout specifies the time at which a downstream or upstream connection will be terminated if there are no active streams.
+	// Idle specifies the time at which a downstream or upstream connection will be terminated if there are no active streams.
 	// +kubebuilder:validation:Format=duration
 	// +optional
-	IdleTimeout *metav1.Duration `json:"idleTimeout,omitempty"`
+	Idle *metav1.Duration `json:"idle,omitempty"`
 }
 
 // ResourceStatus represents the outcome of the latest attempt to reconcile
