@@ -39,6 +39,7 @@ func applyConfig(ctx context.Context, p *pb.Config, c *model.Config) error {
 		{"cookie", applyCookie},
 		{"warnings", checkForWarnings},
 		{"jwt claim headers", applyJWTClaimHeaders},
+		{"timeouts", applyTimeouts},
 		{"misc opts", applySetOtherOptions},
 	}
 	if c.Spec.IdentityProvider != nil {
@@ -68,6 +69,22 @@ func checkForWarnings(ctx context.Context, _ *pb.Config, c *model.Config) error 
 			KeyAction:     config.KeyActionWarn,
 		})
 	}
+	return nil
+}
+
+func applyTimeouts(_ context.Context, p *pb.Config, c *model.Config) error {
+	if c.Spec.Timeouts == nil {
+		return nil
+	}
+	tm := c.Spec.Timeouts
+
+	if tm.ReadTimeout != nil && tm.WriteTimeout != nil && tm.ReadTimeout.Duration > tm.WriteTimeout.Duration {
+		return fmt.Errorf("read timeout (%s) must be less than write timeout (%s)", tm.ReadTimeout.Duration, tm.WriteTimeout.Duration)
+	}
+	p.Settings.TimeoutIdle = durationpb.New(tm.IdleTimeout.Duration)
+	p.Settings.TimeoutRead = durationpb.New(tm.ReadTimeout.Duration)
+	p.Settings.TimeoutWrite = durationpb.New(tm.WriteTimeout.Duration)
+
 	return nil
 }
 
