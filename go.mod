@@ -17,7 +17,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/iancoleman/strcase v0.2.0
 	github.com/martinlindhe/base36 v1.1.1
-	github.com/open-policy-agent/opa v0.52.0
+	github.com/open-policy-agent/opa v0.53.0
 	github.com/pomerium/pomerium v0.20.1-0.20230526203421-d315e683357a
 	github.com/rs/zerolog v1.29.1
 	github.com/sergi/go-diff v1.3.1
@@ -125,9 +125,11 @@ require (
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-chi/chi/v5 v5.0.8 // indirect
 	github.com/go-critic/go-critic v0.7.0 // indirect
+	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.20.0 // indirect
@@ -266,7 +268,7 @@ require (
 	github.com/shazow/go-diff v0.0.0-20160112020656-b6b7b6733b8c // indirect
 	github.com/shirou/gopsutil/v3 v3.23.4 // indirect
 	github.com/shoenig/go-m1cpu v0.1.5 // indirect
-	github.com/sirupsen/logrus v1.9.0 // indirect
+	github.com/sirupsen/logrus v1.9.2 // indirect
 	github.com/sivchari/containedctx v1.0.2 // indirect
 	github.com/sivchari/nosnakecase v1.7.0 // indirect
 	github.com/sivchari/tenv v1.7.1 // indirect
@@ -305,6 +307,9 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	gitlab.com/bosi/decorder v0.2.3 // indirect
 	go.opencensus.io v0.24.0 // indirect
+	go.opentelemetry.io/otel v1.14.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.14.0 // indirect
+	go.opentelemetry.io/otel/trace v1.14.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.9.0 // indirect
