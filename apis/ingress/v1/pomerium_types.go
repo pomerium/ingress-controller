@@ -302,6 +302,29 @@ type PomeriumSpec struct {
 	// ProgrammaticRedirectDomains specifies a list of domains that can be used for
 	// <a href="https://www.pomerium.com/docs/capabilities/programmatic-access">programmatic redirects</a>.
 	ProgrammaticRedirectDomains []string `json:"programmaticRedirectDomains,omitempty"`
+
+	// Timeout specifies the <a href="https://www.pomerium.com/docs/reference/global-timeouts">global timeouts</a> for all routes.
+	Timeouts *Timeouts `json:"timeouts,omitempty"`
+}
+
+// Timeouts allows to configure global timeouts for all routes.
+type Timeouts struct {
+	// Read specifies the amount of time for the entire request stream to be received from the client.
+	// +kubebuilder:validation:Format=duration
+	// +optional
+	Read *metav1.Duration `json:"read,omitempty"`
+
+	// Write specifies max stream duration is the maximum time that a stream’s lifetime will span.
+	// An HTTP request/response exchange fully consumes a single stream.
+	// Therefore, this value must be greater than read_timeout as it covers both request and response time.
+	// +kubebuilder:validation:Format=duration
+	// +optional
+	Write *metav1.Duration `json:"write,omitempty"`
+
+	// Idle specifies the time at which a downstream or upstream connection will be terminated if there are no active streams.
+	// +kubebuilder:validation:Format=duration
+	// +optional
+	Idle *metav1.Duration `json:"idle,omitempty"`
 }
 
 // ResourceStatus represents the outcome of the latest attempt to reconcile
