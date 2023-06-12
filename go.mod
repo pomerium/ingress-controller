@@ -17,7 +17,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/iancoleman/strcase v0.2.0
 	github.com/martinlindhe/base36 v1.1.1
-	github.com/open-policy-agent/opa v0.53.0
+	github.com/open-policy-agent/opa v0.53.1
 	github.com/pomerium/pomerium v0.20.1-0.20230526203421-d315e683357a
 	github.com/rs/zerolog v1.29.1
 	github.com/sergi/go-diff v1.3.1
