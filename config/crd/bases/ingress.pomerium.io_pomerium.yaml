@@ -105,6 +105,10 @@ spec:
                   sameSite:
                     description: SameSite sets the SameSite option for cookies. Defaults
                       to <code></code>.
+                    enum:
+                    - strict
+                    - lax
+                    - none
                     type: string
                   secure:
                     description: Secure if set to false, would make a cookie accessible
@@ -299,6 +303,30 @@ spec:
                     required:
                     - secret
                     type: object
+                type: object
+              timeouts:
+                description: Timeout specifies the <a href="https://www.pomerium.com/docs/reference/global-timeouts">global
+                  timeouts</a> for all routes.
+                properties:
+                  idle:
+                    description: Idle specifies the time at which a downstream or
+                      upstream connection will be terminated if there are no active
+                      streams.
+                    format: duration
+                    type: string
+                  read:
+                    description: Read specifies the amount of time for the entire
+                      request stream to be received from the client.
+                    format: duration
+                    type: string
+                  write:
+                    description: Write specifies max stream duration is the maximum
+                      time that a stream’s lifetime will span. An HTTP request/response
+                      exchange fully consumes a single stream. Therefore, this value
+                      must be greater than read_timeout as it covers both request
+                      and response time.
+                    format: duration
+                    type: string
                 type: object
             required:
             - secrets
