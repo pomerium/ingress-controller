@@ -336,6 +336,10 @@ spec:
                     format: duration
                     type: string
                 type: object
+              useProxyProtocol:
+                description: UseProxyProtocol enables <a href="https://www.pomerium.com/docs/reference/use-proxy-protocol">Proxy
+                  Protocol</a> support.
+                type: boolean
             required:
             - secrets
             type: object
