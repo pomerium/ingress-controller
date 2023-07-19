@@ -243,6 +243,11 @@ type PomeriumSpec struct {
 	// +optional
 	CASecrets []string `json:"caSecrets"`
 
+	// ClientCASecret is a list of secrets of type Opaque to use for client-side mTLS.
+	// Specify the corresponding CRL with the ca.crl key
+	// +optional
+	ClientCASecrets []string `json:"clientCASecrets"`
+
 	// Secrets references a Secret with Pomerium bootstrap parameters.
 	//
 	// <p>

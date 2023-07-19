@@ -78,6 +78,22 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>clientCASecrets</code>&#160;&#160;
+
+                    <strong>[]string</strong>&#160;
+
+                </p>
+                <p>
+
+                    Client CAs is a list of secrets of type TLS to use for client-side mTLS. Specify the corresponding CRL with the ca.crl key
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
                 <code>cookie</code>&#160;&#160;
 
                     <strong>object</strong>&#160;

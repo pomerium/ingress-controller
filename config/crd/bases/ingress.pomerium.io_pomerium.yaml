@@ -76,6 +76,13 @@ spec:
                 items:
                   type: string
                 type: array
+              clientCASecrets:
+                description: Client CAs is a list of secrets of type Opaque to use
+                  for client-side mTLS. Specify the corresponding CRL with the ca.crl
+                  key
+                items:
+                  type: string
+                type: array
               cookie:
                 description: Cookie defines Pomerium session cookie options.
                 properties:
