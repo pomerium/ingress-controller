@@ -97,6 +97,16 @@ func applySetOtherOptions(_ context.Context, p *pb.Config, c *model.Config) erro
 	p.Settings.SetResponseHeaders = c.Spec.SetResponseHeaders
 	p.Settings.ProgrammaticRedirectDomainWhitelist = c.Spec.ProgrammaticRedirectDomains
 	p.Settings.UseProxyProtocol = c.Spec.UseProxyProtocol
+	if c.Spec.AccessLogFields != nil {
+		p.Settings.AccessLogFields = &pb.Settings_StringList{
+			Values: *c.Spec.AccessLogFields,
+		}
+	}
+	if c.Spec.AuthorizeLogFields != nil {
+		p.Settings.AuthorizeLogFields = &pb.Settings_StringList{
+			Values: *c.Spec.AuthorizeLogFields,
+		}
+	}
 	return nil
 }
 
