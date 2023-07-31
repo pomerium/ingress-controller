@@ -36,6 +36,11 @@ spec:
           spec:
             description: PomeriumSpec defines Pomerium-specific configuration parameters.
             properties:
+              accessLogFields:
+                description: AccessLogFields sets the access fields to log.
+                items:
+                  type: string
+                type: array
               authenticate:
                 description: Authenticate sets authenticate service parameters. If
                   not specified, a Pomerium-hosted authenticate service would be used.
@@ -64,6 +69,11 @@ spec:
                 required:
                 - url
                 type: object
+              authorizeLogFields:
+                description: AuthorizeLogFields sets the authorize fields to log.
+                items:
+                  type: string
+                type: array
               caSecrets:
                 description: CASecret should refer to k8s secrets with key <code>ca.crt</code>
                   containing a CA certificate.
