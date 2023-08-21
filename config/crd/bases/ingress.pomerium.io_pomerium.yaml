@@ -37,7 +37,8 @@ spec:
             description: PomeriumSpec defines Pomerium-specific configuration parameters.
             properties:
               accessLogFields:
-                description: AccessLogFields sets the access fields to log.
+                description: AccessLogFields sets the <a href="https://www.pomerium.com/docs/reference/access-log-fields">access
+                  fields</a> to log.
                 items:
                   type: string
                 type: array
@@ -70,7 +71,8 @@ spec:
                 - url
                 type: object
               authorizeLogFields:
-                description: AuthorizeLogFields sets the authorize fields to log.
+                description: AuthorizeLogFields sets the <a href="https://www.pomerium.com/docs/reference/authorize-log-fields">authorize
+                  fields</a> to log.
                 items:
                   type: string
                 type: array

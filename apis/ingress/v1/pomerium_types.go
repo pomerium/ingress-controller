@@ -309,10 +309,10 @@ type PomeriumSpec struct {
 	// UseProxyProtocol enables <a href="https://www.pomerium.com/docs/reference/use-proxy-protocol">Proxy Protocol</a> support.
 	UseProxyProtocol *bool `json:"useProxyProtocol,omitempty"`
 
-	// AccessLogFields sets the access fields to log.
+	// AccessLogFields sets the <a href="https://www.pomerium.com/docs/reference/access-log-fields">access fields</a> to log.
 	AccessLogFields *[]string `json:"accessLogFields,omitempty"`
 
-	// AuthorizeLogFields sets the authorize fields to log.
+	// AuthorizeLogFields sets the <a href="https://www.pomerium.com/docs/reference/authorize-log-fields">authorize fields</a> to log.
 	AuthorizeLogFields *[]string `json:"authorizeLogFields,omitempty"`
 }
 
