@@ -7,6 +7,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 
 	"github.com/pomerium/ingress-controller/pomerium/envoy"
@@ -15,7 +16,7 @@ import (
 // validate validates pomerium config.
 func validate(ctx context.Context, cfg *pb.Config, id string) error {
 	options := config.NewDefaultOptions()
-	options.ApplySettings(ctx, cfg.GetSettings())
+	options.ApplySettings(ctx, cryptutil.NewCertificatesIndex(), cfg.GetSettings())
 	options.InsecureServer = true
 
 	for _, r := range cfg.GetRoutes() {
