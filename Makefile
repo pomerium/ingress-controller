@@ -108,7 +108,7 @@ internal/ui:
 
 internal/ui/node_modules: internal/ui
 	@echo "@==> $@"
-	@cd internal/ui && yarn install --network-timeout 120000
+	@cd internal/ui && yarn install --network-timeout 1000000
 
 .PHONY: pomerium-ui
 pomerium-ui: internal/ui/dist/index.js
