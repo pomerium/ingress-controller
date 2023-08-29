@@ -24,7 +24,7 @@ FROM node:lts-buster@sha256:3801c22eb9d286a58537c24e764affc9380bfee98aec4cb312ec
 WORKDIR /workspace
 
 COPY --from=go-modules /workspace/internal/ui ./
-RUN yarn install
+RUN yarn install --network-timeout 1000000
 RUN yarn build
 
 FROM go-modules as go-builder
