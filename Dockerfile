@@ -20,7 +20,7 @@ COPY Makefile ./Makefile
 RUN mkdir -p internal
 RUN make internal/ui
 
-FROM node:lts-buster@sha256:3801c22eb9d286a58537c24e764affc9380bfee98aec4cb312ec488a0529ff3d as ui
+FROM node:lts-buster@sha256:f41231b6c8ddf78c6b792e9a3fdfc560b27ab6ac418306ce3f668a5bf5507dee as ui
 WORKDIR /workspace
 
 COPY --from=go-modules /workspace/internal/ui ./
