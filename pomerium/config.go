@@ -81,9 +81,15 @@ func applyTimeouts(_ context.Context, p *pb.Config, c *model.Config) error {
 	if tm.Read != nil && tm.Write != nil && tm.Read.Duration >= tm.Write.Duration {
 		return fmt.Errorf("read timeout (%s) must be less than write timeout (%s)", tm.Read.Duration, tm.Write.Duration)
 	}
-	p.Settings.TimeoutIdle = durationpb.New(tm.Idle.Duration)
-	p.Settings.TimeoutRead = durationpb.New(tm.Read.Duration)
-	p.Settings.TimeoutWrite = durationpb.New(tm.Write.Duration)
+	if tm.Idle != nil {
+		p.Settings.TimeoutIdle = durationpb.New(tm.Idle.Duration)
+	}
+	if tm.Read != nil {
+		p.Settings.TimeoutRead = durationpb.New(tm.Read.Duration)
+	}
+	if tm.Write != nil {
+		p.Settings.TimeoutWrite = durationpb.New(tm.Write.Duration)
+	}
 
 	return nil
 }
