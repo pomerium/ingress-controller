@@ -50,14 +50,14 @@ jobs:
         with:
           fetch-depth: 0
       - name: cache go binaries
-        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
+        uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84
         id: cache-go-bin
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
           restore-keys: ${{ runner.os }}-go-bin
 
-      - uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
+      - uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84
         with:
           path: |
             ~/go/pkg/mod
@@ -86,7 +86,7 @@ jobs:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
         with:
           fetch-depth: 0
-      - uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
+      - uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84
         with:
           path: |
             ~/go/pkg/mod
