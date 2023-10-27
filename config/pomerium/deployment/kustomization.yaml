@@ -2,10 +2,10 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
 - base.yaml
-patchesStrategicMerge:
-  - args.yaml
-  - image.yaml
-  - ports.yaml
-  - resources.yaml
-  - no-root.yaml
-  - readonly-root-fs.yaml
+patches:
+- path: args.yaml
+- path: image.yaml
+- path: ports.yaml
+- path: resources.yaml
+- path: no-root.yaml
+- path: readonly-root-fs.yaml
