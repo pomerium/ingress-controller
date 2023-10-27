@@ -43,7 +43,7 @@ jobs:
 
       - name: Build
         run: |
-          make pomerium-ui fmt vet
+          make pomerium-ui generate fmt vet
           for arch in amd64 arm64; do
             mkdir -p bin-$arch
             TARGET=linux-$arch scripts/get-envoy.bash
