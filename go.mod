@@ -1,6 +1,6 @@
 module github.com/pomerium/ingress-controller
 
-go 1.20
+go 1.21
 
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1
@@ -18,7 +18,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v0.57.0
-	github.com/pomerium/pomerium v0.23.1-0.20231024153910-1996550c541e
+	github.com/pomerium/pomerium v0.23.1-0.20231106215759-ffca3b36a9da
 	github.com/rs/zerolog v1.31.0
 	github.com/sergi/go-diff v1.3.1
 	github.com/spf13/cobra v1.7.0
