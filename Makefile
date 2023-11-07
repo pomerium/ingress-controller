@@ -122,7 +122,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	@go run $(GOTAGS) ./main.go
 
 .PHONY: docker-build
-docker-build: test ## Build docker image with the manager.
+docker-build: build test ## Build docker image with the manager.
 	@echo "==> $@"
 	@docker build -t ${IMG} .
 
