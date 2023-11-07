@@ -40,12 +40,12 @@ jobs:
 
       - name: Build
         run: |
+          TARGET=linux-amd64 scripts/get-envoy.bash
+          TARGET=linux-arm64 scripts/get-envoy.bash
           make pomerium-ui generate fmt vet
-          for arch in amd64 arm64; do
-            mkdir -p bin-$arch
-            TARGET=linux-$arch scripts/get-envoy.bash
-            GOARCH=$arch go build -tags embed_pomerium -o bin-$arch/manager main.go
-          done
+          mkdir -p bin-amd64 bin-arm64
+          GOARCH=amd64 go build -tags embed_pomerium -o bin-amd64/manager main.go
+          GOARCH=arm64 go build -tags embed_pomerium -o bin-arm64/manager main.go
 
       - name: Docker Publish - Main
         uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09
