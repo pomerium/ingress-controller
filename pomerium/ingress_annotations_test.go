@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -145,7 +146,7 @@ func TestAnnotations(t *testing.T) {
 		HostRewriteHeader:                strp("rewrite-header"),
 		HostPathRegexRewritePattern:      strp("rewrite-pattern"),
 		HostPathRegexRewriteSubstitution: strp("rewrite-sub"),
-		PassIdentityHeaders:              true,
+		PassIdentityHeaders:              proto.Bool(true),
 		PrefixRewrite:                    "/",
 		RegexRewritePattern:              `^/service/([^/]+)(/.*)$`,
 		RegexRewriteSubstitution:         `\\2/instance/\\1`,
