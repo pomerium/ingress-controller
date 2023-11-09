@@ -115,6 +115,8 @@ func applySetOtherOptions(_ context.Context, p *pb.Config, c *model.Config) erro
 	}
 	if c.Spec.PassIdentityHeaders != nil {
 		p.Settings.PassIdentityHeaders = proto.Bool(*c.Spec.PassIdentityHeaders)
+	} else {
+		p.Settings.PassIdentityHeaders = nil
 	}
 	return nil
 }
