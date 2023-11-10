@@ -214,6 +214,10 @@ spec:
                   make sure to read <a href="https://www.pomerium.com/docs/topics/getting-users-identity">
                   Getting User Identity</a> guide.
                 type: object
+              passIdentityHeaders:
+                description: PassIdentityHeaders sets the <a href="https://www.pomerium.com/docs/reference/routes/pass-identity-headers">pass
+                  identity headers</a> option.
+                type: boolean
               programmaticRedirectDomains:
                 description: ProgrammaticRedirectDomains specifies a list of domains
                   that can be used for <a href="https://www.pomerium.com/docs/capabilities/programmatic-access">programmatic
