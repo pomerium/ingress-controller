@@ -18,7 +18,6 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v0.57.0
-	github.com/pomerium/csrf v1.7.0
 	github.com/pomerium/pomerium v0.23.1-0.20231109174956-d21cdb367832
 	github.com/rs/zerolog v1.31.0
 	github.com/sergi/go-diff v1.3.1
@@ -33,7 +32,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.26.3
 	k8s.io/apiextensions-apiserver v0.26.3
-	k8s.io/apimachinery v0.27.3
+	k8s.io/apimachinery v0.28.4
 	k8s.io/apiserver v0.26.3
 	k8s.io/client-go v0.26.3
 	sigs.k8s.io/controller-runtime v0.14.6
@@ -135,7 +134,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
-	github.com/go-openapi/jsonreference v0.20.1 // indirect
+	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
@@ -166,6 +165,7 @@ require (
 	github.com/golangci/unconvert v0.0.0-20180507085042-28b1c447d1f4 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
+	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-tpm v0.3.3 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
@@ -244,6 +244,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/polyfloyd/go-errorlint v1.4.4 // indirect
+	github.com/pomerium/csrf v1.7.0 // indirect
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524 // indirect
 	github.com/pomerium/webauthn v0.0.0-20221118023040-00a9c430578b // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
@@ -341,9 +342,9 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	honnef.co/go/tools v0.4.5 // indirect
 	k8s.io/component-base v0.26.3 // indirect
-	k8s.io/klog/v2 v2.90.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20230501164219-8b0f38b5fd1f // indirect
-	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5 // indirect
+	k8s.io/klog/v2 v2.100.1 // indirect
+	k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9 // indirect
+	k8s.io/utils v0.0.0-20230406110748-d93618cff8a2 // indirect
 	mvdan.cc/gofumpt v0.5.0 // indirect
 	mvdan.cc/interfacer v0.0.0-20180901003855-c20040233aed // indirect
 	mvdan.cc/lint v0.0.0-20170908181259-adc824a0674b // indirect
