@@ -7,7 +7,7 @@ require (
 	github.com/client9/misspell v0.3.4
 	github.com/envoyproxy/go-control-plane v0.11.1
 	github.com/go-logr/logr v1.3.0
-	github.com/go-logr/zapr v1.2.4
+	github.com/go-logr/zapr v1.3.0
 	github.com/go-playground/validator/v10 v10.16.0
 	github.com/golang/mock v1.6.0
 	github.com/golangci/golangci-lint v1.54.2
