@@ -14,20 +14,17 @@ import (
 func TestDeprecations(t *testing.T) {
 	msgs, err := api.GetDeprecations(&api.PomeriumSpec{
 		Authenticate: new(api.Authenticate),
-		IdentityProvider: &api.IdentityProvider{Provider: "google", URL: proto.String("http://google.com"),
+		IdentityProvider: &api.IdentityProvider{
+			Provider: "google", URL: proto.String("http://google.com"),
 			ServiceAccountFromSecret: proto.String("secret"),
 			RefreshDirectory: &api.RefreshDirectorySettings{
 				Interval: v1.Duration{Duration: time.Minute},
 				Timeout:  v1.Duration{Duration: time.Minute},
-			}},
-		Certificates: []string{},
-		Secrets:      "",
-		Storage: &api.Storage{
-			Redis: &api.RedisStorage{
-				Secret: "redis",
 			},
 		},
+		Certificates: []string{},
+		Secrets:      "",
 	})
 	require.NoError(t, err)
-	require.Len(t, msgs, 3)
+	require.Len(t, msgs, 2)
 }

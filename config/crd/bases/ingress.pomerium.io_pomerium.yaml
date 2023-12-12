@@ -289,36 +289,6 @@ spec:
                     required:
                     - secret
                     type: object
-                  redis:
-                    description: Redis defines REDIS connection parameters
-                    properties:
-                      caSecret:
-                        description: CASecret should refer to a k8s secret with key
-                          <code>ca.crt</code> that must be a PEM-encoded certificate
-                          authority to use when connecting to the databroker storage
-                          engine.
-                        format: namespace/name
-                        type: string
-                      secret:
-                        description: Secret specifies a name of a Secret that must
-                          contain <code>connection</code> key.
-                        format: namespace/name
-                        minLength: 1
-                        type: string
-                      tlsSecret:
-                        description: TLSSecret should refer to a k8s secret of type
-                          <code>kubernetes.io/tls</code> that would be used to perform
-                          TLS connection to REDIS.
-                        format: namespace/name
-                        minLength: 1
-                        type: string
-                      tlsSkipVerify:
-                        description: TLSSkipVerify disables TLS certificate chain
-                          validation.
-                        type: boolean
-                    required:
-                    - secret
-                    type: object
                 type: object
               timeouts:
                 description: Timeout specifies the <a href="https://www.pomerium.com/docs/reference/global-timeouts">global

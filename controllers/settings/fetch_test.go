@@ -42,25 +42,6 @@ func TestFetchConstraints(t *testing.T) {
 	}{
 		"idp-secrets":       {},
 		"bootstrap-secrets": {},
-		"redis": {
-			corev1.SecretTypeOpaque,
-			map[string][]byte{
-				model.StorageConnectionStringKey: []byte("redis://"),
-			},
-		},
-		"redis-ca": {
-			corev1.SecretTypeOpaque,
-			map[string][]byte{
-				model.CAKey: []byte("ca-data"),
-			},
-		},
-		"redis-tls": {
-			corev1.SecretTypeTLS,
-			map[string][]byte{
-				corev1.TLSCertKey:       []byte("cert-data"),
-				corev1.TLSPrivateKeyKey: []byte("key-data"),
-			},
-		},
 		"postgres": {
 			corev1.SecretTypeOpaque,
 			map[string][]byte{
@@ -119,31 +100,6 @@ func TestFetchConstraints(t *testing.T) {
 			Secrets:          "pomerium/bootstrap-secrets",
 			Storage:          &icsv1.Storage{},
 		}, assert.Error},
-		{"redis: secret missing", icsv1.PomeriumSpec{
-			Authenticate:     new(icsv1.Authenticate),
-			IdentityProvider: &icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
-			Certificates:     []string{},
-			Secrets:          "pomerium/bootstrap-secrets",
-			Storage:          &icsv1.Storage{Redis: &icsv1.RedisStorage{}},
-		}, assert.Error},
-		{"redis: secret present", icsv1.PomeriumSpec{
-			Authenticate:     new(icsv1.Authenticate),
-			IdentityProvider: &icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
-			Certificates:     []string{},
-			Secrets:          "pomerium/bootstrap-secrets",
-			Storage:          &icsv1.Storage{Redis: &icsv1.RedisStorage{Secret: "pomerium/redis"}},
-		}, assert.NoError},
-		{"redis: ca + tls", icsv1.PomeriumSpec{
-			Authenticate:     new(icsv1.Authenticate),
-			IdentityProvider: &icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
-			Certificates:     []string{},
-			Secrets:          "pomerium/bootstrap-secrets",
-			Storage: &icsv1.Storage{Redis: &icsv1.RedisStorage{
-				Secret:    "pomerium/redis",
-				CASecret:  proto.String("pomerium/redis-ca"),
-				TLSSecret: proto.String("pomerium/redis-tls"),
-			}},
-		}, assert.NoError},
 		{"postgres: secret missing", icsv1.PomeriumSpec{
 			Authenticate:     new(icsv1.Authenticate),
 			IdentityProvider: &icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},

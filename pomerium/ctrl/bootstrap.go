@@ -82,42 +82,8 @@ func applyStorage(ctx context.Context, dst *config.Options, src *model.Config) e
 	if src.Spec.Storage.Postgres != nil {
 		return applyStoragePostgres(dst, src)
 	}
-	if src.Spec.Storage.Redis != nil {
-		return applyStorageRedis(dst, src)
-	}
 
-	return fmt.Errorf("if storage is specified, it must contain either redis or postgresql config. omit storage key for in-memory")
-}
-
-func applyStorageRedis(dst *config.Options, src *model.Config) error {
-	conn, ok := src.StorageSecrets.Secret.Data[model.StorageConnectionStringKey]
-	if !ok {
-		return fmt.Errorf("storage secret must have %s key", model.StorageConnectionStringKey)
-	}
-
-	dst.DataBrokerStorageConnectionString = string(conn)
-	dst.DataBrokerStorageCertSkipVerify = src.Spec.Storage.Redis.TLSSkipVerify
-
-	if src.StorageSecrets.CA != nil {
-		ca, err := storageFiles.CreateFile("ca.pem", src.StorageSecrets.Secret.Data[model.CAKey])
-		if err != nil {
-			return fmt.Errorf("ca: %w", err)
-		}
-		dst.DataBrokerStorageCAFile = ca
-	}
-	if src.StorageSecrets.TLS != nil {
-		cert, err := storageFiles.CreateFile("cert.pem", src.StorageSecrets.TLS.Data[corev1.TLSCertKey])
-		if err != nil {
-			return fmt.Errorf("tls cert: %w", err)
-		}
-		key, err := storageFiles.CreateFile("key.pem", src.StorageSecrets.TLS.Data[corev1.TLSPrivateKeyKey])
-		if err != nil {
-			return fmt.Errorf("tls key: %w", err)
-		}
-		dst.DataBrokerStorageCertFile = cert
-		dst.DataBrokerStorageCertKeyFile = key
-	}
-	return nil
+	return fmt.Errorf("if storage is specified, it must contain postgresql config. omit storage key for in-memory")
 }
 
 func applyStoragePostgres(dst *config.Options, src *model.Config) error {
