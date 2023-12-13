@@ -10,19 +10,13 @@ import (
 	"github.com/iancoleman/strcase"
 )
 
-var (
-	deprecatedFields = map[string]pom_cfg.FieldMsg{
-		"idp_directory_sync": {
-			DocsURL:       "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
-			FieldCheckMsg: pom_cfg.FieldCheckMsgRemoved,
-			KeyAction:     pom_cfg.KeyActionWarn,
-		},
-		"redis": {
-			FieldCheckMsg: "not recommended for new deployments, use PostgreSQL",
-			KeyAction:     pom_cfg.KeyActionWarn,
-		},
-	}
-)
+var deprecatedFields = map[string]pom_cfg.FieldMsg{
+	"idp_directory_sync": {
+		DocsURL:       "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
+		FieldCheckMsg: pom_cfg.FieldCheckMsgRemoved,
+		KeyAction:     pom_cfg.KeyActionWarn,
+	},
+}
 
 // GetDeprecations returns deprecation warnings
 func GetDeprecations(spec *PomeriumSpec) ([]pom_cfg.FieldMsg, error) {

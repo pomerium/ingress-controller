@@ -26,6 +26,22 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>accessLogFields</code>&#160;&#160;
+
+                    <strong>[]string</strong>&#160;
+
+                </p>
+                <p>
+
+                    AccessLogFields sets the <a href="https://www.pomerium.com/docs/reference/access-log-fields">access fields</a> to log.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
                 <code>authenticate</code>&#160;&#160;
 
                     <strong>object</strong>&#160;
@@ -35,6 +51,22 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
                 <p>
 
                     Authenticate sets authenticate service parameters. If not specified, a Pomerium-hosted authenticate service would be used.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>authorizeLogFields</code>&#160;&#160;
+
+                    <strong>[]string</strong>&#160;
+
+                </p>
+                <p>
+
+                    AuthorizeLogFields sets the <a href="https://www.pomerium.com/docs/reference/authorize-log-fields">authorize fields</a> to log.
                 </p>
 
             </td>
@@ -128,6 +160,22 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>passIdentityHeaders</code>&#160;&#160;
+
+                    <strong>boolean</strong>&#160;
+
+                </p>
+                <p>
+
+                    PassIdentityHeaders sets the <a href="https://www.pomerium.com/docs/reference/routes/pass-identity-headers">pass identity headers</a> option.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
                 <code>programmaticRedirectDomains</code>&#160;&#160;
 
                     <strong>[]string</strong>&#160;
@@ -189,6 +237,39 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
                 <p>
 
                     Storage defines persistent storage for sessions and other data. See <a href="https://www.pomerium.com/docs/topics/data-storage">Storage</a> for details. If no storage is specified, Pomerium would use a transient in-memory storage (not recommended for production).
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>timeouts</code>&#160;&#160;
+
+                    <strong>object</strong>&#160;
+                    (<a href="#timeouts">timeouts</a>)
+
+                </p>
+                <p>
+
+                    Timeout specifies the <a href="https://www.pomerium.com/docs/reference/global-timeouts">global timeouts</a> for all routes.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>useProxyProtocol</code>&#160;&#160;
+
+                    <strong>boolean</strong>&#160;
+
+                </p>
+                <p>
+
+                    UseProxyProtocol enables <a href="https://www.pomerium.com/docs/reference/use-proxy-protocol">Proxy Protocol</a> support.
                 </p>
 
             </td>
@@ -586,93 +667,6 @@ Postgres specifies PostgreSQL database connection parameters
 
 
 
-### `redis`
-
-Redis defines REDIS connection parameters
-
-<table>
-    <thead>
-    </thead>
-    <tbody>
-
-        <tr>
-            <td>
-                <p>
-                <code>caSecret</code>&#160;&#160;
-
-                    <strong>string</strong>&#160;
-                    (namespace/name)
-
-                </p>
-                <p>
-
-                    CASecret should refer to a k8s secret with key <code>ca.crt</code> that must be a PEM-encoded certificate authority to use when connecting to the databroker storage engine.
-                </p>
-
-                    Format: reference to Kubernetes resource with namespace prefix: <code>namespace/name</code> format.
-
-            </td>
-        </tr>
-
-        <tr>
-            <td>
-                <p>
-                <code>secret</code>&#160;&#160;
-
-                    <strong>string</strong>&#160;
-                    (namespace/name)
-
-                </p>
-                <p>
-                    <strong>Required.</strong>&#160;
-                    Secret specifies a name of a Secret that must contain <code>connection</code> key.
-                </p>
-
-                    Format: reference to Kubernetes resource with namespace prefix: <code>namespace/name</code> format.
-
-            </td>
-        </tr>
-
-        <tr>
-            <td>
-                <p>
-                <code>tlsSecret</code>&#160;&#160;
-
-                    <strong>string</strong>&#160;
-                    (namespace/name)
-
-                </p>
-                <p>
-
-                    TLSSecret should refer to a k8s secret of type <code>kubernetes.io/tls</code> that would be used to perform TLS connection to REDIS.
-                </p>
-
-                    Format: reference to Kubernetes resource with namespace prefix: <code>namespace/name</code> format.
-
-            </td>
-        </tr>
-
-        <tr>
-            <td>
-                <p>
-                <code>tlsSkipVerify</code>&#160;&#160;
-
-                    <strong>boolean</strong>&#160;
-
-                </p>
-                <p>
-
-                    TLSSkipVerify disables TLS certificate chain validation.
-                </p>
-
-            </td>
-        </tr>
-
-    </tbody>
-</table>
-
-
-
 ### `refreshDirectory`
 
 RefreshDirectory is no longer supported, please see <a href="https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync">Upgrade Guide</a>.
@@ -751,19 +745,73 @@ Storage defines persistent storage for sessions and other data. See <a href="htt
             </td>
         </tr>
 
+    </tbody>
+</table>
+
+
+
+### `timeouts`
+
+Timeout specifies the <a href="https://www.pomerium.com/docs/reference/global-timeouts">global timeouts</a> for all routes.
+
+<table>
+    <thead>
+    </thead>
+    <tbody>
+
         <tr>
             <td>
                 <p>
-                <code>redis</code>&#160;&#160;
+                <code>idle</code>&#160;&#160;
 
-                    <strong>object</strong>&#160;
-                    (<a href="#redis">redis</a>)
+                    <strong>string</strong>&#160;
+                    (duration)
 
                 </p>
                 <p>
 
-                    Redis defines REDIS connection parameters
+                    Idle specifies the time at which a downstream or upstream connection will be terminated if there are no active streams.
                 </p>
+
+                    Format: a duration string like "22s" as parsed by Golang time.ParseDuration.
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>read</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+                    (duration)
+
+                </p>
+                <p>
+
+                    Read specifies the amount of time for the entire request stream to be received from the client.
+                </p>
+
+                    Format: a duration string like "22s" as parsed by Golang time.ParseDuration.
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>write</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+                    (duration)
+
+                </p>
+                <p>
+
+                    Write specifies max stream duration is the maximum time that a stream’s lifetime will span. An HTTP request/response exchange fully consumes a single stream. Therefore, this value must be greater than read_timeout as it covers both request and response time.
+                </p>
+
+                    Format: a duration string like "22s" as parsed by Golang time.ParseDuration.
 
             </td>
         </tr>

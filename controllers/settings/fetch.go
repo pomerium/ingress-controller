@@ -126,15 +126,7 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 				return nil
 			}
 
-			if r := s.Storage.Redis; r != nil {
-				if err := applyAll(
-					apply("connection", required(&r.Secret), &cfg.StorageSecrets.Secret),
-					apply("tls", optional(r.TLSSecret), &cfg.StorageSecrets.TLS),
-					apply("ca", optional(r.CASecret), &cfg.StorageSecrets.CA),
-				); err != nil {
-					return fmt.Errorf("redis: %w", err)
-				}
-			} else if p := s.Storage.Postgres; p != nil {
+			if p := s.Storage.Postgres; p != nil {
 				if err := applyAll(
 					apply("connection", required(&p.Secret), &cfg.StorageSecrets.Secret),
 					apply("tls", optional(p.TLSSecret), &cfg.StorageSecrets.TLS),
@@ -143,7 +135,7 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 					return fmt.Errorf("postgresql: %w", err)
 				}
 			} else {
-				return fmt.Errorf("if storage is specified, either redis or postgres storage should be provided")
+				return fmt.Errorf("if storage is specified, postgres storage should be provided")
 			}
 
 			return cfg.StorageSecrets.Validate()

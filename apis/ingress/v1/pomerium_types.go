@@ -79,35 +79,6 @@ type RefreshDirectorySettings struct {
 	Timeout metav1.Duration `json:"timeout"`
 }
 
-// RedisStorage defines REDIS databroker storage backend bootstrap parameters.
-// Redis is supported for legacy deployments, new deployments should use PostgreSQL.
-type RedisStorage struct {
-	// Secret specifies a name of a Secret that must contain
-	// <code>connection</code> key.
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Type=string
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Format="namespace/name"
-	Secret string `json:"secret"`
-	// TLSSecret should refer to a k8s secret of type <code>kubernetes.io/tls</code>
-	// that would be used to perform TLS connection to REDIS.
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Type=string
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Format="namespace/name"
-	TLSSecret *string `json:"tlsSecret"`
-	// CASecret should refer to a k8s secret with key <code>ca.crt</code> that must be a PEM-encoded
-	// certificate authority to use when connecting to the databroker storage engine.
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Type=string
-	// +kubebuilder:validation:Format="namespace/name"
-	CASecret *string `json:"caSecret"`
-	// TLSSkipVerify disables TLS certificate chain validation.
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Type=boolean
-	TLSSkipVerify bool `json:"tlsSkipVerify"`
-}
-
 // PostgresStorage defines Postgres connection parameters.
 type PostgresStorage struct {
 	// Secret specifies a name of a Secret that must contain
@@ -144,13 +115,9 @@ type PostgresStorage struct {
 // Storage defines persistent storage option for the databroker
 // and is only applied for all-in-one pomerium bootstrap,
 // and has no effect for the split-mode deployment.
-// If Storage is specified, either `redis` or `postgresql` parameter should be set.
-// Omit setting storage to use in-memory storage implementation.
+// If Storage is specified, the `postgresql` parameter should be set.
+// Omit setting storage to use the in-memory storage implementation.
 type Storage struct {
-	// Redis defines REDIS connection parameters
-	// +kubebuilder:validation:Optional
-	Redis *RedisStorage `json:"redis" deprecated:"redis"`
-
 	// Postgres specifies PostgreSQL database connection parameters
 	// +kubebuilder:validation:Optional
 	Postgres *PostgresStorage `json:"postgres"`

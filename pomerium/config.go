@@ -61,7 +61,7 @@ func applyConfig(ctx context.Context, p *pb.Config, c *model.Config) error {
 }
 
 func checkForWarnings(ctx context.Context, _ *pb.Config, c *model.Config) error {
-	if c.Spec.Storage == nil || (c.Spec.Storage.Redis == nil && c.Spec.Storage.Postgres == nil) {
+	if c.Spec.Storage == nil || c.Spec.Storage.Postgres == nil {
 		util.Add(ctx, config.FieldMsg{
 			Key:           "storage",
 			DocsURL:       "https://www.pomerium.com/docs/topics/data-storage#persistence",
