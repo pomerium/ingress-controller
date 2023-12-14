@@ -80,9 +80,10 @@ test: envoy manifests generate fmt vet envtest ## Run tests.
 	@KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path --arch=$(KUBEENV_GOARCH))" go test $(GOTAGS) ./... -coverprofile cover.out
 
 .PHONY: lint
-lint: envoy pomerium-ui ## Verifies `golint` passes.
-	@echo "==> $@"
-	@go run github.com/golangci/golangci-lint/cmd/golangci-lint run ./...
+lint: envoy pomerium-ui
+	@echo "@==> $@"
+	@VERSION=$$(go run github.com/mikefarah/yq/v4@v4.34.1 '.jobs.lint.steps[] | select(.uses == "golangci/golangci-lint-action*") | .with.version' .github/workflows/lint.yml) && \
+	go run github.com/golangci/golangci-lint/cmd/golangci-lint@$$VERSION run ./...
 
 ##@ Build
 .PHONY: build
