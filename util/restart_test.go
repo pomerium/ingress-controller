@@ -101,6 +101,7 @@ func TestRunTasks(t *testing.T) {
 		})
 	}
 }
+
 func testRunTasks(jobs []testConfig) ([]testConfig, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -130,9 +131,8 @@ func testRunTasks(jobs []testConfig) ([]testConfig, error) {
 					return fmt.Errorf("%s: %w", tc, ctx.Err())
 				} else if strings.HasPrefix(string(tc), "error-") {
 					return errors.New(string(tc))
-				} else {
-					return fmt.Errorf("unexpected %s", tc)
 				}
+				return fmt.Errorf("unexpected %s", tc)
 			},
 			time.Second)
 	})
