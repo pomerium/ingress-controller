@@ -282,7 +282,7 @@ type PomeriumSpec struct {
 	// AuthorizeLogFields sets the <a href="https://www.pomerium.com/docs/reference/authorize-log-fields">authorize fields</a> to log.
 	AuthorizeLogFields *[]string `json:"authorizeLogFields,omitempty"`
 
-	// PassIdentityHeaders sets the <a href="https://www.pomerium.com/docs/reference/routes/pass-identity-headers">pass identity headers</a> option.
+	// PassIdentityHeaders sets the <a href="https://www.pomerium.com/docs/reference/pass-identity-headers">pass identity headers</a> option.
 	PassIdentityHeaders *bool `json:"passIdentityHeaders,omitempty"`
 }
 
