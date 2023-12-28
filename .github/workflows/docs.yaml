@@ -7,8 +7,7 @@ on:
 jobs:
   pull-request:
     runs-on:
-      group: large-runners
-      labels: linux
+      group: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
