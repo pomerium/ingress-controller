@@ -9,9 +9,7 @@ on:
 
 jobs:
   backport:
-    runs-on:
-      group: large-runners
-      labels: linux
+    runs-on: ubuntu-latest
     name: Backport
     steps:
       - name: Generate token
