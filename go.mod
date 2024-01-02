@@ -29,11 +29,11 @@ require (
 	google.golang.org/grpc v1.60.1
 	google.golang.org/protobuf v1.32.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.26.3
+	k8s.io/api v0.29.0
 	k8s.io/apiextensions-apiserver v0.26.3
-	k8s.io/apimachinery v0.27.3
-	k8s.io/apiserver v0.26.3
-	k8s.io/client-go v0.26.3
+	k8s.io/apimachinery v0.29.0
+	k8s.io/apiserver v0.29.0
+	k8s.io/client-go v0.29.0
 	sigs.k8s.io/controller-runtime v0.14.6
 	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20220722124738-f0351217e9e0
 	sigs.k8s.io/controller-tools v0.11.4
@@ -82,7 +82,7 @@ require (
 	github.com/cncf/xds/go v0.0.0-20230607035331-e9ce68804cb4 // indirect
 	github.com/coreos/go-oidc/v3 v3.8.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/emicklei/go-restful/v3 v3.10.1 // indirect
+	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.0.2 // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/fatih/color v1.15.0 // indirect
@@ -97,7 +97,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
-	github.com/go-openapi/jsonreference v0.20.1 // indirect
+	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
@@ -108,7 +108,7 @@ require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
-	github.com/google/gnostic v0.5.7-v3refs // indirect
+	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-tpm v0.3.3 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
@@ -213,12 +213,12 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/component-base v0.26.3 // indirect
-	k8s.io/klog/v2 v2.90.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20230501164219-8b0f38b5fd1f // indirect
-	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5 // indirect
+	k8s.io/component-base v0.29.0 // indirect
+	k8s.io/klog/v2 v2.110.1 // indirect
+	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
+	k8s.io/utils v0.0.0-20230726121419-3b25d923346b // indirect
 	namespacelabs.dev/go-filenotify v0.0.0-20220511192020-53ea11be7eaa // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
