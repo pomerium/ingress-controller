@@ -37,13 +37,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build
-        run: |
-          TARGET=linux-amd64 scripts/get-envoy.bash
-          TARGET=linux-arm64 scripts/get-envoy.bash
-          make pomerium-ui generate fmt vet
-          mkdir -p bin-amd64 bin-arm64
-          GOARCH=amd64 go build -tags embed_pomerium -o bin-amd64/manager main.go
-          GOARCH=arm64 go build -tags embed_pomerium -o bin-arm64/manager main.go
+        run: make build-ci
 
       - name: Docker Publish - Main
         uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56
