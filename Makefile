@@ -23,6 +23,11 @@ endif
 # the embedded resources would be supplied externally
 GOTAGS = -tags embed_pomerium
 
+GOLDFLAGS = -X github.com/pomerium/pomerium/internal/version.Version=$(shell go list -f {{.Module.Version}} github.com/pomerium/pomerium) \
+	-X github.com/pomerium/pomerium/internal/version.BuildMeta=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ") \
+	-X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium-ingress-controller \
+	-X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -90,11 +95,24 @@ lint: envoy pomerium-ui
 build: pomerium-ui build-go ## Build manager binary.
 	@echo "==> $@"
 
+
+# called from github actions to build multi-arch images outside of docker
+.PHONY: build-ci
+build-ci: envoy-ci pomerium-ui generate fmt vet
+	@GOOS=linux GOARCH=amd64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-amd64 main.go
+	@GOOS=linux GOARCH=arm64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-arm64 main.go
+
 ##@ Build
 .PHONY: build-go
 build-go: envoy generate fmt vet
 	@echo "==> $@"
-	@go build $(GOTAGS) -o bin/manager main.go
+	go build $(GOTAGS) --ldflags="$(GOVERSIONFLAGS)" -o bin/manager main.go
+
+.PHONY: envoy-ci
+envoy-ci:
+	@echo "==> $@"
+	@TARGET=linux-amd64 scripts/get-envoy.bash
+	@TARGET=linux-arm64 scripts/get-envoy.bash
 
 .PHONY: envoy
 envoy:
