@@ -1,0 +1,61 @@
+name: Release
+permissions:
+  contents: read
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+        with:
+          fetch-depth: 0
+
+      - name: Check image reference
+        # check that docker image reference is the same as the release tag
+        run: |
+          set -e
+          img=$(yq eval '.spec.template.spec.containers[0].image' config/pomerium/deployment/image.yaml)
+          tag=${img#pomerium/ingress-controller:}
+          if [[ "${tag}" != pomerium/ingress-controller"${{ github.event.release.tag_name }}" ]]; then
+            echo "Image tag mismatch: ${tag} != ${{ github.event.release.tag_name }}"
+            exit 1
+          fi
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@9dc751fe249ad99385a2583ee0d084c400eee04e
+        with:
+          images: |
+            pomerium/ingress-controller
+          tags: |
+            type=semver,pattern={{raw}}
+            type=semver,pattern=v{{major}}.{{minor}}
+            type=sha
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226
+
+      - name: Login to DockerHub
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build
+        run: make build-ci
+
+      - name: Docker Publish - Main
+        uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56
+        with:
+          context: .
+          file: ./Dockerfile.ci
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
