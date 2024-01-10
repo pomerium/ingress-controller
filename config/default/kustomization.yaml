@@ -1,7 +1,7 @@
 namespace: pomerium
 commonLabels:
   app.kubernetes.io/name: pomerium
-bases:
+resources:
   - ../crd
   - ../pomerium
   - ../gen_secrets

@@ -1,9 +1,11 @@
 #
 # Deploys all-in-one controller + core pomerium
 #
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
 resources:
-  - namespace.yaml
-  - ./ingressclass.yaml
-  - ./deployment
-  - ./service
-  - ./rbac
+- namespace.yaml
+- ./ingressclass.yaml
+- ./deployment
+- ./service
+- ./rbac

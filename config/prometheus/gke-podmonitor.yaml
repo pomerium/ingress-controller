@@ -1,0 +1,12 @@
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: pomerium
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pomerium
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 1m
