@@ -18,14 +18,7 @@ jobs:
 
       - name: Check image reference
         # check that docker image reference is the same as the release tag
-        run: |
-          set -e
-          img=$(yq eval '.spec.template.spec.containers[0].image' config/pomerium/deployment/image.yaml)
-          tag=${img#pomerium/ingress-controller:}
-          if [[ "${tag}" != ${{ github.event.release.tag_name }}" ]]; then
-            echo "Image tag mismatch: ${tag} != ${{ github.event.release.tag_name }}"
-            exit 1
-          fi
+        run: ./scripts/check-image-tag.sh ${{ github.event.release.tag_name }}
 
       - name: Docker meta
         id: meta
