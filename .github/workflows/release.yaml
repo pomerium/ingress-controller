@@ -22,7 +22,7 @@ jobs:
           set -e
           img=$(yq eval '.spec.template.spec.containers[0].image' config/pomerium/deployment/image.yaml)
           tag=${img#pomerium/ingress-controller:}
-          if [[ "${tag}" != pomerium/ingress-controller"${{ github.event.release.tag_name }}" ]]; then
+          if [[ "${tag}" != ${{ github.event.release.tag_name }}" ]]; then
             echo "Image tag mismatch: ${tag} != ${{ github.event.release.tag_name }}"
             exit 1
           fi
