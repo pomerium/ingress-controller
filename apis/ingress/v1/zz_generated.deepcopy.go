@@ -43,11 +43,6 @@ func (in *Cookie) DeepCopyInto(out *Cookie) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.Secure != nil {
-		in, out := &in.Secure, &out.Secure
-		*out = new(bool)
-		**out = **in
-	}
 	if in.HTTPOnly != nil {
 		in, out := &in.HTTPOnly, &out.HTTPOnly
 		*out = new(bool)
