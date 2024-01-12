@@ -122,10 +122,6 @@ spec:
                     - lax
                     - none
                     type: string
-                  secure:
-                    description: Secure if set to false, would make a cookie accessible
-                      over insecure protocols (HTTP). Defaults to <code>true</code>.
-                    type: boolean
                 type: object
               identityProvider:
                 description: IdentityProvider configure single-sign-on authentication

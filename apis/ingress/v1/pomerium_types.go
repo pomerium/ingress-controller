@@ -163,10 +163,6 @@ type Cookie struct {
 	// If you specify the domain explicitly, then subdomains would also be included.
 	// +optional
 	Domain *string `json:"domain,omitempty"`
-	// Secure if set to false, would make a cookie accessible over insecure protocols (HTTP).
-	// Defaults to <code>true</code>.
-	// +optional
-	Secure *bool `json:"secure,omitempty"`
 	// HTTPOnly if set to <code>false</code>, the cookie would be accessible from within the JavaScript.
 	// Defaults to <code>true</code>.
 	// +optional
