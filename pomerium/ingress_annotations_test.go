@@ -27,9 +27,7 @@ import (
 	"github.com/pomerium/ingress-controller/model"
 )
 
-var (
-	testPPL = `{"allow":{"or":[{"domain":{"is":"pomerium.com"}}]}}`
-)
+var testPPL = `{"allow":{"or":[{"domain":{"is":"pomerium.com"}}]}}`
 
 func TestAnnotations(t *testing.T) {
 	strp := func(txt string) *string { return &txt }
@@ -54,7 +52,7 @@ func TestAnnotations(t *testing.T) {
 					"a/set_request_headers":                     `{"a": "aaa"}`,
 					"a/set_request_headers_secret":              `request_headers`,
 					"a/remove_request_headers":                  `["a"]`,
-					"a/set_response_headers":                    `{"c": "ccc"}`,
+					"a/set_response_headers":                    `{"disable": true}`,
 					"a/set_response_headers_secret":             `response_headers`,
 					"a/rewrite_response_headers":                `[{"header": "a", "prefix": "b", "value": "c"}]`,
 					"a/preserve_host_header":                    "true",
@@ -135,7 +133,7 @@ func TestAnnotations(t *testing.T) {
 		KubernetesServiceAccountToken:    "k8s-token-data",
 		SetRequestHeaders:                map[string]string{"a": "aaa", "req_key_1": "req_data1", "req_key_2": "req_data2"},
 		RemoveRequestHeaders:             []string{"a"},
-		SetResponseHeaders:               map[string]string{"c": "ccc", "res_key_1": "res_data1", "res_key_2": "res_data2"},
+		SetResponseHeaders:               map[string]string{"disable": "true", "res_key_1": "res_data1", "res_key_2": "res_data2"},
 		RewriteResponseHeaders: []*pb.RouteRewriteHeader{{
 			Header:  "a",
 			Matcher: &pb.RouteRewriteHeader_Prefix{Prefix: "b"},
