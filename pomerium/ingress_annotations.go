@@ -23,46 +23,46 @@ import (
 
 var (
 	baseAnnotations = boolMap([]string{
-		"cors_allow_preflight",
-		"allow_public_unauthenticated_access",
 		"allow_any_authenticated_user",
-		"timeout",
-		"idle_timeout",
+		"allow_public_unauthenticated_access",
 		"allow_spdy",
 		"allow_websockets",
-		"set_request_headers",
-		"remove_request_headers",
-		"set_response_headers",
-		"rewrite_response_headers",
-		"preserve_host_header",
-		"host_rewrite",
-		"host_rewrite_header",
+		"cors_allow_preflight",
 		"host_path_regex_rewrite_pattern",
 		"host_path_regex_rewrite_substitution",
+		"host_rewrite_header",
+		"host_rewrite",
+		"idle_timeout",
 		"pass_identity_headers",
-		"tls_skip_verify",
-		"tls_server_name",
 		"prefix_rewrite",
+		"preserve_host_header",
 		"regex_rewrite_pattern",
 		"regex_rewrite_substitution",
+		"remove_request_headers",
+		"rewrite_response_headers",
+		"set_request_headers",
+		"set_response_headers",
+		"timeout",
+		"tls_server_name",
+		"tls_skip_verify",
 	})
 	policyAnnotations = boolMap([]string{
-		"allowed_users",
 		"allowed_domains",
 		"allowed_idp_claims",
+		"allowed_users",
 		"policy",
 	})
 	envoyAnnotations = boolMap([]string{
 		"health_checks",
-		"outlier_detection",
 		"lb_policy",
 		"least_request_lb_config",
-		"ring_hash_lb_config",
 		"maglev_lb_config",
+		"outlier_detection",
+		"ring_hash_lb_config",
 	})
 	tlsAnnotations = boolMap([]string{
-		model.TLSCustomCASecret,
 		model.TLSClientSecret,
+		model.TLSCustomCASecret,
 		model.TLSDownstreamClientCASecret,
 	})
 	secretAnnotations = boolMap([]string{
@@ -71,10 +71,10 @@ var (
 		model.SetResponseHeadersSecret,
 	})
 	handledElsewhere = boolMap([]string{
-		model.SecureUpstream,
 		model.PathRegex,
-		model.UseServiceProxy,
+		model.SecureUpstream,
 		model.TCPUpstream,
+		model.UseServiceProxy,
 	})
 	unsupported = map[string]string{
 		"allowed_groups": "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
@@ -140,13 +140,25 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 }
 
 func toJSON(src map[string]string) ([]byte, error) {
-	dst := make(map[string]interface{}, len(src))
+	dst := make(map[string]any, len(src))
 	for k, v := range src {
-		out := new(interface{})
-		if err := yaml.Unmarshal([]byte(v), out); err != nil {
+		var out any
+		if err := yaml.Unmarshal([]byte(v), &out); err != nil {
 			return nil, fmt.Errorf("%s: %w", k, err)
 		}
-		dst[k] = *out
+
+		// https://github.com/pomerium/pomerium/issues/4014 allow non-string values and convert them
+		if k == "set_request_headers" || k == "set_response_headers" {
+			if m, ok := out.(map[string]any); ok {
+				sm := map[string]string{}
+				for kk, vv := range m {
+					sm[kk] = fmt.Sprint(vv)
+				}
+				out = sm
+			}
+		}
+
+		dst[k] = out
 	}
 
 	return json.Marshal(dst)
@@ -162,11 +174,11 @@ func applyAnnotations(
 		return err
 	}
 
-	if err = unmarshallAnnotations(r, kv.Base); err != nil {
+	if err = unmarshalAnnotations(r, kv.Base); err != nil {
 		return err
 	}
 	r.EnvoyOpts = new(envoy_config_cluster_v3.Cluster)
-	if err = unmarshallAnnotations(r.EnvoyOpts, kv.Envoy); err != nil {
+	if err = unmarshalAnnotations(r.EnvoyOpts, kv.Envoy); err != nil {
 		return err
 	}
 	if err = applyTLSAnnotations(r, kv.TLS, ic.Secrets, ic.Ingress.Namespace); err != nil {
@@ -177,19 +189,19 @@ func applyAnnotations(
 	}
 	p := new(pomerium.Policy)
 	r.Policies = []*pomerium.Policy{p}
-	if err := unmarshallPolicyAnnotations(p, kv.Policy); err != nil {
+	if err := unmarshalPolicyAnnotations(p, kv.Policy); err != nil {
 		return fmt.Errorf("applying policy annotations: %w", err)
 	}
 	return nil
 }
 
-func unmarshallPolicyAnnotations(p *pomerium.Policy, kvs map[string]string) error {
+func unmarshalPolicyAnnotations(p *pomerium.Policy, kvs map[string]string) error {
 	ppl, hasPPL := kvs["policy"]
 	if hasPPL {
 		delete(kvs, "policy")
 	}
 
-	if err := unmarshallAnnotations(p, kvs); err != nil {
+	if err := unmarshalAnnotations(p, kvs); err != nil {
 		return err
 	}
 
@@ -214,7 +226,7 @@ func unmarshallPolicyAnnotations(p *pomerium.Policy, kvs map[string]string) erro
 	return nil
 }
 
-func unmarshallAnnotations(m protoreflect.ProtoMessage, kvs map[string]string) error {
+func unmarshalAnnotations(m protoreflect.ProtoMessage, kvs map[string]string) error {
 	if len(kvs) == 0 {
 		return nil
 	}
