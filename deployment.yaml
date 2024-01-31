@@ -622,9 +622,9 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
-          runAsGroup: 1000
+          runAsGroup: 65532
           runAsNonRoot: true
-          runAsUser: 1000
+          runAsUser: 65532
         volumeMounts:
         - mountPath: /tmp
           name: tmp
