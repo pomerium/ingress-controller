@@ -153,7 +153,7 @@ func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 		}
 
 		if err := c.Watch(
-			&source.Kind{Type: o.Object},
+			source.Kind(mgr.GetCache(), o.Object),
 			handler.EnqueueRequestsFromMapFunc(o.mapFn(gvk.Kind))); err != nil {
 			return fmt.Errorf("watching %s: %w", gvk.String(), err)
 		}

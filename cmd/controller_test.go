@@ -14,7 +14,6 @@ func TestFlags(t *testing.T) {
 	caData, err := base64.StdEncoding.DecodeString(caString)
 	assert.NoError(t, err)
 	for k, v := range map[string]string{
-		webhookPort:                "1234",
 		metricsBindAddress:         ":5678",
 		healthProbeBindAddress:     ":9876",
 		ingressClassControllerName: "class-name",
@@ -32,7 +31,6 @@ func TestFlags(t *testing.T) {
 		os.Setenv(envName(k), v)
 	}
 	cmd.setupFlags()
-	assert.Equal(t, 1234, cmd.webhookPort)
 	assert.Equal(t, []string{"one", "two", "three"}, cmd.Namespaces)
 	assert.Equal(t, caData, cmd.tlsCA)
 	assert.Equal(t, true, cmd.debug)

@@ -89,6 +89,7 @@ func NewSettingsController(
 		return fmt.Errorf("build controller: %w", err)
 	}
 
+	cache := mgr.GetCache()
 	for _, o := range []struct {
 		client.Object
 		mapFn func(model.Registry, string) handler.MapFunc
@@ -100,7 +101,7 @@ func NewSettingsController(
 			return fmt.Errorf("cannot get kind: %w", err)
 		}
 
-		err = c.Watch(&source.Kind{Type: o.Object},
+		err = c.Watch(source.Kind(cache, o.Object),
 			handler.EnqueueRequestsFromMapFunc(o.mapFn(stc.Registry, gvk.Kind)))
 		if err != nil {
 			return fmt.Errorf("watching %s: %w", gvk.String(), err)
