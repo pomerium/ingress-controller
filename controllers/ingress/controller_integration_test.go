@@ -539,6 +539,7 @@ func (s *ControllerTestSuite) TestIngressStatus() {
 			Namespace: proxySvcName.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeLoadBalancer,
 			Ports: []corev1.ServicePort{{
 				Name:       "https",
 				Protocol:   "TCP",
@@ -566,7 +567,7 @@ func (s *ControllerTestSuite) TestIngressStatus() {
 		IP: "10.10.10.10",
 	}}
 	proxySvc.Status.LoadBalancer.Ingress = lbIngress
-	s.NoError(s.Client.Status().Update(ctx, proxySvc))
+	s.NoError(s.Client.Status().Update(ctx, proxySvc), proxySvc.Spec)
 	s.Equal(lbIngress, proxySvc.Status.LoadBalancer.Ingress)
 	require.Eventually(s.T(), func() bool {
 		s.NoError(s.Client.Get(ctx, types.NamespacedName{Name: ingress.Name, Namespace: ingress.Namespace}, ingress))
