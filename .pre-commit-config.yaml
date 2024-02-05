@@ -35,10 +35,3 @@ repos:
         args: ["deployment"]
         types: ["yaml"]
         pass_filenames: false
-      - id: generate-mocks
-        name: generate-mocks
-        language: system
-        entry: make
-        args: ["generate-mocks"]
-        types: ["go"]
-        pass_filenames: false

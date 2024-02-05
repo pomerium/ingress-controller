@@ -62,13 +62,6 @@ config/crd/bases/ingress.pomerium.io_pomerium.yaml: apis/ingress/v1/pomerium_typ
 	@echo "==> $@"
 	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role crd paths=$(CRD_PACKAGE) output:crd:artifacts:config=config/crd/bases
 
-# generate test mocks
-.PHONY: generate-mocks
-generate-mocks:
-	@echo "==> $@"
-	@go generate $(GOTAGS) ./...
-	@gofmt -s -w ./
-
 .PHONY: test
 test: envoy manifests envtest pomerium-ui
 	@echo "==> $@"
