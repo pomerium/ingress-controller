@@ -18,9 +18,7 @@ import (
 // getDependantIngressFn returns for a given object kind (i.e. a secret) a function
 // that would return ingress objects keys that depend from this object
 func (r *ingressController) getDependantIngressFn(kind string) handler.MapFunc {
-	logger := log.FromContext(context.Background()).WithValues("kind", kind)
-
-	return func(a client.Object) []reconcile.Request {
+	return func(ctx context.Context, a client.Object) []reconcile.Request {
 		if !r.isWatching(a) {
 			return nil
 		}
@@ -31,16 +29,17 @@ func (r *ingressController) getDependantIngressFn(kind string) handler.MapFunc {
 		for _, k := range deps {
 			reqs = append(reqs, reconcile.Request{NamespacedName: k.NamespacedName})
 		}
-		logger.V(5).Info("watch", "name", fmt.Sprintf("%s/%s", a.GetNamespace(), a.GetName()), "deps", reqs)
+		log.FromContext(ctx).
+			WithValues("kind", kind).V(5).
+			Info("watch", "name", fmt.Sprintf("%s/%s", a.GetNamespace(), a.GetName()), "deps", reqs)
 		return reqs
 	}
 }
 
 func (r *ingressController) watchIngressClass(string) handler.MapFunc {
-	logger := log.FromContext(context.Background())
-
-	return func(a client.Object) []reconcile.Request {
-		ctx, cancel := context.WithTimeout(context.Background(), initialReconciliationTimeout)
+	return func(ctx context.Context, a client.Object) []reconcile.Request {
+		logger := log.FromContext(ctx)
+		ctx, cancel := context.WithTimeout(ctx, initialReconciliationTimeout)
 		defer cancel()
 
 		_ = r.initComplete.yield(ctx)

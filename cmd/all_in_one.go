@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	runtime_ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -311,10 +312,11 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 		},
 		DataBrokerServiceClient: client,
 		MgrOpts: runtime_ctrl.Options{
-			Scheme:             scheme,
-			MetricsBindAddress: s.ingressMetricsAddr,
-			Port:               0,
-			LeaderElection:     false,
+			Scheme: scheme,
+			Metrics: metricsserver.Options{
+				BindAddress: s.ingressMetricsAddr,
+			},
+			LeaderElection: false,
 		},
 		IngressCtrlOpts: s.ingressOpts,
 		GlobalSettings:  &s.settings,
@@ -336,10 +338,9 @@ func (s *allCmdParam) runBootstrapConfigController(ctx context.Context, reconcil
 	}
 
 	mgr, err := runtime_ctrl.NewManager(cfg, runtime_ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: s.bootstrapMetricsAddr,
-		Port:               0,
-		LeaderElection:     false,
+		Scheme:         scheme,
+		Metrics:        metricsserver.Options{BindAddress: s.bootstrapMetricsAddr},
+		LeaderElection: false,
 	})
 	if err != nil {
 		return fmt.Errorf("manager: %w", err)

@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 	"k8s.io/apiserver/pkg/server/healthz"
 	ctrl "sigs.k8s.io/controller-runtime"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -23,7 +24,6 @@ type controllerCmd struct {
 	ingressControllerOpts
 
 	metricsAddr string
-	webhookPort int
 	probeAddr   string
 
 	databrokerServiceURL       string
@@ -64,7 +64,6 @@ const (
 
 func (s *controllerCmd) setupFlags() error {
 	flags := s.PersistentFlags()
-	flags.IntVar(&s.webhookPort, webhookPort, 9443, "webhook port")
 	flags.StringVar(&s.metricsAddr, metricsBindAddress, ":9090", "The address the metric endpoint binds to.")
 	flags.StringVar(&s.probeAddr, healthProbeBindAddress, ":8081", "The address the probe endpoint binds to.")
 	flags.StringVar(&s.databrokerServiceURL, databrokerServiceURL, "http://localhost:5443",
@@ -156,10 +155,9 @@ func (s *controllerCmd) buildController(ctx context.Context) (*controllers.Contr
 		},
 		DataBrokerServiceClient: client,
 		MgrOpts: ctrl.Options{
-			Scheme:             scheme,
-			MetricsBindAddress: s.metricsAddr,
-			Port:               s.webhookPort,
-			LeaderElection:     false,
+			Scheme:         scheme,
+			Metrics:        metricsserver.Options{BindAddress: s.metricsAddr},
+			LeaderElection: false,
 		},
 		IngressCtrlOpts: opts,
 	}

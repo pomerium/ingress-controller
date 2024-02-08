@@ -1,16 +1,13 @@
-# kubeenv is not supported on darwin/arm64
-ifeq (darwin arm64,$(shell go env GOOS GOARCH))
-KUBEENV_GOARCH=amd64
-else
 KUBEENV_GOARCH=$(shell go env GOARCH)
-endif
 
 CRD_PACKAGE=github.com/pomerium/ingress-controller/apis/ingress/v1
 
 # Image URL to use all building/pushing image targets
-IMG ?= ingress-controller:latest
-CRD_OPTIONS ?=
-ENVTEST_K8S_VERSION = 1.23
+IMG?=ingress-controller:latest
+CRD_OPTIONS?=
+ENVTEST_K8S_VERSION=$(shell go list -f '{{.Module.Version}}' k8s.io/api | sed 's/v0/1/')
+ENVTEST_VERSION=$(shell go list -f '{{.Module.Version}}' sigs.k8s.io/controller-runtime/tools/setup-envtest)
+CONTROLLER_GEN=go run sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -23,7 +20,7 @@ endif
 # the embedded resources would be supplied externally
 GOTAGS = -tags embed_pomerium
 
-GOLDFLAGS = -X github.com/pomerium/pomerium/internal/version.Version=$(shell go list -f {{.Module.Version}} github.com/pomerium/pomerium) \
+GOLDFLAGS = -X github.com/pomerium/pomerium/internal/version.Version=$(shell go list -f '{{.Module.Version}}' github.com/pomerium/pomerium) \
 	-X github.com/pomerium/pomerium/internal/version.BuildMeta=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ") \
 	-X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium-ingress-controller \
 	-X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io
@@ -58,37 +55,23 @@ help: ## Display this help.
 ##@ Development
 
 .PHONY: manifests
-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+manifests: config/crd/bases/ingress.pomerium.io_pomerium.yaml
 	@echo "==> $@"
-	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role crd webhook paths=$(CRD_PACKAGE) output:crd:artifacts:config=config/crd/bases
 
-.PHONY: generate
-generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+config/crd/bases/ingress.pomerium.io_pomerium.yaml: apis/ingress/v1/pomerium_types.go
 	@echo "==> $@"
-	@$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths=$(CRD_PACKAGE)
-	@go generate $(GOTAGS) ./...
-	@gofmt -s -w ./
-
-.PHONY: fmt
-fmt: ## Run go fmt against code.
-	@echo "==> $@"
-	@go fmt ./...
-
-.PHONY: vet
-vet: ## Run go vet against code.
-	@echo "==> $@"
-	@go vet $(GOTAGS) ./...
+	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role crd paths=$(CRD_PACKAGE) output:crd:artifacts:config=config/crd/bases
 
 .PHONY: test
-test: envoy manifests generate fmt vet envtest ## Run tests.
+test: envoy manifests envtest pomerium-ui
 	@echo "==> $@"
-	@KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path --arch=$(KUBEENV_GOARCH))" go test $(GOTAGS) ./... -coverprofile cover.out
+	@KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path --arch=$(KUBEENV_GOARCH))" go test $(GOTAGS) ./...
 
 .PHONY: lint
 lint: envoy pomerium-ui
-	@echo "@==> $@"
+	@echo "==> $@"
 	@VERSION=$$(go run github.com/mikefarah/yq/v4@v4.34.1 '.jobs.lint.steps[] | select(.uses == "golangci/golangci-lint-action*") | .with.version' .github/workflows/lint.yml) && \
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint@$$VERSION run ./...
+		go run github.com/golangci/golangci-lint/cmd/golangci-lint@$$VERSION run ./...
 
 ##@ Build
 .PHONY: build
@@ -98,15 +81,15 @@ build: pomerium-ui build-go ## Build manager binary.
 
 # called from github actions to build multi-arch images outside of docker
 .PHONY: build-ci
-build-ci: envoy-ci pomerium-ui generate fmt vet
+build-ci: envoy-ci pomerium-ui
 	@GOOS=linux GOARCH=amd64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-amd64 main.go
 	@GOOS=linux GOARCH=arm64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-arm64 main.go
 
 ##@ Build
 .PHONY: build-go
-build-go: envoy generate fmt vet
+build-go: envoy
 	@echo "==> $@"
-	go build $(GOTAGS) --ldflags="$(GOVERSIONFLAGS)" -o bin/manager main.go
+	@go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager main.go
 
 .PHONY: envoy-ci
 envoy-ci:
@@ -121,12 +104,12 @@ envoy:
 
 UI_DIR = $(shell go list -f {{.Dir}} github.com/pomerium/pomerium/ui)
 internal/ui:
-	@echo "@==> $@"
+	@echo "==> $@"
 	@cp -rf $(UI_DIR) ./internal
 	@chmod u+w internal/ui internal/ui/dist
 
 internal/ui/node_modules: internal/ui
-	@echo "@==> $@"
+	@echo "==> $@"
 	@cd internal/ui && yarn install --network-timeout 1000000
 
 .PHONY: pomerium-ui
@@ -136,7 +119,7 @@ internal/ui/dist/index.js: internal/ui/node_modules
 	@cd internal/ui && yarn build
 
 .PHONY: run
-run: manifests generate fmt vet ## Run a controller from your host.
+run: manifests
 	@echo "==> $@"
 	@go run $(GOTAGS) ./main.go
 
@@ -187,6 +170,7 @@ $(LOCALBIN):
 .PHONY: clean
 clean:
 	@echo "==> $@"
+	@chmod -Rf u+w ./bin || true
 	@rm -rf pomerium/envoy/bin/*
 	@rm -rf $(LOCALBIN)
 	@rm -rf testbin
@@ -194,11 +178,8 @@ clean:
 	@rm -rf internal/ui
 
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
-CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
-ENVTEST ?= $(LOCALBIN)/setup-envtest
+ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 
-## Tool Versions
-KUSTOMIZE_VERSION ?= v4.5.4
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -210,20 +191,14 @@ $(KUSTOMIZE): $(LOCALBIN)
 	@rm -rf $(KUSTOMIZE)
 	@curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN)
 
-.PHONY: controller-gen
-controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
-$(CONTROLLER_GEN): $(LOCALBIN)
-	@echo "==> $@"
-	@GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.9.0
-
 .PHONY: envtest
-envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
+envtest: $(ENVTEST)
 $(ENVTEST): $(LOCALBIN)
 	@echo "==> $@"
-	@GOARCH= GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest
+	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
 
 .PHONY: deployment
-deployment:
+deployment: kustomize
 	@echo "==> $@"
 	@$(KUSTOMIZE) build config/default > deployment.yaml
 
@@ -262,3 +237,17 @@ dev-build:
 dev-clean:
 	@echo "==> $@"
 	@kubectl delete ns/pomerium --wait || true
+
+# go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
+# $1 - target path with name of binary (ideally with version)
+# $2 - package url which can be installed
+# $3 - specific version of package
+define go-install-tool
+@[ -f $(1) ] || { \
+set -e; \
+package=$(2)@$(3) ;\
+echo "Downloading $${package}" ;\
+GOBIN=$(LOCALBIN) go install $${package} ;\
+mv "$$(echo "$(1)" | sed "s/-$(3)$$//")" $(1) ;\
+}
+endef

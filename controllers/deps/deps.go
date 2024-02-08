@@ -15,7 +15,7 @@ import (
 
 // GetDependantMapFunc produces list of dependencies for reconciliation of a given kind
 func GetDependantMapFunc(r model.Registry, kind string) handler.MapFunc {
-	return func(obj client.Object) []reconcile.Request {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		key := model.Key{
 			Kind:           kind,
 			NamespacedName: types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()},
@@ -25,7 +25,7 @@ func GetDependantMapFunc(r model.Registry, kind string) handler.MapFunc {
 		for _, k := range deps {
 			reqs = append(reqs, reconcile.Request{NamespacedName: k.NamespacedName})
 		}
-		log.FromContext(context.Background()).V(1).Info("watch deps", "src", key, "dst", reqs, "deps", r.Deps(key))
+		log.FromContext(ctx).V(1).Info("watch deps", "src", key, "dst", reqs, "deps", r.Deps(key))
 		return reqs
 	}
 }
