@@ -3,6 +3,7 @@ package docs
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -68,10 +69,12 @@ func Flatten(key string, src extv1.JSONSchemaProps) (map[string]*Object, error) 
 	return objects, nil
 }
 
+var reWS = regexp.MustCompile(`(?:[\s\n\t]|\\t|\\n)+`)
+
 func flatten(key string, src extv1.JSONSchemaProps, objects map[string]*Object) error {
 	obj := &Object{
 		ID:          key,
-		Description: src.Description,
+		Description: reWS.ReplaceAllString(src.Description, " "),
 		Properties:  make(map[string]*Property),
 	}
 
@@ -119,7 +122,7 @@ func flatten(key string, src extv1.JSONSchemaProps, objects map[string]*Object) 
 			return fmt.Errorf("%s: %w", key, err)
 		}
 		val.ID = key
-		val.Description = prop.Description
+		val.Description = reWS.ReplaceAllString(prop.Description, " ")
 		obj.Properties[key] = val
 	}
 
