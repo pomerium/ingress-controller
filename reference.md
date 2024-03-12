@@ -200,8 +200,7 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
                 </p>
                 <p>
                     <strong>Required.</strong>&#160;
-                    Secrets references a Secret with Pomerium bootstrap parameters.
- <p> <ul> <li><a href="https://pomerium.com/docs/reference/shared-secret"><code>shared_secret</code></a> - secures inter-Pomerium service communications. </li> <li><a href="https://pomerium.com/docs/reference/cookie-secret"><code>cookie_secret</code></a> - encrypts Pomerium session browser cookie. See also other <a href="#cookie">Cookie</a> parameters. </li> <li><a href="https://pomerium.com/docs/reference/signing-key"><code>signing_key</code></a> signs Pomerium JWT assertion header. See <a href="https://www.pomerium.com/docs/topics/getting-users-identity">Getting the user's identity</a> guide. </li> </ul> </p> <p> In a default Pomerium installation manifest, they would be generated via a <a href="https://github.com/pomerium/ingress-controller/blob/main/config/gen_secrets/job.yaml">one-time job</a> and stored in a <code>pomerium/bootstrap</code> Secret. You may re-run the job to rotate the secrets, or update the Secret values manually. </p>
+                    Secrets references a Secret with Pomerium bootstrap parameters. <p> <ul> <li><a href="https://pomerium.com/docs/reference/shared-secret"><code>shared_secret</code></a> - secures inter-Pomerium service communications. </li> <li><a href="https://pomerium.com/docs/reference/cookie-secret"><code>cookie_secret</code></a> - encrypts Pomerium session browser cookie. See also other <a href="#cookie">Cookie</a> parameters. </li> <li><a href="https://pomerium.com/docs/reference/signing-key"><code>signing_key</code></a> signs Pomerium JWT assertion header. See <a href="https://www.pomerium.com/docs/topics/getting-users-identity">Getting the user's identity</a> guide. </li> </ul> </p> <p> In a default Pomerium installation manifest, they would be generated via a <a href="https://github.com/pomerium/ingress-controller/blob/main/config/gen_secrets/job.yaml">one-time job</a> and stored in a <code>pomerium/bootstrap</code> Secret. You may re-run the job to rotate the secrets, or update the Secret values manually. </p>
                 </p>
 
                     Format: reference to Kubernetes resource with namespace prefix: <code>namespace/name</code> format.
@@ -299,8 +298,7 @@ Authenticate sets authenticate service parameters. If not specified, a Pomerium-
                 </p>
                 <p>
 
-                    CallbackPath sets the path at which the authenticate service receives callback responses from your identity provider. The value must exactly match one of the authorized redirect URIs for the OAuth 2.0 client.
- <p>This value is referred to as the redirect_url in the OpenIDConnect and OAuth2 specs.</p> <p>Defaults to <code>/oauth2/callback</code></p>
+                    CallbackPath sets the path at which the authenticate service receives callback responses from your identity provider. The value must exactly match one of the authorized redirect URIs for the OAuth 2.0 client. <p>This value is referred to as the redirect_url in the OpenIDConnect and OAuth2 specs.</p> <p>Defaults to <code>/oauth2/callback</code></p>
                 </p>
 
             </td>
@@ -317,8 +315,7 @@ Authenticate sets authenticate service parameters. If not specified, a Pomerium-
                 </p>
                 <p>
                     <strong>Required.</strong>&#160;
-                    AuthenticateURL is a dedicated domain URL the non-authenticated persons would be referred to.
- <p><ul> <li>You do not need to create a dedicated <code>Ingress</code> for this virtual route, as it is handled by Pomerium internally. </li> <li>You do need create a secret with corresponding TLS certificate for this route and reference it via <a href="#prop-certificates"><code>certificates</code></a>. If you use <code>cert-manager</code> with <code>HTTP01</code> challenge, you may use <code>pomerium</code> <code>ingressClass</code> to solve it.</li> </ul></p>
+                    AuthenticateURL is a dedicated domain URL the non-authenticated persons would be referred to. <p><ul> <li>You do not need to create a dedicated <code>Ingress</code> for this virtual route, as it is handled by Pomerium internally. </li> <li>You do need create a secret with corresponding TLS certificate for this route and reference it via <a href="#prop-certificates"><code>certificates</code></a>. If you use <code>cert-manager</code> with <code>HTTP01</code> challenge, you may use <code>pomerium</code> <code>ingressClass</code> to solve it.</li> </ul></p>
                 </p>
 
                     Format: an URI as parsed by Golang net/url.ParseRequestURI.
