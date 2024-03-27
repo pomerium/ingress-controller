@@ -45,6 +45,8 @@ const (
 	StorageConnectionStringKey = "connection"
 	// CAKey is certificate authority secret key
 	CAKey = "ca.crt"
+	// CAKey is certificate authority CRL
+	CRLKey = "ca.crl"
 )
 
 // StorageSecrets is a convenience grouping of storage-related secrets
@@ -84,6 +86,8 @@ type Config struct {
 	CASecrets []*corev1.Secret
 	// Certs are fetched certs from settings.Certificates
 	Certs map[types.NamespacedName]*corev1.Secret
+	// ClientCASecrets are fetched certs and crls from settings.ClientCASecrets
+	ClientCASecrets []*corev1.Secret
 	// RequestParams is a secret from Settings.IdentityProvider.RequestParams
 	RequestParams *corev1.Secret
 	// IdpSecret is Settings.IdentityProvider.Secret
