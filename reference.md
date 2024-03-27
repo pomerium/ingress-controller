@@ -257,7 +257,103 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
 
             </td>
         </tr>
-
+    
+        <tr>
+            <td>
+                <p>
+                <code>tracingDatadogAddress</code>&#160;&#160;
+                
+                    <strong>string</strong>&#160;
+                
+                </p>
+                <p>
+                    
+                    Datadog tracing address (<a href="https://www.pomerium.com/docs/reference/tracing">see tracing</a>)
+                </p>
+                
+            </td>
+        </tr>
+    
+        <tr>
+            <td>
+                <p>
+                <code>tracingJaegerAgentEndpoint</code>&#160;&#160;
+                
+                    <strong>string</strong>&#160;
+                
+                </p>
+                <p>
+                    
+                    Jaeger AgentEndpoint instructs exporter to send spans to jaeger-agent at this address (<a href="https://www.pomerium.com/docs/reference/tracing">see tracing</a>)
+                </p>
+                
+            </td>
+        </tr>
+    
+        <tr>
+            <td>
+                <p>
+                <code>tracingJaegerCollectorEndpoint</code>&#160;&#160;
+                
+                    <strong>string</strong>&#160;
+                
+                </p>
+                <p>
+                    
+                    Jaeger CollectorEndpoint is the url to the Jaeger HTTP Thrift collector (<a href="https://www.pomerium.com/docs/reference/tracing">see tracing</a>)
+                </p>
+                
+            </td>
+        </tr>
+    
+        <tr>
+            <td>
+                <p>
+                <code>tracingProvider</code>&#160;&#160;
+                
+                    <strong>string</strong>&#160;
+                
+                </p>
+                <p>
+                    
+                    TracingProvider sets the name of the tracing provider (e.g. Jaeger, Zipkin) (<a href="https://www.pomerium.com/docs/reference/tracing">see tracing</a>)
+                </p>
+                
+            </td>
+        </tr>
+    
+        <tr>
+            <td>
+                <p>
+                <code>tracingSampleRate</code>&#160;&#160;
+                
+                    <strong>string</strong>&#160;
+                
+                </p>
+                <p>
+                    
+                    TracingSampleRate sets Percentage of requests to sample in decimal notation. Default is 0.0001, or .01% (<a href="https://www.pomerium.com/docs/reference/tracing">see tracing</a>)
+                </p>
+                
+            </td>
+        </tr>
+    
+        <tr>
+            <td>
+                <p>
+                <code>tracingZipkinEndpoint</code>&#160;&#160;
+                
+                    <strong>string</strong>&#160;
+                
+                </p>
+                <p>
+                    
+                    ZipkinEndpoint configures the zipkin collector URI (<a href="https://www.pomerium.com/docs/reference/tracing">see tracing</a>)
+                </p>
+                
+            </td>
+        </tr>
+    
         <tr>
             <td>
                 <p>

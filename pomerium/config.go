@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/url"
+	"strconv"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -118,6 +119,22 @@ func applySetOtherOptions(_ context.Context, p *pb.Config, c *model.Config) erro
 	} else {
 		p.Settings.PassIdentityHeaders = nil
 	}
+	p.Settings.TracingProvider = c.Spec.TracingProvider
+
+	if c.Spec.TracingSampleRate != nil {
+		tracingSampleRate, err := strconv.ParseFloat(*c.Spec.TracingSampleRate, 64)
+		if err != nil {
+			return fmt.Errorf("parsing %s: %w", *c.Spec.TracingSampleRate, err)
+		}
+		p.Settings.TracingSampleRate = &tracingSampleRate
+	} else {
+		p.Settings.TracingSampleRate = nil
+	}
+
+	p.Settings.TracingDatadogAddress = c.Spec.TracingDatadogAddress
+	p.Settings.TracingJaegerCollectorEndpoint = c.Spec.TracingJaegerCollectorEndpoint
+	p.Settings.TracingJaegerAgentEndpoint = c.Spec.TracingJaegerAgentEndpoint
+	p.Settings.TracingZipkinEndpoint = c.Spec.TracingZipkinEndpoint
 	return nil
 }
 
