@@ -54,16 +54,20 @@ help: ## Display this help.
 
 ##@ Development
 
-.PHONY: manifests
-manifests: config/crd/bases/ingress.pomerium.io_pomerium.yaml
+.PHONY: generated
+generated: config/crd/bases/ingress.pomerium.io_pomerium.yaml apis/ingress/v1/zz_generated.deepcopy.go
 	@echo "==> $@"
+
+apis/ingress/v1/zz_generated.deepcopy.go: apis/ingress/v1/pomerium_types.go
+	@echo "==> $@"
+	@$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=$(CRD_PACKAGE) output:dir=apis/ingress/v1
 
 config/crd/bases/ingress.pomerium.io_pomerium.yaml: apis/ingress/v1/pomerium_types.go
 	@echo "==> $@"
 	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role crd paths=$(CRD_PACKAGE) output:crd:artifacts:config=config/crd/bases
 
 .PHONY: test
-test: envoy manifests envtest pomerium-ui
+test: envoy generated envtest pomerium-ui
 	@echo "==> $@"
 	@KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path --arch=$(KUBEENV_GOARCH))" go test $(GOTAGS) ./...
 
@@ -75,7 +79,7 @@ lint: envoy pomerium-ui
 
 ##@ Build
 .PHONY: build
-build: pomerium-ui build-go ## Build manager binary.
+build: generated pomerium-ui build-go ## Build manager binary.
 	@echo "==> $@"
 
 
@@ -119,7 +123,7 @@ internal/ui/dist/index.js: internal/ui/node_modules
 	@cd internal/ui && yarn build
 
 .PHONY: run
-run: manifests
+run: generated
 	@echo "==> $@"
 	@go run $(GOTAGS) ./main.go
 
@@ -141,17 +145,17 @@ snapshot:
 ##@ Deployment
 
 .PHONY: install
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+install: generated kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	@echo "==> $@"
 	@$(KUSTOMIZE) build config/crd | kubectl apply -f -
 
 .PHONY: uninstall
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
+uninstall: generated kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	@echo "==> $@"
 	@$(KUSTOMIZE) build config/crd | kubectl delete -f -
 
 .PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: generated kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	@echo "==> $@"
 	@cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	@$(KUSTOMIZE) build config/default | kubectl apply -f -
@@ -203,7 +207,7 @@ deployment: kustomize
 	@$(KUSTOMIZE) build config/default > deployment.yaml
 
 .PHONY: docs
-docs: manifests
+docs: generated
 	@echo "==> $@"
 	@go run docs/cmd/main.go > reference.md
 
