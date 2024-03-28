@@ -322,6 +322,34 @@ spec:
                     format: duration
                     type: string
                 type: object
+              tracingDatadogAddress:
+                description: Datadog tracing address (<a href="https://www.pomerium.com/docs/reference/tracing">see
+                  tracing</a>)
+                type: string
+              tracingJaegerAgentEndpoint:
+                description: Jaeger AgentEndpoint instructs exporter to send spans
+                  to jaeger-agent at this address (<a href="https://www.pomerium.com/docs/reference/tracing">see
+                  tracing</a>)
+                type: string
+              tracingJaegerCollectorEndpoint:
+                description: Jaeger CollectorEndpoint is the url to the Jaeger HTTP
+                  Thrift collector (<a href="https://www.pomerium.com/docs/reference/tracing">see
+                  tracing</a>)
+                type: string
+              tracingProvider:
+                description: TracingProvider sets the name of the tracing provider
+                  (e.g. Jaeger, Zipkin) (<a href="https://www.pomerium.com/docs/reference/tracing">see
+                  tracing</a>)
+                type: string
+              tracingSampleRate:
+                description: TracingSampleRate sets Percentage of requests to sample
+                  in decimal notation. Default is 0.0001, or .01% (<a href="https://www.pomerium.com/docs/reference/tracing">see
+                  tracing</a>)
+                type: string
+              tracingZipkinEndpoint:
+                description: ZipkinEndpoint configures the zipkin collector URI (<a
+                  href="https://www.pomerium.com/docs/reference/tracing">see tracing</a>)
+                type: string
               useProxyProtocol:
                 description: UseProxyProtocol enables <a href="https://www.pomerium.com/docs/reference/use-proxy-protocol">Proxy
                   Protocol</a> support.
