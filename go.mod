@@ -3,12 +3,12 @@ module github.com/pomerium/ingress-controller
 go 1.22
 
 require (
-	github.com/cenkalti/backoff/v4 v4.2.1
+	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/client9/misspell v0.3.4
 	github.com/envoyproxy/go-control-plane v0.12.0
 	github.com/go-logr/logr v1.4.1
 	github.com/go-logr/zapr v1.3.0
-	github.com/go-playground/validator/v10 v10.18.0
+	github.com/go-playground/validator/v10 v10.19.0
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
@@ -16,9 +16,8 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
-	github.com/open-policy-agent/opa v0.62.1
-	github.com/pomerium/csrf v1.7.0
-	github.com/pomerium/pomerium v0.25.1-0.20240327152537-ecbd84b7df91
+	github.com/open-policy-agent/opa v0.63.0
+	github.com/pomerium/pomerium v0.25.1
 	github.com/rs/zerolog v1.32.0
 	github.com/sergi/go-diff v1.3.1
 	github.com/spf13/cobra v1.8.0
@@ -107,7 +106,7 @@ require (
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
@@ -153,6 +152,7 @@ require (
 	github.com/philhofer/fwd v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/pomerium/csrf v1.7.0 // indirect
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524 // indirect
 	github.com/pomerium/webauthn v0.0.0-20221118023040-00a9c430578b // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
