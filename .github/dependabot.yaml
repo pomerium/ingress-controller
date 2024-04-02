@@ -27,3 +27,8 @@ updates:
       go:
         patterns:
           - "*"
+        exclude-patterns:
+          - "*k8s.io*"
+      k8s:
+        patterns:
+          - "*k8s.io*"
