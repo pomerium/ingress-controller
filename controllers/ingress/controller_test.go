@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,7 +44,8 @@ func TestManagingIngressClass(t *testing.T) {
 			networkingv1.Ingress{
 				Spec: networkingv1.IngressSpec{
 					IngressClassName: &pomeriumIngressClass,
-				}},
+				},
+			},
 			[]networkingv1.IngressClass{{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: pomeriumIngressClass,
@@ -61,7 +62,8 @@ func TestManagingIngressClass(t *testing.T) {
 				Spec: networkingv1.IngressSpec{
 					IngressClassName: &otherIngressClass,
 				},
-			}, []networkingv1.IngressClass{{
+			},
+			[]networkingv1.IngressClass{{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: otherIngressClass,
 				},
@@ -79,7 +81,8 @@ func TestManagingIngressClass(t *testing.T) {
 						IngressClassAnnotationKey: pomeriumIngressClass,
 					},
 				},
-			}, []networkingv1.IngressClass{{
+			},
+			[]networkingv1.IngressClass{{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: pomeriumIngressClass,
 				},
@@ -90,7 +93,9 @@ func TestManagingIngressClass(t *testing.T) {
 			true,
 		},
 		{
-			"default ingress", networkingv1.Ingress{}, []networkingv1.IngressClass{{
+			"default ingress",
+			networkingv1.Ingress{},
+			[]networkingv1.IngressClass{{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: pomeriumIngressClass,
 					Annotations: map[string]string{
