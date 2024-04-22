@@ -9,10 +9,8 @@ import (
 	"github.com/pomerium/pomerium/ui"
 )
 
-var (
-	//go:embed ui/dist
-	uiFS embed.FS
-)
+//go:embed ui/dist
+var uiFS embed.FS
 
 func init() {
 	f, err := fs.Sub(uiFS, "ui")
