@@ -20,6 +20,7 @@ import (
 
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 
+	_ "github.com/pomerium/ingress-controller/internal"
 	"github.com/pomerium/ingress-controller/model"
 )
 
