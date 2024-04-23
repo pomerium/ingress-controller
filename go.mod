@@ -17,7 +17,7 @@ require (
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v0.63.0
 	github.com/pomerium/csrf v1.7.0
-	github.com/pomerium/pomerium v0.25.1-0.20240422165221-a8efb5901e72
+	github.com/pomerium/pomerium v0.25.1-0.20240423145945-e21dc6fbc34c
 	github.com/rs/zerolog v1.32.0
 	github.com/sergi/go-diff v1.3.1
 	github.com/spf13/cobra v1.8.0
