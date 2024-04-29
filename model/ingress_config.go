@@ -32,6 +32,9 @@ const (
 	UseServiceProxy = "service_proxy_upstream"
 	// TCPUpstream indicates this route is a TCP service https://www.pomerium.com/docs/tcp/
 	TCPUpstream = "tcp_upstream"
+	// SubtleAllowEmptyHost is a required annotation when creating an ingress containing
+	// rules with an empty (catch-all) host, as it can cause unexpected behavior
+	SubtleAllowEmptyHost = "subtle_allow_empty_host"
 	// KubernetesServiceAccountTokenSecret allows k8s service authentication via pomerium
 	//nolint: gosec
 	KubernetesServiceAccountTokenSecret = "kubernetes_service_account_token_secret"
