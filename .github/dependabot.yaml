@@ -29,6 +29,7 @@ updates:
           - "*"
         exclude-patterns:
           - "*k8s.io*"
+          - "github.com/pomerium/pomerium"
       k8s:
         patterns:
           - "*k8s.io*"
