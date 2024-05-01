@@ -248,6 +248,8 @@ func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 
 	if opt.debugPomerium {
 		s.cfg.Options.LogLevel = "debug"
+	} else {
+		s.cfg.Options.LogLevel = "info"
 	}
 	if opt.debugEnvoy {
 		s.cfg.Options.ProxyLogLevel = "debug"
