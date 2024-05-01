@@ -92,7 +92,12 @@ func defaultBackend(tmpl *pb.Route, ic *model.IngressConfig) (*pb.Route, error) 
 
 func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, ic *model.IngressConfig) ([]*pb.Route, error) {
 	if rule.Host == "" {
-		return nil, errors.New("host is required")
+		if ic.IsAnnotationSet(model.SubtleAllowEmptyHost) {
+			rule.Host = "*"
+		} else {
+			return nil, fmt.Errorf("ingress rule has empty host; if this is intentional, set the annotation '%s/%s=true'",
+				ic.AnnotationPrefix, model.SubtleAllowEmptyHost)
+		}
 	}
 
 	if rule.HTTP == nil {

@@ -75,6 +75,7 @@ var (
 		model.SecureUpstream,
 		model.TCPUpstream,
 		model.UseServiceProxy,
+		model.SubtleAllowEmptyHost,
 	})
 	unsupported = map[string]string{
 		"allowed_groups": "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",

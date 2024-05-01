@@ -1289,3 +1289,94 @@ func TestEndpointsHTTPS(t *testing.T) {
 		})
 	}
 }
+
+func TestEmptyHostRoute(t *testing.T) {
+	pathTypePrefix := networkingv1.PathTypePrefix
+	ic := &model.IngressConfig{
+		AnnotationPrefix: "p",
+		Ingress: &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ingress",
+				Namespace: "default",
+				Annotations: map[string]string{
+					fmt.Sprintf("p/%s", model.SubtleAllowEmptyHost): "true",
+				},
+			},
+			Spec: networkingv1.IngressSpec{
+				Rules: []networkingv1.IngressRule{
+					{
+						Host: "",
+						IngressRuleValue: networkingv1.IngressRuleValue{
+							HTTP: &networkingv1.HTTPIngressRuleValue{
+								Paths: []networkingv1.HTTPIngressPath{
+									{
+										Path:     "/foo",
+										PathType: &pathTypePrefix,
+										Backend: networkingv1.IngressBackend{
+											Service: &networkingv1.IngressServiceBackend{
+												Name: "service",
+												Port: networkingv1.ServiceBackendPort{
+													Name: "http",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
+			{Name: "service", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service",
+					Namespace: "default",
+				},
+				Subsets: []corev1.EndpointSubset{
+					{
+						Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
+						Ports:     []corev1.EndpointPort{{Name: "http", Port: 80}},
+					},
+				},
+			},
+		},
+		Services: map[types.NamespacedName]*corev1.Service{
+			{Name: "service", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service",
+					Namespace: "default",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "http",
+							Protocol:   corev1.ProtocolTCP,
+							Port:       80,
+							TargetPort: intstr.FromInt(80),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var config pb.Config
+	require.NoError(t, upsertRoutes(context.Background(), &config, ic))
+	routes, err := routeList(config.Routes).toMap()
+	require.NoError(t, err)
+	route := routes[routeID{
+		Name:      "ingress",
+		Namespace: "default",
+		Host:      "*",
+		Path:      "/foo",
+	}]
+	require.NotNil(t, route, "route not found in %v", routes)
+	require.Equal(t, "https://*", route.From)
+
+	clear(ic.Annotations)
+
+	require.ErrorContains(t, upsertRoutes(context.Background(), &config, ic),
+		"ingress rule has empty host")
+}
