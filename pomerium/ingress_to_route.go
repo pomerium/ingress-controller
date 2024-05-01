@@ -95,7 +95,8 @@ func ruleToRoute(rule networkingv1.IngressRule, tmpl *pb.Route, ic *model.Ingres
 		if ic.IsAnnotationSet(model.SubtleAllowEmptyHost) {
 			rule.Host = "*"
 		} else {
-			return nil, fmt.Errorf("ingress rule has empty host; if this is intentional, set the annotation '%s/%s=true'", ic.AnnotationPrefix, model.SubtleAllowEmptyHost)
+			return nil, fmt.Errorf("ingress rule has empty host; if this is intentional, set the annotation '%s/%s=true'",
+				ic.AnnotationPrefix, model.SubtleAllowEmptyHost)
 		}
 	}
 

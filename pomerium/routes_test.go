@@ -1377,5 +1377,6 @@ func TestEmptyHostRoute(t *testing.T) {
 
 	clear(ic.Annotations)
 
-	require.Error(t, upsertRoutes(context.Background(), &config, ic))
+	require.ErrorContains(t, upsertRoutes(context.Background(), &config, ic),
+		"ingress rule has empty host")
 }
