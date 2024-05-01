@@ -358,7 +358,8 @@ func (s *ControllerTestSuite) TestIngressClass() {
 			ObjectMeta: metav1.ObjectMeta{Name: "another", Namespace: "default"},
 			Spec: networkingv1.IngressClassSpec{
 				Controller: "example.com/ingress-controller",
-			}}
+			},
+		}
 		s.NoError(s.Client.Create(ctx, anotherIngressClass))
 		ingress.Spec.IngressClassName = &anotherIngressClass.Name
 		s.NoError(s.Client.Update(ctx, ingress))
@@ -563,8 +564,10 @@ func (s *ControllerTestSuite) TestIngressStatus() {
 		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
 	}, "ingress created")
 
+	vipMode := corev1.LoadBalancerIPModeVIP
 	lbIngress := []corev1.LoadBalancerIngress{{
-		IP: "10.10.10.10",
+		IP:     "10.10.10.10",
+		IPMode: &vipMode, // as of v1.30, this field is populated automatically with the default mode
 	}}
 	proxySvc.Status.LoadBalancer.Ingress = lbIngress
 	s.NoError(s.Client.Status().Update(ctx, proxySvc), proxySvc.Spec)
@@ -607,7 +610,8 @@ func (s *ControllerTestSuite) TestHttp01Solver() {
 	}
 
 	ingress := &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{Name: "ingress", Namespace: "default",
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ingress", Namespace: "default",
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class": ingressClass.Name,
 			},
@@ -628,7 +632,15 @@ func (s *ControllerTestSuite) TestHttp01Solver() {
 									Name: "service",
 									Port: networkingv1.ServiceBackendPort{
 										Number: 8089,
-									}}}}}}}}}}}
+									},
+								},
+							},
+						}},
+					},
+				},
+			}},
+		},
+	}
 
 	endpoints := &corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{

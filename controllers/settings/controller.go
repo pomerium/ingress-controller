@@ -8,11 +8,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/source"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	pom_cfg "github.com/pomerium/pomerium/config"
 
@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/pomerium"
 	"github.com/pomerium/ingress-controller/util"
+	"github.com/pomerium/ingress-controller/util/generic"
 )
 
 type settingsController struct {
@@ -81,32 +82,20 @@ func NewSettingsController(
 		emitWarnings: emitWarnings,
 	}
 
-	c, err := ctrl.NewControllerManagedBy(mgr).
+	secretKind := generic.GVKForType[*corev1.Secret](mgr.GetScheme()).Kind
+	err := ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
 		For(new(icsv1.Pomerium)).
-		Build(stc)
+		Watches(
+			&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(deps.GetDependantMapFunc(stc.Registry, secretKind)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Complete(stc)
 	if err != nil {
 		return fmt.Errorf("build controller: %w", err)
 	}
 
-	cache := mgr.GetCache()
-	for _, o := range []struct {
-		client.Object
-		mapFn func(model.Registry, string) handler.MapFunc
-	}{
-		{new(corev1.Secret), deps.GetDependantMapFunc},
-	} {
-		gvk, err := apiutil.GVKForObject(o.Object, mgr.GetScheme())
-		if err != nil {
-			return fmt.Errorf("cannot get kind: %w", err)
-		}
-
-		err = c.Watch(source.Kind(cache, o.Object),
-			handler.EnqueueRequestsFromMapFunc(o.mapFn(stc.Registry, gvk.Kind)))
-		if err != nil {
-			return fmt.Errorf("watching %s: %w", gvk.String(), err)
-		}
-	}
 	return nil
 }
 
