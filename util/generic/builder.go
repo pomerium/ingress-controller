@@ -6,7 +6,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-// NewPredicateFuncs[T] is a wrapper around predicate.NewTypedPredicateFuncs[T]
+// NewPredicateFuncs is a wrapper around predicate.NewTypedPredicateFuncs[T]
 // that converts the typed predicate functions back to untyped variants, suitable
 // for use in the current controller-runtime API.
 //
