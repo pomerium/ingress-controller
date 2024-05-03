@@ -36,7 +36,7 @@ func (r *ingressController) getDependantIngressFn(kind string) handler.MapFunc {
 	}
 }
 
-func (r *ingressController) watchIngressClass(string) handler.MapFunc {
+func (r *ingressController) watchIngressClass() handler.MapFunc {
 	return func(ctx context.Context, a client.Object) []reconcile.Request {
 		logger := log.FromContext(ctx)
 		ctx, cancel := context.WithTimeout(ctx, initialReconciliationTimeout)

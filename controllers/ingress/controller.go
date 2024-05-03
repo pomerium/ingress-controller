@@ -1,7 +1,6 @@
 package ingress
 
 import (
-	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -9,15 +8,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/source"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/controllers/reporter"
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/pomerium"
+	"github.com/pomerium/ingress-controller/util/generic"
 )
 
 const (
@@ -121,44 +121,35 @@ func WithWatchSettings(name types.NamespacedName) Option {
 
 // SetupWithManager sets up the controller with the Manager
 func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
-	c, err := ctrl.NewControllerManagedBy(mgr).
+	r.Client = mgr.GetClient()
+	r.Scheme = mgr.GetScheme()
+
+	// cache frequently used object kinds
+	r.secretKind = generic.GVKForType[*corev1.Secret](r.Scheme).Kind
+	r.ingressKind = generic.GVKForType[*networkingv1.Ingress](r.Scheme).Kind
+	r.serviceKind = generic.GVKForType[*corev1.Service](r.Scheme).Kind
+	r.settingsKind = generic.GVKForType[*icsv1.Pomerium](r.Scheme).Kind
+	r.endpointsKind = generic.GVKForType[*corev1.Endpoints](r.Scheme).Kind
+	r.ingressClassKind = generic.GVKForType[*networkingv1.IngressClass](r.Scheme).Kind
+
+	err := ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
 		For(&networkingv1.Ingress{}).
-		Build(r)
+		Watches(
+			&networkingv1.IngressClass{},
+			handler.EnqueueRequestsFromMapFunc(r.watchIngressClass()),
+			builder.WithPredicates(generic.NewPredicateFuncs(func(ic *networkingv1.IngressClass) bool {
+				return ic.Spec.Controller == r.controllerName
+			})),
+		).
+		Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(r.secretKind))).
+		Watches(&corev1.Service{}, handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(r.serviceKind))).
+		Watches(&corev1.Endpoints{}, handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(r.endpointsKind))).
+		WithEventFilter(predicate.ResourceVersionChangedPredicate{}).
+		Complete(r)
 	if err != nil {
 		return err
 	}
-
-	r.Scheme = mgr.GetScheme()
-	for _, o := range []struct {
-		client.Object
-		kind  *string
-		mapFn func(string) handler.MapFunc
-	}{
-		{&networkingv1.Ingress{}, &r.ingressKind, nil},
-		{&networkingv1.IngressClass{}, &r.ingressClassKind, r.watchIngressClass},
-		{&corev1.Secret{}, &r.secretKind, r.getDependantIngressFn},
-		{&corev1.Service{}, &r.serviceKind, r.getDependantIngressFn},
-		{&corev1.Endpoints{}, &r.endpointsKind, r.getDependantIngressFn},
-		{&icsv1.Pomerium{}, &r.settingsKind, nil},
-	} {
-		gvk, err := apiutil.GVKForObject(o.Object, r.Scheme)
-		if err != nil {
-			return fmt.Errorf("cannot get kind: %w", err)
-		}
-		*o.kind = gvk.Kind
-
-		if nil == o.mapFn {
-			continue
-		}
-
-		if err := c.Watch(
-			source.Kind(mgr.GetCache(), o.Object),
-			handler.EnqueueRequestsFromMapFunc(o.mapFn(gvk.Kind))); err != nil {
-			return fmt.Errorf("watching %s: %w", gvk.String(), err)
-		}
-	}
-
 	return nil
 }
 
