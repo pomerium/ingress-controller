@@ -10,8 +10,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b
-        with:
-          fetch-depth: 0
       - name: Setup Go
         uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491
         with:
@@ -26,10 +24,10 @@ jobs:
           git config --global user.email "apparitor@users.noreply.github.com"
           git config --global user.name "GitHub Actions"
           git add go.mod go.sum
-          git diff --cached --exit-code || echo "::set-output name=changed::true"
+          git diff --cached --exit-code || echo echo "changed=true" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request
-        if: steps.git-diff.outputs.changed == 'true'
+        if: ${{ steps.git-diff.outputs.changed }} == 'true'
         uses: peter-evans/create-pull-request@6d6857d36972b65feb161a90e484f2984215f83e
         with:
           author: GitHub Actions <apparitor@users.noreply.github.com>
