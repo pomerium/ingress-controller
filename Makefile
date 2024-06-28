@@ -96,15 +96,13 @@ build-go: envoy
 	@go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager main.go
 
 .PHONY: envoy-ci
-envoy-ci:
+envoy-ci: envoy
 	@echo "==> $@"
-	@TARGET=linux-amd64 scripts/get-envoy.bash
-	@TARGET=linux-arm64 scripts/get-envoy.bash
 
 .PHONY: envoy
 envoy:
 	@echo "==> $@"
-	@./scripts/get-envoy.bash
+	mkdir -p ./pomerium/envoy/bin && cd ./pomerium/envoy/bin && go run github.com/pomerium/pomerium/pkg/envoy/get-envoy
 
 UI_DIR = $(shell go list -f {{.Dir}} github.com/pomerium/pomerium/ui)
 internal/ui:
