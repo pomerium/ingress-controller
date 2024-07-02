@@ -6,15 +6,18 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime_ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	ic_api "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/util"
 )
 
 type genSecretsCmd struct {
-	secrets string
-	debug   bool
+	secrets              string
+	debug                bool
+	generateGlobalConfig string
 
 	cobra.Command
 }
@@ -36,6 +39,7 @@ func GenSecretsCommand() (*cobra.Command, error) {
 func (s *genSecretsCmd) setupFlags() error {
 	flags := s.PersistentFlags()
 	flags.BoolVar(&s.debug, debug, false, "enable debug logging")
+	flags.StringVar(&s.generateGlobalConfig, "generate-global-config", "", "generate a default global config")
 	if err := flags.MarkHidden("debug"); err != nil {
 		return err
 	}
@@ -87,5 +91,23 @@ func (s *genSecretsCmd) exec(*cobra.Command, []string) error {
 		return fmt.Errorf("generate secrets: %w", err)
 	}
 
-	return c.Create(ctx, secret)
+	if err := c.Create(ctx, secret); err != nil {
+		return fmt.Errorf("create secret: %w", err)
+	}
+
+	if s.generateGlobalConfig != "" {
+		globalConfig := ic_api.Pomerium{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: s.generateGlobalConfig,
+			},
+			Spec: ic_api.PomeriumSpec{
+				Secrets: name.String(),
+			},
+		}
+		if err := c.Create(ctx, &globalConfig); err != nil {
+			return fmt.Errorf("create global config: %w", err)
+		}
+	}
+
+	return nil
 }
