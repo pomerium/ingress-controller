@@ -34,6 +34,7 @@ func applyConfig(ctx context.Context, p *pb.Config, c *model.Config) error {
 
 	opts := []applyOpt{
 		{"ca", applyCertificateAuthority},
+		{"client ca", applyClientCertificate},
 		{"certs", applyCerts},
 		{"authenticate", applyAuthenticate},
 		{"cookie", applyCookie},
@@ -149,6 +150,26 @@ func applyCertificateAuthority(_ context.Context, p *pb.Config, c *model.Config)
 	}
 
 	p.Settings.CertificateAuthority = proto.String(base64.StdEncoding.EncodeToString(buf.Bytes()))
+	return nil
+}
+
+func applyClientCertificate(_ context.Context, p *pb.Config, c *model.Config) error {
+	if len(c.ClientCASecrets) == 0 {
+		return nil
+	}
+
+	var crtBuf bytes.Buffer
+	var crlBuf bytes.Buffer
+
+	for _, secret := range c.ClientCASecrets {
+		crtBuf.Write(secret.Data[model.CAKey])
+		crtBuf.WriteRune('\n')
+		crlBuf.Write(secret.Data[model.CRLKey])
+		crlBuf.WriteRune('\n')
+	}
+
+	p.Settings.ClientCa = proto.String(base64.StdEncoding.EncodeToString(crtBuf.Bytes()))
+	p.Settings.ClientCrl = proto.String(base64.StdEncoding.EncodeToString(crlBuf.Bytes()))
 	return nil
 }
 
