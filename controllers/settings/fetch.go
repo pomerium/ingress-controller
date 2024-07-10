@@ -112,6 +112,16 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 			return nil
 		},
 		func() error {
+			for _, clientCASecret := range s.ClientCASecrets {
+				secret, err := get(clientCASecret)()
+				if err != nil {
+					return fmt.Errorf("ca: %w", err)
+				}
+				cfg.ClientCASecrets = append(cfg.ClientCASecrets, secret)
+			}
+			return nil
+		},
+		func() error {
 			if s.IdentityProvider == nil {
 				return nil
 			}
