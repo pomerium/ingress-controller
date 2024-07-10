@@ -280,6 +280,36 @@ type PomeriumSpec struct {
 
 	// PassIdentityHeaders sets the <a href="https://www.pomerium.com/docs/reference/pass-identity-headers">pass identity headers</a> option.
 	PassIdentityHeaders *bool `json:"passIdentityHeaders,omitempty"`
+
+	// TracingProvider sets the name of the tracing provider (e.g. Jaeger, Zipkin) (<a href="https://www.pomerium.com/docs/reference/tracing">see tracing</a>)
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	TracingProvider *string `json:"tracingProvider,omitempty"`
+
+	// TracingSampleRate sets Percentage of requests to sample in decimal notation. Default is 0.0001, or .01% (<a href="https://www.pomerium.com/docs/reference/tracing">see tracing</a>)
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	TracingSampleRate *string `json:"tracingSampleRate,omitempty"`
+
+	// Datadog tracing address (<a href="https://www.pomerium.com/docs/reference/tracing">see tracing</a>)
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	TracingDatadogAddress *string `json:"tracingDatadogAddress,omitempty"`
+
+	// Jaeger CollectorEndpoint is the url to the Jaeger HTTP Thrift collector (<a href="https://www.pomerium.com/docs/reference/tracing">see tracing</a>)
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	TracingJaegerCollectorEndpoint *string `json:"tracingJaegerCollectorEndpoint,omitempty"`
+
+	// Jaeger AgentEndpoint instructs exporter to send spans to jaeger-agent at this address (<a href="https://www.pomerium.com/docs/reference/tracing">see tracing</a>)
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	TracingJaegerAgentEndpoint *string `json:"tracingJaegerAgentEndpoint,omitempty"`
+
+	// ZipkinEndpoint configures the zipkin collector URI (<a href="https://www.pomerium.com/docs/reference/tracing">see tracing</a>)
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	TracingZipkinEndpoint *string `json:"tracingZipkinEndpoint,omitempty"`
 }
 
 // Timeouts allows to configure global timeouts for all routes.
