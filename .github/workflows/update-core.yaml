@@ -33,7 +33,6 @@ jobs:
         with:
           author: GitHub Actions <apparitor@users.noreply.github.com>
           body: "This PR updates the Pomerium Core to the latest commit in main"
-          branch-suffix: random
           branch: ci/update-core
           commit-message: "ci: update core to latest commit in main"
           delete-branch: true
