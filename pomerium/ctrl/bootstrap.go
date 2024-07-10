@@ -68,6 +68,8 @@ func applyAuthenticate(_ context.Context, dst *config.Options, src *model.Config
 }
 
 func applyRuntimeFlags(_ context.Context, dst *config.Options, src *model.Config) error {
+	dst.RuntimeFlags = config.DefaultRuntimeFlags()
+
 	for k, v := range src.Spec.RuntimeFlags {
 		dst.RuntimeFlags[config.RuntimeFlag(k)] = v
 	}
