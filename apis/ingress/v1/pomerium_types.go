@@ -232,6 +232,7 @@ type PomeriumSpec struct {
 	// <a href="https://www.pomerium.com/docs/capabilities/programmatic-access">programmatic redirects</a>.
 	ProgrammaticRedirectDomains []string `json:"programmaticRedirectDomains,omitempty"`
 
+	// RuntimeFlags sets the <a href="https://www.pomerium.com/docs/reference/runtime-flags">runtime flags</a> to enable/disable certain features.
 	RuntimeFlags map[string]bool `json:"runtimeFlags,omitempty"`
 
 	// Secrets references a Secret with Pomerium bootstrap parameters.

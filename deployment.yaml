@@ -245,6 +245,8 @@ spec:
               runtimeFlags:
                 additionalProperties:
                   type: boolean
+                description: RuntimeFlags sets the <a href="https://www.pomerium.com/docs/reference/runtime-flags">runtime
+                  flags</a> to enable/disable certain features.
                 type: object
               secrets:
                 description: "Secrets references a Secret with Pomerium bootstrap
