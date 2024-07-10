@@ -242,6 +242,10 @@ spec:
                 items:
                   type: string
                 type: array
+              runtimeFlags:
+                additionalProperties:
+                  type: boolean
+                type: object
               secrets:
                 description: "Secrets references a Secret with Pomerium bootstrap
                   parameters.\n\n\n<p>\n<ul>\n\t<li><a href=\"https://pomerium.com/docs/reference/shared-secret\"><code>shared_secret</code></a>\n\t\t-

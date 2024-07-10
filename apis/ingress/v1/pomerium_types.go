@@ -186,16 +186,16 @@ type Cookie struct {
 
 // PomeriumSpec defines Pomerium-specific configuration parameters.
 type PomeriumSpec struct {
+	// AccessLogFields sets the <a href="https://www.pomerium.com/docs/reference/access-log-fields">access fields</a> to log.
+	AccessLogFields *[]string `json:"accessLogFields,omitempty"`
+
 	// Authenticate sets authenticate service parameters.
 	// If not specified, a Pomerium-hosted authenticate service would be used.
 	// +kubebuilder:validation:Optional
 	Authenticate *Authenticate `json:"authenticate"`
 
-	// IdentityProvider configure single-sign-on authentication and user identity details
-	// by integrating with your <a href="https://www.pomerium.com/docs/identity-providers/">Identity Provider</a>
-	//
-	// +kubebuilder:validation:Optional
-	IdentityProvider *IdentityProvider `json:"identityProvider"`
+	// AuthorizeLogFields sets the <a href="https://www.pomerium.com/docs/reference/authorize-log-fields">authorize fields</a> to log.
+	AuthorizeLogFields *[]string `json:"authorizeLogFields,omitempty"`
 
 	// Certificates is a list of secrets of type TLS to use
 	// +kubebuilder:validation:Format="namespace/name"
@@ -205,6 +205,34 @@ type PomeriumSpec struct {
 	// CASecret should refer to k8s secrets with key <code>ca.crt</code> containing a CA certificate.
 	// +optional
 	CASecrets []string `json:"caSecrets"`
+
+	// Cookie defines Pomerium session cookie options.
+	// +optional
+	Cookie *Cookie `json:"cookie,omitempty"`
+
+	// IdentityProvider configure single-sign-on authentication and user identity details
+	// by integrating with your <a href="https://www.pomerium.com/docs/identity-providers/">Identity Provider</a>
+	//
+	// +kubebuilder:validation:Optional
+	IdentityProvider *IdentityProvider `json:"identityProvider"`
+
+	// JWTClaimHeaders convert claims from the assertion token
+	// into HTTP headers and adds them into JWT assertion header.
+	// Please make sure to read
+	// <a href="https://www.pomerium.com/docs/topics/getting-users-identity">
+	// Getting User Identity</a> guide.
+	//
+	// +optional
+	JWTClaimHeaders map[string]string `json:"jwtClaimHeaders,omitempty"`
+
+	// PassIdentityHeaders sets the <a href="https://www.pomerium.com/docs/reference/pass-identity-headers">pass identity headers</a> option.
+	PassIdentityHeaders *bool `json:"passIdentityHeaders,omitempty"`
+
+	// ProgrammaticRedirectDomains specifies a list of domains that can be used for
+	// <a href="https://www.pomerium.com/docs/capabilities/programmatic-access">programmatic redirects</a>.
+	ProgrammaticRedirectDomains []string `json:"programmaticRedirectDomains,omitempty"`
+
+	RuntimeFlags map[string]bool `json:"runtimeFlags,omitempty"`
 
 	// Secrets references a Secret with Pomerium bootstrap parameters.
 	//
@@ -237,6 +265,11 @@ type PomeriumSpec struct {
 	// +kubebuilder:validation:Format="namespace/name"
 	Secrets string `json:"secrets"`
 
+	// SetResponseHeaders specifies a mapping of HTTP Header to be added globally to all managed routes and pomerium's authenticate service.
+	// +optional
+	// See <a href="https://www.pomerium.com/docs/reference/set-response-headers">Set Response Headers</a>
+	SetResponseHeaders map[string]string `json:"setResponseHeaders,omitempty"`
+
 	// Storage defines persistent storage for sessions and other data.
 	// See <a href="https://www.pomerium.com/docs/topics/data-storage">Storage</a> for details.
 	// If no storage is specified, Pomerium would use a transient in-memory storage (not recommended for production).
@@ -244,42 +277,11 @@ type PomeriumSpec struct {
 	// +kubebuilder:validation:Optional
 	Storage *Storage `json:"storage,omitempty"`
 
-	// Cookie defines Pomerium session cookie options.
-	// +optional
-	Cookie *Cookie `json:"cookie,omitempty"`
-
-	// JWTClaimHeaders convert claims from the assertion token
-	// into HTTP headers and adds them into JWT assertion header.
-	// Please make sure to read
-	// <a href="https://www.pomerium.com/docs/topics/getting-users-identity">
-	// Getting User Identity</a> guide.
-	//
-	// +optional
-	JWTClaimHeaders map[string]string `json:"jwtClaimHeaders,omitempty"`
-
-	// SetResponseHeaders specifies a mapping of HTTP Header to be added globally to all managed routes and pomerium's authenticate service.
-	// +optional
-	// See <a href="https://www.pomerium.com/docs/reference/set-response-headers">Set Response Headers</a>
-	SetResponseHeaders map[string]string `json:"setResponseHeaders,omitempty"`
-
-	// ProgrammaticRedirectDomains specifies a list of domains that can be used for
-	// <a href="https://www.pomerium.com/docs/capabilities/programmatic-access">programmatic redirects</a>.
-	ProgrammaticRedirectDomains []string `json:"programmaticRedirectDomains,omitempty"`
-
 	// Timeout specifies the <a href="https://www.pomerium.com/docs/reference/global-timeouts">global timeouts</a> for all routes.
 	Timeouts *Timeouts `json:"timeouts,omitempty"`
 
 	// UseProxyProtocol enables <a href="https://www.pomerium.com/docs/reference/use-proxy-protocol">Proxy Protocol</a> support.
 	UseProxyProtocol *bool `json:"useProxyProtocol,omitempty"`
-
-	// AccessLogFields sets the <a href="https://www.pomerium.com/docs/reference/access-log-fields">access fields</a> to log.
-	AccessLogFields *[]string `json:"accessLogFields,omitempty"`
-
-	// AuthorizeLogFields sets the <a href="https://www.pomerium.com/docs/reference/authorize-log-fields">authorize fields</a> to log.
-	AuthorizeLogFields *[]string `json:"authorizeLogFields,omitempty"`
-
-	// PassIdentityHeaders sets the <a href="https://www.pomerium.com/docs/reference/pass-identity-headers">pass identity headers</a> option.
-	PassIdentityHeaders *bool `json:"passIdentityHeaders,omitempty"`
 }
 
 // Timeouts allows to configure global timeouts for all routes.

@@ -29,6 +29,7 @@ func Apply(ctx context.Context, dst *config.Options, src *model.Config) error {
 		{"authenticate", applyAuthenticate},
 		{"secrets", applySecrets},
 		{"storage", applyStorage},
+		{"runtime flags", applyRuntimeFlags},
 	} {
 		if err := apply.fn(ctx, dst, src); err != nil {
 			return fmt.Errorf("%s: %w", apply.name, err)
@@ -63,6 +64,14 @@ func applyAuthenticate(_ context.Context, dst *config.Options, src *model.Config
 		Scheme: "https",
 		Host:   net.JoinHostPort(host, port),
 	}).String()
+	return nil
+}
+
+func applyRuntimeFlags(_ context.Context, dst *config.Options, src *model.Config) error {
+	for k, v := range src.Spec.RuntimeFlags {
+		dst.RuntimeFlags[config.RuntimeFlag(k)] = v
+	}
+
 	return nil
 }
 
