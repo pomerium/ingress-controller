@@ -16,7 +16,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v0.66.0
-	github.com/pomerium/pomerium v0.26.1-0.20240709230512-fd086bd06b94
+	github.com/pomerium/pomerium v0.26.1-0.20240722212839-14c0c5abd0d3
 	github.com/rs/zerolog v1.33.0
 	github.com/sergi/go-diff v1.3.1
 	github.com/spf13/cobra v1.8.1
@@ -133,6 +133,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/jxskiss/base62 v1.1.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
