@@ -5,7 +5,7 @@ go 1.22.2
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/client9/misspell v0.3.4
-	github.com/envoyproxy/go-control-plane v0.12.0
+	github.com/envoyproxy/go-control-plane v0.12.1-0.20240717153332-b7af5b7dab54
 	github.com/go-logr/logr v1.4.2
 	github.com/go-logr/zapr v1.3.0
 	github.com/go-playground/validator/v10 v10.22.0
@@ -16,7 +16,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v0.67.0
-	github.com/pomerium/pomerium v0.26.1-0.20240722212839-14c0c5abd0d3
+	github.com/pomerium/pomerium v0.26.1-0.20240801185552-fdefcf9a1633
 	github.com/rs/zerolog v1.33.0
 	github.com/sergi/go-diff v1.3.1
 	github.com/spf13/cobra v1.8.1
@@ -156,6 +156,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/philhofer/fwd v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/pomerium/csrf v1.7.0 // indirect
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524 // indirect
