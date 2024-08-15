@@ -575,7 +575,7 @@ func TestTCPUpstream(t *testing.T) {
 }
 
 func TestExternalService(t *testing.T) {
-	makeRoute := func(t *testing.T, secure bool) (*pb.Route, error) {
+	makeRoute := func(_ *testing.T, secure bool) (*pb.Route, error) {
 		typePrefix := networkingv1.PathTypePrefix
 		ic := &model.IngressConfig{
 			AnnotationPrefix: "p",

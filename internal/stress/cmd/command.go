@@ -29,7 +29,7 @@ func Command() (*cobra.Command, error) {
 	return &cobra.Command{
 		Use:   "stress-test",
 		Short: "stress test the ingress controller",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			setupLogger()
 			return run(withInterruptSignal(context.Background()))
 		},

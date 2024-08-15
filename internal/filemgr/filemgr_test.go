@@ -30,7 +30,7 @@ func TestManager(t *testing.T) {
 
 func countFiles(dir string) int {
 	fileCount := 0
-	filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
+	filepath.Walk(dir, func(_ string, info fs.FileInfo, _ error) error {
 		if !info.IsDir() {
 			fileCount++
 		}
