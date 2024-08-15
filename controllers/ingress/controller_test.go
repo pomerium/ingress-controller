@@ -30,7 +30,7 @@ func TestManagingIngressClass(t *testing.T) {
 		ingressClassKind: "IngressClass",
 		secretKind:       "Secret",
 		serviceKind:      "Service",
-		initComplete:     newOnce(func(ctx context.Context) error { return nil }),
+		initComplete:     newOnce(func(_ context.Context) error { return nil }),
 	}
 
 	testCases := []struct {

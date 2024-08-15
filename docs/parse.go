@@ -78,11 +78,11 @@ func flatten(key string, src extv1.JSONSchemaProps, objects map[string]*Object) 
 		Properties:  make(map[string]*Property),
 	}
 
-	atomicHandler := func(key string, prop extv1.JSONSchemaProps) (*Property, error) {
+	atomicHandler := func(_ string, prop extv1.JSONSchemaProps) (*Property, error) {
 		return &Property{ObjectOrAtomic: ObjectOrAtomic{Atomic: atomic(prop)}}, nil
 	}
 
-	arrayHandler := func(key string, prop extv1.JSONSchemaProps) (*Property, error) {
+	arrayHandler := func(_ string, prop extv1.JSONSchemaProps) (*Property, error) {
 		return &Property{ObjectOrAtomic: ObjectOrAtomic{Atomic: array(prop)}}, nil
 	}
 

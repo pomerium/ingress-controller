@@ -16,7 +16,7 @@ func TestOnce(t *testing.T) {
 	var callCount int32
 	var errSeen int32
 
-	o := newOnce(func(ctx context.Context) error {
+	o := newOnce(func(_ context.Context) error {
 		_ = atomic.AddInt32(&callCount, 1)
 		time.Sleep(time.Second)
 		return fmt.Errorf("ERROR")
@@ -28,7 +28,7 @@ func TestOnce(t *testing.T) {
 	iters := 100
 	wg.Add(iters)
 	for i := 0; i < iters; i++ {
-		go func(x int) {
+		go func(_ int) {
 			time.Sleep(time.Millisecond * time.Duration(rand.Intn(10)+10))
 			if err := o.yield(ctx); err != nil {
 				_ = atomic.AddInt32(&errSeen, 1)

@@ -63,35 +63,12 @@ linters:
     - nakedret
     - nolintlint
     - revive
-    - rowserrcheck
     - staticcheck
     - stylecheck
     - typecheck
     - unconvert
     - unused
-    # - asciicheck
-    # - dupl
-    # - exhaustive
-    # - funlen
-    # - gochecknoglobals
-    # - gochecknoinits
-    # - gocognit
-    # - goconst
-    # - gocritic
-    # - gocyclo
-    # - godot
-    # - godox
-    # - goerr113
-    # - gomnd
-    # - interfacer
-    # - maligned
-    # - nestif
-    # - noctx
-    # - prealloc
-    # - scopelint
-    # - testpackage
-    # - whitespace
-    # - wsl
+    - whitespace
 
 issues:
   exclude-use-default: false
