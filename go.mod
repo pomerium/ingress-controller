@@ -5,7 +5,7 @@ go 1.23.0
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/client9/misspell v0.3.4
-	github.com/envoyproxy/go-control-plane v0.12.1-0.20240717153332-b7af5b7dab54
+	github.com/envoyproxy/go-control-plane v0.13.0
 	github.com/go-logr/logr v1.4.2
 	github.com/go-logr/zapr v1.3.0
 	github.com/go-playground/validator/v10 v10.22.0
@@ -15,7 +15,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
-	github.com/open-policy-agent/opa v0.67.1
+	github.com/open-policy-agent/opa v0.68.0
 	github.com/pomerium/pomerium v0.26.1-0.20240903203719-2b8411105883
 	github.com/rs/zerolog v1.33.0
 	github.com/sergi/go-diff v1.3.1
@@ -26,7 +26,7 @@ require (
 	go.uber.org/mock v0.4.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.8.0
-	google.golang.org/grpc v1.65.0
+	google.golang.org/grpc v1.66.0
 	google.golang.org/protobuf v1.34.2
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.30.0
@@ -162,7 +162,7 @@ require (
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524 // indirect
 	github.com/pomerium/webauthn v0.0.0-20240603205124-0428df511172 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
-	github.com/prometheus/client_golang v1.19.1 // indirect
+	github.com/prometheus/client_golang v1.20.2 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
