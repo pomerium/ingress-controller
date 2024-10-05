@@ -16,7 +16,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v0.69.0
-	github.com/pomerium/pomerium v0.27.1-0.20241001170004-4c052483da2b
+	github.com/pomerium/pomerium v0.27.1-0.20241004190459-6f6186a67da2
 	github.com/rs/zerolog v1.33.0
 	github.com/sergi/go-diff v1.3.1
 	github.com/spf13/cobra v1.8.1
@@ -124,6 +124,7 @@ require (
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
+	github.com/hashicorp/go-set/v3 v3.0.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
