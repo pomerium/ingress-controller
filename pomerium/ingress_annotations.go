@@ -2,15 +2,11 @@ package pomerium
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/open-policy-agent/opa/ast"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/reflect/protoreflect"
-	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -140,31 +136,6 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 	return &kv, nil
 }
 
-func toJSON(src map[string]string) ([]byte, error) {
-	dst := make(map[string]any, len(src))
-	for k, v := range src {
-		var out any
-		if err := yaml.Unmarshal([]byte(v), &out); err != nil {
-			return nil, fmt.Errorf("%s: %w", k, err)
-		}
-
-		// https://github.com/pomerium/pomerium/issues/4014 allow non-string values and convert them
-		if k == "set_request_headers" || k == "set_response_headers" {
-			if m, ok := out.(map[string]any); ok {
-				sm := map[string]string{}
-				for kk, vv := range m {
-					sm[kk] = fmt.Sprint(vv)
-				}
-				out = sm
-			}
-		}
-
-		dst[k] = out
-	}
-
-	return json.Marshal(dst)
-}
-
 // applyAnnotations applies ingress annotations to a route
 func applyAnnotations(
 	r *pomerium.Route,
@@ -225,21 +196,6 @@ func unmarshalPolicyAnnotations(p *pomerium.Policy, kvs map[string]string) error
 
 	p.Rego = []string{src}
 	return nil
-}
-
-func unmarshalAnnotations(m protoreflect.ProtoMessage, kvs map[string]string) error {
-	if len(kvs) == 0 {
-		return nil
-	}
-
-	data, err := toJSON(kvs)
-	if err != nil {
-		return err
-	}
-
-	return (&protojson.UnmarshalOptions{
-		DiscardUnknown: false,
-	}).Unmarshal(data, m)
 }
 
 func applyTLSAnnotations(

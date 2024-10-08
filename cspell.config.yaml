@@ -7,18 +7,20 @@ words:
   - databroker
   - deepcopy
   - envtest
+  - filemgr
   - mockgen
+  - oidc
   - pomerium
   - protobuf
-  - oidc
+  - protojson
   - readyz
   - sharedkey
   - sslcert
   - sslkey
   - sslrootcert
-  - upsert
   - uifs
-  - filemgr
+  - unmarshalled
+  - upsert
 languageSettings:
   - languageId: go
     allowCompoundWords: false
