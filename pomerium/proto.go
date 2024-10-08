@@ -3,6 +3,7 @@ package pomerium
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -32,9 +33,7 @@ func unmarshalAnnotations(dst proto.Message, kvs map[string]string) error {
 		return err
 	}
 
-	return (&protojson.UnmarshalOptions{
-		DiscardUnknown: false,
-	}).Unmarshal(data, dst)
+	return protojson.Unmarshal(data, dst)
 }
 
 func preprocessAnnotationMessage(md protoreflect.MessageDescriptor, data any) any {
@@ -109,11 +108,6 @@ func goDurationStringToProtoJSONDurationString(in string) string {
 		return in
 	}
 
-	var str string
-	err = json.Unmarshal(bs, &str)
-	if err != nil {
-		return in
-	}
-
+	str := strings.Trim(string(bs), `"`)
 	return str
 }
