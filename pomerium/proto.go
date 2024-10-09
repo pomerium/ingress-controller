@@ -27,7 +27,7 @@ func unmarshalAnnotations(dst proto.Message, kvs map[string]string) error {
 	// pre-process the json to handle custom formats
 	preprocessAnnotationMessage(dst.ProtoReflect().Descriptor(), src)
 
-	// marshal as json so it can be unmarshalled via protojson
+	// marshal as json so it can be unmarshaled via protojson
 	data, err := json.Marshal(src)
 	if err != nil {
 		return err

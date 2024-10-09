@@ -19,7 +19,7 @@ words:
   - sslkey
   - sslrootcert
   - uifs
-  - unmarshalled
+  - unmarshaled
   - upsert
 languageSettings:
   - languageId: go
