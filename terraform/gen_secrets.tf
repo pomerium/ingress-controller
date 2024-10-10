@@ -27,26 +27,28 @@ resource "kubernetes_job" "gen_secrets" {
         }
 
         container {
-          name  = "gen-secrets"
-          image = "${var.image_repository}:${var.image_tag}"
+          name              = "gen-secrets"
+          image             = "${var.image_repository}:${var.image_tag}"
           image_pull_policy = "IfNotPresent"
 
           args = [
             "gen-secrets",
-            "--secrets=$(POD_NAMESPACE)/bootstrap",
+            "--secrets=${var.namespace_name}/bootstrap",
           ]
-
-          env {
-            name = "POD_NAMESPACE"
-            value_from {
-              field_ref {
-                field_path = "metadata.namespace"
-              }
-            }
-          }
 
           security_context {
             allow_privilege_escalation = false
+          }
+        }
+
+        dynamic "toleration" {
+          for_each = var.tolerations
+          content {
+            key                = lookup(toleration.value, "key", null)
+            operator           = lookup(toleration.value, "operator", null)
+            value              = lookup(toleration.value, "value", null)
+            effect             = lookup(toleration.value, "effect", null)
+            toleration_seconds = lookup(toleration.value, "toleration_seconds", null)
           }
         }
       }

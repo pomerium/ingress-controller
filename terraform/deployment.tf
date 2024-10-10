@@ -119,7 +119,7 @@ resource "kubernetes_deployment" "pomerium" {
         }
 
         dynamic "toleration" {
-          for_each = var.deployment_tolerations
+          for_each = var.tolerations
           content {
             key                = lookup(toleration.value, "key", null)
             operator           = lookup(toleration.value, "operator", null)

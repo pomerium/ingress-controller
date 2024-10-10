@@ -134,8 +134,8 @@ variable "deployment_labels" {
   }
 }
 
-variable "deployment_tolerations" {
-  description = "List of tolerations for the deployment."
+variable "tolerations" {
+  description = "List of tolerations for the controller deployment."
   type = list(object({
     key                = optional(string)
     operator           = optional(string, "Equal")

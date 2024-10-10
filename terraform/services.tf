@@ -26,7 +26,7 @@ resource "kubernetes_service" "proxy" {
       protocol    = "TCP"
     }
 
-    type = var.service_type
+    type = var.proxy_service_type
   }
 }
 
