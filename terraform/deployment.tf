@@ -22,7 +22,7 @@ resource "kubernetes_deployment" "pomerium" {
       }
 
       spec {
-        service_account_name = kubernetes_service_account.controller.metadata[0].name
+        service_account_name             = kubernetes_service_account.controller.metadata[0].name
         termination_grace_period_seconds = 10
 
         security_context {
@@ -34,16 +34,17 @@ resource "kubernetes_deployment" "pomerium" {
         }
 
         container {
-          name  = "pomerium-ingress-controller"
-          image = "${var.image_repository}:${var.image_tag}"
+          name              = "pomerium-ingress-controller"
+          image             = "${var.image_repository}:${var.image_tag}"
           image_pull_policy = var.image_pull_policy
 
-          args = [
+          args = compact([
             "all-in-one",
             "--pomerium-config=${var.pomerium_config_name}",
-            "--update-status-from-service=$(POMERIUM_NAMESPACE)/pomerium-proxy",
+            "--update-status-from-service=${var.namespace_name}/pomerium-proxy",
             "--metrics-bind-address=$(POD_IP):9090",
-          ]
+            var.enable_databroker ? "--databroker-auto-tls=pomerium-databroker.${var.namespace_name}.svc" : null,
+          ])
 
           env {
             name  = "TMPDIR"
@@ -53,15 +54,6 @@ resource "kubernetes_deployment" "pomerium" {
           env {
             name  = "XDG_CACHE_HOME"
             value = "/tmp"
-          }
-
-          env {
-            name = "POMERIUM_NAMESPACE"
-            value_from {
-              field_ref {
-                field_path = "metadata.namespace"
-              }
-            }
           }
 
           env {
@@ -89,6 +81,15 @@ resource "kubernetes_deployment" "pomerium" {
             container_port = 9090
             name           = "metrics"
             protocol       = "TCP"
+          }
+
+          dynamic "port" {
+            for_each = var.enable_databroker ? [1] : []
+            content {
+              container_port = 5443
+              name           = "databroker"
+              protocol       = "TCP"
+            }
           }
 
           resources {

@@ -7,7 +7,7 @@ variable "namespace_name" {
 variable "labels" {
   description = "Labels to apply to resources"
   type        = map(string)
-  default     = {
+  default = {
     "app.kubernetes.io/name" = "pomerium-ingress-controller"
   }
 }
@@ -90,8 +90,8 @@ variable "resources_limits_memory" {
   default     = "1Gi"
 }
 
-variable "service_type" {
-  description = "Type of the service"
+variable "proxy_service_type" {
+  description = "Type of the Proxy Service"
   type        = string
   default     = "LoadBalancer"
 }
@@ -103,17 +103,17 @@ variable "ingress_class_name" {
 }
 
 variable "service_account_labels" {
-    description = "Labels to apply to service accounts"
-    type        = map(string)
-    default     = {
-        "app.kubernetes.io/name" = "pomerium-ingress-controller"
-    }
+  description = "Labels to apply to service accounts"
+  type        = map(string)
+  default = {
+    "app.kubernetes.io/name" = "pomerium-ingress-controller"
+  }
 }
 
 variable "cluster_role_labels" {
   description = "Labels to apply to cluster roles"
   type        = map(string)
-  default     = {
+  default = {
     "app.kubernetes.io/name" = "pomerium-ingress-controller"
   }
 }
@@ -121,7 +121,7 @@ variable "cluster_role_labels" {
 variable "service_labels" {
   description = "Labels to apply to services"
   type        = map(string)
-  default     = {
+  default = {
     "app.kubernetes.io/name" = "pomerium-ingress-controller"
   }
 }
@@ -129,7 +129,7 @@ variable "service_labels" {
 variable "deployment_labels" {
   description = "Labels to apply to the deployment"
   type        = map(string)
-  default     = {
+  default = {
     "app.kubernetes.io/name" = "pomerium-ingress-controller"
   }
 }
@@ -137,10 +137,10 @@ variable "deployment_labels" {
 variable "deployment_tolerations" {
   description = "List of tolerations for the deployment."
   type = list(object({
-    key               = optional(string)
-    operator          = optional(string, "Equal")
-    value             = optional(string)
-    effect            = optional(string)
+    key                = optional(string)
+    operator           = optional(string, "Equal")
+    value              = optional(string)
+    effect             = optional(string)
     toleration_seconds = optional(number)
   }))
   default = []
@@ -152,8 +152,14 @@ variable "job_name" {
   default     = "pomerium-gen-secrets"
 }
 
-variable pomerium_config_name {
-    description = "Name of the Pomerium CRD"
-    type = string
-    default = "global"
+variable "pomerium_config_name" {
+  description = "Name of the Pomerium CRD"
+  type        = string
+  default     = "global"
+}
+
+variable "enable_databroker" {
+  description = "Enable the databroker"
+  type        = bool
+  default     = false
 }

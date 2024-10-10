@@ -10,7 +10,7 @@ resource "kubernetes_service" "proxy" {
       "app.kubernetes.io/name" = "pomerium-ingress-controller"
     }
 
-    external_traffic_policy = var.service_type == "LoadBalancer" ? "Local" : null
+    external_traffic_policy = var.proxy_service_type == "LoadBalancer" ? "Local" : null
 
     port {
       name        = "https"
@@ -27,5 +27,30 @@ resource "kubernetes_service" "proxy" {
     }
 
     type = var.service_type
+  }
+}
+
+resource "kubernetes_service" "databroker" {
+  count = var.enable_databroker ? 1 : 0
+
+  metadata {
+    name      = "pomerium-databroker"
+    namespace = kubernetes_namespace.pomerium.metadata[0].name
+    labels    = var.service_labels
+  }
+
+  spec {
+    selector = {
+      "app.kubernetes.io/name" = "pomerium-ingress-controller"
+    }
+
+    port {
+      name        = "databroker"
+      port        = 443
+      target_port = "databroker"
+      protocol    = "TCP"
+    }
+
+    type = "ClusterIP"
   }
 }
