@@ -5,6 +5,12 @@ resource "kubernetes_job" "gen_secrets" {
     labels    = var.deployment_labels
   }
 
+  lifecycle {
+    ignore_changes = [
+      metadata[0].annotations
+    ]
+  }
+
   spec {
     template {
       metadata {

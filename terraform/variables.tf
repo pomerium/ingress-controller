@@ -135,7 +135,7 @@ variable "deployment_labels" {
 }
 
 variable "tolerations" {
-  description = "List of tolerations for the controller deployment."
+  description = "List of tolerations for the pods."
   type = list(object({
     key                = optional(string)
     operator           = optional(string, "Equal")
@@ -162,4 +162,16 @@ variable "enable_databroker" {
   description = "Enable the databroker"
   type        = bool
   default     = false
+}
+
+variable "proxy_port_https" {
+  description = "Port for HTTPS"
+  type        = number
+  default     = 443
+}
+
+variable "proxy_port_http" {
+  description = "Port for HTTP"
+  type        = number
+  default     = 80
 }

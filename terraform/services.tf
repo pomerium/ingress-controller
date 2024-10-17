@@ -5,6 +5,12 @@ resource "kubernetes_service" "proxy" {
     labels    = var.service_labels
   }
 
+  lifecycle {
+    ignore_changes = [
+      metadata[0].annotations
+    ]
+  }
+
   spec {
     selector = {
       "app.kubernetes.io/name" = "pomerium-ingress-controller"
@@ -14,16 +20,19 @@ resource "kubernetes_service" "proxy" {
 
     port {
       name        = "https"
-      port        = 443
+      port        = var.proxy_port_https
       target_port = "https"
       protocol    = "TCP"
     }
 
-    port {
-      name        = "http"
-      port        = 80
-      target_port = "http"
-      protocol    = "TCP"
+    dynamic "port" {
+      for_each = var.proxy_port_http != null ? [var.proxy_port_http] : []
+      content {
+        name        = "http"
+        port        = port.value
+        target_port = "http"
+        protocol    = "TCP"
+      }
     }
 
     type = var.proxy_service_type
@@ -37,6 +46,12 @@ resource "kubernetes_service" "databroker" {
     name      = "pomerium-databroker"
     namespace = kubernetes_namespace.pomerium.metadata[0].name
     labels    = var.service_labels
+  }
+
+  lifecycle {
+    ignore_changes = [
+      metadata[0].annotations
+    ]
   }
 
   spec {

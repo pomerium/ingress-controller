@@ -5,6 +5,12 @@ resource "kubernetes_deployment" "pomerium" {
     labels    = var.deployment_labels
   }
 
+  lifecycle {
+    ignore_changes = [
+      metadata[0].annotations
+    ]
+  }
+
   spec {
     replicas = var.deployment_replicas
 
