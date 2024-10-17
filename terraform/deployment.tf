@@ -35,9 +35,7 @@ resource "kubernetes_deployment" "pomerium" {
           run_as_non_root = true
         }
 
-        node_selector = {
-          "kubernetes.io/os" = "linux"
-        }
+        node_selector = merge(local.default_node_selector, var.node_selector)
 
         container {
           name              = "pomerium-ingress-controller"

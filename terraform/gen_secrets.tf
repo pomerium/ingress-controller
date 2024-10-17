@@ -28,9 +28,7 @@ resource "kubernetes_job" "gen_secrets" {
           run_as_user     = 1000
         }
 
-        node_selector = {
-          "kubernetes.io/os" = "linux"
-        }
+        node_selector = merge(local.default_node_selector, var.node_selector)
 
         container {
           name              = "gen-secrets"

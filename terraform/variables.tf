@@ -175,3 +175,9 @@ variable "proxy_port_http" {
   type        = number
   default     = 80
 }
+
+variable "node_selector" {
+  description = "Node selector for the Deployment"
+  type        = map(string)
+  default     = {}
+}
