@@ -60,7 +60,7 @@ generated: config/crd/bases/ingress.pomerium.io_pomerium.yaml apis/ingress/v1/zz
 
 apis/ingress/v1/zz_generated.deepcopy.go: apis/ingress/v1/pomerium_types.go
 	@echo "==> $@"
-	@$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=$(CRD_PACKAGE) output:dir=apis/ingress/v1
+	@$(CONTROLLER_GEN) object paths=$(CRD_PACKAGE) output:dir=apis/ingress/v1
 
 config/crd/bases/ingress.pomerium.io_pomerium.yaml: apis/ingress/v1/pomerium_types.go
 	@echo "==> $@"
