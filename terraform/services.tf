@@ -1,4 +1,6 @@
 resource "kubernetes_service" "proxy" {
+  count = var.proxy_service_type == null ? 0 : 1
+
   metadata {
     name      = "pomerium-proxy"
     namespace = kubernetes_namespace.pomerium.metadata[0].name
@@ -21,6 +23,7 @@ resource "kubernetes_service" "proxy" {
     port {
       name        = "https"
       port        = var.proxy_port_https
+      node_port   = var.proxy_node_port_https
       target_port = "https"
       protocol    = "TCP"
     }
@@ -30,6 +33,7 @@ resource "kubernetes_service" "proxy" {
       content {
         name        = "http"
         port        = port.value
+        node_port   = var.proxy_node_port_http
         target_port = "http"
         protocol    = "TCP"
       }

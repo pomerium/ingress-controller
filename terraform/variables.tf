@@ -176,6 +176,18 @@ variable "proxy_port_http" {
   default     = 80
 }
 
+variable "proxy_node_port_https" {
+  description = "Node port for HTTPS, only used when proxy_service_type is NodePort"
+  type        = number
+  default     = null
+}
+
+variable "proxy_node_port_http" {
+  description = "Host port for HTTP"
+  type        = number
+  default     = null
+}
+
 variable "node_selector" {
   description = "Node selector for the Deployment"
   type        = map(string)
