@@ -38,42 +38,42 @@ func TestAnnotations(t *testing.T) {
 			ObjectMeta: v1.ObjectMeta{
 				Namespace: "test",
 				Annotations: map[string]string{
-					"a/allowed_users":                           `["a"]`,
-					"a/allowed_domains":                         `["a"]`,
-					"a/allowed_idp_claims":                      `{"key": ["val1", "val2"]}`,
-					"a/policy":                                  testPPL,
-					"a/cors_allow_preflight":                    "true",
-					"a/allow_public_unauthenticated_access":     "false",
 					"a/allow_any_authenticated_user":            "false",
-					"a/timeout":                                 `10s`,
-					"a/idle_timeout":                            `60s`,
-					"a/allow_websockets":                        "true",
+					"a/allow_public_unauthenticated_access":     "false",
 					"a/allow_spdy":                              "true",
-					"a/set_request_headers":                     `{"a": "aaa"}`,
-					"a/set_request_headers_secret":              `request_headers`,
-					"a/remove_request_headers":                  `["a"]`,
-					"a/set_response_headers":                    `{"disable": true}`,
-					"a/set_response_headers_secret":             `response_headers`,
-					"a/rewrite_response_headers":                `[{"header": "a", "prefix": "b", "value": "c"}]`,
-					"a/preserve_host_header":                    "true",
-					"a/host_rewrite":                            "rewrite",
-					"a/host_rewrite_header":                     "rewrite-header",
+					"a/allow_websockets":                        "true",
+					"a/allowed_domains":                         `["a"]`,
+					"a/allowed_idp_claims":                      `key: ["val1", "val2"]`,
+					"a/allowed_users":                           `["a"]`,
+					"a/cors_allow_preflight":                    "true",
+					"a/health_checks":                           `[{"timeout": "10s", "interval": "1m", "healthy_threshold": 1, "unhealthy_threshold": 2, "http_health_check": {"path": "/"}}]`,
 					"a/host_path_regex_rewrite_pattern":         "rewrite-pattern",
 					"a/host_path_regex_rewrite_substitution":    "rewrite-sub",
-					"a/pass_identity_headers":                   "true",
-					"a/health_checks":                           `[{"timeout": "10s", "interval": "60s", "healthy_threshold": 1, "unhealthy_threshold": 2, "http_health_check": {"path": "/"}}]`,
-					"a/tls_skip_verify":                         "true",
-					"a/tls_server_name":                         "my.server.name",
-					"a/tls_custom_ca_secret":                    "my_custom_ca_secret",
-					"a/tls_client_secret":                       "my_client_secret",
-					"a/tls_downstream_client_ca_secret":         "my_downstream_client_ca_secret",
-					"a/secure_upstream":                         "true",
+					"a/host_rewrite_header":                     "rewrite-header",
+					"a/host_rewrite":                            "rewrite",
+					"a/idle_timeout":                            `60s`,
+					"a/kubernetes_service_account_token_secret": "k8s_token",
 					"a/lb_policy":                               "LEAST_REQUEST",
 					"a/least_request_lb_config":                 `{"choice_count":3,"active_request_bias":{"default_value":4,"runtime_key":"key"},"slow_start_config":{"slow_start_window":"3s","aggression":{"runtime_key":"key"}}}`,
+					"a/pass_identity_headers":                   "true",
+					"a/policy":                                  testPPL,
 					"a/prefix_rewrite":                          "/",
+					"a/preserve_host_header":                    "true",
 					"a/regex_rewrite_pattern":                   `^/service/([^/]+)(/.*)$`,
 					"a/regex_rewrite_substitution":              `\\2/instance/\\1`,
-					"a/kubernetes_service_account_token_secret": "k8s_token",
+					"a/remove_request_headers":                  `["a"]`,
+					"a/rewrite_response_headers":                `[{"header": "a", "prefix": "b", "value": "c"}]`,
+					"a/secure_upstream":                         "true",
+					"a/set_request_headers_secret":              `request_headers`,
+					"a/set_request_headers":                     `{"a": "aaa"}`,
+					"a/set_response_headers_secret":             `response_headers`,
+					"a/set_response_headers":                    `{"disable": true}`,
+					"a/timeout":                                 `2m`,
+					"a/tls_client_secret":                       "my_client_secret",
+					"a/tls_custom_ca_secret":                    "my_custom_ca_secret",
+					"a/tls_downstream_client_ca_secret":         "my_downstream_client_ca_secret",
+					"a/tls_server_name":                         "my.server.name",
+					"a/tls_skip_verify":                         "true",
 				},
 			},
 		},
@@ -126,7 +126,7 @@ func TestAnnotations(t *testing.T) {
 		CorsAllowPreflight:               true,
 		AllowPublicUnauthenticatedAccess: false,
 		AllowAnyAuthenticatedUser:        false,
-		Timeout:                          durationpb.New(time.Second * 10),
+		Timeout:                          durationpb.New(time.Minute * 2),
 		IdleTimeout:                      durationpb.New(time.Minute),
 		AllowWebsockets:                  true,
 		AllowSpdy:                        true,
@@ -242,32 +242,6 @@ func TestMissingTlsAnnotationsSecretData(t *testing.T) {
 				data[key] = []byte("data")
 			}
 			assert.Errorf(t, applyAnnotations(r, ic), "name=%s key=%s", name, testKey)
-		}
-	}
-}
-
-func TestAnnotationsConversion(t *testing.T) {
-	for i, tc := range []struct {
-		in     map[string]string
-		expect string
-	}{
-		{map[string]string{
-			"bool_param":         "true",
-			"num_param":          "10",
-			"txt_param":          "text",
-			"allowed_idp_claims": `groups: ["admin", "audit"]`,
-			"allowed_groups":     `["admin", "audit"]`,
-		}, `{
-				"bool_param": true,
-				"num_param": 10,
-				"txt_param": "text",
-				"allowed_groups": ["admin", "audit"],
-				"allowed_idp_claims": {"groups": ["admin", "audit"]}
-			}`},
-	} {
-		data, err := toJSON(tc.in)
-		if assert.NoError(t, err, i) {
-			assert.JSONEq(t, tc.expect, string(data), string(data))
 		}
 	}
 }
