@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/types"
+	gatev1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/pomerium/ingress-controller/model"
 )
@@ -23,4 +24,9 @@ type IngressReconciler interface {
 type ConfigReconciler interface {
 	// SetConfig updates just the shared config settings
 	SetConfig(ctx context.Context, cfg *model.Config) (changes bool, err error)
+}
+
+type GatewayReconciler interface {
+	Update(ctx context.Context, gateway *gatev1.Gateway) (changes bool, err error)
+	// XXX: how do we handle deleting a Gateway?
 }
