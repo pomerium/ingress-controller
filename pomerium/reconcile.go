@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/types"
-	gatev1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/pomerium/ingress-controller/model"
 )
@@ -20,13 +19,19 @@ type IngressReconciler interface {
 	Delete(ctx context.Context, namespacedName types.NamespacedName) (changes bool, err error)
 }
 
+type GatewayReconciler interface {
+	// GatewaySetConfig updates the entire Gateway-defined route configuration.
+	GatewaySetConfig(ctx context.Context, config *model.GatewayConfig) (changes bool, err error)
+
+	// GatewayUpsertRoute updates a single Gateway-defined route.
+	//GatewayUpsertRoute(ctx context.Context, route *model.GatewayHTTPRouteConfig) (changes bool, err error)
+
+	// GatewayDeleteRoute deletes a single Gateway-defined route.
+	//GatewayDeleteRoute(ctx context.Context, name types.NamespacedName) (changes bool, err error)
+}
+
 // ConfigReconciler only updates global parameters and does not deal with individual routes
 type ConfigReconciler interface {
 	// SetConfig updates just the shared config settings
 	SetConfig(ctx context.Context, cfg *model.Config) (changes bool, err error)
-}
-
-type GatewayReconciler interface {
-	Update(ctx context.Context, gateway *gatev1.Gateway) (changes bool, err error)
-	// XXX: how do we handle deleting a Gateway?
 }

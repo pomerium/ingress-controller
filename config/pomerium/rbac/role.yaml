@@ -48,6 +48,26 @@ rules:
       - list
       - watch
   - apiGroups:
+      - gateway.networking.k8s.io
+    resources:
+      - gatewayclasses
+      - gateways
+      - httproutes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - gateway.networking.k8s.io
+    resources:
+      - gatewayclasses/status
+      - gateways/status
+      - httproutes/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
       - ingress.pomerium.io
     resources:
       - pomerium/status

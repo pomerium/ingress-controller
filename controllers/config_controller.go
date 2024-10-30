@@ -15,6 +15,7 @@ import (
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 
+	"github.com/pomerium/ingress-controller/controllers/gateway"
 	"github.com/pomerium/ingress-controller/controllers/ingress"
 	"github.com/pomerium/ingress-controller/controllers/reporter"
 	"github.com/pomerium/ingress-controller/controllers/settings"
@@ -35,6 +36,7 @@ var (
 // for Ingress and Pomerium Settings CRD objects, if specified
 type Controller struct {
 	pomerium.IngressReconciler
+	pomerium.GatewayReconciler
 	pomerium.ConfigReconciler
 	databroker.DataBrokerServiceClient
 	MgrOpts runtime_ctrl.Options
@@ -79,6 +81,15 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 		}
 	} else {
 		log.FromContext(ctx).V(1).Info("no Pomerium CRD")
+	}
+
+	// XXX: make the ControllerName configurable
+	gatewayControllerName := gateway.ControllerName
+	if err = gateway.NewGatewayClassController(mgr, gatewayControllerName); err != nil {
+		return fmt.Errorf("create gateway class controller: %w", err)
+	}
+	if err = gateway.NewGatewayController(mgr, c.GatewayReconciler, gatewayControllerName); err != nil {
+		return fmt.Errorf("create gateway controller: %w", err)
 	}
 
 	c.setRunning(true)

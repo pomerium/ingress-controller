@@ -102,7 +102,7 @@ envoy-ci: envoy
 .PHONY: envoy
 envoy:
 	@echo "==> $@"
-	mkdir -p ./pomerium/envoy/bin && cd ./pomerium/envoy/bin && go run github.com/pomerium/pomerium/pkg/envoy/get-envoy
+	mkdir -p ./pomerium/envoy/bin && cd ./pomerium/envoy/bin && env -u GOOS go run github.com/pomerium/pomerium/pkg/envoy/get-envoy
 
 UI_DIR = $(shell go list -f {{.Dir}} github.com/pomerium/pomerium/ui)
 internal/ui:
