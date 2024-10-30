@@ -20,7 +20,7 @@ func applyBackendRefs(route *pb.Route, backendRefs []gateway_v1.HTTPBackendRef) 
 
 func backendRefToToURL(br *gateway_v1.HTTPBackendRef) string {
 	// XXX: this assumes the kind is "Service"
-	u := fmt.Sprintf("%s.%s.svc.cluster.local:%d", br.Name, *br.Namespace, *br.Port)
+	u := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", br.Name, *br.Namespace, *br.Port)
 
 	if br.Weight != nil {
 		w := *br.Weight
@@ -28,7 +28,7 @@ func backendRefToToURL(br *gateway_v1.HTTPBackendRef) string {
 		if w == 0 {
 			return ""
 		}
-		u = fmt.Sprintf("%s;%d", u, w)
+		u = fmt.Sprintf("%s,%d", u, w)
 	}
 
 	return u

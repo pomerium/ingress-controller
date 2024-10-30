@@ -4,6 +4,7 @@ package pomerium
 import (
 	"context"
 	"fmt"
+	golog "log"
 	"sort"
 
 	"github.com/hashicorp/go-multierror"
@@ -133,6 +134,9 @@ func (r *DataBrokerReconciler) GatewaySetConfig(
 ) (changes bool, err error) {
 	logger := log.FromContext(ctx)
 
+	golog.Println(" *** GatewaySetConfig *** ")
+	golog.Printf("%d routes, %d certs", len(config.Routes), len(config.Certificates))
+
 	prev, err := r.getConfig(ctx)
 	if err != nil {
 		return false, fmt.Errorf("get config: %w", err)
@@ -150,6 +154,7 @@ func (r *DataBrokerReconciler) GatewaySetConfig(
 		}
 		next = cfg
 	}
+	next.Settings = new(pb.Settings)
 	for _, cert := range config.Certificates {
 		addTLSCert(next.Settings, cert)
 	}

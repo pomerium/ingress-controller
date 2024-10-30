@@ -22,7 +22,8 @@ type GatewayHTTPRouteConfig struct {
 
 	// Hostnames this route should match. This may differ from the list of Hostnames in the
 	// HTTPRoute Spec depending on the Gateway configuration.
-	Hostnames []string
+	// XXX: should we set this to {"*"} to represent matching all hostnames?
+	Hostnames []gateway_v1.Hostname
 
 	// XXX: these I copied from IngressConfig, need to make sure what's actually needed
 	Endpoints map[types.NamespacedName]*corev1.Endpoints

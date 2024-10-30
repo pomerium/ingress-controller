@@ -33,7 +33,7 @@ func GatewayRoutes(gc *model.GatewayHTTPRouteConfig) []*pb.Route {
 	for _, h := range gc.Hostnames {
 		from := (&url.URL{
 			Scheme: "https",
-			Host:   h,
+			Host:   string(h),
 		}).String()
 		for j := range trs {
 			prs[i] = proto.Clone(trs[j]).(*pb.Route)
@@ -56,6 +56,11 @@ func templateRoutes(gc *gateway_v1.HTTPRoute) []*pb.Route {
 	for i := range rules {
 		rule := &rules[i]
 		pr := &pb.Route{}
+
+		// XXX -- for testing, apply a public access policy
+		// DO NOT MERGE
+		pr.AllowPublicUnauthenticatedAccess = true
+
 		applyFilters(pr, rule.Filters)
 		// XXX: figure out what to do if there are no non-zero weight backendRefs
 		applyBackendRefs(pr, rule.BackendRefs)
