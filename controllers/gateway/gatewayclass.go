@@ -52,27 +52,10 @@ func (c *gatewayClassController) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 func setGatewayClassAccepted(gc *gateway_v1.GatewayClass) (modified bool) {
-	accepted := metav1.Condition{
-		Type:               string(gateway_v1.GatewayClassConditionStatusAccepted),
-		Status:             metav1.ConditionTrue,
-		ObservedGeneration: gc.Generation,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(gateway_v1.GatewayClassReasonAccepted),
-		Message:            "",
-	}
-	conds := gc.Status.Conditions
-	for i := range conds {
-		if conds[i].Type == string(gateway_v1.GatewayClassConditionStatusAccepted) {
-			// "Accepted" condition found. Make sure it's set to true.
-			if conds[i].Status == metav1.ConditionTrue {
-				// Already accepted, no need to make any changes.
-				return false
-			}
-			conds[i] = accepted
-			return true
-		}
-	}
-	// No "Accepted" condition found, so add it.
-	gc.Status.Conditions = append(gc.Status.Conditions, accepted)
-	return true
+	return upsertCondition(&gc.Status.Conditions, gc.Generation, metav1.Condition{
+		Type:    string(gateway_v1.GatewayClassConditionStatusAccepted),
+		Status:  metav1.ConditionTrue,
+		Reason:  string(gateway_v1.GatewayClassReasonAccepted),
+		Message: "", // XXX
+	})
 }

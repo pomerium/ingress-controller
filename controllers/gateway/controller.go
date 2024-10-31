@@ -295,7 +295,7 @@ func (c *gatewayController) reconcileGateway(
 		updateStatus = true
 	}
 
-	if setGatewayConditions(gateway,
+	if upsertGatewayConditions(gateway,
 		metav1.Condition{
 			Type:    string(gateway_v1.GatewayConditionAccepted),
 			Status:  metav1.ConditionTrue,
@@ -332,75 +332,7 @@ func (c *gatewayController) reconcileGateway(
 
 	return nil
 }
-func setGatewayConditions(g *gateway_v1.Gateway, conditions ...metav1.Condition) (modified bool) {
-	for _, c := range conditions {
-		if setGatewayCondition(g, c) {
-			modified = true
-		}
-	}
-	return modified
-}
 
-func setGatewayCondition(g *gateway_v1.Gateway, condition metav1.Condition) (modified bool) {
-	condition.ObservedGeneration = g.Generation
-	condition.LastTransitionTime = metav1.Now()
-
-	conds := g.Status.Conditions
-	for i := range conds {
-		if conds[i].Type == condition.Type {
-			// Existing condition found.
-			// XXX: does this need to compare the observed generation too?
-			if conds[i].Status == condition.Status &&
-				conds[i].Reason == condition.Reason &&
-				conds[i].Message == condition.Message {
-				return false
-			}
-			conds[i] = condition
-			return true
-		}
-	}
-	// No existing condition found, so add it.
-	g.Status.Conditions = append(g.Status.Conditions, condition)
-	return true
-}
-
-// XXX: move to another file?
-func upsertConditions(
-	conditions *[]metav1.Condition,
-	observedGeneration int64,
-	condition ...metav1.Condition,
-) (modified bool) {
-	for _, c := range condition {
-		if upsertCondition(conditions, observedGeneration, c) {
-			modified = true
-		}
-	}
-	return modified
-}
-
-func upsertCondition(
-	conditions *[]metav1.Condition,
-	observedGeneration int64,
-	condition metav1.Condition,
-) (modified bool) {
-	condition.ObservedGeneration = observedGeneration
-	condition.LastTransitionTime = metav1.Now()
-
-	conds := *conditions
-	for i := range conds {
-		if conds[i].Type == condition.Type {
-			// Existing condition found.
-			if conds[i].ObservedGeneration == condition.ObservedGeneration &&
-				conds[i].Status == condition.Status &&
-				conds[i].Reason == condition.Reason &&
-				conds[i].Message == condition.Message {
-				return false
-			}
-			conds[i] = condition
-			return true
-		}
-	}
-	// No existing condition found, so add it.
-	*conditions = append(*conditions, condition)
-	return true
+func upsertGatewayConditions(g *gateway_v1.Gateway, conditions ...metav1.Condition) (modified bool) {
+	return upsertConditions(&g.Status.Conditions, g.Generation, conditions...)
 }
