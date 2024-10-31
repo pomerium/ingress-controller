@@ -63,7 +63,7 @@ func templateRoutes(gc *gateway_v1.HTTPRoute) []*pb.Route {
 
 		applyFilters(pr, rule.Filters)
 		// XXX: figure out what to do if there are no non-zero weight backendRefs
-		applyBackendRefs(pr, rule.BackendRefs)
+		applyBackendRefs(pr, rule.BackendRefs, gc.Namespace)
 
 		if len(rule.Matches) == 0 {
 			prs = append(prs, pr)

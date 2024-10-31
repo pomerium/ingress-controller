@@ -10,17 +10,21 @@ import (
 
 // XXX: make sure we reject any routes with filters defined on a backendRef
 
-func applyBackendRefs(route *pb.Route, backendRefs []gateway_v1.HTTPBackendRef) {
+func applyBackendRefs(route *pb.Route, backendRefs []gateway_v1.HTTPBackendRef, defaultNamespace string) {
 	for i := range backendRefs {
-		if u := backendRefToToURL(&backendRefs[i]); u != "" {
+		if u := backendRefToToURL(&backendRefs[i], defaultNamespace); u != "" {
 			route.To = append(route.To, u)
 		}
 	}
 }
 
-func backendRefToToURL(br *gateway_v1.HTTPBackendRef) string {
+func backendRefToToURL(br *gateway_v1.HTTPBackendRef, defaultNamespace string) string {
 	// XXX: this assumes the kind is "Service"
-	u := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", br.Name, *br.Namespace, *br.Port)
+	namespace := defaultNamespace
+	if br.Namespace != nil {
+		namespace = string(*br.Namespace)
+	}
+	u := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", br.Name, namespace, *br.Port)
 
 	if br.Weight != nil {
 		w := *br.Weight

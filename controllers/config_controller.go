@@ -84,7 +84,7 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 	}
 
 	// XXX: make the ControllerName configurable
-	gatewayControllerName := gateway.ControllerName
+	gatewayControllerName := gateway.DefaultControllerName
 	if err = gateway.NewGatewayClassController(mgr, gatewayControllerName); err != nil {
 		return fmt.Errorf("create gateway class controller: %w", err)
 	}

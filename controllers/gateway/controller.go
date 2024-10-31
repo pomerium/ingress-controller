@@ -35,7 +35,7 @@ type gatewayController struct {
 	//reporter.MultiPomeriumStatusReporter
 }
 
-const ControllerName = "pomerium.io/gateway-controller"
+const DefaultControllerName = "pomerium.io/gateway-controller"
 
 // NewGatewayController creates and registers a new controller for Gateway objects.
 func NewGatewayController(
@@ -54,7 +54,7 @@ func NewGatewayController(
 		func(_ context.Context, _ client.Object) []reconcile.Request {
 			return []reconcile.Request{{
 				NamespacedName: types.NamespacedName{
-					Name: ControllerName,
+					Name: controllerName,
 				},
 			}}
 		})
@@ -102,7 +102,7 @@ func (c *gatewayController) Reconcile(ctx context.Context, _ ctrl.Request) (ctrl
 	if err := c.List(ctx, &hrl); err != nil {
 		return ctrl.Result{}, err
 	}
-	if err := c.List(ctx, &sl); err != nil {
+	if err := c.List(ctx, &sl); err != nil { // XXX: filter for certificate type?
 		return ctrl.Result{}, err
 	}
 	// XXX: retries if any of those List calls fails?
@@ -145,11 +145,19 @@ func (c *gatewayController) Reconcile(ctx context.Context, _ ctrl.Request) (ctrl
 	var config model.GatewayConfig
 	certificateRefs := set.New[refKey](0)
 
+	availableCertificates := make(map[refKey]*corev1.Secret)
+	for i := range sl.Items {
+		s := &sl.Items[i]
+		if s.Type == corev1.SecretTypeTLS {
+			availableCertificates[refKeyForObject(s)] = s
+		}
+	}
+
 	// XXX: match routes to gateways and compute hostname intersection
 
 	for _, g := range gateways {
 		routes := routesByParentRef[refKeyForObject(g)]
-		c.reconcileGateway(ctx, g, routes)
+		c.reconcileGateway(ctx, g, routes, availableCertificates)
 
 		golog.Printf("Gateway: %s", g.Name) // XXX
 		golog.Printf("refKey: %v", refKeyForObject(g))
@@ -274,6 +282,7 @@ func (c *gatewayController) reconcileGateway(
 	ctx context.Context,
 	gateway *gateway_v1.Gateway,
 	httpRoutes []*gateway_v1.HTTPRoute,
+	availableCertificates map[refKey]*corev1.Secret,
 ) error {
 	golog.Printf(" *** reconcileGateway: %s ***", gateway.Name) // XXX
 
@@ -282,7 +291,7 @@ func (c *gatewayController) reconcileGateway(
 	var updateStatus bool
 
 	// TODO: update Gateway status (Addresses, Listeners, Conditions)
-	if setListenersStatus(gateway, httpRoutes) {
+	if setListenersStatus(gateway, httpRoutes, availableCertificates) {
 		updateStatus = true
 	}
 
