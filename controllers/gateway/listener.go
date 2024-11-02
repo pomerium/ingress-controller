@@ -6,79 +6,68 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-set/v3"
+	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/pomerium/pkg/slices"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
-func setListenersStatus(
-	g *gateway_v1.Gateway,
-	httpRoutes []*gateway_v1.HTTPRoute,
-	availableCertificates map[refKey]*corev1.Secret,
-) (modified bool) {
-	prev := g.Status.DeepCopy()
-
-	var status []gateway_v1.ListenerStatus
-	for i := range g.Spec.Listeners {
-		l := &g.Spec.Listeners[i]
-
-		ls := gateway_v1.ListenerStatus{
-			Name: l.Name,
-			// XXX: adjust when we can accept/reject individual routes
-			AttachedRoutes: int32(len(httpRoutes)),
-		}
-
-		// Copy over any existing listener status conditions. A newly-created Gateway will not have
-		// any listener status conditions and so these will need to created from scratch.
-		if len(prev.Listeners) > i && prev.Listeners[i].Name == l.Name {
-			ls.Conditions = prev.Listeners[i].Conditions
-		} else {
-			upsertConditions(&ls.Conditions, g.Generation,
-				metav1.Condition{
-					Type:   string(gateway_v1.ListenerConditionAccepted),
-					Status: metav1.ConditionTrue,
-					Reason: string(gateway_v1.ListenerReasonAccepted),
-				},
-				metav1.Condition{
-					Type:   string(gateway_v1.ListenerConditionProgrammed),
-					Status: metav1.ConditionTrue,
-					Reason: string(gateway_v1.ListenerReasonProgrammed),
-				},
-				metav1.Condition{
-					Type:   string(gateway_v1.ListenerConditionResolvedRefs),
-					Status: metav1.ConditionTrue,
-					Reason: string(gateway_v1.ListenerConditionResolvedRefs),
-				},
-			)
-		}
-
-		listenerSupportedKinds(&ls, l, g.Generation)
-		listenerCertificateRefs(&ls, g, l, availableCertificates)
-
-		// XXX: reject any unsupported or conflicted listeners
-
-		status = append(status, ls)
-	}
-	g.Status.Listeners = status
-
-	return !equality.Semantic.DeepEqual(g.Status, prev)
+type listenerAndStatus struct {
+	listener   *gateway_v1.Listener
+	status     *gateway_v1.ListenerStatus
+	generation int64
 }
 
-// listenerSupportedKinds sets the SupportedKinds and updates the ResolvedRefs condition if any
-// allowedRoutes Kinds are unsupported. (Currently the only supported kind is HTTPRoute.)
-func listenerSupportedKinds(ls *gateway_v1.ListenerStatus, l *gateway_v1.Listener, observedGeneration int64) {
-	ls.SupportedKinds = []gateway_v1.RouteGroupKind{{Kind: "HTTPRoute"}}
+// processListener adds routes and certificates associated with a single Listener to the
+// GatewayConfig and updates the ListenerStatus.
+func processListener(
+	config *model.GatewayConfig,
+	o *objects,
+	gatewayKey refKey,
+	l listenerAndStatus,
+) {
+	l.status.Name = l.listener.Name
 
-	if l.AllowedRoutes == nil || len(l.AllowedRoutes.Kinds) == 0 {
+	g := o.Gateways[gatewayKey]
+
+	// Some status conditions should always be present. Set them first to the optimistic value.
+	// The following steps will update these conditions if needed.
+	upsertConditions(&l.status.Conditions, g.Generation,
+		metav1.Condition{
+			Type:   string(gateway_v1.ListenerConditionAccepted),
+			Status: metav1.ConditionTrue,
+			Reason: string(gateway_v1.ListenerReasonAccepted),
+		},
+		metav1.Condition{
+			Type:   string(gateway_v1.ListenerConditionProgrammed),
+			Status: metav1.ConditionTrue,
+			Reason: string(gateway_v1.ListenerReasonProgrammed),
+		},
+		metav1.Condition{
+			Type:   string(gateway_v1.ListenerConditionResolvedRefs),
+			Status: metav1.ConditionTrue,
+			Reason: string(gateway_v1.ListenerConditionResolvedRefs),
+		},
+	)
+	setListenerStatusSupportedKinds(l)
+	processCertificateRefs(config, o, g, l)
+}
+
+// setListenerStatusSupportedKinds sets the status SupportedKinds and updates the conditions if any
+// allowedRoutes kinds are unsupported. (Currently the only supported kind is HTTPRoute.)
+func setListenerStatusSupportedKinds(l listenerAndStatus) {
+	// If allowedRoutes is unset, there is no restriction on allowed route kinds.
+	allowed := l.listener.AllowedRoutes
+	if allowed == nil || len(allowed.Kinds) == 0 {
+		l.status.SupportedKinds = []gateway_v1.RouteGroupKind{{Kind: "HTTPRoute"}}
 		return
 	}
 
 	supported := make([]gateway_v1.RouteGroupKind, 0)
 	unsupportedKinds := set.New[string](0)
-	for _, k := range l.AllowedRoutes.Kinds {
+	for _, k := range allowed.Kinds {
 		if groupKindFromRouteGroupKind(&k) == (schema.GroupKind{
 			Group: gateway_v1.GroupName,
 			Kind:  "HTTPRoute",
@@ -88,28 +77,35 @@ func listenerSupportedKinds(ls *gateway_v1.ListenerStatus, l *gateway_v1.Listene
 			unsupportedKinds.Insert(string(k.Kind))
 		}
 	}
-	ls.SupportedKinds = supported
+	l.status.SupportedKinds = supported
 
 	if !unsupportedKinds.Empty() {
-		upsertCondition(&ls.Conditions, observedGeneration, metav1.Condition{
-			Type:   string(gateway_v1.ListenerConditionResolvedRefs),
-			Status: metav1.ConditionFalse,
-			Reason: string(gateway_v1.ListenerReasonInvalidRouteKinds),
-			Message: fmt.Sprintf("unsupported route kinds: %s (only HTTPRoute is supported)",
-				strings.Join(unsupportedKinds.Slice(), ", ")),
-		})
+		upsertConditions(&l.status.Conditions, l.generation,
+			metav1.Condition{
+				Type:   string(gateway_v1.ListenerConditionResolvedRefs),
+				Status: metav1.ConditionFalse,
+				Reason: string(gateway_v1.ListenerReasonInvalidRouteKinds),
+				Message: fmt.Sprintf("unsupported route kinds: %s (only HTTPRoute is supported)",
+					strings.Join(unsupportedKinds.Slice(), ", ")),
+			},
+			metav1.Condition{
+				Type:   string(gateway_v1.ListenerConditionProgrammed),
+				Status: metav1.ConditionFalse,
+				Reason: string(gateway_v1.ListenerReasonInvalid),
+			},
+		)
 	}
 }
 
-// listenerCertificateRefs checks that all specified certificateRefs can be matched to available
-// TLS Secrets and sets the ResolvedRefs condition if any are invalid.
-func listenerCertificateRefs(
-	ls *gateway_v1.ListenerStatus,
+// processCertificateRefs checks that all specified certificateRefs can be matched to available
+// TLS Secrets and sets the "ResolvedRefs" status condition if any are invalid.
+func processCertificateRefs(
+	config *model.GatewayConfig,
+	o *objects,
 	g *gateway_v1.Gateway,
-	l *gateway_v1.Listener,
-	availableCertificates map[refKey]*corev1.Secret,
+	l listenerAndStatus,
 ) {
-	if l.TLS == nil {
+	if l.listener.TLS == nil {
 		return
 	}
 
@@ -120,17 +116,20 @@ func listenerCertificateRefs(
 	// “RefNotPermitted” reason.
 
 	invalidRefs := set.New[refKey](0)
-	for i := range l.TLS.CertificateRefs {
-		k := refKeyForCertificateRef(g, &l.TLS.CertificateRefs[i])
-		secret, ok := availableCertificates[k]
-		if !ok || validateTLSSecret(secret) != nil {
+	for i := range l.listener.TLS.CertificateRefs {
+		k := refKeyForCertificateRef(g, &l.listener.TLS.CertificateRefs[i])
+		secret, ok := o.TLSSecrets[k]
+		if ok && validateTLSSecret(secret) == nil {
+			config.Certificates = append(config.Certificates, secret)
+		} else {
 			invalidRefs.Insert(k)
 		}
 	}
 
 	if !invalidRefs.Empty() {
+		// XXX: does this invalidate the listener as a whole?
 		invalidRefNames := slices.Map(invalidRefs.Slice(), func(k refKey) string { return k.Name })
-		upsertCondition(&ls.Conditions, g.Generation, metav1.Condition{
+		upsertCondition(&l.status.Conditions, l.generation, metav1.Condition{
 			Type:    string(gateway_v1.ListenerConditionResolvedRefs),
 			Status:  metav1.ConditionFalse,
 			Reason:  string(gateway_v1.ListenerReasonInvalidCertificateRef),

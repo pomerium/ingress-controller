@@ -154,7 +154,7 @@ func (s *controllerCmd) buildController(ctx context.Context) (*controllers.Contr
 			RemoveUnreferencedCerts: false,
 		},
 		GatewayReconciler: &pomerium.DataBrokerReconciler{
-			ConfigID:                pomerium.SharedSettingsConfigID,
+			ConfigID:                pomerium.GatewayControllerConfigID,
 			DataBrokerServiceClient: client,
 			DebugDumpConfigDiff:     s.debug,
 			RemoveUnreferencedCerts: false,

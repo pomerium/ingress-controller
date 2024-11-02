@@ -88,7 +88,7 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 	if err = gateway.NewGatewayClassController(mgr, gatewayControllerName); err != nil {
 		return fmt.Errorf("create gateway class controller: %w", err)
 	}
-	if err = gateway.NewGatewayController(mgr, c.GatewayReconciler, gatewayControllerName); err != nil {
+	if err = gateway.NewGatewayController(ctx, mgr, c.GatewayReconciler, gatewayControllerName); err != nil {
 		return fmt.Errorf("create gateway controller: %w", err)
 	}
 

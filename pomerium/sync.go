@@ -160,6 +160,9 @@ func (r *DataBrokerReconciler) GatewaySetConfig(
 	}
 	// XXX: do we need to validate certs too?
 
+	b, _ := protojson.Marshal(next)
+	golog.Println("new config: " + string(b))
+
 	return r.saveConfig(ctx, prev, next, r.ConfigID)
 }
 

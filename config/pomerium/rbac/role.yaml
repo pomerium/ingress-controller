@@ -53,6 +53,7 @@ rules:
       - gatewayclasses
       - gateways
       - httproutes
+      - referencegrants
     verbs:
       - get
       - list

@@ -18,6 +18,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
+	gateway_v1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 )
@@ -56,7 +57,8 @@ func getScheme() (*runtime.Scheme, error) {
 	}{
 		{"core", clientgoscheme.AddToScheme},
 		{"settings", icsv1.AddToScheme},
-		{"gateway_v1", gateway_v1.Install}, // XXX: is this right?
+		{"gateway_v1", gateway_v1.Install},
+		{"gateway_v1beta1", gateway_v1beta1.Install},
 	} {
 		if err := apply.fn(scheme); err != nil {
 			return nil, fmt.Errorf("%s: %w", apply.name, err)
