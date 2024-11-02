@@ -3,6 +3,7 @@ package gateway
 import (
 	"strings"
 
+	"github.com/hashicorp/go-set/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -14,8 +15,11 @@ type httpRouteAndParentRef struct {
 }
 
 type routeAttachment struct {
+	// Resolved hostnames, with "all" represented as "*".
 	hostnames []gateway_v1.Hostname
-	reason    gateway_v1.RouteConditionReason
+
+	// "Accepted" condition status reason.
+	reason gateway_v1.RouteConditionReason
 }
 
 func processHTTPRoute(
@@ -37,11 +41,11 @@ func processHTTPRoute(
 	}
 
 	// Otherwise check for route attachement with all listeners.
-	var hostnames []gateway_v1.Hostname
+	hostnames := set.New[gateway_v1.Hostname](0)
 	var reason gateway_v1.RouteConditionReason
 	for _, l := range listeners {
 		ra := processHTTPRouteForListener(g, l, r)
-		hostnames = append(hostnames, ra.hostnames...)
+		hostnames.InsertSlice(ra.hostnames)
 		// If the route attaches to any listener, we consider the route accepted.
 		// Otherwise we'll return the reason associated with the first listener.
 		if reason == "" || ra.reason == gateway_v1.RouteReasonAccepted {
@@ -49,7 +53,7 @@ func processHTTPRoute(
 		}
 	}
 
-	return routeAttachment{hostnames, reason}
+	return routeAttachment{hostnames.Slice(), reason}
 }
 
 func processHTTPRouteForListener(
@@ -61,7 +65,7 @@ func processHTTPRouteForListener(
 		return routeAttachment{reason: gateway_v1.RouteReasonNotAllowedByListeners}
 	}
 
-	hostnames := routeHostnames((*string)(l.listener.Hostname), r.route.Spec.Hostnames)
+	hostnames := routeHostnames(l.listener.Hostname, r.route.Spec.Hostnames)
 	if len(hostnames) == 0 {
 		return routeAttachment{reason: gateway_v1.RouteReasonNoMatchingListenerHostname}
 	}
@@ -102,26 +106,38 @@ func isHTTPRouteAllowed(
 	}
 }
 
-func routeHostnames(listenerHostname *string, routeHostnames []gateway_v1.Hostname) []gateway_v1.Hostname {
+func routeHostnames(
+	listenerHostname *gateway_v1.Hostname,
+	routeHostnames []gateway_v1.Hostname,
+) []gateway_v1.Hostname {
 	// If the listener does not specify a hostname, it accepts any hostname.
 	if listenerHostname == nil {
+		// If the route also does not specify a hostname, it matches all hostnames.
+		if len(routeHostnames) == 0 {
+			return []gateway_v1.Hostname{"*"}
+		}
 		return routeHostnames
 	}
 
-	// If the listener does specify a hostname, the route must include a matching hostname.
+	// If the listener specifies a hostname and the route does not, only the listener hostname matches.
+	if len(routeHostnames) == 0 {
+		return []gateway_v1.Hostname{*listenerHostname}
+	}
+
+	// If both the listener and route specify hostnames, compute the intersection.
 	var matching []gateway_v1.Hostname
-	for _, h := range routeHostnames {
-		if hostnameMatches(*listenerHostname, string(h)) {
-			matching = append(matching, h)
+	for _, rh := range routeHostnames {
+		if h := hostnameIntersection(string(*listenerHostname), string(rh)); h != "" {
+			matching = append(matching, gateway_v1.Hostname(h))
 		}
 	}
 	return matching
 }
 
-func hostnameMatches(a, b string) bool {
+func hostnameIntersection(a, b string) string {
 	// Simplest case: exact match.
 	if a == b {
-		return true
+		return a
 	}
 
 	// From the spec:
@@ -129,8 +145,14 @@ func hostnameMatches(a, b string) bool {
 	// "Hostnames that are prefixed with a wildcard label (`*.`) are interpreted as
 	// a suffix match. That means that a match for `*.example.com` would match both
 	//`test.example.com`, and `foo.test.example.com`, but not `example.com`."
-	return (strings.HasPrefix(a, "*.") && strings.HasSuffix(b, a[1:])) ||
-		(strings.HasPrefix(b, "*.") && strings.HasSuffix(a, b[1:]))
+	if strings.HasPrefix(a, "*.") && strings.HasSuffix(b, a[1:]) {
+		return b
+	}
+	if strings.HasPrefix(b, "*.") && strings.HasSuffix(a, b[1:]) {
+		return a
+	}
+
+	return "" // no intersection
 }
 
 func setRouteStatus(
