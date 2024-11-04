@@ -1,17 +1,95 @@
 package gateway
 
 import (
+	golog "log"
 	"strings"
 
 	"github.com/hashicorp/go-set/v3"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
-type httpRouteAndParentRef struct {
-	route  *gateway_v1.HTTPRoute
-	parent *gateway_v1.ParentReference
+// processHTTPRoute checks the validity of an HTTPRoute, updates its status accordingly, and
+// computes its matching hostnames (with "all" represented as "*").
+func processHTTPRoute(
+	o *objects,
+	g *gateway_v1.Gateway,
+	listeners map[string]listenerAndStatus,
+	r httpRouteInfo,
+) []gateway_v1.Hostname {
+	golog.Printf(" *** processHTTPRoute: %s ***", r.route.Name) // XXX
+
+	validateHTTPRouteBackendRefs(o, r)
+
+	// An HTTPRoute may specify a listener name directly.
+	if r.parent.SectionName != nil {
+		l, ok := listeners[string(*r.parent.SectionName)]
+		if !ok {
+			setRouteStatusAccepted(r, gateway_v1.RouteReasonNoMatchingParent)
+			return nil
+		}
+		ra := processHTTPRouteForListener(o, g, l, r.route)
+		setRouteStatusAccepted(r, ra.reason)
+		return ra.hostnames
+	}
+
+	// Otherwise check for route attachement with all listeners.
+	hostnamesSet := set.New[gateway_v1.Hostname](0)
+	var reason gateway_v1.RouteConditionReason
+	for _, l := range listeners {
+		ra := processHTTPRouteForListener(o, g, l, r.route)
+		hostnamesSet.InsertSlice(ra.hostnames)
+		// If the route attaches to any listener, we consider the route accepted.
+		// Otherwise we'll return the reason associated with the first listener.
+		if reason == "" || ra.reason == gateway_v1.RouteReasonAccepted {
+			reason = ra.reason
+		}
+	}
+	if reason == "" {
+		reason = gateway_v1.RouteReasonNoMatchingParent // no listeners at all
+	}
+	setRouteStatusAccepted(r, reason)
+	return hostnamesSet.Slice()
+}
+
+func validateHTTPRouteBackendRefs(o *objects, r httpRouteInfo) {
+	// Check that all backendRefs can be resolved.
+	invalidRefs := make(map[gateway_v1.RouteConditionReason][]string)
+	invalid := func(reason gateway_v1.RouteConditionReason, name string) {
+		invalidRefs[reason] = append(invalidRefs[reason], name)
+	}
+	for i := range r.route.Spec.Rules {
+		rule := &r.route.Spec.Rules[i]
+		for i := range rule.BackendRefs {
+			refKey := refKeyForBackendRef(r.route, &rule.BackendRefs[i].BackendObjectReference)
+			if refKey.Group != corev1.GroupName || refKey.Kind != "Service" {
+				invalid(gateway_v1.RouteReasonInvalidKind, refKey.Name)
+				continue
+			}
+			if o.Services[refKey] == nil {
+				invalid(gateway_v1.RouteReasonBackendNotFound, refKey.Name)
+			}
+			// XXX: check backend ref permission
+		}
+	}
+
+	resolvedRefs := metav1.Condition{
+		Type:   string(gateway_v1.RouteConditionResolvedRefs),
+		Status: metav1.ConditionTrue,
+		Reason: string(gateway_v1.RouteReasonResolvedRefs),
+	}
+
+	var messages []string
+	for reason, refNames := range invalidRefs {
+		resolvedRefs.Status = metav1.ConditionFalse
+		resolvedRefs.Reason = string(reason) // if multiple reasons apply this will set one arbitrarily
+		messages = append(messages, "invalid refs ("+string(reason)+"): "+strings.Join(refNames, ", "))
+	}
+	resolvedRefs.Message = strings.Join(messages, "; ")
+
+	upsertCondition(&r.status.Conditions, r.route.Generation, resolvedRefs)
 }
 
 type routeAttachment struct {
@@ -22,50 +100,17 @@ type routeAttachment struct {
 	reason gateway_v1.RouteConditionReason
 }
 
-func processHTTPRoute(
-	g *gateway_v1.Gateway,
-	listeners map[string]listenerAndStatus,
-	r httpRouteAndParentRef,
-) routeAttachment {
-	// An HTTPRoute may specify a listener name directly.
-	if r.parent.SectionName != nil {
-		l, ok := listeners[string(*r.parent.SectionName)]
-		if !ok {
-			return routeAttachment{reason: gateway_v1.RouteReasonNoMatchingParent}
-		}
-		return processHTTPRouteForListener(g, l, r)
-	}
-
-	if len(listeners) == 0 {
-		return routeAttachment{reason: gateway_v1.RouteReasonNoMatchingParent}
-	}
-
-	// Otherwise check for route attachement with all listeners.
-	hostnames := set.New[gateway_v1.Hostname](0)
-	var reason gateway_v1.RouteConditionReason
-	for _, l := range listeners {
-		ra := processHTTPRouteForListener(g, l, r)
-		hostnames.InsertSlice(ra.hostnames)
-		// If the route attaches to any listener, we consider the route accepted.
-		// Otherwise we'll return the reason associated with the first listener.
-		if reason == "" || ra.reason == gateway_v1.RouteReasonAccepted {
-			reason = ra.reason
-		}
-	}
-
-	return routeAttachment{hostnames.Slice(), reason}
-}
-
 func processHTTPRouteForListener(
+	o *objects,
 	g *gateway_v1.Gateway,
 	l listenerAndStatus,
-	r httpRouteAndParentRef,
+	r *gateway_v1.HTTPRoute,
 ) routeAttachment {
-	if !isHTTPRouteAllowed(l.listener.AllowedRoutes, r.route, g.Namespace) {
+	if !isHTTPRouteAllowed(o, l.listener.AllowedRoutes, r, g.Namespace) {
 		return routeAttachment{reason: gateway_v1.RouteReasonNotAllowedByListeners}
 	}
 
-	hostnames := routeHostnames(l.listener.Hostname, r.route.Spec.Hostnames)
+	hostnames := routeHostnames(l.listener.Hostname, r.Spec.Hostnames)
 	if len(hostnames) == 0 {
 		return routeAttachment{reason: gateway_v1.RouteReasonNoMatchingListenerHostname}
 	}
@@ -79,6 +124,7 @@ func processHTTPRouteForListener(
 }
 
 func isHTTPRouteAllowed(
+	o *objects,
 	allowed *gateway_v1.AllowedRoutes,
 	r *gateway_v1.HTTPRoute,
 	gatewayNamespace string,
@@ -100,7 +146,8 @@ func isHTTPRouteAllowed(
 			// XXX: update route status with this error?
 			return false
 		}
-		return selector.Matches(labels.Set(r.Labels))
+		routeNamespace := o.Namespaces[r.Namespace]
+		return selector.Matches(labels.Set(routeNamespace.Labels))
 	default:
 		return false
 	}
@@ -155,41 +202,23 @@ func hostnameIntersection(a, b string) string {
 	return "" // no intersection
 }
 
-func setRouteStatus(
-	r httpRouteAndParentRef,
+func setRouteStatusAccepted(
+	r httpRouteInfo,
 	acceptedReason gateway_v1.RouteConditionReason,
-	controllerName string,
 ) (modified bool) {
-	rps, modified := ensureRouteParentStatusExists(r, controllerName)
 	acceptedStatus := metav1.ConditionTrue
 	if acceptedReason != gateway_v1.RouteReasonAccepted {
 		acceptedStatus = metav1.ConditionFalse
 	}
-	if upsertCondition(&rps.Conditions, r.route.Generation, metav1.Condition{
+	return upsertCondition(&r.status.Conditions, r.route.Generation, metav1.Condition{
 		Type:   string(gateway_v1.RouteConditionAccepted),
 		Status: acceptedStatus,
 		Reason: string(acceptedReason),
-	}) {
-		modified = true
-	}
-	return modified
+	})
 }
 
-func ensureRouteParentStatusExists(
-	r httpRouteAndParentRef,
-	controllerName string,
-) (rps *gateway_v1.RouteParentStatus, created bool) {
-	refKey := refKeyForParentRef(r.route, r.parent)
-	for i := range r.route.Status.Parents {
-		rps = &r.route.Status.Parents[i]
-		if refKeyForParentRef(r.route, &rps.ParentRef) == refKey {
-			return rps, false
-		}
-	}
-	end := len(r.route.Status.Parents)
-	r.route.Status.Parents = append(r.route.Status.Parents, gateway_v1.RouteParentStatus{
-		ParentRef:      *r.parent,
-		ControllerName: gateway_v1.GatewayController(controllerName),
-	})
-	return &r.route.Status.Parents[end], true
-}
+// XXX: not sure how to accomplish this:
+// When a HTTPBackendRef is invalid, 500 status codes MUST be returned for requests that would
+// have otherwise been routed to an invalid backend. If multiple backends are specified, and some
+// are invalid, the proportion of requests that would otherwise have been routed to an invalid
+// backend MUST receive a 500 status code.

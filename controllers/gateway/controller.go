@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
+	gateway_v1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	"github.com/pomerium/ingress-controller/pomerium"
 )
@@ -74,6 +75,9 @@ func NewGatewayController(
 		).
 		// XXX: make this more efficient (ignore non-referenced secrets?)
 		Watches(&corev1.Secret{}, enqueueRequest).
+		Watches(&corev1.Namespace{}, enqueueRequest). // can we make this more efficient?
+		Watches(&corev1.Service{}, enqueueRequest).
+		Watches(&gateway_v1beta1.ReferenceGrant{}, enqueueRequest).
 		// XXX: need to watch reference grants too
 		Complete(gtc)
 	if err != nil {

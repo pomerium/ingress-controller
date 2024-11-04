@@ -53,6 +53,8 @@ func processListener(
 	)
 	setListenerStatusSupportedKinds(l)
 	processCertificateRefs(config, o, g, l)
+
+	// XXX: validate allowedRoutes (Selector)
 }
 
 // setListenerStatusSupportedKinds sets the status SupportedKinds and updates the conditions if any
@@ -115,25 +117,33 @@ func processCertificateRefs(
 	// reference, the “ResolvedRefs” condition MUST be set to False for this listener with the
 	// “RefNotPermitted” reason.
 
+	var hasValidRef bool
 	invalidRefs := set.New[refKey](0)
 	for i := range l.listener.TLS.CertificateRefs {
 		k := refKeyForCertificateRef(g, &l.listener.TLS.CertificateRefs[i])
 		secret, ok := o.TLSSecrets[k]
 		if ok && validateTLSSecret(secret) == nil {
 			config.Certificates = append(config.Certificates, secret)
+			hasValidRef = true
 		} else {
 			invalidRefs.Insert(k)
 		}
 	}
 
 	if !invalidRefs.Empty() {
-		// XXX: does this invalidate the listener as a whole?
 		invalidRefNames := slices.Map(invalidRefs.Slice(), func(k refKey) string { return k.Name })
 		upsertCondition(&l.status.Conditions, l.generation, metav1.Condition{
 			Type:    string(gateway_v1.ListenerConditionResolvedRefs),
 			Status:  metav1.ConditionFalse,
 			Reason:  string(gateway_v1.ListenerReasonInvalidCertificateRef),
 			Message: "invalid certificate refs: " + strings.Join(invalidRefNames, ", "),
+		})
+	}
+	if !hasValidRef {
+		upsertCondition(&l.status.Conditions, l.generation, metav1.Condition{
+			Type:   string(gateway_v1.ListenerConditionProgrammed),
+			Status: metav1.ConditionFalse,
+			Reason: string(gateway_v1.ListenerReasonInvalid),
 		})
 	}
 }

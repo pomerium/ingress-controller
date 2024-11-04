@@ -9,6 +9,7 @@ rules:
     resources:
       - services
       - endpoints
+      - namespaces
       - secrets
     verbs:
       - get

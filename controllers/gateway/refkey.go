@@ -74,3 +74,27 @@ func refKeyForCertificateRef(obj client.Object, ref *gateway_v1.SecretObjectRefe
 		Name:      string(ref.Name),
 	}
 }
+
+func refKeyForBackendRef(obj client.Object, ref *gateway_v1.BackendObjectReference) refKey {
+	// See https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io%2fv1.BackendObjectReference
+	// "When unspecified or empty string, core API group is inferred."
+	group := corev1.GroupName
+	if ref.Group != nil {
+		group = string(*ref.Group)
+	}
+	// "Defaults to "Service" when not specified."
+	kind := "Service"
+	if ref.Kind != nil {
+		kind = string(*ref.Kind)
+	}
+	namespace := obj.GetNamespace()
+	if ref.Namespace != nil {
+		namespace = string(*ref.Namespace)
+	}
+	return refKey{
+		Group:     group,
+		Kind:      kind,
+		Namespace: namespace,
+		Name:      string(ref.Name),
+	}
+}

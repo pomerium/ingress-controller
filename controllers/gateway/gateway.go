@@ -22,6 +22,8 @@ func (c *gatewayController) processGateways(
 		c.processGateway(ctx, &config, o, key)
 	}
 
+	c.updateModifiedHTTPRouteStatus(ctx, o.OriginalHTTPRouteStatus)
+
 	return &config
 }
 
@@ -58,24 +60,18 @@ func (c *gatewayController) processGateway(
 			listenersByName[string(listener.Name)] = l
 		}
 
-		// Reset this so that rocessHTTPRoute() can count attached routes.
+		// Reset AttachedRoutes because processHTTPRoute() will increment these counts.
 		status.AttachedRoutes = 0
 	}
 
 	for _, r := range o.HTTPRoutesByGateway[gatewayKey] {
-		ra := processHTTPRoute(gateway, listenersByName, r)
-		if len(ra.hostnames) > 0 {
+		hostnames := processHTTPRoute(o, gateway, listenersByName, r)
+		if len(hostnames) > 0 {
 			config.Routes = append(config.Routes, model.GatewayHTTPRouteConfig{
 				HTTPRoute: r.route,
-				Hostnames: ra.hostnames,
+				Hostnames: hostnames,
 				// XXX: other references?
 			})
-		}
-
-		if setRouteStatus(r, ra.reason, c.controllerName) {
-			if err := c.Status().Update(ctx, r.route); err != nil {
-				golog.Printf("couldn't update status for %q: %v", r.route.Name, err) // XXX
-			}
 		}
 	}
 
@@ -134,4 +130,16 @@ func ensureListenerStatusExists(g *gateway_v1.Gateway) {
 
 func upsertGatewayConditions(g *gateway_v1.Gateway, conditions ...metav1.Condition) (modified bool) {
 	return upsertConditions(&g.Status.Conditions, g.Generation, conditions...)
+}
+
+func (c *gatewayController) updateModifiedHTTPRouteStatus(
+	ctx context.Context, s []httpRouteAndOriginalStatus,
+) {
+	for _, r := range s {
+		if !equality.Semantic.DeepEqual(r.route.Status, r.originalStatus) {
+			if err := c.Status().Update(ctx, r.route); err != nil {
+				golog.Printf("couldn't update status for %q: %v", r.route.Name, err)
+			}
+		}
+	}
 }

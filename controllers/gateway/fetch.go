@@ -12,19 +12,23 @@ import (
 
 // objects holds all relevant Gateway objects and their dependencies.
 type objects struct {
-	Gateways            map[refKey]*gateway_v1.Gateway
-	HTTPRoutesByGateway map[refKey][]httpRouteAndParentRef
-	ReferenceGrants     map[refKey]*gateway_v1beta1.ReferenceGrant
-	TLSSecrets          map[refKey]*corev1.Secret
+	Gateways                map[refKey]*gateway_v1.Gateway
+	HTTPRoutesByGateway     map[refKey][]httpRouteInfo
+	OriginalHTTPRouteStatus []httpRouteAndOriginalStatus
+	Namespaces              map[string]*corev1.Namespace
+	ReferenceGrants         map[refKey]*gateway_v1beta1.ReferenceGrant
+	TLSSecrets              map[refKey]*corev1.Secret
+	Services                map[refKey]*corev1.Service
+}
+
+type httpRouteAndOriginalStatus struct {
+	route          *gateway_v1.HTTPRoute
+	originalStatus *gateway_v1.HTTPRouteStatus
 }
 
 // fetchObjects fetches all relevant Gateway objects.
 func (c *gatewayController) fetchObjects(ctx context.Context) (*objects, error) {
-	o := objects{
-		Gateways:            make(map[refKey]*gateway_v1.Gateway),
-		HTTPRoutesByGateway: make(map[refKey][]httpRouteAndParentRef),
-		TLSSecrets:          make(map[refKey]*corev1.Secret),
-	}
+	var o objects
 
 	// Fetch all GatewayClasses and filter by controller name.
 	var gcl gateway_v1.GatewayClassList
@@ -44,6 +48,7 @@ func (c *gatewayController) fetchObjects(ctx context.Context) (*objects, error) 
 	if err := c.List(ctx, &gl); err != nil {
 		return nil, err
 	}
+	o.Gateways = make(map[refKey]*gateway_v1.Gateway)
 	for i := range gl.Items {
 		g := &gl.Items[i]
 		// XXX: do we need to compare namespace as well here?
@@ -57,16 +62,30 @@ func (c *gatewayController) fetchObjects(ctx context.Context) (*objects, error) 
 	if err := c.List(ctx, &hrl); err != nil {
 		return nil, err
 	}
+	o.HTTPRoutesByGateway = make(map[refKey][]httpRouteInfo)
 	for i := range hrl.Items {
 		hr := &hrl.Items[i]
+		o.OriginalHTTPRouteStatus = append(o.OriginalHTTPRouteStatus,
+			httpRouteAndOriginalStatus{route: hr, originalStatus: hr.Status.DeepCopy()})
 		for j := range hr.Spec.ParentRefs {
 			pr := &hr.Spec.ParentRefs[j]
 			key := refKeyForParentRef(hr, pr)
 			if _, ok := o.Gateways[key]; ok {
 				o.HTTPRoutesByGateway[key] = append(o.HTTPRoutesByGateway[key],
-					httpRouteAndParentRef{hr, pr})
+					newHTTPRouteInfo(hr, pr, c.controllerName))
 			}
 		}
+	}
+
+	// Fetch all Namespaces (the labels may be needed for the allowedRoutes restrictions).
+	var nl corev1.NamespaceList
+	if err := c.List(ctx, &nl); err != nil {
+		return nil, err
+	}
+	o.Namespaces = make(map[string]*corev1.Namespace)
+	for i := range nl.Items {
+		n := &nl.Items[i]
+		o.Namespaces[n.Name] = n
 	}
 
 	// Fetch all ReferenceGrants.
@@ -74,6 +93,7 @@ func (c *gatewayController) fetchObjects(ctx context.Context) (*objects, error) 
 	if err := c.List(ctx, &rgl); err != nil {
 		return nil, err
 	}
+	o.ReferenceGrants = make(map[refKey]*gateway_v1beta1.ReferenceGrant)
 	for i := range rgl.Items {
 		rg := &rgl.Items[i]
 		o.ReferenceGrants[refKeyForObject(rg)] = rg
@@ -84,10 +104,52 @@ func (c *gatewayController) fetchObjects(ctx context.Context) (*objects, error) 
 	if err := c.List(ctx, &sl, client.MatchingFields{"type": string(corev1.SecretTypeTLS)}); err != nil {
 		return nil, err
 	}
+	o.TLSSecrets = make(map[refKey]*corev1.Secret)
 	for i := range sl.Items {
 		s := &sl.Items[i]
 		o.TLSSecrets[refKeyForObject(s)] = s
 	}
 
+	// Fetch all Services.
+	var servicesList corev1.ServiceList
+	if err := c.List(ctx, &servicesList); err != nil {
+		return nil, err
+	}
+	o.Services = make(map[refKey]*corev1.Service)
+	for i := range servicesList.Items {
+		s := &servicesList.Items[i]
+		o.Services[refKeyForObject(s)] = s
+	}
+
 	return &o, nil
+}
+
+type httpRouteInfo struct {
+	route  *gateway_v1.HTTPRoute
+	parent *gateway_v1.ParentReference
+	status *gateway_v1.RouteParentStatus
+}
+
+// newHTTPRouteInfo populates an httpRouteInfo struct, allocating a RouteParentStatus if needed.
+func newHTTPRouteInfo(
+	route *gateway_v1.HTTPRoute,
+	parent *gateway_v1.ParentReference,
+	controllerName string,
+) httpRouteInfo {
+	r := httpRouteInfo{route: route, parent: parent}
+	refKey := refKeyForParentRef(route, parent)
+	for i := range route.Status.Parents {
+		r.status = &route.Status.Parents[i]
+		if refKeyForParentRef(r.route, &r.status.ParentRef) == refKey {
+			return r
+		}
+	}
+
+	end := len(r.route.Status.Parents)
+	r.route.Status.Parents = append(r.route.Status.Parents, gateway_v1.RouteParentStatus{
+		ParentRef:      *parent,
+		ControllerName: gateway_v1.GatewayController(controllerName),
+	})
+	r.status = &r.route.Status.Parents[end]
+	return r
 }
