@@ -7,7 +7,6 @@ import (
 
 	"github.com/hashicorp/go-set/v3"
 	"github.com/pomerium/ingress-controller/model"
-	"github.com/pomerium/pomerium/pkg/slices"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -113,34 +112,44 @@ func processCertificateRefs(
 		return
 	}
 
-	// XXX: cross-namespace permissions:
-	// References to a resource in different namespace are invalid UNLESS there is a ReferenceGrant in the
-	// target namespace that allows the certificate to be attached. If a ReferenceGrant does not allow this
-	// reference, the “ResolvedRefs” condition MUST be set to False for this listener with the
-	// “RefNotPermitted” reason.
-
 	var hasValidRef bool
-	invalidRefs := set.New[refKey](0)
+	invalidRefs := make(map[gateway_v1.ListenerConditionReason][]string)
+	invalid := func(reason gateway_v1.ListenerConditionReason, name string) {
+		invalidRefs[reason] = append(invalidRefs[reason], name)
+	}
 	for i := range l.listener.TLS.CertificateRefs {
 		k := refKeyForCertificateRef(g, &l.listener.TLS.CertificateRefs[i])
-		secret, ok := o.TLSSecrets[k]
-		if ok && validateTLSSecret(secret) == nil {
-			config.Certificates = append(config.Certificates, secret)
-			hasValidRef = true
-		} else {
-			invalidRefs.Insert(k)
+		if !o.ReferenceGrants.allowed(g, k) {
+			invalid(gateway_v1.ListenerReasonRefNotPermitted, k.Name)
+			continue
 		}
+
+		secret, ok := o.TLSSecrets[k]
+		if !ok || validateTLSSecret(secret) != nil {
+			invalid(gateway_v1.ListenerReasonInvalidCertificateRef, k.Name)
+			continue
+		}
+
+		config.Certificates = append(config.Certificates, secret)
+		hasValidRef = true
 	}
 
-	if !invalidRefs.Empty() {
-		invalidRefNames := slices.Map(invalidRefs.Slice(), func(k refKey) string { return k.Name })
-		upsertCondition(&l.status.Conditions, l.generation, metav1.Condition{
-			Type:    string(gateway_v1.ListenerConditionResolvedRefs),
-			Status:  metav1.ConditionFalse,
-			Reason:  string(gateway_v1.ListenerReasonInvalidCertificateRef),
-			Message: "invalid certificate refs: " + strings.Join(invalidRefNames, ", "),
-		})
+	resolvedRefs := metav1.Condition{
+		Type:   string(gateway_v1.RouteConditionResolvedRefs),
+		Status: metav1.ConditionTrue,
+		Reason: string(gateway_v1.RouteReasonResolvedRefs),
 	}
+
+	var messages []string
+	for reason, refNames := range invalidRefs {
+		resolvedRefs.Status = metav1.ConditionFalse
+		resolvedRefs.Reason = string(reason) // if multiple reasons apply this will set one arbitrarily
+		messages = append(messages, "invalid certificate refs ("+string(reason)+"): "+strings.Join(refNames, ", "))
+	}
+	resolvedRefs.Message = strings.Join(messages, "; ")
+
+	upsertCondition(&l.status.Conditions, l.generation, resolvedRefs)
+
 	if !hasValidRef {
 		upsertCondition(&l.status.Conditions, l.generation, metav1.Condition{
 			Type:   string(gateway_v1.ListenerConditionProgrammed),

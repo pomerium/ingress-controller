@@ -6,15 +6,22 @@ import (
 
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 
+	"github.com/pomerium/ingress-controller/model"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 // applyBackendRefs translates backendRefs to a weighted set of Pomerium "To" URLs.
 // [applyFilters] must be called prior to this method.
-func applyBackendRefs(route *pb.Route, backendRefs []gateway_v1.HTTPBackendRef, defaultNamespace string) {
+func applyBackendRefs(
+	route *pb.Route,
+	gc *model.GatewayHTTPRouteConfig,
+	backendRefs []gateway_v1.HTTPBackendRef,
+) {
 	for i := range backendRefs {
-		// XXX: filter out invalid backend refs
-		if u := backendRefToToURL(&backendRefs[i], defaultNamespace); u != "" {
+		if !gc.ValidBackendRefs.Contains(&backendRefs[i].BackendRef) {
+			continue
+		}
+		if u := backendRefToToURL(&backendRefs[i], gc.Namespace); u != "" {
 			route.To = append(route.To, u)
 		}
 	}

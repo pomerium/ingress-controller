@@ -26,7 +26,7 @@ type GatewayHTTPRouteConfig struct {
 	// HTTPRoute Spec depending on the Gateway configuration. "All" is represented as "*".
 	Hostnames []gateway_v1.Hostname
 
-	ValidBackendRefs set.Collection[*gateway_v1.BackendObjectReference]
+	ValidBackendRefs set.Collection[*gateway_v1.BackendRef]
 
 	// XXX: these I copied from IngressConfig, need to make sure what's actually needed
 	Endpoints map[types.NamespacedName]*corev1.Endpoints

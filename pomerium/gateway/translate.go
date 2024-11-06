@@ -6,7 +6,6 @@ import (
 	"github.com/pomerium/ingress-controller/model"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"google.golang.org/protobuf/proto"
-	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 func GatewayRoutes(gc *model.GatewayHTTPRouteConfig) []*pb.Route {
@@ -16,7 +15,7 @@ func GatewayRoutes(gc *model.GatewayHTTPRouteConfig) []*pb.Route {
 	//  - An HTTPRouteRule may have multiple HTTPRouteMatches.
 	// First we'll expand all HTTPRouteRules into "template" Pomerium routes, and then we'll
 	// repeat each "template" route once per hostname.
-	trs := templateRoutes(gc.HTTPRoute)
+	trs := templateRoutes(gc)
 
 	prs := make([]*pb.Route, len(gc.Hostnames)*len(trs))
 	i := 0
@@ -37,7 +36,7 @@ func GatewayRoutes(gc *model.GatewayHTTPRouteConfig) []*pb.Route {
 }
 
 // templateRoutes converts an HTTPRoute into zero or more Pomerium routes, ignoring hostname.
-func templateRoutes(gc *gateway_v1.HTTPRoute) []*pb.Route {
+func templateRoutes(gc *model.GatewayHTTPRouteConfig) []*pb.Route {
 	// XXX: error reporting for any unsupported features (maybe as a separate pass in the reconcile loop?)
 
 	var prs []*pb.Route
@@ -58,7 +57,7 @@ func templateRoutes(gc *gateway_v1.HTTPRoute) []*pb.Route {
 		pr.PreserveHostHeader = true
 
 		applyFilters(pr, rule.Filters)
-		applyBackendRefs(pr, rule.BackendRefs, gc.Namespace)
+		applyBackendRefs(pr, gc, rule.BackendRefs)
 
 		if len(rule.Matches) == 0 {
 			prs = append(prs, pr)

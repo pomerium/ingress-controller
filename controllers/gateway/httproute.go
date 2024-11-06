@@ -11,6 +11,11 @@ import (
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
+type httpRouteResult struct {
+	Hostnames        []gateway_v1.Hostname
+	ValidBackendRefs set.Collection[*gateway_v1.BackendRef]
+}
+
 // processHTTPRoute checks the validity of an HTTPRoute, updates its status accordingly, and
 // computes its matching hostnames (with "all" represented as "*").
 func processHTTPRoute(
@@ -18,8 +23,10 @@ func processHTTPRoute(
 	g *gateway_v1.Gateway,
 	listeners map[string]listenerAndStatus,
 	r httpRouteInfo,
-) []gateway_v1.Hostname {
+) httpRouteResult {
 	golog.Printf(" *** processHTTPRoute: %s ***", r.route.Name) // XXX
+
+	var result httpRouteResult
 
 	// Reject this route early if it includes any per-backendRef filters as we don't support these.
 	if anyBackendRefHasFilters(r.route.Spec.Rules) {
@@ -29,10 +36,10 @@ func processHTTPRoute(
 			Reason:  string(gateway_v1.RouteReasonUnsupportedValue),
 			Message: "backendRef filters are not supported",
 		})
-		return nil
+		return result
 	}
 
-	validateHTTPRouteBackendRefsResolved(o, r)
+	result.ValidBackendRefs = validateHTTPRouteBackendRefsResolved(o, r)
 
 	// An HTTPRoute may specify a listener name directly. In this case we should check for route
 	// attachment with just the one listener.
@@ -40,11 +47,12 @@ func processHTTPRoute(
 		l, ok := listeners[string(*r.parent.SectionName)]
 		if !ok {
 			setRouteStatusAccepted(r, gateway_v1.RouteReasonNoMatchingParent)
-			return nil
+			return result
 		}
 		ra := processHTTPRouteForListener(o, g, l, r.route)
 		setRouteStatusAccepted(r, ra.reason)
-		return ra.hostnames
+		result.Hostnames = ra.hostnames
+		return result
 	}
 
 	// Otherwise check for route attachement with all listeners.
@@ -63,7 +71,8 @@ func processHTTPRoute(
 		reason = gateway_v1.RouteReasonNoMatchingParent // no listeners at all
 	}
 	setRouteStatusAccepted(r, reason)
-	return hostnamesSet.Slice()
+	result.Hostnames = hostnamesSet.Slice()
+	return result
 }
 
 func anyBackendRefHasFilters(rules []gateway_v1.HTTPRouteRule) bool {
@@ -78,9 +87,12 @@ func anyBackendRefHasFilters(rules []gateway_v1.HTTPRouteRule) bool {
 	return false
 }
 
-func validateHTTPRouteBackendRefsResolved(o *objects, r httpRouteInfo) (ok bool) {
+func validateHTTPRouteBackendRefsResolved(
+	o *objects,
+	r httpRouteInfo,
+) (validRefs set.Collection[*gateway_v1.BackendRef]) {
 	// Check that all backendRefs can be resolved.
-	var hasAnyValidBackendRef bool
+	validRefs = set.New[*gateway_v1.BackendRef](0)
 	invalidRefs := make(map[gateway_v1.RouteConditionReason][]string)
 	invalid := func(reason gateway_v1.RouteConditionReason, name string) {
 		invalidRefs[reason] = append(invalidRefs[reason], name)
@@ -100,7 +112,7 @@ func validateHTTPRouteBackendRefsResolved(o *objects, r httpRouteInfo) (ok bool)
 			if o.Services[refKey] == nil {
 				invalid(gateway_v1.RouteReasonBackendNotFound, refKey.Name)
 			}
-			hasAnyValidBackendRef = true
+			validRefs.Insert(&rule.BackendRefs[i].BackendRef)
 		}
 	}
 
@@ -120,7 +132,7 @@ func validateHTTPRouteBackendRefsResolved(o *objects, r httpRouteInfo) (ok bool)
 
 	upsertCondition(&r.status.Conditions, r.route.Generation, resolvedRefs)
 
-	return hasAnyValidBackendRef
+	return validRefs
 }
 
 type routeAttachment struct {

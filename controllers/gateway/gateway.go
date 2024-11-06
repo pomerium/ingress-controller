@@ -67,12 +67,12 @@ func (c *gatewayController) processGateway(
 	}
 
 	for _, r := range o.HTTPRoutesByGateway[gatewayKey] {
-		hostnames := processHTTPRoute(o, gateway, listenersByName, r)
-		if len(hostnames) > 0 {
+		result := processHTTPRoute(o, gateway, listenersByName, r)
+		if len(result.Hostnames) > 0 {
 			config.Routes = append(config.Routes, model.GatewayHTTPRouteConfig{
-				HTTPRoute: r.route,
-				Hostnames: hostnames,
-				// XXX: other references?
+				HTTPRoute:        r.route,
+				Hostnames:        result.Hostnames,
+				ValidBackendRefs: result.ValidBackendRefs,
 			})
 		}
 	}

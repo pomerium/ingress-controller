@@ -30,6 +30,11 @@ func buildReferenceGrantMap(grants []gateway_v1beta1.ReferenceGrant) referenceGr
 }
 
 func (m referenceGrantMap) allowed(from client.Object, toKey refKey) bool {
+	// A ReferenceGrant is not required for references within a single namespace.
+	if from.GetNamespace() == toKey.Namespace {
+		return true
+	}
+
 	fromKey := refKeyForObject(from)
 	fromKey.Name = ""
 
