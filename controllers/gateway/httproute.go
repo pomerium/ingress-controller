@@ -8,12 +8,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 type httpRouteResult struct {
 	Hostnames        []gateway_v1.Hostname
-	ValidBackendRefs set.Collection[*gateway_v1.BackendRef]
+	ValidBackendRefs backendRefSet
+
+	IsHTTPS bool // XXX
 }
 
 // processHTTPRoute checks the validity of an HTTPRoute, updates its status accordingly, and
@@ -52,6 +55,7 @@ func processHTTPRoute(
 		ra := processHTTPRouteForListener(o, g, l, r.route)
 		setRouteStatusAccepted(r, ra.reason)
 		result.Hostnames = ra.hostnames
+		result.IsHTTPS = ra.isHTTPS // XXX
 		return result
 	}
 
@@ -65,6 +69,9 @@ func processHTTPRoute(
 		// Otherwise we'll return the reason associated with the first listener.
 		if reason == "" || ra.reason == gateway_v1.RouteReasonAccepted {
 			reason = ra.reason
+		}
+		if ra.isHTTPS {
+			result.IsHTTPS = true // XXX
 		}
 	}
 	if reason == "" {
@@ -90,9 +97,8 @@ func anyBackendRefHasFilters(rules []gateway_v1.HTTPRouteRule) bool {
 func validateHTTPRouteBackendRefsResolved(
 	o *objects,
 	r httpRouteInfo,
-) (validRefs set.Collection[*gateway_v1.BackendRef]) {
+) (validRefs backendRefSet) {
 	// Check that all backendRefs can be resolved.
-	validRefs = set.New[*gateway_v1.BackendRef](0)
 	invalidRefs := make(map[gateway_v1.RouteConditionReason][]string)
 	invalid := func(reason gateway_v1.RouteConditionReason, name string) {
 		invalidRefs[reason] = append(invalidRefs[reason], name)
@@ -112,7 +118,7 @@ func validateHTTPRouteBackendRefsResolved(
 			if o.Services[refKey] == nil {
 				invalid(gateway_v1.RouteReasonBackendNotFound, refKey.Name)
 			}
-			validRefs.Insert(&rule.BackendRefs[i].BackendRef)
+			validRefs.insert(r.route, &rule.BackendRefs[i].BackendRef)
 		}
 	}
 
@@ -141,6 +147,8 @@ type routeAttachment struct {
 
 	// "Accepted" condition status reason.
 	reason gateway_v1.RouteConditionReason
+
+	isHTTPS bool // XXX
 }
 
 func processHTTPRouteForListener(
@@ -163,6 +171,7 @@ func processHTTPRouteForListener(
 	return routeAttachment{
 		hostnames: hostnames,
 		reason:    gateway_v1.RouteReasonAccepted,
+		isHTTPS:   l.listener.Protocol == gateway_v1.HTTPSProtocolType,
 	}
 }
 
@@ -260,8 +269,20 @@ func setRouteStatusAccepted(
 	})
 }
 
-// XXX: not sure how to accomplish this:
-// When a HTTPBackendRef is invalid, 500 status codes MUST be returned for requests that would
-// have otherwise been routed to an invalid backend. If multiple backends are specified, and some
-// are invalid, the proportion of requests that would otherwise have been routed to an invalid
-// backend MUST receive a 500 status code.
+type backendRefSet struct {
+	c set.Collection[refKey]
+}
+
+func (b *backendRefSet) insert(obj client.Object, r *gateway_v1.BackendRef) {
+	if b.c == nil {
+		b.c = set.New[refKey](1)
+	}
+	b.c.Insert(refKeyForBackendRef(obj, &r.BackendObjectReference))
+}
+
+func (b backendRefSet) Valid(obj client.Object, r *gateway_v1.BackendRef) bool {
+	if b.c == nil {
+		return false
+	}
+	return b.c.Contains(refKeyForBackendRef(obj, &r.BackendObjectReference))
+}

@@ -6,14 +6,17 @@ import (
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
-func applyMatch(route *pb.Route, match *gateway_v1.HTTPRouteMatch) {
-	if match.Path != nil {
-		applyPathMatch(route, match.Path)
+func applyMatch(route *pb.Route, match *gateway_v1.HTTPRouteMatch) (ok bool) {
+	if len(match.Headers) > 0 || len(match.QueryParams) > 0 || match.Method != nil {
+		return false // these features are not supported yet
+		// XXX: need to propagate this back into a status condition somehow
 	}
+	applyPathMatch(route, match.Path)
+	return true
 }
 
 func applyPathMatch(route *pb.Route, match *gateway_v1.HTTPPathMatch) {
-	if match.Type == nil || match.Value == nil {
+	if match == nil || match.Type == nil || match.Value == nil {
 		return
 	}
 

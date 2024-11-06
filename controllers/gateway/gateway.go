@@ -2,6 +2,7 @@ package gateway
 
 import (
 	context "context"
+	"log"
 	golog "log"
 
 	"github.com/pomerium/ingress-controller/model"
@@ -68,12 +69,20 @@ func (c *gatewayController) processGateway(
 
 	for _, r := range o.HTTPRoutesByGateway[gatewayKey] {
 		result := processHTTPRoute(o, gateway, listenersByName, r)
+		// XXX
+		log.Printf("processHTTPRoute results for %s:\n  hostnames: %v\n  valid refs: %v",
+			r.route.Name, result.Hostnames, result.ValidBackendRefs)
 		if len(result.Hostnames) > 0 {
 			config.Routes = append(config.Routes, model.GatewayHTTPRouteConfig{
 				HTTPRoute:        r.route,
 				Hostnames:        result.Hostnames,
 				ValidBackendRefs: result.ValidBackendRefs,
 			})
+
+			// XXX
+			if result.IsHTTPS {
+				config.IsHTTPOnly = false
+			}
 		}
 	}
 
@@ -81,17 +90,15 @@ func (c *gatewayController) processGateway(
 
 	upsertGatewayConditions(gateway,
 		metav1.Condition{
-			Type:    string(gateway_v1.GatewayConditionAccepted),
-			Status:  metav1.ConditionTrue,
-			Reason:  string(gateway_v1.GatewayReasonAccepted),
-			Message: "", // XXX
+			Type:   string(gateway_v1.GatewayConditionAccepted),
+			Status: metav1.ConditionTrue,
+			Reason: string(gateway_v1.GatewayReasonAccepted),
 		},
 		// XXX: how to determine if anything is "Programmed"?
 		metav1.Condition{
-			Type:    string(gateway_v1.GatewayConditionProgrammed),
-			Status:  metav1.ConditionTrue,
-			Reason:  string(gateway_v1.GatewayReasonProgrammed),
-			Message: "", // XXX
+			Type:   string(gateway_v1.GatewayConditionProgrammed),
+			Status: metav1.ConditionTrue,
+			Reason: string(gateway_v1.GatewayReasonProgrammed),
 		},
 	)
 

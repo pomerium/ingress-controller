@@ -66,8 +66,9 @@ func templateRoutes(gc *model.GatewayHTTPRouteConfig) []*pb.Route {
 
 		for j := range rule.Matches {
 			cloned := proto.Clone(pr).(*pb.Route)
-			applyMatch(cloned, &rule.Matches[j])
-			prs = append(prs, cloned)
+			if applyMatch(cloned, &rule.Matches[j]) {
+				prs = append(prs, cloned)
+			}
 		}
 	}
 

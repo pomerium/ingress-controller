@@ -2,9 +2,9 @@
 package model
 
 import (
-	"github.com/hashicorp/go-set/v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
@@ -26,7 +26,8 @@ type GatewayHTTPRouteConfig struct {
 	// HTTPRoute Spec depending on the Gateway configuration. "All" is represented as "*".
 	Hostnames []gateway_v1.Hostname
 
-	ValidBackendRefs set.Collection[*gateway_v1.BackendRef]
+	//ValidBackendRefs set.Collection[*gateway_v1.BackendRef]
+	ValidBackendRefs BackendRefChecker
 
 	// XXX: these I copied from IngressConfig, need to make sure what's actually needed
 	Endpoints map[types.NamespacedName]*corev1.Endpoints
@@ -35,3 +36,6 @@ type GatewayHTTPRouteConfig struct {
 }
 
 // XXX
+type BackendRefChecker interface {
+	Valid(obj client.Object, r *gateway_v1.BackendRef) bool
+}

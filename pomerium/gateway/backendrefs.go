@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -18,7 +19,8 @@ func applyBackendRefs(
 	backendRefs []gateway_v1.HTTPBackendRef,
 ) {
 	for i := range backendRefs {
-		if !gc.ValidBackendRefs.Contains(&backendRefs[i].BackendRef) {
+		if !gc.ValidBackendRefs.Valid(gc.HTTPRoute, &backendRefs[i].BackendRef) {
+			log.Printf("backendRef %v not valid", &backendRefs[i].BackendRef) // XXX
 			continue
 		}
 		if u := backendRefToToURL(&backendRefs[i], gc.Namespace); u != "" {

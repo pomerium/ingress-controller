@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/go-set/v3"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 	gateway_v1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
@@ -133,10 +134,9 @@ func newHTTPRouteInfo(
 	controllerName string,
 ) httpRouteInfo {
 	r := httpRouteInfo{route: route, parent: parent}
-	refKey := refKeyForParentRef(route, parent)
 	for i := range route.Status.Parents {
 		r.status = &route.Status.Parents[i]
-		if refKeyForParentRef(r.route, &r.status.ParentRef) == refKey {
+		if equality.Semantic.DeepEqual(&r.status.ParentRef, parent) {
 			return r
 		}
 	}
