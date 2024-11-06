@@ -23,8 +23,9 @@ func applyBackendRefs(
 			log.Printf("backendRef %v not valid", &backendRefs[i].BackendRef) // XXX
 			continue
 		}
-		if u := backendRefToToURL(&backendRefs[i], gc.Namespace); u != "" {
+		if u, w := backendRefToToURLAndWeight(&backendRefs[i], gc.Namespace); w > 0 {
 			route.To = append(route.To, u)
+			route.LoadBalancingWeights = append(route.LoadBalancingWeights, w)
 		}
 	}
 
@@ -39,7 +40,10 @@ func applyBackendRefs(
 	}
 }
 
-func backendRefToToURL(br *gateway_v1.HTTPBackendRef, defaultNamespace string) string {
+func backendRefToToURLAndWeight(
+	br *gateway_v1.HTTPBackendRef,
+	defaultNamespace string,
+) (string, uint32) {
 	// XXX: this assumes the kind is "Service"
 	namespace := defaultNamespace
 	if br.Namespace != nil {
@@ -47,14 +51,10 @@ func backendRefToToURL(br *gateway_v1.HTTPBackendRef, defaultNamespace string) s
 	}
 	u := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", br.Name, namespace, *br.Port)
 
+	weight := uint32(1)
 	if br.Weight != nil {
-		w := *br.Weight
-		// No traffic should be sent to a backend with weight equal to zero.
-		if w == 0 {
-			return ""
-		}
-		u = fmt.Sprintf("%s,%d", u, w)
+		weight = uint32(*br.Weight)
 	}
 
-	return u
+	return u, weight
 }
