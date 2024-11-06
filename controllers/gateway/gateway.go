@@ -5,6 +5,7 @@ import (
 	golog "log"
 
 	"github.com/pomerium/ingress-controller/model"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -17,6 +18,7 @@ func (c *gatewayController) processGateways(
 	o *objects,
 ) *model.GatewayConfig {
 	var config model.GatewayConfig
+	config.IsHTTPOnly = true // XXX
 
 	for key := range o.Gateways {
 		c.processGateway(ctx, &config, o, key)
@@ -75,7 +77,7 @@ func (c *gatewayController) processGateway(
 		}
 	}
 
-	// TODO: update other Gateway status (Addresses)
+	updateGatewayAddresses(o, gateway)
 
 	upsertGatewayConditions(gateway,
 		metav1.Condition{
@@ -125,6 +127,34 @@ func ensureListenerStatusExists(g *gateway_v1.Gateway) {
 	g.Status.Listeners = make([]gateway_v1.ListenerStatus, len(g.Spec.Listeners))
 	for i := range len(g.Spec.Listeners) {
 		g.Status.Listeners[i] = listenerStatusMap[string(g.Spec.Listeners[i].Name)]
+	}
+}
+
+var (
+	gatewayAddressTypeIPAddress = gateway_v1.AddressType("IPAddress")
+	gatewayAddressTypeHostname  = gateway_v1.AddressType("Hostname")
+)
+
+func updateGatewayAddresses(o *objects, gateway *gateway_v1.Gateway) {
+	// Copy the external addresses from the "pomerium-proxy" service.
+	proxy := o.Services[refKey{Group: corev1.GroupName, Kind: "Service", Namespace: "pomerium", Name: "pomerium-proxy"}]
+	if proxy == nil {
+		// XXX: what to do if no "pomerium-proxy" service exists?
+		return
+	}
+	gateway.Status.Addresses = make([]gateway_v1.GatewayStatusAddress, 0, len(proxy.Status.LoadBalancer.Ingress))
+	for _, ingress := range proxy.Status.LoadBalancer.Ingress {
+		if ingress.IP != "" {
+			gateway.Status.Addresses = append(gateway.Status.Addresses, gateway_v1.GatewayStatusAddress{
+				Type:  &gatewayAddressTypeIPAddress,
+				Value: ingress.IP,
+			})
+		} else if ingress.Hostname != "" {
+			gateway.Status.Addresses = append(gateway.Status.Addresses, gateway_v1.GatewayStatusAddress{
+				Type:  &gatewayAddressTypeHostname,
+				Value: ingress.Hostname,
+			})
+		}
 	}
 }
 

@@ -54,7 +54,9 @@ func processListener(
 	setListenerStatusSupportedKinds(l)
 	processCertificateRefs(config, o, g, l)
 
-	// XXX: validate allowedRoutes (Selector)
+	if l.listener.Protocol != gateway_v1.HTTPProtocolType {
+		config.IsHTTPOnly = false
+	}
 }
 
 // setListenerStatusSupportedKinds sets the status SupportedKinds and updates the conditions if any

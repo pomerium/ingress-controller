@@ -21,9 +21,21 @@ func processHTTPRoute(
 ) []gateway_v1.Hostname {
 	golog.Printf(" *** processHTTPRoute: %s ***", r.route.Name) // XXX
 
-	validateHTTPRouteBackendRefs(o, r)
+	// Reject this route early if it includes any per-backendRef filters as we don't support these.
+	if anyBackendRefHasFilters(r.route.Spec.Rules) {
+		upsertCondition(&r.status.Conditions, r.route.Generation, metav1.Condition{
+			Type:    string(gateway_v1.RouteConditionAccepted),
+			Status:  metav1.ConditionFalse,
+			Reason:  string(gateway_v1.RouteReasonUnsupportedValue),
+			Message: "backendRef filters are not supported",
+		})
+		return nil
+	}
 
-	// An HTTPRoute may specify a listener name directly.
+	validateHTTPRouteBackendRefsResolved(o, r)
+
+	// An HTTPRoute may specify a listener name directly. In this case we should check for route
+	// attachment with just the one listener.
 	if r.parent.SectionName != nil {
 		l, ok := listeners[string(*r.parent.SectionName)]
 		if !ok {
@@ -54,8 +66,21 @@ func processHTTPRoute(
 	return hostnamesSet.Slice()
 }
 
-func validateHTTPRouteBackendRefs(o *objects, r httpRouteInfo) {
+func anyBackendRefHasFilters(rules []gateway_v1.HTTPRouteRule) bool {
+	for i := range rules {
+		rule := &rules[i]
+		for i := range rule.BackendRefs {
+			if len(rule.BackendRefs[i].Filters) > 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func validateHTTPRouteBackendRefsResolved(o *objects, r httpRouteInfo) (ok bool) {
 	// Check that all backendRefs can be resolved.
+	var hasAnyValidBackendRef bool
 	invalidRefs := make(map[gateway_v1.RouteConditionReason][]string)
 	invalid := func(reason gateway_v1.RouteConditionReason, name string) {
 		invalidRefs[reason] = append(invalidRefs[reason], name)
@@ -68,10 +93,14 @@ func validateHTTPRouteBackendRefs(o *objects, r httpRouteInfo) {
 				invalid(gateway_v1.RouteReasonInvalidKind, refKey.Name)
 				continue
 			}
+			if !o.ReferenceGrants.allowed(r.route, refKey) {
+				invalid(gateway_v1.RouteReasonRefNotPermitted, refKey.Name)
+				continue
+			}
 			if o.Services[refKey] == nil {
 				invalid(gateway_v1.RouteReasonBackendNotFound, refKey.Name)
 			}
-			// XXX: check backend ref permission
+			hasAnyValidBackendRef = true
 		}
 	}
 
@@ -90,6 +119,8 @@ func validateHTTPRouteBackendRefs(o *objects, r httpRouteInfo) {
 	resolvedRefs.Message = strings.Join(messages, "; ")
 
 	upsertCondition(&r.status.Conditions, r.route.Generation, resolvedRefs)
+
+	return hasAnyValidBackendRef
 }
 
 type routeAttachment struct {

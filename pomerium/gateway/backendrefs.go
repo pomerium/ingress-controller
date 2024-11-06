@@ -2,18 +2,30 @@ package gateway
 
 import (
 	"fmt"
+	"net/http"
 
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
-// XXX: make sure we reject any routes with filters defined on a backendRef
-
+// applyBackendRefs translates backendRefs to a weighted set of Pomerium "To" URLs.
+// [applyFilters] must be called prior to this method.
 func applyBackendRefs(route *pb.Route, backendRefs []gateway_v1.HTTPBackendRef, defaultNamespace string) {
 	for i := range backendRefs {
+		// XXX: filter out invalid backend refs
 		if u := backendRefToToURL(&backendRefs[i], defaultNamespace); u != "" {
 			route.To = append(route.To, u)
+		}
+	}
+
+	// From the spec: "If all entries in BackendRefs are invalid, and there are also no filters
+	// specified in this route rule, all traffic which matches this rule MUST receive a 500 status
+	// code."
+	if route.Redirect == nil && len(route.To) == 0 {
+		route.Response = &pb.RouteDirectResponse{
+			Status: http.StatusInternalServerError,
+			Body:   "no valid backend",
 		}
 	}
 }

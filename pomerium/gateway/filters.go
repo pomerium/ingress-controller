@@ -29,6 +29,8 @@ func applyRequestHeaderFilter(route *pb.Route, filter *gateway_v1.HTTPHeaderFilt
 	// XXX: "append" is not supported
 	route.SetRequestHeaders = makeHeadersMap(filter.Set)
 	route.RemoveRequestHeaders = filter.Remove
+
+	// XXX: should host header rewriting be supported? if so, we can't use SetRequestHeaders for it
 }
 
 func makeHeadersMap(headers []gateway_v1.HTTPHeader) map[string]string {

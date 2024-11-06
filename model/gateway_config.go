@@ -2,6 +2,7 @@
 package model
 
 import (
+	"github.com/hashicorp/go-set/v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -11,6 +12,7 @@ import (
 type GatewayConfig struct {
 	Routes       []GatewayHTTPRouteConfig
 	Certificates []*corev1.Secret
+	IsHTTPOnly   bool
 }
 
 // XXX: need to think more about incremental updates to certificates
@@ -21,9 +23,10 @@ type GatewayHTTPRouteConfig struct {
 	*gateway_v1.HTTPRoute
 
 	// Hostnames this route should match. This may differ from the list of Hostnames in the
-	// HTTPRoute Spec depending on the Gateway configuration.
-	// XXX: should we set this to {"*"} to represent matching all hostnames?
+	// HTTPRoute Spec depending on the Gateway configuration. "All" is represented as "*".
 	Hostnames []gateway_v1.Hostname
+
+	ValidBackendRefs set.Collection[*gateway_v1.BackendObjectReference]
 
 	// XXX: these I copied from IngressConfig, need to make sure what's actually needed
 	Endpoints map[types.NamespacedName]*corev1.Endpoints

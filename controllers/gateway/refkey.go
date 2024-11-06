@@ -4,6 +4,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
+	gateway_v1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 )
 
 // refKey is an object reference in a form suitable for use as a map key.
@@ -96,5 +97,26 @@ func refKeyForBackendRef(obj client.Object, ref *gateway_v1.BackendObjectReferen
 		Kind:      kind,
 		Namespace: namespace,
 		Name:      string(ref.Name),
+	}
+}
+
+func refKeyForReferenceGrantFrom(from gateway_v1beta1.ReferenceGrantFrom) refKey {
+	return refKey{
+		Group:     string(from.Group),
+		Kind:      string(from.Kind),
+		Namespace: string(from.Namespace),
+	}
+}
+
+func refKeyForReferenceGrantTo(namespace string, to gateway_v1beta1.ReferenceGrantTo) refKey {
+	var name string
+	if to.Name != nil {
+		name = string(*to.Name)
+	}
+	return refKey{
+		Group:     string(to.Group),
+		Kind:      string(to.Kind),
+		Namespace: namespace,
+		Name:      name,
 	}
 }

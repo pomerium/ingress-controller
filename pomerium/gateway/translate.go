@@ -13,22 +13,12 @@ func GatewayRoutes(gc *model.GatewayHTTPRouteConfig) []*pb.Route {
 	// A single HTTPRoute may need to be represented using many Pomerium routes:
 	//  - An HTTPRoute may have multiple hostnames.
 	//  - An HTTPRoute may have multiple HTTPRouteRules.
-	//  - An HTTPRouteRule may have multiple
+	//  - An HTTPRouteRule may have multiple HTTPRouteMatches.
 	// First we'll expand all HTTPRouteRules into "template" Pomerium routes, and then we'll
 	// repeat each "template" route once per hostname.
 	trs := templateRoutes(gc.HTTPRoute)
 
-	// Special case: if no hostname is defined, the routes should match all hostnames.
-	// We can represent this as a wildcard Pomerium route.
-	hostnameCount := len(gc.Hostnames)
-	if hostnameCount == 0 {
-		for i := range trs {
-			trs[i].From = "https://*"
-		}
-		return trs
-	}
-
-	prs := make([]*pb.Route, hostnameCount*len(trs))
+	prs := make([]*pb.Route, len(gc.Hostnames)*len(trs))
 	i := 0
 	for _, h := range gc.Hostnames {
 		from := (&url.URL{
@@ -61,8 +51,13 @@ func templateRoutes(gc *gateway_v1.HTTPRoute) []*pb.Route {
 		// DO NOT MERGE
 		pr.AllowPublicUnauthenticatedAccess = true
 
+		// From the spec (near https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io%2fv1.HTTPRoute):
+		// "Implementations MUST ignore any port value specified in the HTTP Host header while
+		// performing a match and (absent of any applicable header modification configuration) MUST
+		// forward this header unmodified to the backend."
+		pr.PreserveHostHeader = true
+
 		applyFilters(pr, rule.Filters)
-		// XXX: figure out what to do if there are no non-zero weight backendRefs
 		applyBackendRefs(pr, rule.BackendRefs, gc.Namespace)
 
 		if len(rule.Matches) == 0 {

@@ -160,6 +160,10 @@ func (r *DataBrokerReconciler) GatewaySetConfig(
 	}
 	// XXX: do we need to validate certs too?
 
+	// XXX: temporary for testing non-https routes
+	next.Settings.InsecureServer = proto.Bool(config.IsHTTPOnly)
+	// DO NOT MERGE
+
 	b, _ := protojson.Marshal(next)
 	golog.Println("new config: " + string(b))
 

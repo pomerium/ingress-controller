@@ -16,7 +16,7 @@ type objects struct {
 	HTTPRoutesByGateway     map[refKey][]httpRouteInfo
 	OriginalHTTPRouteStatus []httpRouteAndOriginalStatus
 	Namespaces              map[string]*corev1.Namespace
-	ReferenceGrants         map[refKey]*gateway_v1beta1.ReferenceGrant
+	ReferenceGrants         referenceGrantMap
 	TLSSecrets              map[refKey]*corev1.Secret
 	Services                map[refKey]*corev1.Service
 }
@@ -93,11 +93,7 @@ func (c *gatewayController) fetchObjects(ctx context.Context) (*objects, error) 
 	if err := c.List(ctx, &rgl); err != nil {
 		return nil, err
 	}
-	o.ReferenceGrants = make(map[refKey]*gateway_v1beta1.ReferenceGrant)
-	for i := range rgl.Items {
-		rg := &rgl.Items[i]
-		o.ReferenceGrants[refKeyForObject(rg)] = rg
-	}
+	o.ReferenceGrants = buildReferenceGrantMap(rgl.Items)
 
 	// Fetch all TLS secrets.
 	var sl corev1.SecretList
