@@ -27,8 +27,10 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	ingress_controller "github.com/pomerium/ingress-controller/controllers/ingress"
@@ -209,6 +211,7 @@ func (s *ControllerTestSuite) deleteAll() {
 }
 
 func (s *ControllerTestSuite) TearDownTest() {
+	s.T().Log("TearDownTest")
 	if s.mgrCtxCancel == nil {
 		s.deleteAll()
 		return
@@ -227,7 +230,11 @@ func (s *ControllerTestSuite) TearDownSuite() {
 func (s *ControllerTestSuite) createTestController(ctx context.Context, opts ...ingress_controller.Option) {
 	s.mockPomeriumReconciler = &mockPomeriumReconciler{}
 
-	mgr, err := ctrl.NewManager(s.Environment.Config, ctrl.Options{
+	skipNameValidation := true
+	mgr, err := ctrl.NewManager(s.Environment.Config, manager.Options{
+		Controller: config.Controller{
+			SkipNameValidation: &skipNameValidation,
+		},
 		Scheme: s.Environment.Scheme,
 	})
 	s.NoError(err)
