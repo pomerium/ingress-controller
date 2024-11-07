@@ -8,6 +8,7 @@ words:
   - deepcopy
   - envtest
   - filemgr
+  - hostnames
   - mockgen
   - oidc
   - pomerium

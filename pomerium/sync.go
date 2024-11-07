@@ -23,18 +23,22 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 
 	"github.com/pomerium/ingress-controller/model"
+	"github.com/pomerium/ingress-controller/pomerium/gateway"
 )
 
 const (
-	// IngressControllerConfigID is configuration containing routes and their certs
+	// IngressControllerConfigID is for Ingress-defined configuration
 	IngressControllerConfigID = "ingress-controller"
-	// SharedSettingsConfigID is configuration containing shared settings derived from the PomeriumCRD
+	// GatewayControllerConfigID is for Gateway-defined configuration
+	GatewayControllerConfigID = "gateway-controller"
+	// SharedSettingsConfigID is for configuration derived from the Pomerium CRD
 	SharedSettingsConfigID = "pomerium-crd"
 )
 
 var (
-	_ = IngressReconciler(new(DataBrokerReconciler))
-	_ = ConfigReconciler(new(DataBrokerReconciler))
+	_ = IngressReconciler((*DataBrokerReconciler)(nil))
+	_ = GatewayReconciler((*DataBrokerReconciler)(nil))
+	_ = ConfigReconciler((*DataBrokerReconciler)(nil))
 )
 
 // DataBrokerReconciler updates pomerium configuration
@@ -121,6 +125,29 @@ func (r *DataBrokerReconciler) Delete(ctx context.Context, namespacedName types.
 		return false, fmt.Errorf("updating pomerium config: %w", err)
 	}
 	return changed, nil
+}
+
+// SetGatewayConfig applies Gateway-defined configuration.
+func (r *DataBrokerReconciler) SetGatewayConfig(
+	ctx context.Context,
+	config *model.GatewayConfig,
+) (changes bool, err error) {
+	prev, err := r.getConfig(ctx)
+	if err != nil {
+		return false, fmt.Errorf("get config: %w", err)
+	}
+	next := new(pb.Config)
+
+	for i := range config.Routes {
+		r := &config.Routes[i]
+		next.Routes = append(next.Routes, gateway.TranslateRoutes(r)...)
+	}
+	next.Settings = new(pb.Settings)
+	for _, cert := range config.Certificates {
+		addTLSCert(next.Settings, cert)
+	}
+
+	return r.saveConfig(ctx, prev, next, r.ConfigID)
 }
 
 // DeleteAll cleans pomerium configuration entirely
