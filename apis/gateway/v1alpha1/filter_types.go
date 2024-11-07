@@ -19,7 +19,7 @@ type PolicyFilter struct {
 	// Spec defines the content of the policy.
 	Spec PolicyFilterSpec `json:"spec,omitempty"`
 
-	// +kubebuilder:default={conditions: {{type: "Valid", status: "Unknown", reason:"Pending", message:"Waiting for controller", lastTransitionTime: "1970-01-01T00:00:00Z"}}}
+	// Status contains the status of the policy (e.g. is the policy valid).
 	Status PolicyFilterStatus `json:"status,omitempty"`
 }
 
@@ -37,8 +37,6 @@ type PolicyFilterStatus struct {
 	// +optional
 	// +listType=map
 	// +listMapKey=type
-	// +kubebuilder:validation:MaxItems=8
-	// +kubebuilder:default={{type: "Valid", status: "Unknown", reason:"Pending", message:"Waiting for controller", lastTransitionTime: "1970-01-01T00:00:00Z"}}
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
