@@ -1,6 +1,4 @@
 // Package v1alpha1 contains custom resource definitions for use with the Gateway API.
-//
-//nolint:lll
 package v1alpha1
 
 import (
