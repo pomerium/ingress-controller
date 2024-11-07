@@ -4,8 +4,9 @@ import (
 	context "context"
 
 	"github.com/hashicorp/go-set/v3"
+	"github.com/pomerium/ingress-controller/util"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 	gateway_v1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
@@ -19,7 +20,7 @@ type objects struct {
 	Namespaces              map[string]*corev1.Namespace
 	ReferenceGrants         referenceGrantMap
 	TLSSecrets              map[refKey]*corev1.Secret
-	Services                map[refKey]*corev1.Service
+	Services                map[types.NamespacedName]*corev1.Service
 }
 
 type httpRouteAndOriginalStatus struct {
@@ -68,12 +69,13 @@ func (c *gatewayController) fetchObjects(ctx context.Context) (*objects, error) 
 		hr := &hrl.Items[i]
 		o.OriginalHTTPRouteStatus = append(o.OriginalHTTPRouteStatus,
 			httpRouteAndOriginalStatus{route: hr, originalStatus: hr.Status.DeepCopy()})
+		ensureRouteParentStatusExists(hr, c.controllerName)
 		for j := range hr.Spec.ParentRefs {
 			pr := &hr.Spec.ParentRefs[j]
 			key := refKeyForParentRef(hr, pr)
 			if _, ok := o.Gateways[key]; ok {
 				o.HTTPRoutesByGateway[key] = append(o.HTTPRoutesByGateway[key],
-					newHTTPRouteInfo(hr, pr, c.controllerName))
+					httpRouteInfo{hr, pr, &hr.Status.Parents[j]})
 			}
 		}
 	}
@@ -112,10 +114,10 @@ func (c *gatewayController) fetchObjects(ctx context.Context) (*objects, error) 
 	if err := c.List(ctx, &servicesList); err != nil {
 		return nil, err
 	}
-	o.Services = make(map[refKey]*corev1.Service)
+	o.Services = make(map[types.NamespacedName]*corev1.Service)
 	for i := range servicesList.Items {
 		s := &servicesList.Items[i]
-		o.Services[refKeyForObject(s)] = s
+		o.Services[util.GetNamespacedName(s)] = s
 	}
 
 	return &o, nil
@@ -125,27 +127,4 @@ type httpRouteInfo struct {
 	route  *gateway_v1.HTTPRoute
 	parent *gateway_v1.ParentReference
 	status *gateway_v1.RouteParentStatus
-}
-
-// newHTTPRouteInfo populates an httpRouteInfo struct, allocating a RouteParentStatus if needed.
-func newHTTPRouteInfo(
-	route *gateway_v1.HTTPRoute,
-	parent *gateway_v1.ParentReference,
-	controllerName string,
-) httpRouteInfo {
-	r := httpRouteInfo{route: route, parent: parent}
-	for i := range route.Status.Parents {
-		r.status = &route.Status.Parents[i]
-		if equality.Semantic.DeepEqual(&r.status.ParentRef, parent) {
-			return r
-		}
-	}
-
-	end := len(r.route.Status.Parents)
-	r.route.Status.Parents = append(r.route.Status.Parents, gateway_v1.RouteParentStatus{
-		ParentRef:      *parent,
-		ControllerName: gateway_v1.GatewayController(controllerName),
-	})
-	r.status = &r.route.Status.Parents[end]
-	return r
 }

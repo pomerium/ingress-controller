@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/pomerium/ingress-controller/model"
@@ -23,7 +25,7 @@ func applyBackendRefs(
 			log.Printf("backendRef %v not valid", &backendRefs[i].BackendRef) // XXX
 			continue
 		}
-		if u, w := backendRefToToURLAndWeight(&backendRefs[i], gc.Namespace); w > 0 {
+		if u, w := backendRefToToURLAndWeight(gc, &backendRefs[i]); w > 0 {
 			route.To = append(route.To, u)
 			route.LoadBalancingWeights = append(route.LoadBalancingWeights, w)
 		}
@@ -41,15 +43,32 @@ func applyBackendRefs(
 }
 
 func backendRefToToURLAndWeight(
+	gc *model.GatewayHTTPRouteConfig,
 	br *gateway_v1.HTTPBackendRef,
-	defaultNamespace string,
 ) (string, uint32) {
-	// XXX: this assumes the kind is "Service"
-	namespace := defaultNamespace
+	// Note: currently the only supported backendRef kind is "Service".
+	namespace := gc.Namespace
 	if br.Namespace != nil {
 		namespace = string(*br.Namespace)
 	}
-	u := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", br.Name, namespace, *br.Port)
+
+	port := int32(*br.Port)
+
+	// For a headless service we need the targetPort instead.
+	// For now this supports only port numbers, not named ports, but this is enough to pass the
+	// HTTPRouteServiceTypes conformance test cases.
+	svc := gc.Services[types.NamespacedName{Namespace: namespace, Name: string(br.Name)}]
+	if svc != nil && svc.Spec.ClusterIP == "None" {
+		for i := range svc.Spec.Ports {
+			p := &svc.Spec.Ports[i]
+			if p.Port == port && p.TargetPort.Type == intstr.Int {
+				port = p.TargetPort.IntVal
+				break
+			}
+		}
+	}
+
+	u := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", br.Name, namespace, port)
 
 	weight := uint32(1)
 	if br.Weight != nil {

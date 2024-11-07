@@ -6,8 +6,10 @@ import (
 
 	"github.com/hashicorp/go-set/v3"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 )
@@ -115,8 +117,9 @@ func validateHTTPRouteBackendRefsResolved(
 				invalid(gateway_v1.RouteReasonRefNotPermitted, refKey.Name)
 				continue
 			}
-			if o.Services[refKey] == nil {
+			if o.Services[types.NamespacedName{Namespace: refKey.Namespace, Name: refKey.Name}] == nil {
 				invalid(gateway_v1.RouteReasonBackendNotFound, refKey.Name)
+				continue
 			}
 			validRefs.insert(r.route, &rule.BackendRefs[i].BackendRef)
 		}
@@ -285,4 +288,29 @@ func (b backendRefSet) Valid(obj client.Object, r *gateway_v1.BackendRef) bool {
 		return false
 	}
 	return b.c.Contains(refKeyForBackendRef(obj, &r.BackendObjectReference))
+}
+
+// ensureRouteParentStatusExists ensures that the elements of r.Status.Parents correspond to the
+// elements of r.Spec.ParentRef.
+func ensureRouteParentStatusExists(r *gateway_v1.HTTPRoute, controllerName string) {
+	// Check to see if the parent status items already match.
+	if len(r.Status.Parents) == len(r.Spec.ParentRefs) {
+		ok := true
+		for i := range r.Spec.ParentRefs {
+			if !equality.Semantic.DeepEqual(r.Spec.ParentRefs[i], r.Status.Parents[i].ParentRef) {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			return
+		}
+	}
+
+	// Allocate new parent status items.
+	r.Status.Parents = make([]gateway_v1.RouteParentStatus, len(r.Spec.ParentRefs))
+	for i := range r.Status.Parents {
+		r.Status.Parents[i].ParentRef = r.Spec.ParentRefs[i]
+		r.Status.Parents[i].ControllerName = gateway_v1.GatewayController(controllerName)
+	}
 }

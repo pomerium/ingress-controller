@@ -6,9 +6,9 @@ import (
 	golog "log"
 
 	"github.com/pomerium/ingress-controller/model"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
@@ -77,6 +77,7 @@ func (c *gatewayController) processGateway(
 				HTTPRoute:        r.route,
 				Hostnames:        result.Hostnames,
 				ValidBackendRefs: result.ValidBackendRefs,
+				Services:         o.Services,
 			})
 
 			// XXX
@@ -144,7 +145,7 @@ var (
 
 func updateGatewayAddresses(o *objects, gateway *gateway_v1.Gateway) {
 	// Copy the external addresses from the "pomerium-proxy" service.
-	proxy := o.Services[refKey{Group: corev1.GroupName, Kind: "Service", Namespace: "pomerium", Name: "pomerium-proxy"}]
+	proxy := o.Services[types.NamespacedName{Namespace: "pomerium", Name: "pomerium-proxy"}]
 	if proxy == nil {
 		// XXX: what to do if no "pomerium-proxy" service exists?
 		return

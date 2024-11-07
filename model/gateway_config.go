@@ -29,10 +29,7 @@ type GatewayHTTPRouteConfig struct {
 	//ValidBackendRefs set.Collection[*gateway_v1.BackendRef]
 	ValidBackendRefs BackendRefChecker
 
-	// XXX: these I copied from IngressConfig, need to make sure what's actually needed
-	Endpoints map[types.NamespacedName]*corev1.Endpoints
-	Secrets   map[types.NamespacedName]*corev1.Secret
-	Services  map[types.NamespacedName]*corev1.Service
+	Services map[types.NamespacedName]*corev1.Service
 }
 
 // XXX
