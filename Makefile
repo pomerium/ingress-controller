@@ -5,8 +5,8 @@ CRD_PACKAGE=github.com/pomerium/ingress-controller/apis/ingress/v1
 # Image URL to use all building/pushing image targets
 IMG?=ingress-controller:latest
 CRD_OPTIONS?=
-ENVTEST_K8S_VERSION=$(shell go list -f '{{.Module.Version}}' k8s.io/api | sed 's/v0/1/')
-ENVTEST_VERSION=$(shell go list -f '{{.Module.Version}}' sigs.k8s.io/controller-runtime/tools/setup-envtest)
+ENVTEST_K8S_VERSION?=$(shell go list -f '{{.Module.Version}}' k8s.io/api | sed 's/v0/1/')
+ENVTEST_VERSION?=$(shell go list -f '{{.Module.Version}}' sigs.k8s.io/controller-runtime/tools/setup-envtest)
 CONTROLLER_GEN=go run sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
