@@ -1,6 +1,6 @@
 KUBEENV_GOARCH=$(shell go env GOARCH)
 
-CRD_PACKAGE=github.com/pomerium/ingress-controller/apis/ingress/v1
+CRD_BASE=github.com/pomerium/ingress-controller/apis/
 
 # Image URL to use all building/pushing image targets
 IMG?=ingress-controller:latest
@@ -55,16 +55,24 @@ help: ## Display this help.
 ##@ Development
 
 .PHONY: generated
-generated: config/crd/bases/ingress.pomerium.io_pomerium.yaml apis/ingress/v1/zz_generated.deepcopy.go
+generated: config/crd/bases/ingress.pomerium.io_pomerium.yaml apis/ingress/v1/zz_generated.deepcopy.go config/crd/bases/gateway.pomerium.io_policyfilters.yaml apis/gateway/v1alpha1/zz_generated.deepcopy.go
 	@echo "==> $@"
 
 apis/ingress/v1/zz_generated.deepcopy.go: apis/ingress/v1/pomerium_types.go
 	@echo "==> $@"
-	@$(CONTROLLER_GEN) object paths=$(CRD_PACKAGE) output:dir=apis/ingress/v1
+	@$(CONTROLLER_GEN) object paths=$(CRD_BASE)/ingress/v1 output:dir=apis/ingress/v1
 
 config/crd/bases/ingress.pomerium.io_pomerium.yaml: apis/ingress/v1/pomerium_types.go
 	@echo "==> $@"
-	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role crd paths=$(CRD_PACKAGE) output:crd:artifacts:config=config/crd/bases
+	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role crd paths=$(CRD_BASE)/ingress/v1 output:crd:artifacts:config=config/crd/bases
+
+apis/gateway/v1alpha1/zz_generated.deepcopy.go: apis/gateway/v1alpha1/filter_types.go
+	@echo "==> $@"
+	@$(CONTROLLER_GEN) object paths=$(CRD_BASE)/gateway/v1alpha1 output:dir=apis/gateway/v1alpha1
+
+config/crd/bases/gateway.pomerium.io_policyfilters.yaml: apis/gateway/v1alpha1/filter_types.go
+	@echo "==> $@"
+	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role crd paths=$(CRD_BASE)/gateway/v1alpha1 output:crd:artifacts:config=config/crd/bases
 
 .PHONY: test
 test: envoy generated envtest pomerium-ui
