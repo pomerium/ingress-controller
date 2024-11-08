@@ -19,6 +19,12 @@ type IngressReconciler interface {
 	Delete(ctx context.Context, namespacedName types.NamespacedName) (changes bool, err error)
 }
 
+// GatewayReconciler updates Pomerium configuration based on Gateway-defined resources.
+type GatewayReconciler interface {
+	// GatewaySetConfig updates the entire Gateway-defined route configuration.
+	SetGatewayConfig(ctx context.Context, config *model.GatewayConfig) (changes bool, err error)
+}
+
 // ConfigReconciler only updates global parameters and does not deal with individual routes
 type ConfigReconciler interface {
 	// SetConfig updates just the shared config settings
