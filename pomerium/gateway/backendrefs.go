@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -20,9 +19,19 @@ func applyBackendRefs(
 	gc *model.GatewayHTTPRouteConfig,
 	backendRefs []gateway_v1.HTTPBackendRef,
 ) {
+	// From the spec: "BackendRefs defines API objects where matching requests should be sent. If
+	// unspecified, the rule performs no forwarding. If unspecified and no filters are specified
+	// that would result in a response being sent, a 404 error code is returned."
+	if route.Redirect == nil && len(backendRefs) == 0 {
+		route.Response = &pb.RouteDirectResponse{
+			Status: http.StatusNotFound,
+			Body:   "no backend specified",
+		}
+		return
+	}
+
 	for i := range backendRefs {
 		if !gc.ValidBackendRefs.Valid(gc.HTTPRoute, &backendRefs[i].BackendRef) {
-			log.Printf("backendRef %v not valid", &backendRefs[i].BackendRef) // XXX
 			continue
 		}
 		if u, w := backendRefToToURLAndWeight(gc, &backendRefs[i]); w > 0 {
