@@ -120,6 +120,7 @@ func NewPolicyFilter(obj *icgv1alpha1.PolicyFilter) (*PolicyFilter, error) {
 	return &PolicyFilter{src}, nil
 }
 
+// ApplyToRoute applies this policy filter to a Pomerium route proto.
 func (f *PolicyFilter) ApplyToRoute(r *pb.Route) {
 	r.Policies = append(r.Policies, &pb.Policy{Rego: []string{f.rego}})
 }
