@@ -4,12 +4,13 @@ import (
 	context "context"
 	golog "log"
 
-	"github.com/pomerium/ingress-controller/model"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
+
+	"github.com/pomerium/ingress-controller/model"
 )
 
 // processGateways updates the status of all Gateways and associated routes, and returns a

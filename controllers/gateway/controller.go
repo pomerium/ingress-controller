@@ -1,3 +1,4 @@
+// Package gateway contains controllers for Gateway API objects.
 package gateway
 
 import (
@@ -18,6 +19,7 @@ import (
 	"github.com/pomerium/ingress-controller/pomerium"
 )
 
+// DefaultClassControllerName is the default GatewayClass ControllerName.
 const DefaultClassControllerName = "pomerium.io/gateway-controller"
 
 // ControllerConfig contains configuration options for the Gateway controller.
@@ -47,8 +49,11 @@ func NewGatewayController(
 		ControllerConfig:  config,
 	}
 
-	mgr.GetFieldIndexer().IndexField(ctx, &corev1.Secret{}, "type",
+	err := mgr.GetFieldIndexer().IndexField(ctx, &corev1.Secret{}, "type",
 		func(o client.Object) []string { return []string{string(o.(*corev1.Secret).Type)} })
+	if err != nil {
+		return fmt.Errorf("couldn't create index on Secret type: %w", err)
+	}
 
 	// All updates will trigger the same reconcile request.
 	enqueueRequest := handler.EnqueueRequestsFromMapFunc(
@@ -60,7 +65,7 @@ func NewGatewayController(
 			}}
 		})
 
-	err := ctrl.NewControllerManagedBy(mgr).
+	err = ctrl.NewControllerManagedBy(mgr).
 		Named("gateway").
 		Watches(
 			&gateway_v1.Gateway{},
@@ -92,7 +97,10 @@ func (c *gatewayController) Reconcile(ctx context.Context, _ ctrl.Request) (ctrl
 
 	config := c.processGateways(ctx, o)
 
-	c.SetGatewayConfig(ctx, config)
+	_, err = c.SetGatewayConfig(ctx, config)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }

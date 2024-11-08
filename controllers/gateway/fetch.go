@@ -4,12 +4,13 @@ import (
 	context "context"
 
 	"github.com/hashicorp/go-set/v3"
-	"github.com/pomerium/ingress-controller/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 	gateway_v1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+
+	"github.com/pomerium/ingress-controller/util"
 )
 
 // objects holds all relevant Gateway objects and their dependencies.

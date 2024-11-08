@@ -55,7 +55,7 @@ func processHTTPRoute(
 		return result
 	}
 
-	// Otherwise check for route attachement with all listeners.
+	// Otherwise check for route attachment with all listeners.
 	hostnamesSet := set.New[gateway_v1.Hostname](0)
 	var reason gateway_v1.RouteConditionReason
 	for _, l := range listeners {
