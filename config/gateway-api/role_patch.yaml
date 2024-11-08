@@ -36,3 +36,25 @@
       - get
       - patch
       - update
+- op: add
+  path: /rules/-
+  value:
+    apiGroups:
+      - gateway.pomerium.io
+    resources:
+      - policyfilters
+    verbs:
+      - get
+      - list
+      - watch
+- op: add
+  path: /rules/-
+  value:
+    apiGroups:
+      - gateway.pomerium.io
+    resources:
+      - policyfilters/status
+    verbs:
+      - get
+      - patch
+      - update
