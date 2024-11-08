@@ -16,6 +16,7 @@ import (
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 	gateway_v1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
+	icgv1alpha1 "github.com/pomerium/ingress-controller/apis/gateway/v1alpha1"
 	"github.com/pomerium/ingress-controller/pomerium"
 )
 
@@ -50,6 +51,8 @@ type gatewayController struct {
 	client.Client
 	pomerium.GatewayReconciler
 	ControllerConfig
+
+	extensionFilters map[refKey]objectAndFilter
 }
 
 // NewGatewayController creates and registers a new controller for Gateway objects.
@@ -63,6 +66,7 @@ func NewGatewayController(
 		Client:            mgr.GetClient(),
 		GatewayReconciler: pgr,
 		ControllerConfig:  config,
+		extensionFilters:  make(map[refKey]objectAndFilter),
 	}
 
 	err := mgr.GetFieldIndexer().IndexField(ctx, &corev1.Secret{}, "type",
@@ -97,6 +101,7 @@ func NewGatewayController(
 		Watches(&corev1.Namespace{}, enqueueRequest).
 		Watches(&corev1.Service{}, enqueueRequest).
 		Watches(&gateway_v1beta1.ReferenceGrant{}, enqueueRequest).
+		Watches(&icgv1alpha1.PolicyFilter{}, enqueueRequest).
 		Complete(gtc)
 	if err != nil {
 		return fmt.Errorf("build controller: %w", err)

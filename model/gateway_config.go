@@ -6,12 +6,15 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
+
+	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 // GatewayConfig represents the entirety of the Gateway-defined configuration.
 type GatewayConfig struct {
-	Routes       []GatewayHTTPRouteConfig
-	Certificates []*corev1.Secret
+	Routes           []GatewayHTTPRouteConfig
+	Certificates     []*corev1.Secret
+	ExtensionFilters map[ExtensionFilterKey]ExtensionFilter
 }
 
 // GatewayHTTPRouteConfig represents a single Gateway-defined route together
@@ -33,4 +36,16 @@ type GatewayHTTPRouteConfig struct {
 // BackendRefChecker is used to determine which BackendRefs are valid.
 type BackendRefChecker interface {
 	Valid(obj client.Object, r *gateway_v1.BackendRef) bool
+}
+
+// ExtensionFilter represents a custom Pomerium route filter.
+type ExtensionFilter interface {
+	ApplyToRoute(*pb.Route)
+}
+
+// ExtensionFilterKey is a look-up key for available custom filters.
+type ExtensionFilterKey struct {
+	Kind      string
+	Namespace string
+	Name      string
 }
