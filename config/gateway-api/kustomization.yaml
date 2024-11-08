@@ -1,0 +1,21 @@
+namespace: pomerium
+commonLabels:
+  app.kubernetes.io/name: pomerium
+resources:
+  - ../default
+patches:
+  - path: role_patch.yaml
+    target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRole
+      name: pomerium-controller
+  - patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: '--experimental-gateway-api'
+    target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: pomerium
