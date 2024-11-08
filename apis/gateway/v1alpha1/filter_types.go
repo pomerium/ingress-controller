@@ -38,6 +38,15 @@ type PolicyFilterStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
+//+kubebuilder:object:root=true
+
+// PolicyFilterList is a list of PolicyFilters.
+type PolicyFilterList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []PolicyFilter `json:"items"`
+}
+
 func init() {
-	SchemeBuilder.Register(&PolicyFilter{})
+	SchemeBuilder.Register(&PolicyFilter{}, &PolicyFilterList{})
 }
