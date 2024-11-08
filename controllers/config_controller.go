@@ -15,6 +15,7 @@ import (
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 
+	"github.com/pomerium/ingress-controller/controllers/gateway"
 	"github.com/pomerium/ingress-controller/controllers/ingress"
 	"github.com/pomerium/ingress-controller/controllers/reporter"
 	"github.com/pomerium/ingress-controller/controllers/settings"
@@ -35,11 +36,14 @@ var (
 // for Ingress and Pomerium Settings CRD objects, if specified
 type Controller struct {
 	pomerium.IngressReconciler
+	pomerium.GatewayReconciler
 	pomerium.ConfigReconciler
 	databroker.DataBrokerServiceClient
 	MgrOpts runtime_ctrl.Options
 	// IngressCtrlOpts are the ingress controller options
 	IngressCtrlOpts []ingress.Option
+	// GatewayControllerConfig is the Gateway controller config
+	GatewayControllerConfig *gateway.ControllerConfig
 	// GlobalSettings if provided, will also reconcile configuration options
 	GlobalSettings *types.NamespacedName
 
@@ -79,6 +83,13 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 		}
 	} else {
 		log.FromContext(ctx).V(1).Info("no Pomerium CRD")
+	}
+
+	if c.GatewayControllerConfig != nil {
+		err := gateway.NewControllers(ctx, mgr, c.GatewayReconciler, *c.GatewayControllerConfig)
+		if err != nil {
+			return err
+		}
 	}
 
 	c.setRunning(true)
