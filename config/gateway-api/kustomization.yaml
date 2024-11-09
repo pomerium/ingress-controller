@@ -3,6 +3,7 @@ commonLabels:
   app.kubernetes.io/name: pomerium
 resources:
   - ../default
+  - gatewayclass.yaml
 patches:
   - path: role_patch.yaml
     target:
