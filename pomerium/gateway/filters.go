@@ -18,10 +18,13 @@ func applyFilters(
 	config *model.GatewayConfig,
 	routeConfig *model.GatewayHTTPRouteConfig,
 	filters []gateway_v1.HTTPRouteFilter,
-) {
+) error {
 	for i := range filters {
-		applyFilter(route, config, routeConfig, &filters[i])
+		if err := applyFilter(route, config, routeConfig, &filters[i]); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func applyFilter(
@@ -29,15 +32,18 @@ func applyFilter(
 	config *model.GatewayConfig,
 	routeConfig *model.GatewayHTTPRouteConfig,
 	filter *gateway_v1.HTTPRouteFilter,
-) {
+) error {
 	switch filter.Type {
 	case gateway_v1.HTTPRouteFilterRequestHeaderModifier:
 		applyRequestHeaderFilter(route, filter.RequestHeaderModifier)
 	case gateway_v1.HTTPRouteFilterRequestRedirect:
 		applyRedirectFilter(route, filter.RequestRedirect)
 	case gateway_v1.HTTPRouteFilterExtensionRef:
-		applyExtensionFilter(route, config, routeConfig, filter.ExtensionRef)
+		return applyExtensionFilter(route, config, routeConfig, filter.ExtensionRef)
+	default:
+		return fmt.Errorf("filter type %q not supported", filter.Type)
 	}
+	return nil
 }
 
 func applyRequestHeaderFilter(route *pb.Route, filter *gateway_v1.HTTPHeaderFilter) {
@@ -79,10 +85,10 @@ func applyExtensionFilter(
 	config *model.GatewayConfig,
 	routeConfig *model.GatewayHTTPRouteConfig,
 	filter *gateway_v1.LocalObjectReference,
-) {
+) error {
 	// Make sure the API group is the one we expect.
 	if filter.Group != gateway_v1.Group(icgv1alpha1.GroupVersion.Group) {
-		return
+		return fmt.Errorf("unsupported filter group %q", filter.Group)
 	}
 
 	k := model.ExtensionFilterKey{
@@ -92,10 +98,11 @@ func applyExtensionFilter(
 	}
 	f := config.ExtensionFilters[k]
 	if f == nil {
-		return
+		return fmt.Errorf("filter not found (%v)", k)
 	}
 
 	f.ApplyToRoute(route)
+	return nil
 }
 
 // PolicyFilter applies a Pomerium policy defined by the PolicyFilter CRD.
