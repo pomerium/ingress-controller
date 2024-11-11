@@ -25,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/netutil"
 
 	"github.com/pomerium/ingress-controller/controllers"
+	"github.com/pomerium/ingress-controller/controllers/gateway"
 	"github.com/pomerium/ingress-controller/controllers/ingress"
 	"github.com/pomerium/ingress-controller/controllers/settings"
 	"github.com/pomerium/ingress-controller/pomerium"
@@ -50,6 +51,7 @@ type allCmdOptions struct {
 type allCmdParam struct {
 	settings                types.NamespacedName
 	ingressOpts             []ingress.Option
+	gatewayConfig           *gateway.ControllerConfig
 	updateStatusFromService string
 	dumpConfigDiff          bool
 
@@ -161,9 +163,15 @@ func (s *allCmdOptions) getParam() (*allCmdParam, error) {
 		return nil, fmt.Errorf("options: %w", err)
 	}
 
+	gatewayConfig, err := s.getGatewayControllerConfig()
+	if err != nil {
+		return nil, fmt.Errorf("options: %w", err)
+	}
+
 	p := &allCmdParam{
 		settings:                        *settings,
 		ingressOpts:                     opts,
+		gatewayConfig:                   gatewayConfig,
 		updateStatusFromService:         s.UpdateStatusFromService,
 		dumpConfigDiff:                  s.debugDumpConfigDiff,
 		configControllerShutdownTimeout: s.configControllerShutdownTimeout,
@@ -312,6 +320,12 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 			DebugDumpConfigDiff:     s.dumpConfigDiff,
 			RemoveUnreferencedCerts: false,
 		},
+		GatewayReconciler: &pomerium.DataBrokerReconciler{
+			ConfigID:                pomerium.GatewayControllerConfigID,
+			DataBrokerServiceClient: client,
+			DebugDumpConfigDiff:     s.dumpConfigDiff,
+			RemoveUnreferencedCerts: false,
+		},
 		DataBrokerServiceClient: client,
 		MgrOpts: runtime_ctrl.Options{
 			Scheme: scheme,
@@ -320,8 +334,9 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 			},
 			LeaderElection: false,
 		},
-		IngressCtrlOpts: s.ingressOpts,
-		GlobalSettings:  &s.settings,
+		IngressCtrlOpts:         s.ingressOpts,
+		GlobalSettings:          &s.settings,
+		GatewayControllerConfig: s.gatewayConfig,
 	}
 
 	return c, nil

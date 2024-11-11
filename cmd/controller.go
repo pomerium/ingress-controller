@@ -129,6 +129,11 @@ func (s *controllerCmd) buildController(ctx context.Context) (*controllers.Contr
 		return nil, fmt.Errorf("ingress controller opts: %w", err)
 	}
 
+	gatewayConfig, err := s.getGatewayControllerConfig()
+	if err != nil {
+		return nil, fmt.Errorf("gateway controller opts: %w", err)
+	}
+
 	scheme, err := getScheme()
 	if err != nil {
 		return nil, fmt.Errorf("get scheme: %w", err)
@@ -153,13 +158,20 @@ func (s *controllerCmd) buildController(ctx context.Context) (*controllers.Contr
 			DebugDumpConfigDiff:     s.debug,
 			RemoveUnreferencedCerts: false,
 		},
+		GatewayReconciler: &pomerium.DataBrokerReconciler{
+			ConfigID:                pomerium.GatewayControllerConfigID,
+			DataBrokerServiceClient: client,
+			DebugDumpConfigDiff:     s.debug,
+			RemoveUnreferencedCerts: false,
+		},
 		DataBrokerServiceClient: client,
 		MgrOpts: ctrl.Options{
 			Scheme:         scheme,
 			Metrics:        metricsserver.Options{BindAddress: s.metricsAddr},
 			LeaderElection: false,
 		},
-		IngressCtrlOpts: opts,
+		IngressCtrlOpts:         opts,
+		GatewayControllerConfig: gatewayConfig,
 	}
 
 	c.GlobalSettings, err = s.getGlobalSettings()

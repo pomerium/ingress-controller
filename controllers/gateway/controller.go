@@ -30,6 +30,22 @@ type ControllerConfig struct {
 	ServiceName types.NamespacedName
 }
 
+// NewControllers sets up GatewayClass and Gateway controllers.
+func NewControllers(
+	ctx context.Context,
+	mgr ctrl.Manager,
+	pgr pomerium.GatewayReconciler,
+	config ControllerConfig,
+) error {
+	if err := NewGatewayClassController(mgr, config.ControllerName); err != nil {
+		return fmt.Errorf("couldn't create GatewayClass controller: %w", err)
+	}
+	if err := NewGatewayController(ctx, mgr, pgr, config); err != nil {
+		return fmt.Errorf("couldn't create Gateway controller: %w", err)
+	}
+	return nil
+}
+
 type gatewayController struct {
 	client.Client
 	pomerium.GatewayReconciler
