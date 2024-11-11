@@ -8,49 +8,49 @@ spec:
     spec:
       serviceAccountName: pomerium-stress-test
       containers:
-      - name: stress-test
-        args:
-          - "stress-test"
-        image: pomerium/ingress-controller:main
-        imagePullPolicy: Always
-        resources:
-          limits:
-            memory: "256Mi"
-            cpu: "500m"
-        env:
-          - name: SERVICE_NAME
-            value: "stress-test-echo"
-          - name: SERVICE_NAMESPACE
-            valueFrom:
-              fieldRef:
-                apiVersion: v1
-                fieldPath: metadata.namespace
-          - name: SERVICE_PORT_NAMES
-            value: "echo1,echo2"
-          - name: CONTAINER_PORT_NUMBERS
-            value: "8081,8082"
-          - name: INGRESS_CLASS
-            value: "pomerium"
-          - name: INGRESS_DOMAIN
-            valueFrom:
-              configMapKeyRef:
-                optional: false
-                name: stress-test
-                key: ingress-domain
-          - name: INGRESS_COUNT
-            valueFrom:
-              configMapKeyRef:
-                optional: false
-                name: stress-test
-                key: ingress-count
-          - name: READINESS_TIMEOUT
-            valueFrom:
-              configMapKeyRef:
-                optional: false
-                name: stress-test
-                key: readiness-timeout
-        ports:
-        - containerPort: 8081
-          name: echo1
-        - containerPort: 8082
-          name: echo2
+        - name: stress-test
+          args:
+            - "stress-test"
+          image: pomerium/ingress-controller:v0.28.0
+          imagePullPolicy: Always
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          env:
+            - name: SERVICE_NAME
+              value: "stress-test-echo"
+            - name: SERVICE_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: SERVICE_PORT_NAMES
+              value: "echo1,echo2"
+            - name: CONTAINER_PORT_NUMBERS
+              value: "8081,8082"
+            - name: INGRESS_CLASS
+              value: "pomerium"
+            - name: INGRESS_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  optional: false
+                  name: stress-test
+                  key: ingress-domain
+            - name: INGRESS_COUNT
+              valueFrom:
+                configMapKeyRef:
+                  optional: false
+                  name: stress-test
+                  key: ingress-count
+            - name: READINESS_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  optional: false
+                  name: stress-test
+                  key: readiness-timeout
+          ports:
+            - containerPort: 8081
+              name: echo1
+            - containerPort: 8082
+              name: echo2
