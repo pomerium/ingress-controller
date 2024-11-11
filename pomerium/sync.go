@@ -140,7 +140,7 @@ func (r *DataBrokerReconciler) SetGatewayConfig(
 
 	for i := range config.Routes {
 		r := &config.Routes[i]
-		next.Routes = append(next.Routes, gateway.TranslateRoutes(r)...)
+		next.Routes = append(next.Routes, gateway.TranslateRoutes(ctx, config, r)...)
 	}
 	next.Settings = new(pb.Settings)
 	for _, cert := range config.Certificates {

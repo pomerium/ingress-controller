@@ -10,6 +10,7 @@ import (
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 	gateway_v1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
+	icgv1alpha1 "github.com/pomerium/ingress-controller/apis/gateway/v1alpha1"
 	"github.com/pomerium/ingress-controller/util"
 )
 
@@ -22,6 +23,7 @@ type objects struct {
 	ReferenceGrants         referenceGrantMap
 	TLSSecrets              map[refKey]*corev1.Secret
 	Services                map[types.NamespacedName]*corev1.Service
+	PolicyFilters           map[types.NamespacedName]*icgv1alpha1.PolicyFilter
 }
 
 type httpRouteAndOriginalStatus struct {
@@ -118,6 +120,17 @@ func (c *gatewayController) fetchObjects(ctx context.Context) (*objects, error) 
 	for i := range servicesList.Items {
 		s := &servicesList.Items[i]
 		o.Services[util.GetNamespacedName(s)] = s
+	}
+
+	// Fetch all PolicyFilters.
+	var pfl icgv1alpha1.PolicyFilterList
+	if err := c.List(ctx, &pfl); err != nil {
+		return nil, err
+	}
+	o.PolicyFilters = make(map[types.NamespacedName]*icgv1alpha1.PolicyFilter, 0)
+	for i := range pfl.Items {
+		pf := &pfl.Items[i]
+		o.PolicyFilters[util.GetNamespacedName(pf)] = pf
 	}
 
 	return &o, nil
