@@ -2,10 +2,10 @@ package gateway
 
 import (
 	context "context"
+	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	icgv1alpha1 "github.com/pomerium/ingress-controller/apis/gateway/v1alpha1"
 	"github.com/pomerium/ingress-controller/model"
@@ -16,21 +16,25 @@ func (c *gatewayController) processExtensionFilters(
 	ctx context.Context,
 	config *model.GatewayConfig,
 	o *objects,
-) {
+) error {
 	for _, pf := range o.PolicyFilters {
-		c.processPolicyFilter(ctx, pf)
+		if err := c.processPolicyFilter(ctx, pf); err != nil {
+			return err
+		}
 	}
 	config.ExtensionFilters = makeExtensionFilterMap(c.extensionFilters)
+	return nil
 }
 
-func (c *gatewayController) processPolicyFilter(ctx context.Context, pf *icgv1alpha1.PolicyFilter) {
-	logger := log.FromContext(ctx)
-
+func (c *gatewayController) processPolicyFilter(
+	ctx context.Context,
+	pf *icgv1alpha1.PolicyFilter,
+) error {
 	// Check to see if we already have a parsed representation of this filter.
 	k := refKeyForObject(pf)
 	f := c.extensionFilters[k]
 	if f.object != nil && f.object.GetGeneration() == pf.Generation {
-		return
+		return nil
 	}
 
 	filter, err := gateway.NewPolicyFilter(pf)
@@ -49,11 +53,13 @@ func (c *gatewayController) processPolicyFilter(ctx context.Context, pf *icgv1al
 	}
 	if upsertCondition(&pf.Status.Conditions, pf.Generation, validCondition) {
 		if err := c.Status().Update(ctx, pf); err != nil {
-			logger.Error(err, "couldn't update PolicyFilter status", "name", pf.Name)
+			return fmt.Errorf("couldn't update status for PolicyFilter %q: %w", pf.Name, err)
 		}
 	}
 
 	c.extensionFilters[k] = objectAndFilter{pf, filter}
+
+	return nil
 }
 
 type objectAndFilter struct {

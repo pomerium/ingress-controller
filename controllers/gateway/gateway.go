@@ -20,7 +20,9 @@ func (c *gatewayController) processGateways(
 ) (*model.GatewayConfig, error) {
 	var config model.GatewayConfig
 
-	c.processExtensionFilters(ctx, &config, o)
+	if err := c.processExtensionFilters(ctx, &config, o); err != nil {
+		return nil, err
+	}
 
 	for key := range o.Gateways {
 		if err := c.processGateway(ctx, &config, o, key); err != nil {
