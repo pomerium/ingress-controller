@@ -41,7 +41,7 @@ func NewControllers(
 		return fmt.Errorf("couldn't create GatewayClass controller: %w", err)
 	}
 	if err := NewGatewayController(ctx, mgr, pgr, config); err != nil {
-		return fmt.Errorf("create gateway controller: %w", err)
+		return fmt.Errorf("couldn't create Gateway controller: %w", err)
 	}
 	return nil
 }
