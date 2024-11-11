@@ -2,12 +2,11 @@ package gateway
 
 import (
 	context "context"
-	golog "log"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/pomerium/ingress-controller/model"
@@ -18,16 +17,20 @@ import (
 func (c *gatewayController) processGateways(
 	ctx context.Context,
 	o *objects,
-) *model.GatewayConfig {
+) (*model.GatewayConfig, error) {
 	var config model.GatewayConfig
 
 	for key := range o.Gateways {
-		c.processGateway(ctx, &config, o, key)
+		if err := c.processGateway(ctx, &config, o, key); err != nil {
+			return nil, err
+		}
 	}
 
-	c.updateModifiedHTTPRouteStatus(ctx, o.OriginalHTTPRouteStatus)
+	if err := c.updateModifiedHTTPRouteStatus(ctx, o.OriginalHTTPRouteStatus); err != nil {
+		return nil, err
+	}
 
-	return &config
+	return &config, nil
 }
 
 // processGateway updates the status of this gateway and appends any valid configuration to the
@@ -37,9 +40,7 @@ func (c *gatewayController) processGateway(
 	config *model.GatewayConfig,
 	o *objects,
 	gatewayKey refKey,
-) {
-	logger := log.FromContext(ctx)
-
+) error {
 	gateway := o.Gateways[gatewayKey]
 
 	// Snapshot the existing status, then compare after updates to determine if it has changed.
@@ -96,9 +97,10 @@ func (c *gatewayController) processGateway(
 
 	if !equality.Semantic.DeepEqual(gateway.Status, previousStatus) {
 		if err := c.Status().Update(ctx, gateway); err != nil {
-			logger.Error(err, "couldn't update Gateway status", "name", gateway.Name)
+			return fmt.Errorf("couldn't update status for gateway %q: %w", gateway.Name, err)
 		}
 	}
+	return nil
 }
 
 // ensureListenerStatusExists ensures that the elements of g.Status.Listeners correspond to the
@@ -166,12 +168,13 @@ func upsertGatewayConditions(g *gateway_v1.Gateway, conditions ...metav1.Conditi
 
 func (c *gatewayController) updateModifiedHTTPRouteStatus(
 	ctx context.Context, s []httpRouteAndOriginalStatus,
-) {
+) error {
 	for _, r := range s {
 		if !equality.Semantic.DeepEqual(r.route.Status, r.originalStatus) {
 			if err := c.Status().Update(ctx, r.route); err != nil {
-				golog.Printf("couldn't update status for %q: %v", r.route.Name, err)
+				return fmt.Errorf("couldn't update status for route %q: %w", r.route.Name, err)
 			}
 		}
 	}
+	return nil
 }

@@ -95,7 +95,10 @@ func (c *gatewayController) Reconcile(ctx context.Context, _ ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
-	config := c.processGateways(ctx, o)
+	config, err := c.processGateways(ctx, o)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	_, err = c.SetGatewayConfig(ctx, config)
 	if err != nil {
