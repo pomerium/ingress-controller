@@ -12,6 +12,7 @@ spec:
           args:
             - gen-secrets
             - --secrets=$(POD_NAMESPACE)/bootstrap
+            - --generate-global-config=global
           env:
             - name: POD_NAMESPACE
               valueFrom:
