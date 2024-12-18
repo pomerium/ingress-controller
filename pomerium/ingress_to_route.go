@@ -153,6 +153,16 @@ func setRoutePath(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.Ingress
 		return nil
 	}
 
+	if ic.IsUDPUpstream() {
+		if *p.PathType != networkingv1.PathTypeImplementationSpecific {
+			return fmt.Errorf("udp services must have %s path type", networkingv1.PathTypeImplementationSpecific)
+		}
+		if p.Path != "" {
+			return fmt.Errorf("udp services must not specify path, got %s", r.Path)
+		}
+		return nil
+	}
+
 	switch *p.PathType {
 	case networkingv1.PathTypeImplementationSpecific:
 		if ic.IsPathRegex() {
@@ -185,6 +195,15 @@ func setRouteFrom(r *pb.Route, host string, p networkingv1.HTTPIngressPath, ic *
 		}
 		u.Host = net.JoinHostPort(u.Host, fmt.Sprint(port))
 		u.Scheme = "tcp+https"
+	}
+
+	if ic.IsUDPUpstream() {
+		_, _, port, err := getServiceFromPath(p, ic)
+		if err != nil {
+			return err
+		}
+		u.Host = net.JoinHostPort(u.Host, fmt.Sprint(port))
+		u.Scheme = "udp+https"
 	}
 
 	r.From = u.String()
@@ -261,6 +280,8 @@ func getPathServiceHosts(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.
 func getUpstreamScheme(ic *model.IngressConfig) string {
 	if ic.IsTCPUpstream() {
 		return "tcp"
+	} else if ic.IsUDPUpstream() {
+		return "udp"
 	} else if ic.IsSecureUpstream() {
 		return "https"
 	}

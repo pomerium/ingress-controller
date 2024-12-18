@@ -32,6 +32,8 @@ const (
 	UseServiceProxy = "service_proxy_upstream"
 	// TCPUpstream indicates this route is a TCP service https://www.pomerium.com/docs/tcp/
 	TCPUpstream = "tcp_upstream"
+	// UDPUpstream indicates this route is a UDP service https://www.pomerium.com/docs/capabilities/udp/
+	UDPUpstream = "udp_upstream"
 	// SubtleAllowEmptyHost is a required annotation when creating an ingress containing
 	// rules with an empty (catch-all) host, as it can cause unexpected behavior
 	SubtleAllowEmptyHost = "subtle_allow_empty_host"
@@ -119,6 +121,11 @@ func (ic *IngressConfig) IsSecureUpstream() bool {
 // IsTCPUpstream returns true is this route represents a TCP service https://www.pomerium.com/docs/tcp/
 func (ic *IngressConfig) IsTCPUpstream() bool {
 	return ic.IsAnnotationSet(TCPUpstream)
+}
+
+// IsUDPUpstream returns true is this route represents a UDP service https://www.pomerium.com/docs/capabilities/tcp/
+func (ic *IngressConfig) IsUDPUpstream() bool {
+	return ic.IsAnnotationSet(UDPUpstream)
 }
 
 // IsPathRegex returns true if paths in the Ingress spec should be treated as regular expressions

@@ -70,6 +70,7 @@ var (
 		model.PathRegex,
 		model.SecureUpstream,
 		model.TCPUpstream,
+		model.UDPUpstream,
 		model.UseServiceProxy,
 		model.SubtleAllowEmptyHost,
 	})
