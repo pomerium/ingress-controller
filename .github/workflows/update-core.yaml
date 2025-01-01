@@ -12,7 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Setup Go
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a
         with:
           go-version: 1.23.x
       - name: Update Core
@@ -29,7 +29,7 @@ jobs:
 
       - name: Create Pull Request
         if: ${{ steps.git-diff.outputs.changed }} == 'true'
-        uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f
+        uses: peter-evans/create-pull-request@67ccf781d68cd99b580ae25a5c18a1cc84ffff1f
         with:
           author: GitHub Actions <apparitor@users.noreply.github.com>
           body: "This PR updates the Pomerium Core to the latest commit in main"
