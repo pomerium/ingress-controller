@@ -770,13 +770,13 @@ spec:
         imagePullPolicy: Always
         name: pomerium
         ports:
-        - containerPort: 8443
+        - containerPort: 443
           name: https
           protocol: TCP
-        - containerPort: 8443
+        - containerPort: 443
           name: quic
           protocol: UDP
-        - containerPort: 8080
+        - containerPort: 80
           name: http
           protocol: TCP
         - containerPort: 9090
@@ -791,6 +791,9 @@ spec:
             memory: 200Mi
         securityContext:
           allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
           readOnlyRootFilesystem: true
           runAsGroup: 65532
           runAsNonRoot: true
@@ -802,6 +805,9 @@ spec:
         kubernetes.io/os: linux
       securityContext:
         runAsNonRoot: true
+        sysctls:
+        - name: net.ipv4.ip_unprivileged_port_start
+          value: "80"
       serviceAccountName: pomerium-controller
       terminationGracePeriodSeconds: 10
       volumes:
