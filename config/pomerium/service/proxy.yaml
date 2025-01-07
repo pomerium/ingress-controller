@@ -10,6 +10,10 @@ spec:
       targetPort: https
       protocol: TCP
       name: https
+    - port: 443
+      targetPort: quic
+      protocol: UDP
+      name: quic
     - name: http
       targetPort: http
       protocol: TCP

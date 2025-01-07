@@ -237,6 +237,15 @@ spec:
                 items:
                   type: string
                 type: array
+              codec_type:
+                description: CodecType sets the <a href="https://www.pomerium.com/docs/reference/codec-type">Codec
+                  Type</a>.
+                enum:
+                - auto
+                - http1
+                - http2
+                - http3
+                type: string
               cookie:
                 description: Cookie defines Pomerium session cookie options.
                 properties:
@@ -708,6 +717,10 @@ spec:
     port: 443
     protocol: TCP
     targetPort: https
+  - name: quic
+    port: 443
+    protocol: UDP
+    targetPort: quic
   - name: http
     port: 80
     protocol: TCP
@@ -760,6 +773,9 @@ spec:
         - containerPort: 8443
           name: https
           protocol: TCP
+        - containerPort: 8443
+          name: quic
+          protocol: UDP
         - containerPort: 8080
           name: http
           protocol: TCP

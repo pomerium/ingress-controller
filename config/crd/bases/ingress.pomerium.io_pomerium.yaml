@@ -95,6 +95,15 @@ spec:
                 items:
                   type: string
                 type: array
+              codec_type:
+                description: CodecType sets the <a href="https://www.pomerium.com/docs/reference/codec-type">Codec
+                  Type</a>.
+                enum:
+                - auto
+                - http1
+                - http2
+                - http3
+                type: string
               cookie:
                 description: Cookie defines Pomerium session cookie options.
                 properties:
