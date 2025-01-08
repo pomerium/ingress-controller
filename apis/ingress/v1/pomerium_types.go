@@ -283,6 +283,12 @@ type PomeriumSpec struct {
 
 	// UseProxyProtocol enables <a href="https://www.pomerium.com/docs/reference/use-proxy-protocol">Proxy Protocol</a> support.
 	UseProxyProtocol *bool `json:"useProxyProtocol,omitempty"`
+
+	// CodecType sets the <a href="https://www.pomerium.com/docs/reference/codec-type">Codec Type</a>.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=auto;http1;http2;http3
+	CodecType *string `json:"codec_type,omitempty"`
 }
 
 // Timeouts allows to configure global timeouts for all routes.

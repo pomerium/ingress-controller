@@ -237,6 +237,15 @@ spec:
                 items:
                   type: string
                 type: array
+              codec_type:
+                description: CodecType sets the <a href="https://www.pomerium.com/docs/reference/codec-type">Codec
+                  Type</a>.
+                enum:
+                - auto
+                - http1
+                - http2
+                - http3
+                type: string
               cookie:
                 description: Cookie defines Pomerium session cookie options.
                 properties:
@@ -708,6 +717,10 @@ spec:
     port: 443
     protocol: TCP
     targetPort: https
+  - name: quic
+    port: 443
+    protocol: UDP
+    targetPort: quic
   - name: http
     port: 80
     protocol: TCP
@@ -757,10 +770,13 @@ spec:
         imagePullPolicy: Always
         name: pomerium
         ports:
-        - containerPort: 8443
+        - containerPort: 443
           name: https
           protocol: TCP
-        - containerPort: 8080
+        - containerPort: 443
+          name: quic
+          protocol: UDP
+        - containerPort: 80
           name: http
           protocol: TCP
         - containerPort: 9090
@@ -775,6 +791,9 @@ spec:
             memory: 200Mi
         securityContext:
           allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
           readOnlyRootFilesystem: true
           runAsGroup: 65532
           runAsNonRoot: true
@@ -786,6 +805,9 @@ spec:
         kubernetes.io/os: linux
       securityContext:
         runAsNonRoot: true
+        sysctls:
+        - name: net.ipv4.ip_unprivileged_port_start
+          value: "80"
       serviceAccountName: pomerium-controller
       terminationGracePeriodSeconds: 10
       volumes:

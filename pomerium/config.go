@@ -7,15 +7,15 @@ import (
 	"fmt"
 	"net/url"
 
+	http_connection_managerv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/pomerium/pomerium/config"
-	pb "github.com/pomerium/pomerium/pkg/grpc/config"
-
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/util"
+	"github.com/pomerium/pomerium/config"
+	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 type applyOpt struct {
@@ -103,6 +103,20 @@ func applySetOtherOptions(_ context.Context, p *pb.Config, c *model.Config) erro
 	p.Settings.SetResponseHeaders = c.Spec.SetResponseHeaders
 	p.Settings.ProgrammaticRedirectDomainWhitelist = c.Spec.ProgrammaticRedirectDomains
 	p.Settings.UseProxyProtocol = c.Spec.UseProxyProtocol
+	if c.Spec.CodecType != nil {
+		switch *c.Spec.CodecType {
+		case "auto":
+			p.Settings.CodecType = http_connection_managerv3.HttpConnectionManager_AUTO.Enum()
+		case "http1":
+			p.Settings.CodecType = http_connection_managerv3.HttpConnectionManager_HTTP1.Enum()
+		case "http2":
+			p.Settings.CodecType = http_connection_managerv3.HttpConnectionManager_HTTP2.Enum()
+		case "http3":
+			p.Settings.CodecType = http_connection_managerv3.HttpConnectionManager_HTTP3.Enum()
+		default:
+			return fmt.Errorf("unknown codec_type %s", *c.Spec.CodecType)
+		}
+	}
 	if c.Spec.AccessLogFields != nil {
 		p.Settings.AccessLogFields = &pb.Settings_StringList{
 			Values: *c.Spec.AccessLogFields,
