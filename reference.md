@@ -110,6 +110,22 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>codecType</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+
+                </p>
+                <p>
+
+                    CodecType sets the <a href="https://www.pomerium.com/docs/reference/codec-type">Codec Type</a>.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
                 <code>cookie</code>&#160;&#160;
 
                     <strong>object</strong>&#160;
@@ -184,6 +200,22 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
                 <p>
 
                     ProgrammaticRedirectDomains specifies a list of domains that can be used for <a href="https://www.pomerium.com/docs/capabilities/programmatic-access">programmatic redirects</a>.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>runtimeFlags</code>&#160;&#160;
+
+                    <strong>map[string]boolean</strong>
+
+                </p>
+                <p>
+
+                    RuntimeFlags sets the <a href="https://www.pomerium.com/docs/reference/runtime-flags">runtime flags</a> to enable/disable certain features.
                 </p>
 
             </td>

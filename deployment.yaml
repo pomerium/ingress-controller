@@ -237,7 +237,7 @@ spec:
                 items:
                   type: string
                 type: array
-              codec_type:
+              codecType:
                 description: CodecType sets the <a href="https://www.pomerium.com/docs/reference/codec-type">Codec
                   Type</a>.
                 enum:
