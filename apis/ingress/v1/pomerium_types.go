@@ -288,7 +288,7 @@ type PomeriumSpec struct {
 	//
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=auto;http1;http2;http3
-	CodecType *string `json:"codec_type,omitempty"`
+	CodecType *string `json:"codecType,omitempty"`
 }
 
 // Timeouts allows to configure global timeouts for all routes.

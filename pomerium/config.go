@@ -114,7 +114,7 @@ func applySetOtherOptions(_ context.Context, p *pb.Config, c *model.Config) erro
 		case "http3":
 			p.Settings.CodecType = http_connection_managerv3.HttpConnectionManager_HTTP3.Enum()
 		default:
-			return fmt.Errorf("unknown codec_type %s", *c.Spec.CodecType)
+			return fmt.Errorf("unknown codecType %s", *c.Spec.CodecType)
 		}
 	}
 	if c.Spec.AccessLogFields != nil {
