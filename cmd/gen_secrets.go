@@ -6,6 +6,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	runtime_ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -82,10 +84,24 @@ func (s *genSecretsCmd) exec(*cobra.Command, []string) error {
 		return fmt.Errorf("client: %w", err)
 	}
 
+	// Check if secret already exists
+	existing := &corev1.Secret{}
+	err = c.Get(ctx, *name, existing)
+	if err == nil {
+		// Secret already exists, exit gracefully
+		return nil
+	}
+	if !apierrors.IsNotFound(err) {
+		return fmt.Errorf("check existing secret: %w", err)
+	}
+
 	secret, err := util.NewBootstrapSecrets(*name)
 	if err != nil {
 		return fmt.Errorf("generate secrets: %w", err)
 	}
 
-	return c.Create(ctx, secret)
+	if err := c.Create(ctx, secret); err != nil {
+		return fmt.Errorf("create secret: %w", err)
+	}
+	return nil
 }
