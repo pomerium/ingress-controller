@@ -46,6 +46,7 @@ func TestAnnotations(t *testing.T) {
 					"a/allowed_idp_claims":                      `key: ["val1", "val2"]`,
 					"a/allowed_users":                           `["a"]`,
 					"a/cors_allow_preflight":                    "true",
+					"a/description":                             "DESCRIPTION",
 					"a/health_checks":                           `[{"timeout": "10s", "interval": "1m", "healthy_threshold": 1, "unhealthy_threshold": 2, "http_health_check": {"path": "/"}}]`,
 					"a/host_path_regex_rewrite_pattern":         "rewrite-pattern",
 					"a/host_path_regex_rewrite_substitution":    "rewrite-sub",
@@ -54,6 +55,7 @@ func TestAnnotations(t *testing.T) {
 					"a/idle_timeout":                            `60s`,
 					"a/kubernetes_service_account_token_secret": "k8s_token",
 					"a/lb_policy":                               "LEAST_REQUEST",
+					"a/logo_url":                                "LOGO_URL",
 					"a/least_request_lb_config":                 `{"choice_count":3,"active_request_bias":{"default_value":4,"runtime_key":"key"},"slow_start_config":{"slow_start_window":"3s","aggression":{"runtime_key":"key"}}}`,
 					"a/pass_identity_headers":                   "true",
 					"a/policy":                                  testPPL,
@@ -187,9 +189,12 @@ func TestAnnotations(t *testing.T) {
 			AllowedIdpClaims: map[string]*structpb.ListValue{
 				"key": {Values: []*structpb.Value{structpb.NewStringValue("val1"), structpb.NewStringValue("val2")}},
 			},
+			SourcePpl: proto.String(`{"allow":{"or":[{"domain":{"is":"pomerium.com"}}]}}`),
 		}},
 		TlsSkipVerify: true,
 		TlsServerName: "my.server.name",
+		Description:   "DESCRIPTION",
+		LogoUrl:       "LOGO_URL",
 	}, cmpopts.IgnoreUnexported(
 		pb.Route{},
 		pb.RouteRewriteHeader{},

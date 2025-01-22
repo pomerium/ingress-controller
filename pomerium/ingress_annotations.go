@@ -7,6 +7,7 @@ import (
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/open-policy-agent/opa/ast"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -24,11 +25,13 @@ var (
 		"allow_spdy",
 		"allow_websockets",
 		"cors_allow_preflight",
+		"description",
 		"host_path_regex_rewrite_pattern",
 		"host_path_regex_rewrite_substitution",
 		"host_rewrite_header",
 		"host_rewrite",
 		"idle_timeout",
+		"logo_url",
 		"pass_identity_headers",
 		"prefix_rewrite",
 		"preserve_host_header",
@@ -195,6 +198,7 @@ func unmarshalPolicyAnnotations(p *pomerium.Policy, kvs map[string]string) error
 		return fmt.Errorf("invalid custom rego: %w", err)
 	}
 
+	p.SourcePpl = proto.String(ppl)
 	p.Rego = []string{src}
 	return nil
 }
