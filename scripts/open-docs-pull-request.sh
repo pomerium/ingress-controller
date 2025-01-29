@@ -3,7 +3,7 @@ set -euo pipefail
 
 source_path="reference.md"
 destination_repo="pomerium/documentation"
-destination_path="content/docs/k8s"
+destination_path="content/docs/deploy/k8s"
 destination_base_branch="main"
 destination_head_branch="update-k8s-reference-$GITHUB_SHA"
 
