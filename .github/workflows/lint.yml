@@ -15,7 +15,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a
+      - uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34
         with:
           go-version: 1.22.x
           cache: false
@@ -24,7 +24,7 @@ jobs:
       - run: make pomerium-ui
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@971e284b6050e8a5849b72094c50ab08da042db8
+        uses: golangci/golangci-lint-action@ec5d18412c0aeab7936cb16880d708ba2a64e1ae
         with:
           version: v1.60.1
           args: --timeout=10m
