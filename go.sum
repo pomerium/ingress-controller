@@ -205,6 +205,8 @@ github.com/evanphx/json-patch v5.7.0+incompatible h1:vgGkfT/9f8zE6tvSCe74nfpAVDQ
 github.com/evanphx/json-patch v5.7.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch/v5 v5.9.0 h1:kcBlZQbplgElYIlo/n1hJbls2z/1awpXxpRi0/FOJfg=
 github.com/evanphx/json-patch/v5 v5.9.0/go.mod h1:VNkHZ/282BpEyt/tObQO8s5CMPmYYq14uClGH4abBuQ=
+github.com/exaring/otelpgx v0.8.0 h1:uqoDIW9qKkyz479z2cGrmJ8OJypydyEA+xwey4ukvNo=
+github.com/exaring/otelpgx v0.8.0/go.mod h1:ANkRZDfgfmN6yJS1xKMkshbnsHO8at5sYwtVEYOX8hc=
 github.com/fatih/color v1.18.0 h1:S8gINlzdQ840/4pfAwic/ZE0djQEH3wM94VfqLTZcOM=
 github.com/fatih/color v1.18.0/go.mod h1:4FelSpRwEGDpQ12mAdzqdOukCy4u8WUtOY6lkT/6HfU=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
@@ -539,8 +541,8 @@ github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524 h1:3YQY1sb5
 github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524/go.mod h1:7fGbUYJnU8RcxZJvUvhukOIBv1G7LWDAHMfDxAf5+Y0=
 github.com/pomerium/envoy-custom v1.32.4-0.20250114182541-6f6d2147bea6 h1:QLVgpx23jcbgR9qJzIicJ+uXGjQXO0GAy55SCo0Jd9o=
 github.com/pomerium/envoy-custom v1.32.4-0.20250114182541-6f6d2147bea6/go.mod h1:afbaKE6YfshVUOrYc6XWUWfZcXencWmi1jTc00ki0Oo=
-github.com/pomerium/pomerium v0.28.1-0.20250127214108-332d3dc3345e h1:7MqaUPUOpZW8bBLPSAlwK9RTGEVjnxQ3ErT3lx3syQk=
-github.com/pomerium/pomerium v0.28.1-0.20250127214108-332d3dc3345e/go.mod h1:ujclJDq2BGZuSe2/9Lz2w4MpTVIR8DrR05qyjk1OcsU=
+github.com/pomerium/pomerium v0.28.1-0.20250204182906-81a52db74940 h1:Gi6ZFj2KUoI71thjzNKH4y13ip4LPLjABTQN+33P9IY=
+github.com/pomerium/pomerium v0.28.1-0.20250204182906-81a52db74940/go.mod h1:8Uf1ya/wSjJyeUo5X4TqctlrYxbc5iPfFG18x1t0Deo=
 github.com/pomerium/protoutil v0.0.0-20240813175624-47b7ac43ff46 h1:NRTg8JOXCxcIA1lAgD74iYud0rbshbWOB3Ou4+Huil8=
 github.com/pomerium/protoutil v0.0.0-20240813175624-47b7ac43ff46/go.mod h1:QqZmx6ZgPxz18va7kqoT4t/0yJtP7YFIDiT/W2n2fZ4=
 github.com/pomerium/webauthn v0.0.0-20240603205124-0428df511172 h1:TqoPqRgXSHpn+tEJq6H72iCS5pv66j3rPprThUEZg0E=
