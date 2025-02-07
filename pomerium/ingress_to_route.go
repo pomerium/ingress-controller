@@ -13,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -327,26 +326,43 @@ func getEndpointsURLs(ingressServicePort networkingv1.ServiceBackendPort, servic
 }
 
 func getEndpointPortMatcher(ingressServicePort networkingv1.ServiceBackendPort, servicePorts []corev1.ServicePort) func(port corev1.EndpointPort) bool {
+	// Here's an example of a Service and its associated Endpoints:
+	//
+	// kind: Service
+	// spec:
+	//   ports:
+	//   - name: grafana
+	//     port: 80
+	//     targetPort: grafana-http
+	//
+	// kind: Endpoints
+	// subsets:
+	// - ports:
+	//   - name: grafana
+	//     port: 3000
+	//
+	// An Ingress refers to the Service by name, and to a specific port either by
+	// name or by number.
+	// If by name (`grafana` in the example above), then it's always the same as
+	// the port name on the Endpoints.
+	// But if by number (`80` in the example above), then we need to find the
+	// correct Endpoints port by matching the Service targetPort.
 	if ingressServicePort.Name != "" {
-		ports := make(map[intstr.IntOrString]bool)
-		for _, sp := range servicePorts {
-			if sp.Name == ingressServicePort.Name {
-				ports[sp.TargetPort] = true
-			}
-		}
+		// If the Ingress specifies the Service port by name, then simply match the
+		// Endpoint port by name.
 		return func(port corev1.EndpointPort) bool {
-			pName := intstr.FromString(port.Name)
-			pNumber := intstr.FromInt(int(port.Port))
-
-			return port.Name == ingressServicePort.Name && (ports[pName] || ports[pNumber])
+			return port.Name == ingressServicePort.Name
 		}
 	}
 
-	// match by port number
-	for _, sp := range servicePorts {
-		if sp.Port == ingressServicePort.Number {
+	// Otherwise, the Ingress specifies the Service port number, which doesn't
+	// correspond to the Endpoint port number directly. We need to lookup the
+	// list of ports on the Service, and get the matching _targetPort_ from
+	// there, which must correspond to the Endpoint port number.
+	for _, servicePort := range servicePorts {
+		if ingressServicePort.Number == servicePort.Port {
 			return func(port corev1.EndpointPort) bool {
-				return sp.TargetPort.IntVal == port.Port
+				return port.Port == servicePort.TargetPort.IntVal
 			}
 		}
 	}
