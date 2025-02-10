@@ -1011,7 +1011,7 @@ func TestServicePortsAndEndpoints(t *testing.T) {
 			[]corev1.ServicePort{{
 				Name:       "http",
 				Port:       8000,
-				TargetPort: intstr.IntOrString{StrVal: "http", Type: intstr.String},
+				TargetPort: intstr.IntOrString{StrVal: "grafana-http", Type: intstr.String},
 			}},
 			[]corev1.EndpointSubset{{
 				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
@@ -1019,6 +1019,25 @@ func TestServicePortsAndEndpoints(t *testing.T) {
 			}},
 			[]string{
 				"http://1.2.3.4:80",
+			},
+			false,
+		},
+		{
+			"unnamed port and named target port",
+			networkingv1.ServiceBackendPort{Number: 80},
+			[]corev1.ServicePort{{
+				Port:       80,
+				TargetPort: intstr.IntOrString{StrVal: "backend-http", Type: intstr.String},
+			}},
+			[]corev1.EndpointSubset{{
+				Addresses: []corev1.EndpointAddress{{IP: "192.0.2.1"}},
+				Ports:     []corev1.EndpointPort{{Port: 8080}},
+			}},
+			// In that case we can't easily determine which Endpoints port
+			// corresponds to the Service port, so we need to fallback to using the
+			// Service instead.
+			[]string{
+				"http://service.default.svc.cluster.local:80",
 			},
 			false,
 		},
