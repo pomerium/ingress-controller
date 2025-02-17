@@ -141,32 +141,30 @@ func (r *ingressController) updateIngressStatus(ctx context.Context, ingress *ne
 		return fmt.Errorf("get pomerium-proxy service %s: %w", r.updateStatusFromService.String(), err)
 	}
 
-	ingress.Status.LoadBalancer = networkingv1.IngressLoadBalancerStatus{}
-
-	if len(svc.Status.LoadBalancer.Ingress) > 0 {
-		ingress.Status.LoadBalancer.Ingress = svcLoadBalancerStatusToIngress(svc.Status.LoadBalancer.Ingress)
-	} else if svc.Spec.Type == corev1.ServiceTypeNodePort {
-		// Assign ClusterIP for NodePort service
-		if svc.Spec.ClusterIP != "" {
-			ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networkingv1.IngressLoadBalancerIngress{
-				IP: svc.Spec.ClusterIP,
-			})
-		}
+	ingress.Status.LoadBalancer = networkingv1.IngressLoadBalancerStatus{
+		Ingress: svcStatusToIngress(svc),
 	}
 
 	return r.Client.Status().Update(ctx, ingress)
 }
 
-func svcLoadBalancerStatusToIngress(src []corev1.LoadBalancerIngress) []networkingv1.IngressLoadBalancerIngress {
-	dst := make([]networkingv1.IngressLoadBalancerIngress, len(src))
-	for i := range src {
-		dst[i] = networkingv1.IngressLoadBalancerIngress{
-			Hostname: src[i].Hostname,
-			IP:       src[i].IP,
-			Ports:    svcPortToIngress(src[i].Ports),
+func svcStatusToIngress(svc *corev1.Service) []networkingv1.IngressLoadBalancerIngress {
+	if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
+		var src = svc.Status.LoadBalancer.Ingress
+		dst := make([]networkingv1.IngressLoadBalancerIngress, len(src))
+		for i := range src {
+			dst[i] = networkingv1.IngressLoadBalancerIngress{
+				Hostname: src[i].Hostname,
+				IP:       src[i].IP,
+				Ports:    svcPortToIngress(src[i].Ports),
+			}
 		}
+		return dst
 	}
-	return dst
+	// Assign ClusterIP for NodePort service
+	return []networkingv1.IngressLoadBalancerIngress{{
+		IP: svc.Spec.ClusterIP,
+	}}
 }
 
 func svcPortToIngress(src []corev1.PortStatus) []networkingv1.IngressPortStatus {
