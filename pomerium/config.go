@@ -118,6 +118,29 @@ func applySetOtherOptions(_ context.Context, p *pb.Config, c *model.Config) erro
 	} else {
 		p.Settings.PassIdentityHeaders = nil
 	}
+	if c.Spec.BearerTokenFormat != nil {
+		switch *c.Spec.BearerTokenFormat {
+		case "":
+			p.Settings.BearerTokenFormat = pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN.Enum()
+		case "default":
+			p.Settings.BearerTokenFormat = pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT.Enum()
+		case "idp_access_token":
+			p.Settings.BearerTokenFormat = pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN.Enum()
+		case "idp_identity_token":
+			p.Settings.BearerTokenFormat = pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN.Enum()
+		default:
+			return fmt.Errorf("unknown bearerTokenFormat %s", *c.Spec.BearerTokenFormat)
+		}
+	} else {
+		p.Settings.BearerTokenFormat = nil
+	}
+	if c.Spec.IDPAccessTokenAllowedAudiences != nil {
+		p.Settings.IdpAccessTokenAllowedAudiences = &pb.Settings_StringList{
+			Values: *c.Spec.IDPAccessTokenAllowedAudiences,
+		}
+	} else {
+		p.Settings.IdpAccessTokenAllowedAudiences = nil
+	}
 	return nil
 }
 

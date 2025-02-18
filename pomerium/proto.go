@@ -43,6 +43,10 @@ func preprocessAnnotationMessage(md protoreflect.MessageDescriptor, data any) an
 		if v, ok := data.(string); ok {
 			return goDurationStringToProtoJSONDurationString(v)
 		}
+	case "pomerium.config.Route.StringList":
+		if v, ok := data.([]any); ok {
+			return map[string]any{"values": v}
+		}
 	default:
 		// preprocess all the fields
 		if v, ok := data.(map[string]any); ok {
@@ -62,6 +66,20 @@ func preprocessAnnotationMessage(md protoreflect.MessageDescriptor, data any) an
 }
 
 func preprocessAnnotationField(fd protoreflect.FieldDescriptor, data any) any {
+	if fd.Enum() != nil && fd.Enum().FullName() == "pomerium.config.BearerTokenFormat" {
+		if v, ok := data.(string); ok {
+			switch v {
+			case "":
+				return "BEARER_TOKEN_FORMAT_UNKNOWN"
+			case "default":
+				return "BEARER_TOKEN_FORMAT_DEFAULT"
+			case "idp_access_token":
+				return "BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN"
+			case "idp_identity_token":
+				return "BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN"
+			}
+		}
+	}
 	// if this is a repeated field, handle each of the field values separately
 	if fd.IsList() {
 		vs, ok := data.([]any)
