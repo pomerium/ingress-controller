@@ -83,6 +83,14 @@ spec:
                 items:
                   type: string
                 type: array
+              bearerTokenFormat:
+                description: BearerTokenFormat sets the <a href="https://www.pomerium.com/docs/reference/bearer-token-format">Bearer
+                  Token Format</a>.
+                enum:
+                - default
+                - idp_access_token
+                - idp_identity_token
+                type: string
               caSecrets:
                 description: CASecret should refer to k8s secrets with key <code>ca.crt</code>
                   containing a CA certificate.
@@ -222,6 +230,14 @@ spec:
                 - provider
                 - secret
                 type: object
+              idpAccessTokenAllowedAudiences:
+                description: |-
+                  IDPAccessTokenAllowedAudiences specifies the
+                  <a href="https://www.pomerium.com/docs/reference/idp-access-token-allowed-audiences">idp access token allowed audiences</a>
+                  list.
+                items:
+                  type: string
+                type: array
               jwtClaimHeaders:
                 additionalProperties:
                   type: string

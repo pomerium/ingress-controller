@@ -289,6 +289,17 @@ type PomeriumSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=auto;http1;http2;http3
 	CodecType *string `json:"codecType,omitempty"`
+
+	// BearerTokenFormat sets the <a href="https://www.pomerium.com/docs/reference/bearer-token-format">Bearer Token Format</a>.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=default;idp_access_token;idp_identity_token
+	BearerTokenFormat *string `json:"bearerTokenFormat,omitempty"`
+
+	// IDPAccessTokenAllowedAudiences specifies the
+	// <a href="https://www.pomerium.com/docs/reference/idp-access-token-allowed-audiences">idp access token allowed audiences</a>
+	// list.
+	IDPAccessTokenAllowedAudiences *[]string `json:"idpAccessTokenAllowedAudiences,omitempty"`
 }
 
 // Timeouts allows to configure global timeouts for all routes.

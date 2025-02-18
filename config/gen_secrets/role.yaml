@@ -10,3 +10,4 @@ rules:
       - secrets
     verbs:
       - create
+      - get
