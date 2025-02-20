@@ -283,6 +283,17 @@ type PomeriumSpec struct {
 
 	// UseProxyProtocol enables <a href="https://www.pomerium.com/docs/reference/use-proxy-protocol">Proxy Protocol</a> support.
 	UseProxyProtocol *bool `json:"useProxyProtocol,omitempty"`
+
+	// BearerTokenFormat sets the <a href="https://www.pomerium.com/docs/reference/bearer-token-format">Bearer Token Format</a>.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=default;idp_access_token;idp_identity_token
+	BearerTokenFormat *string `json:"bearerTokenFormat,omitempty"`
+
+	// IDPAccessTokenAllowedAudiences specifies the
+	// <a href="https://www.pomerium.com/docs/reference/idp-access-token-allowed-audiences">idp access token allowed audiences</a>
+	// list.
+	IDPAccessTokenAllowedAudiences *[]string `json:"idpAccessTokenAllowedAudiences,omitempty"`
 }
 
 // Timeouts allows to configure global timeouts for all routes.

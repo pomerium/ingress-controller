@@ -8,6 +8,7 @@ Pomerium-specific parameters should be configured via the `ingress.pomerium.io/P
 The default Pomerium deployment is listening to the CRD `global`, that may be customized via command line parameters.
 
 Pomerium posts updates to the CRD <a href="#status">`/status`</a>:
+
 ```shell
 kubectl describe pomerium
 ```
@@ -67,6 +68,22 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
                 <p>
 
                     AuthorizeLogFields sets the <a href="https://www.pomerium.com/docs/reference/authorize-log-fields">authorize fields</a> to log.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>bearerTokenFormat</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+
+                </p>
+                <p>
+
+                    BearerTokenFormat sets the <a href="https://www.pomerium.com/docs/reference/bearer-token-format">Bearer Token Format</a>.
                 </p>
 
             </td>
@@ -144,6 +161,22 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>idpAccessTokenAllowedAudiences</code>&#160;&#160;
+
+                    <strong>[]string</strong>&#160;
+
+                </p>
+                <p>
+
+                    IDPAccessTokenAllowedAudiences specifies the <a href="https://www.pomerium.com/docs/reference/idp-access-token-allowed-audiences">idp access token allowed audiences</a> list.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
                 <code>jwtClaimHeaders</code>&#160;&#160;
 
                     <strong>map[string]string</strong>
@@ -184,6 +217,22 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
                 <p>
 
                     ProgrammaticRedirectDomains specifies a list of domains that can be used for <a href="https://www.pomerium.com/docs/capabilities/programmatic-access">programmatic redirects</a>.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>runtimeFlags</code>&#160;&#160;
+
+                    <strong>map[string]boolean</strong>
+
+                </p>
+                <p>
+
+                    RuntimeFlags sets the <a href="https://www.pomerium.com/docs/reference/runtime-flags">runtime flags</a> to enable/disable certain features.
                 </p>
 
             </td>
@@ -275,9 +324,8 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         </tr>
 
     </tbody>
+
 </table>
-
-
 
 ### `authenticate`
 
@@ -324,9 +372,8 @@ Authenticate sets authenticate service parameters. If not specified, a Pomerium-
         </tr>
 
     </tbody>
+
 </table>
-
-
 
 ### `cookie`
 
@@ -421,9 +468,8 @@ Cookie defines Pomerium session cookie options.
         </tr>
 
     </tbody>
+
 </table>
-
-
 
 ### `identityProvider`
 
@@ -573,9 +619,8 @@ IdentityProvider configure single-sign-on authentication and user identity detai
         </tr>
 
     </tbody>
+
 </table>
-
-
 
 ### `postgres`
 
@@ -644,9 +689,8 @@ Postgres specifies PostgreSQL database connection parameters
         </tr>
 
     </tbody>
+
 </table>
-
-
 
 ### `refreshDirectory`
 
@@ -696,9 +740,8 @@ RefreshDirectory is no longer supported, please see <a href="https://docs.pomeri
         </tr>
 
     </tbody>
+
 </table>
-
-
 
 ### `storage`
 
@@ -727,9 +770,8 @@ Storage defines persistent storage for sessions and other data. See <a href="htt
         </tr>
 
     </tbody>
+
 </table>
-
-
 
 ### `timeouts`
 
@@ -798,9 +840,8 @@ Timeout specifies the <a href="https://www.pomerium.com/docs/reference/global-ti
         </tr>
 
     </tbody>
+
 </table>
-
-
 
 ## Status
 
@@ -846,9 +887,8 @@ PomeriumStatus represents configuration and Ingress status.
         </tr>
 
     </tbody>
+
 </table>
-
-
 
 ### `ingress`
 
@@ -943,9 +983,8 @@ ResourceStatus represents the outcome of the latest attempt to reconcile relevan
         </tr>
 
     </tbody>
+
 </table>
-
-
 
 ### `settingsStatus`
 
@@ -1040,4 +1079,5 @@ SettingsStatus represent most recent main configuration reconciliation status.
         </tr>
 
     </tbody>
+
 </table>
