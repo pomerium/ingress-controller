@@ -34,8 +34,6 @@ linters-settings:
     check-shadowing: false
   lll:
     line-length: 160
-  maligned:
-    suggest-new: true
   misspell:
     locale: US
   nolintlint:
