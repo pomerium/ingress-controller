@@ -225,6 +225,14 @@ spec:
                 items:
                   type: string
                 type: array
+              bearerTokenFormat:
+                description: BearerTokenFormat sets the <a href="https://www.pomerium.com/docs/reference/bearer-token-format">Bearer
+                  Token Format</a>.
+                enum:
+                - default
+                - idp_access_token
+                - idp_identity_token
+                type: string
               caSecrets:
                 description: CASecret should refer to k8s secrets with key <code>ca.crt</code>
                   containing a CA certificate.
@@ -364,6 +372,14 @@ spec:
                 - provider
                 - secret
                 type: object
+              idpAccessTokenAllowedAudiences:
+                description: |-
+                  IDPAccessTokenAllowedAudiences specifies the
+                  <a href="https://www.pomerium.com/docs/reference/idp-access-token-allowed-audiences">idp access token allowed audiences</a>
+                  list.
+                items:
+                  type: string
+                type: array
               jwtClaimHeaders:
                 additionalProperties:
                   type: string
@@ -655,6 +671,7 @@ rules:
   - secrets
   verbs:
   - create
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -770,13 +787,13 @@ spec:
         imagePullPolicy: Always
         name: pomerium
         ports:
-        - containerPort: 443
+        - containerPort: 8443
           name: https
           protocol: TCP
         - containerPort: 443
           name: quic
           protocol: UDP
-        - containerPort: 80
+        - containerPort: 8080
           name: http
           protocol: TCP
         - containerPort: 9090
@@ -805,9 +822,6 @@ spec:
         kubernetes.io/os: linux
       securityContext:
         runAsNonRoot: true
-        sysctls:
-        - name: net.ipv4.ip_unprivileged_port_start
-          value: "80"
       serviceAccountName: pomerium-controller
       terminationGracePeriodSeconds: 10
       volumes:

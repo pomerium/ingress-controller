@@ -8,14 +8,14 @@ spec:
       containers:
         - name: pomerium
           ports:
-            - containerPort: 443
+            - containerPort: 8443
               name: https
               protocol: TCP
             - containerPort: 443
               name: quic
               protocol: UDP
             - name: http
-              containerPort: 80
+              containerPort: 8080
               protocol: TCP
             - name: metrics
               containerPort: 9090
