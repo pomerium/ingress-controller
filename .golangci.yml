@@ -1,5 +1,4 @@
 run:
-  deadline: 20m
   build-tags:
     - embed_pomerium
 
@@ -157,8 +156,3 @@ issues:
         - gosec
     - linters: [golint]
       text: "should have a package comment"
-
-# golangci.com configuration
-# https://github.com/golangci/golangci/wiki/Configuration
-service:
-  golangci-lint-version: 1.34.x # use the fixed version to not introduce new linters unexpectedly
