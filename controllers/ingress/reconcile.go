@@ -149,8 +149,9 @@ func (r *ingressController) updateIngressStatus(ctx context.Context, ingress *ne
 }
 
 func svcStatusToIngress(svc *corev1.Service) []networkingv1.IngressLoadBalancerIngress {
-	if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
-		var src = svc.Status.LoadBalancer.Ingress
+	switch svc.Spec.Type {
+	case corev1.ServiceTypeLoadBalancer:
+		src = svc.Status.LoadBalancer.Ingress
 		dst := make([]networkingv1.IngressLoadBalancerIngress, len(src))
 		for i := range src {
 			dst[i] = networkingv1.IngressLoadBalancerIngress{
@@ -160,11 +161,13 @@ func svcStatusToIngress(svc *corev1.Service) []networkingv1.IngressLoadBalancerI
 			}
 		}
 		return dst
+	case corev1.ServiceTypeNodePort, corev1.ServiceTypeClusterIP:
+		return []networkingv1.IngressLoadBalancerIngress{{
+			IP: svc.Spec.ClusterIP,
+		}}
+	default:
+		return nil
 	}
-	// Assign ClusterIP for NodePort service
-	return []networkingv1.IngressLoadBalancerIngress{{
-		IP: svc.Spec.ClusterIP,
-	}}
 }
 
 func svcPortToIngress(src []corev1.PortStatus) []networkingv1.IngressPortStatus {
