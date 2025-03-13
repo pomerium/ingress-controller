@@ -1,5 +1,4 @@
 run:
-  deadline: 20m
   build-tags:
     - embed_pomerium
 
@@ -9,8 +8,6 @@ linters-settings:
   funlen:
     lines: 100
     statements: 50
-  gci:
-    local-prefixes: github.com/pomerium
   goconst:
     min-len: 2
     min-occurrences: 2
@@ -31,16 +28,11 @@ linters-settings:
     min-complexity: 15
   goimports:
     local-prefixes: github.com/pomerium
-  govet:
-    check-shadowing: false
   lll:
     line-length: 160
-  maligned:
-    suggest-new: true
   misspell:
     locale: US
   nolintlint:
-    allow-leading-space: true # don't require machine-readable nolint directives (i.e. with no leading space)
     allow-unused: false # report any unused nolint directives
     require-explanation: false # don't require an explanation for nolint directives
     require-specific: false # don't require nolint directives to be specific about which linter is being skipped
@@ -157,8 +149,3 @@ issues:
         - gosec
     - linters: [golint]
       text: "should have a package comment"
-
-# golangci.com configuration
-# https://github.com/golangci/golangci/wiki/Configuration
-service:
-  golangci-lint-version: 1.34.x # use the fixed version to not introduce new linters unexpectedly
