@@ -603,6 +603,60 @@ func (s *ControllerTestSuite) TestIngressStatus() {
 		return true
 	}, time.Minute, time.Second)
 }
+func (s *ControllerTestSuite) TestIngressAddressWithNodeport() {
+	ctx := context.Background()
+
+	proxySvcName := types.NamespacedName{Name: "pomerium-proxy", Namespace: "pomerium"}
+	s.createTestController(ctx,
+		ingress_controller.WithNamespaces([]string{"default"}),
+		ingress_controller.WithUpdateIngressStatusFromService(proxySvcName),
+	)
+
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "pomerium"}}
+	proxySvc := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      proxySvcName.Name,
+			Namespace: proxySvcName.Namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeNodePort,
+			Ports: []corev1.ServicePort{{
+				Name:       "https",
+				Protocol:   "TCP",
+				Port:       443,
+				TargetPort: intstr.FromInt(5443),
+			}},
+		},
+	}
+	to := s.initialTestObjects("default")
+	class, ingress, endpoints, service, secret := to.IngressClass, to.Ingress, to.Endpoints, to.Service, to.Secret
+	del := func(obj client.Object) { s.Client.Delete(ctx, obj) }
+	for _, obj := range []client.Object{
+		ns, proxySvc,
+		class, endpoints, service, secret, ingress,
+	} {
+		s.NoError(s.Client.Create(ctx, obj))
+		defer del(obj)
+	}
+
+	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
+	}, "ingress created")
+
+	proxySvc.Spec.ClusterIP = "10.0.0.1"
+	s.NoError(s.Client.Status().Update(ctx, proxySvc), proxySvc.Spec)
+	require.Eventually(s.T(), func() bool {
+		s.NoError(s.Client.Get(ctx, types.NamespacedName{Name: ingress.Name, Namespace: ingress.Namespace}, ingress))
+		if len(ingress.Status.LoadBalancer.Ingress) != 1 {
+			return false
+		}
+		if ingress.Status.LoadBalancer.Ingress[0].IP != proxySvc.Spec.ClusterIP {
+			return false
+		}
+		return true
+	}, time.Minute, time.Second)
+}
 
 func (s *ControllerTestSuite) TestHttp01Solver() {
 	ctx := context.Background()
