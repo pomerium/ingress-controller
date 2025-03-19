@@ -161,7 +161,7 @@ func svcStatusToIngress(svc *corev1.Service) []networkingv1.IngressLoadBalancerI
 			}
 		}
 		return dst
-	case corev1.ServiceTypeNodePort, corev1.ServiceTypeClusterIP:
+	case corev1.ServiceTypeNodePort:
 		return []networkingv1.IngressLoadBalancerIngress{{
 			IP: svc.Spec.ClusterIP,
 		}}
