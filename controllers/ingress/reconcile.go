@@ -151,7 +151,7 @@ func (r *ingressController) updateIngressStatus(ctx context.Context, ingress *ne
 func svcStatusToIngress(svc *corev1.Service) []networkingv1.IngressLoadBalancerIngress {
 	switch svc.Spec.Type {
 	case corev1.ServiceTypeLoadBalancer:
-		src = svc.Status.LoadBalancer.Ingress
+		src := svc.Status.LoadBalancer.Ingress
 		dst := make([]networkingv1.IngressLoadBalancerIngress, len(src))
 		for i := range src {
 			dst[i] = networkingv1.IngressLoadBalancerIngress{
