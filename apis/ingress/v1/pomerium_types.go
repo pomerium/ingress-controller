@@ -310,7 +310,7 @@ type OTEL struct {
 	// An OTLP/gRPC or OTLP/HTTP base endpoint URL with optional port.<br/>Example: `http://localhost:4318`
 	//
 	// +kubebuilder:validation:Required
-	Endpoint string `json:"tracesEndpoint"`
+	Endpoint string `json:"endpoint"`
 
 	// Valid values are `"grpc"` or `"http/protobuf"`.
 	//

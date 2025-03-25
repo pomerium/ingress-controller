@@ -262,6 +262,10 @@ spec:
                       exports
                     format: duration
                     type: string
+                  endpoint:
+                    description: 'An OTLP/gRPC or OTLP/HTTP base endpoint URL with
+                      optional port.<br/>Example: `http://localhost:4318`'
+                    type: string
                   headers:
                     additionalProperties:
                       type: string
@@ -297,13 +301,9 @@ spec:
                     description: Export request timeout duration
                     format: duration
                     type: string
-                  tracesEndpoint:
-                    description: 'An OTLP/gRPC or OTLP/HTTP base endpoint URL with
-                      optional port.<br/>Example: `http://localhost:4318`'
-                    type: string
                 required:
+                - endpoint
                 - protocol
-                - tracesEndpoint
                 type: object
               passIdentityHeaders:
                 description: PassIdentityHeaders sets the <a href="https://www.pomerium.com/docs/reference/pass-identity-headers">pass
