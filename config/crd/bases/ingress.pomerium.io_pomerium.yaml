@@ -248,6 +248,63 @@ spec:
                   <a href="https://www.pomerium.com/docs/topics/getting-users-identity">
                   Getting User Identity</a> guide.
                 type: object
+              otel:
+                description: OTEL sets the <a href="https://www.pomerium.com/docs/reference/tracing.mdx">OpenTelemetry
+                  Tracing</a>.
+                properties:
+                  bspMaxExportBatchSize:
+                    description: BSPMaxExportBatchSize sets the maximum number of
+                      spans to export in a single batch
+                    format: int32
+                    type: integer
+                  bspScheduleDelay:
+                    description: BSPScheduleDelay sets interval between two consecutive
+                      exports
+                    format: duration
+                    type: string
+                  headers:
+                    additionalProperties:
+                      type: string
+                    description: Extra headers
+                    type: object
+                  logLevel:
+                    description: LogLevel sets the log level for the OpenTelemetry
+                      SDK.
+                    enum:
+                    - trace
+                    - debug
+                    - info
+                    - warn
+                    - error
+                    type: string
+                  protocol:
+                    description: Valid values are `"grpc"` or `"http/protobuf"`.
+                    enum:
+                    - grpc
+                    - http/protobuf
+                    type: string
+                  resourceAttributes:
+                    additionalProperties:
+                      type: string
+                    description: ResourceAttributes sets the additional attributes
+                      to be added to the trace.
+                    type: object
+                  sampling:
+                    description: Sampling sets sampling probability between [0, 1].
+                    format: number
+                    type: string
+                  timeout:
+                    description: Export request timeout duration
+                    format: duration
+                    type: string
+                  tracesEndpoint:
+                    description: 'An OTLP/gRPC or OTLP/HTTP base endpoint URL with
+                      optional port.<br/>Example: `http://localhost:4318`'
+                    type: string
+                required:
+                - protocol
+                - tracesEndpoint
+                type: object
               passIdentityHeaders:
                 description: PassIdentityHeaders sets the <a href="https://www.pomerium.com/docs/reference/pass-identity-headers">pass
                   identity headers</a> option.

@@ -11,6 +11,8 @@ words:
   - hostnames
   - mockgen
   - oidc
+  - otel
+  - otlp
   - pomerium
   - protobuf
   - protojson

@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/url"
+	"strconv"
 
 	http_connection_managerv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"google.golang.org/protobuf/proto"
@@ -41,6 +42,7 @@ func applyConfig(ctx context.Context, p *pb.Config, c *model.Config) error {
 		{"jwt claim headers", applyJWTClaimHeaders},
 		{"timeouts", applyTimeouts},
 		{"misc opts", applySetOtherOptions},
+		{"otel", applyOTEL},
 	}
 	if c.Spec.IdentityProvider != nil {
 		opts = append(opts, []applyOpt{
@@ -70,6 +72,59 @@ func checkForWarnings(ctx context.Context, _ *pb.Config, c *model.Config) error 
 		})
 	}
 	return nil
+}
+
+func applyOTEL(_ context.Context, p *pb.Config, c *model.Config) error {
+	otel := c.Spec.OTEL
+	if otel == nil {
+		return nil
+	}
+
+	_, err := url.Parse(otel.Endpoint)
+	if err != nil {
+		return fmt.Errorf("parsing %s: %w", otel.Endpoint, err)
+	}
+	p.Settings.OtelExporterOtlpTracesEndpoint = &otel.Endpoint
+
+	var sampling *float64
+	if otel.Sampling != nil {
+		v, err := strconv.ParseFloat(*otel.Sampling, 64)
+		if err != nil {
+			return fmt.Errorf("invalid sampling value %s: %w", *otel.Sampling, err)
+		}
+		if v < 0 || v > 1 {
+			return fmt.Errorf("sampling value %f must be in [0:1] range", v)
+		}
+		sampling = &v
+	}
+	p.Settings.OtelTracesSamplerArg = sampling
+
+	p.Settings.OtelResourceAttributes = mapToKVSlice(otel.ResourceAttributes)
+	p.Settings.OtelLogLevel = otel.LogLevel
+
+	p.Settings.OtelExporterOtlpTracesProtocol = &otel.Protocol
+	p.Settings.OtelExporterOtlpTracesHeaders = mapToKVSlice(otel.Headers)
+
+	if otel.Timeout != nil {
+		p.Settings.OtelExporterOtlpTracesTimeout = durationpb.New(otel.Timeout.Duration)
+	}
+	if otel.BSPScheduleDelay != nil {
+		p.Settings.OtelBspScheduleDelay = durationpb.New(otel.BSPScheduleDelay.Duration)
+	}
+	if otel.BSPMaxExportBatchSize != nil {
+		p.Settings.OtelBspMaxExportBatchSize = otel.BSPMaxExportBatchSize
+	}
+
+	return nil
+}
+
+// mapToKVSlice converts a map to a slice of key=value strings.
+func mapToKVSlice(m map[string]string) []string {
+	var res []string
+	for k, v := range m {
+		res = append(res, fmt.Sprintf("%s=%s", k, v))
+	}
+	return res
 }
 
 func applyTimeouts(_ context.Context, p *pb.Config, c *model.Config) error {
