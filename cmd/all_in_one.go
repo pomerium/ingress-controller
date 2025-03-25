@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/netutil"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 
 	"github.com/pomerium/ingress-controller/controllers"
 	"github.com/pomerium/ingress-controller/controllers/gateway"
@@ -189,6 +190,8 @@ func (s *allCmdParam) run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	ctx = trace.NewContext(ctx, trace.NewSyncClient(nil))
+
 	eg, ctx := errgroup.WithContext(ctx)
 	cfgCtl := util.NewRestartOnChange[*config.Config]()
 	runner, err := pomerium_ctrl.NewPomeriumRunner(s.cfg, cfgCtl.OnConfigUpdated)
@@ -203,6 +206,13 @@ func (s *allCmdParam) run(ctx context.Context) error {
 			isBootstrapEqual,
 			s.runConfigControllers,
 			s.configControllerShutdownTimeout)
+	})
+	eg.Go(func() error {
+		<-ctx.Done()
+		if err := trace.ShutdownContext(ctx); err != nil {
+			log.FromContext(ctx).Error(err, "failed to shutdown trace context")
+		}
+		return nil
 	})
 
 	return eg.Wait()
