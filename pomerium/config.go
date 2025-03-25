@@ -88,7 +88,6 @@ func applyOTEL(_ context.Context, p *pb.Config, c *model.Config) error {
 		return fmt.Errorf("parsing %s: %w", otel.Endpoint, err)
 	}
 	p.Settings.OtelExporterOtlpTracesEndpoint = &otel.Endpoint
-	p.Settings.OtelExporterOtlpEndpoint = &otel.Endpoint
 
 	var sampling *float64
 	if otel.Sampling != nil {
@@ -105,9 +104,7 @@ func applyOTEL(_ context.Context, p *pb.Config, c *model.Config) error {
 
 	p.Settings.OtelResourceAttributes = mapToKVSlice(otel.ResourceAttributes)
 	p.Settings.OtelLogLevel = otel.LogLevel
-
 	p.Settings.OtelExporterOtlpTracesProtocol = &otel.Protocol
-	p.Settings.OtelExporterOtlpProtocol = &otel.Protocol
 
 	p.Settings.OtelExporterOtlpTracesHeaders = mapToKVSlice(otel.Headers)
 
