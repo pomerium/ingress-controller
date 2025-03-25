@@ -300,6 +300,60 @@ type PomeriumSpec struct {
 	// <a href="https://www.pomerium.com/docs/reference/idp-access-token-allowed-audiences">idp access token allowed audiences</a>
 	// list.
 	IDPAccessTokenAllowedAudiences *[]string `json:"idpAccessTokenAllowedAudiences,omitempty"`
+
+	// OTEL sets the <a href="https://www.pomerium.com/docs/reference/tracing.mdx">OpenTelemetry Tracing</a>.
+	OTEL *OTEL `json:"otel,omitempty"`
+}
+
+// OTEL configures OpenTelemetry.
+type OTEL struct {
+	// An OTLP/gRPC or OTLP/HTTP base endpoint URL with optional port.<br/>Example: `http://localhost:4318`
+	//
+	// +kubebuilder:validation:Required
+	Endpoint string `json:"endpoint"`
+
+	// Valid values are `"grpc"` or `"http/protobuf"`.
+	//
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=grpc;http/protobuf
+	Protocol string `json:"protocol"`
+
+	// Extra headers
+	Headers map[string]string `json:"headers,omitempty"`
+
+	// Export request timeout duration
+	//
+	// +kubebuilder:validation:Format=duration
+	// +kubebuilder:validation:Optional
+	Timeout *metav1.Duration `json:"timeout,omitempty"`
+
+	// Sampling sets sampling probability between [0, 1].
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Format=number
+	Sampling *string `json:"sampling,omitempty"`
+
+	// ResourceAttributes sets the additional attributes to be added to the trace.
+	//
+	// +kubebuilder:validation:Optional
+	ResourceAttributes map[string]string `json:"resourceAttributes,omitempty"`
+
+	// BSPScheduleDelay sets interval between two consecutive exports
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Format=duration
+	BSPScheduleDelay *metav1.Duration `json:"bspScheduleDelay,omitempty"`
+
+	// BSPMaxExportBatchSize sets the maximum number of spans to export in a single batch
+	//
+	// +kubebuilder:validation:Optional
+	BSPMaxExportBatchSize *int32 `json:"bspMaxExportBatchSize,omitempty"`
+
+	// LogLevel sets the log level for the OpenTelemetry SDK.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=trace;debug;info;warn;error
+	LogLevel *string `json:"logLevel,omitempty"`
 }
 
 // Timeouts allows to configure global timeouts for all routes.
