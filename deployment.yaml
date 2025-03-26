@@ -839,8 +839,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: pomerium/ingress-controller:main
-        imagePullPolicy: Always
+        image: pomerium/ingress-controller:v0.29.0
+        imagePullPolicy: IfNotPresent
         name: pomerium
         ports:
         - containerPort: 8443
