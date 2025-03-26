@@ -785,7 +785,6 @@ metadata:
   name: pomerium-proxy
   namespace: pomerium
 spec:
-  externalTrafficPolicy: Local
   ports:
   - name: https
     port: 443
