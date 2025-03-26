@@ -4,7 +4,6 @@ metadata:
   name: pomerium-proxy
 spec:
   type: LoadBalancer
-  externalTrafficPolicy: Local
   ports:
     - port: 443
       targetPort: https
