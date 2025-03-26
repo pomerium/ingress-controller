@@ -17,10 +17,11 @@ func RootCommand() (*cobra.Command, error) {
 	}
 
 	for name, fn := range map[string]func() (*cobra.Command, error){
-		"gen-secrets": GenSecretsCommand,
-		"controller":  ControllerCommand,
-		"all-in-one":  AllInOneCommand,
-		"stress-test": stress_cmd.Command,
+		"gen-secrets":      GenSecretsCommand,
+		"controller":       ControllerCommand,
+		"all-in-one":       AllInOneCommand,
+		"stress-test":      stress_cmd.Command,
+		"sync-sshd-config": SyncSshdConfigCommand,
 	} {
 		cmd, err := fn()
 		if err != nil {
