@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: pomerium-sshd-config-syncer
+  namespace: pomerium
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pomerium-sshd-config-syncer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pomerium-sshd-config-syncer
+    spec:
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          effect: NoSchedule
+      hostPID: true
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+        - name: syncer
+          args:
+            - sync-sshd-config
+          image: docker.os.lan/pomerium-ingress-controller:latest
+          # image: pomerium/ingress-controller:main
+          imagePullPolicy: Always
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - CAP_KILL
+            appArmorProfile:
+              type: Unconfined
+            runAsUser: 0
+            runAsGroup: 0
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: pomerium-ssh-config-dir
+              mountPath: /var/lib/pomerium/ssh
+            - name: pomerium-user-ca-cert
+              mountPath: /var/run/pomerium/ssh
+              readOnly: true
+            - name: pomerium-sshd-config-file
+              mountPath: /etc/ssh/sshd_config.d/50-pomerium.conf
+            - name: sshd-pid
+              mountPath: /var/run/sshd.pid
+              readOnly: true
+      volumes:
+        - name: pomerium-ssh-config-dir
+          hostPath:
+            path: /var/lib/pomerium/ssh
+            type: DirectoryOrCreate
+        - name: pomerium-user-ca-cert
+          secret:
+            secretName: pomerium-ssh
+            items:
+              - key: user_ca_key.pub
+                path: pomerium_user_ca_key.pub
+                mode: 0400
+        - name: pomerium-sshd-config-file
+          hostPath:
+            path: /etc/ssh/sshd_config.d/50-pomerium.conf
+            type: FileOrCreate
+        - name: sshd-pid
+          hostPath:
+            path: /var/run/sshd.pid
+            type: File
