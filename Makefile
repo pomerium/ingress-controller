@@ -95,7 +95,7 @@ build: generated pomerium-ui build-go ## Build manager binary.
 .PHONY: build-ci
 build-ci: envoy-ci pomerium-ui
 	@GOOS=linux GOARCH=amd64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-amd64 main.go
-	@GOOS=linux GOARCH=arm64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-arm64 main.go
+	#@GOOS=linux GOARCH=arm64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-arm64 main.go
 
 ##@ Build
 .PHONY: build-go
