@@ -43,6 +43,9 @@ type allCmdOptions struct {
 	debugEnvoy                      bool
 	adminBindAddr                   string
 	configControllerShutdownTimeout time.Duration
+	sshAddr                         string
+	sshHostname                     string
+
 	// metricsBindAddress must be externally accessible host:port
 	metricsBindAddress string `validate:"required,hostname_port"`
 	serverAddr         string `validate:"required,hostname_port"`
@@ -61,6 +64,8 @@ type allCmdParam struct {
 	bootstrapMetricsAddr string
 	// ingressMetricsAddr for ingress+settings reconciliation controller metrics
 	ingressMetricsAddr string
+	sshAddr            string
+	sshHostname        string
 
 	// configControllerShutdownTimeout is max time to wait for graceful config (ingress & settings) controller shutdown
 	// when re-initialization is required. in case it cannot be shut down gracefully, the entire process would exit
@@ -120,6 +125,8 @@ func (s *allCmd) setupFlags() error {
 	flags.StringVar(&s.httpRedirectAddr, "http-redirect-addr", ":8080", "the address HTTP redirect would bind to")
 	flags.StringVar(&s.deriveTLS, "databroker-auto-tls", "", "enable auto TLS and generate server certificate for the domain")
 	flags.DurationVar(&s.configControllerShutdownTimeout, configControllerShutdown, time.Second*30, "timeout waiting for graceful config controller shutdown")
+	flags.StringVar(&s.sshAddr, "ssh-addr", "", "[demo] SSH bind address")
+	flags.StringVar(&s.sshHostname, "ssh-hostname", "", "[demo] SSH hostname")
 
 	for _, flag := range hidden {
 		if err := s.PersistentFlags().MarkHidden(flag); err != nil {
@@ -178,6 +185,8 @@ func (s *allCmdOptions) getParam() (*allCmdParam, error) {
 		updateStatusFromService:         s.UpdateStatusFromService,
 		dumpConfigDiff:                  s.debugDumpConfigDiff,
 		configControllerShutdownTimeout: s.configControllerShutdownTimeout,
+		sshAddr:                         s.sshAddr,
+		sshHostname:                     s.sshHostname,
 	}
 	if err := p.makeBootstrapConfig(*s); err != nil {
 		return nil, fmt.Errorf("bootstrap: %w", err)
@@ -220,10 +229,25 @@ func (s *allCmdParam) run(ctx context.Context) error {
 
 func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 	s.cfg.Options = config.NewDefaultOptions()
-
 	s.cfg.Options.Addr = opt.serverAddr
 	s.cfg.Options.HTTPRedirectAddr = opt.httpRedirectAddr
-
+	if s.sshAddr != "" && s.sshHostname != "" {
+		fmt.Println("[demo] ssh server enabled")
+		s.cfg.Options.SSHHostname = s.sshHostname
+		s.cfg.Options.SSHAddr = s.sshAddr
+		s.cfg.Options.SSHHostKeys = []config.SSHKeyPair{
+			{
+				PublicKeyFile:  "/var/run/pomerium/ssh/host_ed25519_key.pub",
+				PrivateKeyFile: "/var/run/pomerium/ssh/host_ed25519_key",
+			},
+		}
+		s.cfg.Options.SSHUserCAKey = config.SSHKeyPair{
+			PublicKeyFile:  "/var/run/pomerium/ssh/user_ca_key.pub",
+			PrivateKeyFile: "/var/run/pomerium/ssh/user_ca_key",
+		}
+	} else {
+		fmt.Println("[demo] ssh server disabled (--ssh-addr and --ssh-hostname options missing)")
+	}
 	ports, err := netutil.AllocatePorts(8)
 	if err != nil {
 		return fmt.Errorf("allocating ports: %w", err)
