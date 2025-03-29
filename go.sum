@@ -541,8 +541,8 @@ github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524 h1:3YQY1sb5
 github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524/go.mod h1:7fGbUYJnU8RcxZJvUvhukOIBv1G7LWDAHMfDxAf5+Y0=
 github.com/pomerium/envoy-custom v1.33.0 h1:WK5f+mGIu6VcxYTTeZqth6If6EWHrxymfvc+Rwm5Vl8=
 github.com/pomerium/envoy-custom v1.33.0/go.mod h1:afbaKE6YfshVUOrYc6XWUWfZcXencWmi1jTc00ki0Oo=
-github.com/pomerium/pomerium v0.28.1-0.20250319160448-4c9398e95b9e h1:mvuO8bQcUVbL4ZFaDirTPMqHercx3J1/GjHzZrWrxYQ=
-github.com/pomerium/pomerium v0.28.1-0.20250319160448-4c9398e95b9e/go.mod h1:O4gGVP5yUknUDeITyrkiO26ITbWzMb/nImUVZ1hziTM=
+github.com/pomerium/pomerium v0.28.1-0.20250319204128-d6b02441b311 h1:U9ZdQWqQjLPSj2ZeWogOncOOptPaYfBTw2KYq0kU29I=
+github.com/pomerium/pomerium v0.28.1-0.20250319204128-d6b02441b311/go.mod h1:O4gGVP5yUknUDeITyrkiO26ITbWzMb/nImUVZ1hziTM=
 github.com/pomerium/protoutil v0.0.0-20240813175624-47b7ac43ff46 h1:NRTg8JOXCxcIA1lAgD74iYud0rbshbWOB3Ou4+Huil8=
 github.com/pomerium/protoutil v0.0.0-20240813175624-47b7ac43ff46/go.mod h1:QqZmx6ZgPxz18va7kqoT4t/0yJtP7YFIDiT/W2n2fZ4=
 github.com/pomerium/webauthn v0.0.0-20240603205124-0428df511172 h1:TqoPqRgXSHpn+tEJq6H72iCS5pv66j3rPprThUEZg0E=
