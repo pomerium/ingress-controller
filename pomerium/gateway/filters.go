@@ -70,11 +70,11 @@ func applyRedirectFilter(route *pb.Route, filter *gateway_v1.HTTPRequestRedirect
 		HostRedirect:   (*string)(filter.Hostname),
 	}
 	if filter.StatusCode != nil {
-		code := int32(*filter.StatusCode)
+		code := int32(*filter.StatusCode) //nolint:gosec
 		rr.ResponseCode = &code
 	}
 	if filter.Port != nil {
-		port := uint32(*filter.Port)
+		port := uint32(*filter.Port) //nolint:gosec
 		rr.PortRedirect = &port
 	}
 	route.Redirect = &rr
