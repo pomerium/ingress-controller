@@ -2,7 +2,7 @@ name: Update Core to Latest Commit
 
 on:
   schedule:
-    - cron: '40 1 * * *'
+    - cron: "40 1 * * *"
   workflow_dispatch:
 
 jobs:
@@ -14,7 +14,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b
         with:
-          go-version: 1.23.x
+          go-version: 1.24.x
       - name: Update Core
         run: |
           go get -u github.com/pomerium/pomerium@main

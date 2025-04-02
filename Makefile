@@ -6,7 +6,7 @@ CRD_BASE=github.com/pomerium/ingress-controller/apis/
 IMG?=ingress-controller:latest
 CRD_OPTIONS?=
 ENVTEST_K8S_VERSION?=$(shell go list -f '{{.Module.Version}}' k8s.io/api | sed 's/v0/1/')
-ENVTEST_VERSION?=$(shell go list -f '{{.Module.Version}}' sigs.k8s.io/controller-runtime/tools/setup-envtest)
+SETUP_ENVTEST=go run sigs.k8s.io/controller-runtime/tools/setup-envtest@v0.0.0-20240813182054-0c7827e417ac
 CONTROLLER_GEN=go run sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -75,9 +75,9 @@ config/crd/bases/gateway.pomerium.io_policyfilters.yaml: apis/gateway/v1alpha1/f
 	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role crd paths=$(CRD_BASE)/gateway/v1alpha1 output:crd:artifacts:config=config/crd/bases
 
 .PHONY: test
-test: envoy generated envtest pomerium-ui
+test: envoy generated pomerium-ui
 	@echo "==> $@"
-	@KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path --arch=$(KUBEENV_GOARCH))" go test $(GOTAGS) ./...
+	@KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path --arch=$(KUBEENV_GOARCH))" go test $(GOTAGS) ./...
 
 .PHONY: lint
 lint: envoy pomerium-ui
@@ -188,7 +188,6 @@ clean:
 	@rm -rf internal/ui
 
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
-ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
@@ -200,12 +199,6 @@ $(KUSTOMIZE): $(LOCALBIN)
 	@echo "==> $@"
 	@rm -rf $(KUSTOMIZE)
 	@curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN)
-
-.PHONY: envtest
-envtest: $(ENVTEST)
-$(ENVTEST): $(LOCALBIN)
-	@echo "==> $@"
-	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
 
 .PHONY: deployment
 deployment: kustomize
@@ -247,17 +240,3 @@ dev-build:
 dev-clean:
 	@echo "==> $@"
 	@kubectl delete ns/pomerium --wait || true
-
-# go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
-# $1 - target path with name of binary (ideally with version)
-# $2 - package url which can be installed
-# $3 - specific version of package
-define go-install-tool
-@[ -f $(1) ] || { \
-set -e; \
-package=$(2)@$(3) ;\
-echo "Downloading $${package}" ;\
-GOBIN=$(LOCALBIN) go install $${package} ;\
-mv "$$(echo "$(1)" | sed "s/-$(3)$$//")" $(1) ;\
-}
-endef

@@ -81,7 +81,7 @@ func backendRefToToURLAndWeight(
 
 	weight := uint32(1)
 	if br.Weight != nil {
-		weight = uint32(*br.Weight)
+		weight = uint32(*br.Weight) //nolint:gosec
 	}
 
 	return u, weight
