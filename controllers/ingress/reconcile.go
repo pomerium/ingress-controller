@@ -142,21 +142,32 @@ func (r *ingressController) updateIngressStatus(ctx context.Context, ingress *ne
 	}
 
 	ingress.Status.LoadBalancer = networkingv1.IngressLoadBalancerStatus{
-		Ingress: svcLoadBalancerStatusToIngress(svc.Status.LoadBalancer.Ingress),
+		Ingress: svcStatusToIngress(svc),
 	}
+
 	return r.Client.Status().Update(ctx, ingress)
 }
 
-func svcLoadBalancerStatusToIngress(src []corev1.LoadBalancerIngress) []networkingv1.IngressLoadBalancerIngress {
-	dst := make([]networkingv1.IngressLoadBalancerIngress, len(src))
-	for i := range src {
-		dst[i] = networkingv1.IngressLoadBalancerIngress{
-			Hostname: src[i].Hostname,
-			IP:       src[i].IP,
-			Ports:    svcPortToIngress(src[i].Ports),
+func svcStatusToIngress(svc *corev1.Service) []networkingv1.IngressLoadBalancerIngress {
+	switch svc.Spec.Type {
+	case corev1.ServiceTypeLoadBalancer:
+		src := svc.Status.LoadBalancer.Ingress
+		dst := make([]networkingv1.IngressLoadBalancerIngress, len(src))
+		for i := range src {
+			dst[i] = networkingv1.IngressLoadBalancerIngress{
+				Hostname: src[i].Hostname,
+				IP:       src[i].IP,
+				Ports:    svcPortToIngress(src[i].Ports),
+			}
 		}
+		return dst
+	case corev1.ServiceTypeNodePort:
+		return []networkingv1.IngressLoadBalancerIngress{{
+			IP: svc.Spec.ClusterIP,
+		}}
+	default:
+		return nil
 	}
-	return dst
 }
 
 func svcPortToIngress(src []corev1.PortStatus) []networkingv1.IngressPortStatus {
