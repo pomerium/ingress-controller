@@ -48,6 +48,7 @@ func TestAnnotations(t *testing.T) {
 					"a/bearer_token_format":                     `idp_access_token`,
 					"a/cors_allow_preflight":                    "true",
 					"a/description":                             "DESCRIPTION",
+					"a/depends_on":                              `["foo.example.com", "bar.example.com", "baz.example.com"]`,
 					"a/health_checks":                           `[{"timeout": "10s", "interval": "1m", "healthy_threshold": 1, "unhealthy_threshold": 2, "http_health_check": {"path": "/"}}]`,
 					"a/host_path_regex_rewrite_pattern":         "rewrite-pattern",
 					"a/host_path_regex_rewrite_substitution":    "rewrite-sub",
@@ -199,6 +200,7 @@ func TestAnnotations(t *testing.T) {
 		LogoUrl:                        "LOGO_URL",
 		BearerTokenFormat:              pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN.Enum(),
 		IdpAccessTokenAllowedAudiences: &pb.Route_StringList{Values: []string{"x", "y", "z"}},
+		DependsOn:                      []string{"foo.example.com", "bar.example.com", "baz.example.com"},
 	}, cmpopts.IgnoreUnexported(
 		pb.Route{},
 		pb.Route_StringList{},
