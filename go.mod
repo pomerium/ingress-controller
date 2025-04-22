@@ -1,6 +1,6 @@
 module github.com/pomerium/ingress-controller
 
-go 1.23.6
+go 1.23.8
 
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0
@@ -16,7 +16,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.3.0
-	github.com/pomerium/pomerium v0.28.1-0.20250404232651-5f95dd32dba1
+	github.com/pomerium/pomerium v0.28.1-0.20250422154709-e71fca76f24a
 	github.com/rs/zerolog v1.34.0
 	github.com/sergi/go-diff v1.3.1
 	github.com/spf13/cobra v1.9.1
@@ -92,6 +92,7 @@ require (
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
+	github.com/gaissmai/bart v0.20.3 // indirect
 	github.com/go-chi/chi/v5 v5.2.1 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.4 // indirect
