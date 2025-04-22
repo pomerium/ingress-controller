@@ -27,6 +27,7 @@ var (
 		"bearer_token_format",
 		"cors_allow_preflight",
 		"description",
+		"depends_on",
 		"host_path_regex_rewrite_pattern",
 		"host_path_regex_rewrite_substitution",
 		"host_rewrite_header",
