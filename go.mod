@@ -17,7 +17,7 @@ require (
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.4.0
 	github.com/pomerium/csrf v1.7.0
-	github.com/pomerium/pomerium v0.28.1-0.20250422175719-e1d84a1dde39
+	github.com/pomerium/pomerium v0.28.1-0.20250502203342-1a19ccabd88c
 	github.com/rs/zerolog v1.34.0
 	github.com/sergi/go-diff v1.3.1
 	github.com/spf13/cobra v1.9.1
@@ -42,6 +42,7 @@ require (
 )
 
 require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.6-20250307204501-0409229c3780.1 // indirect
 	cel.dev/expr v0.20.0 // indirect
 	cloud.google.com/go v0.118.3 // indirect
 	cloud.google.com/go/auth v0.15.0 // indirect
@@ -58,6 +59,7 @@ require (
 	github.com/VictoriaMetrics/fastcache v1.12.2 // indirect
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
+	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.36.3 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.10 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.29.12 // indirect
@@ -78,6 +80,7 @@ require (
 	github.com/aws/smithy-go v1.22.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
+	github.com/bufbuild/protovalidate-go v0.9.3 // indirect
 	github.com/caddyserver/certmagic v0.22.2 // indirect
 	github.com/caddyserver/zerossl v0.1.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -114,6 +117,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.3 // indirect
+	github.com/google/cel-go v0.24.1 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-tpm v0.9.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
@@ -179,6 +183,7 @@ require (
 	github.com/spf13/afero v1.12.0 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.5.0 // indirect
+	github.com/stoewer/go-strcase v1.3.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.2 // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
