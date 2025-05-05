@@ -23,13 +23,14 @@ updates:
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 50
+    ignore:
+      - dependency-name: "github.com/pomerium/pomerium"
     groups:
       go:
         patterns:
           - "*"
         exclude-patterns:
           - "*k8s.io*"
-          - "github.com/pomerium/pomerium"
       k8s:
         patterns:
           - "*k8s.io*"
