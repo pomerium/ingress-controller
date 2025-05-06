@@ -8,7 +8,6 @@ Pomerium-specific parameters should be configured via the `ingress.pomerium.io/P
 The default Pomerium deployment is listening to the CRD `global`, that may be customized via command line parameters.
 
 Pomerium posts updates to the CRD <a href="#status">`/status`</a>:
-
 ```shell
 kubectl describe pomerium
 ```
@@ -160,6 +159,23 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>downstreamMtls</code>&#160;&#160;
+
+                    <strong>object</strong>&#160;
+                    (<a href="#downstreammtls">downstreamMtls</a>)
+
+                </p>
+                <p>
+
+                    DownstreamMTLS sets the <a href="https://www.pomerium.com/docs/reference/downstream-mtls-settings">Downstream MTLS Settings</a>.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
                 <code>identityProvider</code>&#160;&#160;
 
                     <strong>object</strong>&#160;
@@ -201,6 +217,23 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
                 <p>
 
                     JWTClaimHeaders convert claims from the assertion token into HTTP headers and adds them into JWT assertion header. Please make sure to read <a href="https://www.pomerium.com/docs/topics/getting-users-identity"> Getting User Identity</a> guide.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>otel</code>&#160;&#160;
+
+                    <strong>object</strong>&#160;
+                    (<a href="#otel">otel</a>)
+
+                </p>
+                <p>
+
+                    OTEL sets the <a href="https://www.pomerium.com/docs/reference/tracing.mdx">OpenTelemetry Tracing</a>.
                 </p>
 
             </td>
@@ -340,8 +373,9 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         </tr>
 
     </tbody>
-
 </table>
+
+
 
 ### `authenticate`
 
@@ -388,8 +422,9 @@ Authenticate sets authenticate service parameters. If not specified, a Pomerium-
         </tr>
 
     </tbody>
-
 </table>
+
+
 
 ### `cookie`
 
@@ -484,8 +519,110 @@ Cookie defines Pomerium session cookie options.
         </tr>
 
     </tbody>
-
 </table>
+
+
+
+### `downstreamMtls`
+
+DownstreamMTLS sets the <a href="https://www.pomerium.com/docs/reference/downstream-mtls-settings">Downstream MTLS Settings</a>.
+
+<table>
+    <thead>
+    </thead>
+    <tbody>
+
+        <tr>
+            <td>
+                <p>
+                <code>ca</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+                    (byte)
+
+                </p>
+                <p>
+
+                    CA is a bundle of PEM-encoded X.509 certificates that will be treated as trust anchors when verifying client certificates.
+                </p>
+
+                    Format: base64 encoded binary data.
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>crl</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+                    (byte)
+
+                </p>
+                <p>
+
+                    CRL is a bundle of PEM-encoded certificate revocation lists to be consulted during certificate validation.
+                </p>
+
+                    Format: base64 encoded binary data.
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>enforcement</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+
+                </p>
+                <p>
+
+                    Enforcement controls Pomerium's behavior when a client does not present a trusted client certificate.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>matchSubjectAltNames</code>&#160;&#160;
+
+                    <strong>object</strong>&#160;
+                    (<a href="#matchsubjectaltnames">matchSubjectAltNames</a>)
+
+                </p>
+                <p>
+
+                    Match Subject Alt Names can be used to add an additional constraint when validating client certificates.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>maxVerifyDepth</code>&#160;&#160;
+
+                    <strong>integer</strong>&#160;
+
+                </p>
+                <p>
+
+                    MaxVerifyDepth sets a limit on the depth of a certificate chain presented by the client.
+                </p>
+
+            </td>
+        </tr>
+
+    </tbody>
+</table>
+
+
 
 ### `identityProvider`
 
@@ -635,8 +772,267 @@ IdentityProvider configure single-sign-on authentication and user identity detai
         </tr>
 
     </tbody>
-
 </table>
+
+
+
+### `matchSubjectAltNames`
+
+Match Subject Alt Names can be used to add an additional constraint when validating client certificates.
+
+<table>
+    <thead>
+    </thead>
+    <tbody>
+
+        <tr>
+            <td>
+                <p>
+                <code>dns</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+
+                </p>
+                <p>
+
+
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>email</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+
+                </p>
+                <p>
+
+
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>ipAddress</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+
+                </p>
+                <p>
+
+
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>uri</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+
+                </p>
+                <p>
+
+
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>userPrincipalName</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+
+                </p>
+                <p>
+
+
+                </p>
+
+            </td>
+        </tr>
+
+    </tbody>
+</table>
+
+
+
+### `otel`
+
+OTEL sets the <a href="https://www.pomerium.com/docs/reference/tracing.mdx">OpenTelemetry Tracing</a>.
+
+<table>
+    <thead>
+    </thead>
+    <tbody>
+
+        <tr>
+            <td>
+                <p>
+                <code>bspMaxExportBatchSize</code>&#160;&#160;
+
+                    <strong>integer</strong>&#160;
+
+                </p>
+                <p>
+
+                    BSPMaxExportBatchSize sets the maximum number of spans to export in a single batch
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>bspScheduleDelay</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+                    (duration)
+
+                </p>
+                <p>
+
+                    BSPScheduleDelay sets interval between two consecutive exports
+                </p>
+
+                    Format: a duration string like "22s" as parsed by Golang time.ParseDuration.
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>endpoint</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+
+                </p>
+                <p>
+                    <strong>Required.</strong>&#160;
+                    An OTLP/gRPC or OTLP/HTTP base endpoint URL with optional port.<br/>Example: `http://localhost:4318`
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>headers</code>&#160;&#160;
+
+                    <strong>map[string]string</strong>
+
+                </p>
+                <p>
+
+                    Extra headers
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>logLevel</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+
+                </p>
+                <p>
+
+                    LogLevel sets the log level for the OpenTelemetry SDK.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>protocol</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+
+                </p>
+                <p>
+                    <strong>Required.</strong>&#160;
+                    Valid values are `"grpc"` or `"http/protobuf"`.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>resourceAttributes</code>&#160;&#160;
+
+                    <strong>map[string]string</strong>
+
+                </p>
+                <p>
+
+                    ResourceAttributes sets the additional attributes to be added to the trace.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>sampling</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+
+                </p>
+                <p>
+
+                    Sampling sets sampling probability between [0, 1].
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>timeout</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+                    (duration)
+
+                </p>
+                <p>
+
+                    Export request timeout duration
+                </p>
+
+                    Format: a duration string like "22s" as parsed by Golang time.ParseDuration.
+
+            </td>
+        </tr>
+
+    </tbody>
+</table>
+
+
 
 ### `postgres`
 
@@ -705,8 +1101,9 @@ Postgres specifies PostgreSQL database connection parameters
         </tr>
 
     </tbody>
-
 </table>
+
+
 
 ### `refreshDirectory`
 
@@ -756,8 +1153,9 @@ RefreshDirectory is no longer supported, please see <a href="https://docs.pomeri
         </tr>
 
     </tbody>
-
 </table>
+
+
 
 ### `storage`
 
@@ -786,8 +1184,9 @@ Storage defines persistent storage for sessions and other data. See <a href="htt
         </tr>
 
     </tbody>
-
 </table>
+
+
 
 ### `timeouts`
 
@@ -856,8 +1255,9 @@ Timeout specifies the <a href="https://www.pomerium.com/docs/reference/global-ti
         </tr>
 
     </tbody>
-
 </table>
+
+
 
 ## Status
 
@@ -903,8 +1303,9 @@ PomeriumStatus represents configuration and Ingress status.
         </tr>
 
     </tbody>
-
 </table>
+
+
 
 ### `ingress`
 
@@ -999,8 +1400,9 @@ ResourceStatus represents the outcome of the latest attempt to reconcile relevan
         </tr>
 
     </tbody>
-
 </table>
+
+
 
 ### `settingsStatus`
 
@@ -1095,5 +1497,4 @@ SettingsStatus represent most recent main configuration reconciliation status.
         </tr>
 
     </tbody>
-
 </table>

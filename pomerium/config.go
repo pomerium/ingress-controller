@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 
 	http_connection_managerv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"google.golang.org/protobuf/proto"
@@ -24,13 +25,14 @@ type applyOpt struct {
 	fn   func(context.Context, *pb.Config, *model.Config) error
 }
 
-func applyConfig(ctx context.Context, p *pb.Config, c *model.Config) error {
-	if c == nil {
+// ApplyConfig applies an ingress controller model config to a protobuf destination.
+func ApplyConfig(ctx context.Context, dst *pb.Config, src *model.Config) error {
+	if src == nil {
 		return nil
 	}
 
-	if p.Settings == nil {
-		p.Settings = new(pb.Settings)
+	if dst.Settings == nil {
+		dst.Settings = new(pb.Settings)
 	}
 
 	opts := []applyOpt{
@@ -43,8 +45,9 @@ func applyConfig(ctx context.Context, p *pb.Config, c *model.Config) error {
 		{"timeouts", applyTimeouts},
 		{"misc opts", applySetOtherOptions},
 		{"otel", applyOTEL},
+		{"downstream mtls", applyDownstreamMTLS},
 	}
-	if c.Spec.IdentityProvider != nil {
+	if src.Spec.IdentityProvider != nil {
 		opts = append(opts, []applyOpt{
 			{"idp", applyIDP},
 			{"idp url", applyIDPProviderURL},
@@ -54,7 +57,7 @@ func applyConfig(ctx context.Context, p *pb.Config, c *model.Config) error {
 	}
 
 	for _, apply := range opts {
-		if err := apply.fn(ctx, p, c); err != nil {
+		if err := apply.fn(ctx, dst, src); err != nil {
 			return fmt.Errorf("%s: %w", apply.name, err)
 		}
 	}
@@ -334,6 +337,56 @@ func applyIDPRequestParams(_ context.Context, p *pb.Config, c *model.Config) err
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func applyDownstreamMTLS(_ context.Context, dst *pb.Config, src *model.Config) error {
+	// nothing to do
+	if src.Spec.DownstreamMTLS == nil {
+		dst.Settings.DownstreamMtls = nil
+		return nil
+	}
+
+	dst.Settings.DownstreamMtls = new(pb.DownstreamMtlsSettings)
+
+	if len(src.Spec.DownstreamMTLS.CA) > 0 {
+		dst.Settings.DownstreamMtls.Ca = proto.String(base64.StdEncoding.EncodeToString(src.Spec.DownstreamMTLS.CA))
+	}
+	if len(src.Spec.DownstreamMTLS.CRL) > 0 {
+		dst.Settings.DownstreamMtls.Crl = proto.String(base64.StdEncoding.EncodeToString(src.Spec.DownstreamMTLS.CRL))
+	}
+	if src.Spec.DownstreamMTLS.Enforcement != nil {
+		switch strings.ToLower(*src.Spec.DownstreamMTLS.Enforcement) {
+		case "policy_with_default_deny":
+			dst.Settings.DownstreamMtls.Enforcement = pb.MtlsEnforcementMode_POLICY_WITH_DEFAULT_DENY.Enum()
+		case "policy":
+			dst.Settings.DownstreamMtls.Enforcement = pb.MtlsEnforcementMode_POLICY.Enum()
+		case "reject_connection":
+			dst.Settings.DownstreamMtls.Enforcement = pb.MtlsEnforcementMode_REJECT_CONNECTION.Enum()
+		}
+	}
+	if src.Spec.DownstreamMTLS.MatchSubjectAltNames != nil {
+		m := map[pb.SANMatcher_SANType]string{
+			pb.SANMatcher_EMAIL:               src.Spec.DownstreamMTLS.MatchSubjectAltNames.Email,
+			pb.SANMatcher_DNS:                 src.Spec.DownstreamMTLS.MatchSubjectAltNames.DNS,
+			pb.SANMatcher_URI:                 src.Spec.DownstreamMTLS.MatchSubjectAltNames.URI,
+			pb.SANMatcher_IP_ADDRESS:          src.Spec.DownstreamMTLS.MatchSubjectAltNames.IPAddress,
+			pb.SANMatcher_USER_PRINCIPAL_NAME: src.Spec.DownstreamMTLS.MatchSubjectAltNames.UserPrincipalName,
+		}
+		for k, v := range m {
+			if v == "" {
+				continue
+			}
+			dst.Settings.DownstreamMtls.MatchSubjectAltNames = append(dst.Settings.DownstreamMtls.MatchSubjectAltNames, &pb.SANMatcher{
+				SanType: k,
+				Pattern: v,
+			})
+		}
+	}
+	if src.Spec.DownstreamMTLS.MaxVerifyDepth != nil {
+		dst.Settings.DownstreamMtls.MaxVerifyDepth = proto.Uint32(*src.Spec.DownstreamMTLS.MaxVerifyDepth)
+	}
+
 	return nil
 }
 

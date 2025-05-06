@@ -292,6 +292,50 @@ spec:
                     - none
                     type: string
                 type: object
+              downstreamMtls:
+                description: DownstreamMTLS sets the <a href="https://www.pomerium.com/docs/reference/downstream-mtls-settings">Downstream
+                  MTLS Settings</a>.
+                properties:
+                  ca:
+                    description: CA is a bundle of PEM-encoded X.509 certificates
+                      that will be treated as trust anchors when verifying client
+                      certificates.
+                    format: byte
+                    type: string
+                  crl:
+                    description: CRL is a bundle of PEM-encoded certificate revocation
+                      lists to be consulted during certificate validation.
+                    format: byte
+                    type: string
+                  enforcement:
+                    description: Enforcement controls Pomerium's behavior when a client
+                      does not present a trusted client certificate.
+                    enum:
+                    - policy_with_default_deny
+                    - policy
+                    - reject_connection
+                    type: string
+                  matchSubjectAltNames:
+                    description: Match Subject Alt Names can be used to add an additional
+                      constraint when validating client certificates.
+                    properties:
+                      dns:
+                        type: string
+                      email:
+                        type: string
+                      ipAddress:
+                        type: string
+                      uri:
+                        type: string
+                      userPrincipalName:
+                        type: string
+                    type: object
+                  maxVerifyDepth:
+                    description: MaxVerifyDepth sets a limit on the depth of a certificate
+                      chain presented by the client.
+                    format: int32
+                    type: integer
+                type: object
               identityProvider:
                 description: |-
                   IdentityProvider configure single-sign-on authentication and user identity details

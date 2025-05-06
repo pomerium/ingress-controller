@@ -184,6 +184,37 @@ type Cookie struct {
 	SameSite *string `json:"sameSite,omitempty"`
 }
 
+// MatchSubjectAltNames can be used to add an additional constraint when validating client certificates.
+type MatchSubjectAltNames struct {
+	DNS               string `json:"dns,omitempty"`
+	Email             string `json:"email,omitempty"`
+	IPAddress         string `json:"ipAddress,omitempty"`
+	URI               string `json:"uri,omitempty"`
+	UserPrincipalName string `json:"userPrincipalName,omitempty"`
+}
+
+// DownstreamMTLS defines downstream MTLS configuration parameters.
+type DownstreamMTLS struct {
+	// CA is a bundle of PEM-encoded X.509 certificates that will be treated as trust anchors when verifying client certificates.
+	// +optional
+	CA []byte `json:"ca,omitempty"`
+	// CRL is a bundle of PEM-encoded certificate revocation lists to be consulted during certificate validation.
+	// +optional
+	CRL []byte `json:"crl,omitempty"`
+	// Enforcement controls Pomerium's behavior when a client does not present a trusted client certificate.
+	// +optional
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Enum=policy_with_default_deny;policy;reject_connection
+	Enforcement *string `json:"enforcement,omitempty"`
+	// Match Subject Alt Names can be used to add an additional constraint when validating client certificates.
+	// +optional
+	MatchSubjectAltNames *MatchSubjectAltNames `json:"matchSubjectAltNames,omitempty"`
+	// MaxVerifyDepth sets a limit on the depth of a certificate chain presented by the client.
+	// +optional
+	MaxVerifyDepth *uint32 `json:"maxVerifyDepth,omitempty"`
+}
+
 // PomeriumSpec defines Pomerium-specific configuration parameters.
 type PomeriumSpec struct {
 	// AccessLogFields sets the <a href="https://www.pomerium.com/docs/reference/access-log-fields">access fields</a> to log.
@@ -303,6 +334,9 @@ type PomeriumSpec struct {
 
 	// OTEL sets the <a href="https://www.pomerium.com/docs/reference/tracing.mdx">OpenTelemetry Tracing</a>.
 	OTEL *OTEL `json:"otel,omitempty"`
+
+	// DownstreamMTLS sets the <a href="https://www.pomerium.com/docs/reference/downstream-mtls-settings">Downstream MTLS Settings</a>.
+	DownstreamMTLS *DownstreamMTLS `json:"downstreamMtls,omitempty"`
 }
 
 // OTEL configures OpenTelemetry.

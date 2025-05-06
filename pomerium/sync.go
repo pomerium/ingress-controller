@@ -103,7 +103,7 @@ func (r *DataBrokerReconciler) SetConfig(ctx context.Context, cfg *model.Config)
 	}
 	next := new(pb.Config)
 
-	if err = applyConfig(ctx, next, cfg); err != nil {
+	if err = ApplyConfig(ctx, next, cfg); err != nil {
 		return false, fmt.Errorf("settings: %w", err)
 	}
 
