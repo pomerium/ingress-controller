@@ -46,6 +46,7 @@ func ApplyConfig(ctx context.Context, dst *pb.Config, src *model.Config) error {
 		{"misc opts", applySetOtherOptions},
 		{"otel", applyOTEL},
 		{"downstream mtls", applyDownstreamMTLS},
+		{"circuit breaker thresholds", applyCircuitBreakerThresholds},
 	}
 	if src.Spec.IdentityProvider != nil {
 		opts = append(opts, []applyOpt{
@@ -387,6 +388,22 @@ func applyDownstreamMTLS(_ context.Context, dst *pb.Config, src *model.Config) e
 		dst.Settings.DownstreamMtls.MaxVerifyDepth = proto.Uint32(*src.Spec.DownstreamMTLS.MaxVerifyDepth)
 	}
 
+	return nil
+}
+
+func applyCircuitBreakerThresholds(_ context.Context, dst *pb.Config, src *model.Config) error {
+	if src.Spec.CircuitBreakerThresholds == nil {
+		dst.Settings.CircuitBreakerThresholds = nil
+		return nil
+	}
+
+	dst.Settings.CircuitBreakerThresholds = &pb.CircuitBreakerThresholds{
+		MaxConnections:     src.Spec.CircuitBreakerThresholds.MaxConnections,
+		MaxPendingRequests: src.Spec.CircuitBreakerThresholds.MaxPendingRequests,
+		MaxRequests:        src.Spec.CircuitBreakerThresholds.MaxRequests,
+		MaxRetries:         src.Spec.CircuitBreakerThresholds.MaxRetries,
+		MaxConnectionPools: src.Spec.CircuitBreakerThresholds.MaxConnectionPools,
+	}
 	return nil
 }
 

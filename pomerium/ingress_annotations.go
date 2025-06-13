@@ -25,6 +25,7 @@ var (
 		"allow_spdy",
 		"allow_websockets",
 		"bearer_token_format",
+		"circuit_breaker_thresholds",
 		"cors_allow_preflight",
 		"description",
 		"depends_on",
