@@ -245,6 +245,46 @@ spec:
                 items:
                   type: string
                 type: array
+              circuitBreakerThresholds:
+                description: CircuitBreakerThresholds sets the circuit breaker thresholds
+                  settings.
+                properties:
+                  maxConnectionPools:
+                    description: |-
+                      MaxConnectionPools sets the maximum number of connection pools per
+                      cluster that Envoy will concurrently support at once. If not specified,
+                      the default is unlimited. Set this for clusters which create a large
+                      number of connection pools.
+                    format: int32
+                    type: integer
+                  maxConnections:
+                    description: |-
+                      MaxConnections sets the maximum number of connections that Envoy will
+                      make to the upstream cluster. If not specified, the default is 1024.
+                    format: int32
+                    type: integer
+                  maxPendingRequests:
+                    description: |-
+                      MaxPendingRequests sets the maximum number of pending requests that
+                      Envoy will allow to the upstream cluster. If not specified, the
+                      default is 1024. This limit is applied as a connection limit for
+                      non-HTTP traffic.
+                    format: int32
+                    type: integer
+                  maxRequests:
+                    description: |-
+                      MaxRequests sets the maximum number of parallel requests that Envoy
+                      will make to the upstream cluster. If not specified, the default is
+                      1024. This limit does not apply to non-HTTP traffic.
+                    format: int32
+                    type: integer
+                  maxRetries:
+                    description: |-
+                      MaxRetries sets the maximum number of parallel retries that Envoy
+                      will allow to the upstream cluster. If not specified, the default is 3.
+                    format: int32
+                    type: integer
+                type: object
               codecType:
                 description: CodecType sets the <a href="https://www.pomerium.com/docs/reference/codec-type">Codec
                   Type</a>.

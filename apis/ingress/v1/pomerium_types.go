@@ -337,6 +337,9 @@ type PomeriumSpec struct {
 
 	// DownstreamMTLS sets the <a href="https://www.pomerium.com/docs/reference/downstream-mtls-settings">Downstream MTLS Settings</a>.
 	DownstreamMTLS *DownstreamMTLS `json:"downstreamMtls,omitempty"`
+
+	// CircuitBreakerThresholds sets the circuit breaker thresholds settings.
+	CircuitBreakerThresholds *CircuitBreakerThresholds `json:"circuitBreakerThresholds,omitempty"`
 }
 
 // OTEL configures OpenTelemetry.
@@ -408,6 +411,40 @@ type Timeouts struct {
 	// +kubebuilder:validation:Format=duration
 	// +optional
 	Idle *metav1.Duration `json:"idle,omitempty"`
+}
+
+// CircuitBreakerThresholds are the circuit breaker thresholds.
+type CircuitBreakerThresholds struct {
+	// MaxConnections sets the maximum number of connections that Envoy will
+	// make to the upstream cluster. If not specified, the default is 1024.
+	//
+	// +kubebuilder:validation:Optional
+	MaxConnections *uint32 `json:"maxConnections,omitempty"`
+	// MaxPendingRequests sets the maximum number of pending requests that
+	// Envoy will allow to the upstream cluster. If not specified, the
+	// default is 1024. This limit is applied as a connection limit for
+	// non-HTTP traffic.
+	//
+	// +kubebuilder:validation:Optional
+	MaxPendingRequests *uint32 `json:"maxPendingRequests,omitempty"`
+	// MaxRequests sets the maximum number of parallel requests that Envoy
+	// will make to the upstream cluster. If not specified, the default is
+	// 1024. This limit does not apply to non-HTTP traffic.
+	//
+	// +kubebuilder:validation:Optional
+	MaxRequests *uint32 `json:"maxRequests,omitempty"`
+	// MaxRetries sets the maximum number of parallel retries that Envoy
+	// will allow to the upstream cluster. If not specified, the default is 3.
+	//
+	// +kubebuilder:validation:Optional
+	MaxRetries *uint32 `json:"maxRetries,omitempty"`
+	// MaxConnectionPools sets the maximum number of connection pools per
+	// cluster that Envoy will concurrently support at once. If not specified,
+	// the default is unlimited. Set this for clusters which create a large
+	// number of connection pools.
+	//
+	// +kubebuilder:validation:Optional
+	MaxConnectionPools *uint32 `json:"maxConnectionPools"`
 }
 
 // ResourceStatus represents the outcome of the latest attempt to reconcile

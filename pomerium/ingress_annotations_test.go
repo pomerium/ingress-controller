@@ -46,6 +46,7 @@ func TestAnnotations(t *testing.T) {
 					"a/allowed_idp_claims":                      `key: ["val1", "val2"]`,
 					"a/allowed_users":                           `["a"]`,
 					"a/bearer_token_format":                     `idp_access_token`,
+					"a/circuit_breaker_thresholds":              `{"max_connections": 1, "max_pending_requests": 2, "max_requests": 3, "max_retries": 4, "max_connection_pools": 5}`,
 					"a/cors_allow_preflight":                    "true",
 					"a/description":                             "DESCRIPTION",
 					"a/depends_on":                              `["foo.example.com", "bar.example.com", "baz.example.com"]`,
@@ -201,6 +202,13 @@ func TestAnnotations(t *testing.T) {
 		BearerTokenFormat:              pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN.Enum(),
 		IdpAccessTokenAllowedAudiences: &pb.Route_StringList{Values: []string{"x", "y", "z"}},
 		DependsOn:                      []string{"foo.example.com", "bar.example.com", "baz.example.com"},
+		CircuitBreakerThresholds: &pb.CircuitBreakerThresholds{
+			MaxConnections:     proto.Uint32(1),
+			MaxPendingRequests: proto.Uint32(2),
+			MaxRequests:        proto.Uint32(3),
+			MaxRetries:         proto.Uint32(4),
+			MaxConnectionPools: proto.Uint32(5),
+		},
 	}, cmpopts.IgnoreUnexported(
 		pb.Route{},
 		pb.Route_StringList{},
@@ -217,6 +225,7 @@ func TestAnnotations(t *testing.T) {
 		envoy_config_core_v3.RuntimeDouble{},
 		envoy_config_cluster_v3.Cluster_SlowStartConfig{},
 		wrapperspb.UInt32Value{},
+		pb.CircuitBreakerThresholds{},
 	),
 		cmpopts.IgnoreFields(pb.Policy{}, "Rego")))
 	require.NotEmpty(t, r.Policies[0].Rego)
