@@ -27,6 +27,7 @@ jobs:
           # list of Docker images to use as base name for tags
           images: |
             pomerium/ingress-controller
+            docker.cloudsmith.io/pomerium/ingress-controller
           # generate Docker tags based on the following events/attributes
           tags: |
             type=ref,event=branch
@@ -40,6 +41,13 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Log in to cloudsmith registry
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772
+        with:
+          registry: docker.cloudsmith.io
+          username: ${{ secrets.CLOUDSMITH_USER }}
+          password: ${{ secrets.CLOUDSMITH_API_KEY }}
 
       - name: Build
         run: make build-ci
