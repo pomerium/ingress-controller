@@ -1,0 +1,30 @@
+name: Lint Workflows
+permissions:
+  contents: read
+  pull-requests: write
+on:
+  push:
+    paths:
+      - ".github/workflows/"
+  pull_request:
+    paths:
+      - ".github/workflows/"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: Install action-validator with asdf
+        uses: asdf-vm/actions/install@v4
+        with:
+          tool_versions: |
+            action-validator 0.5.1
+
+      - name: Lint Actions
+        run: |
+          find .github/workflows -type f \( -iname \*.yaml -o -iname \*.yml \) \
+            | xargs -I {} action-validator --verbose {}
