@@ -26,7 +26,7 @@ jobs:
         with:
           images: |
             pomerium/ingress-controller
-            docker.cloudsmith.io/pomerium/ingress-controller
+            docker.cloudsmith.io/pomerium/ingress-controller/ingress-controller
           tags: |
             type=semver,pattern={{raw}}
             type=semver,pattern=v{{major}}.{{minor}}
