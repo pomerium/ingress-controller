@@ -46,6 +46,7 @@ type allCmdOptions struct {
 	// metricsBindAddress must be externally accessible host:port
 	metricsBindAddress string `validate:"required,hostname_port"`
 	serverAddr         string `validate:"required,hostname_port"`
+	sshAddr            string
 	httpRedirectAddr   string `validate:"required,hostname_port"`
 	deriveTLS          string `validate:"required,hostname"`
 }
@@ -117,6 +118,7 @@ func (s *allCmd) setupFlags() error {
 	flags.StringVar(&s.metricsBindAddress, metricsBindAddress, "", "host:port for aggregate metrics. host is mandatory")
 	flags.StringVar(&s.adminBindAddr, debugAdminBindAddr, "", "host:port for admin server")
 	flags.StringVar(&s.serverAddr, "server-addr", ":8443", "the address the HTTPS server would bind to")
+	flags.StringVar(&s.sshAddr, "ssh-addr", "", "the address the SSH server would bind to")
 	flags.StringVar(&s.httpRedirectAddr, "http-redirect-addr", ":8080", "the address HTTP redirect would bind to")
 	flags.StringVar(&s.deriveTLS, "databroker-auto-tls", "", "enable auto TLS and generate server certificate for the domain")
 	flags.DurationVar(&s.configControllerShutdownTimeout, configControllerShutdown, time.Second*30, "timeout waiting for graceful config controller shutdown")
@@ -277,6 +279,7 @@ func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 	}
 	s.cfg.Options.EnvoyAdminAddress = opt.adminBindAddr
 	s.cfg.Options.HTTP3AdvertisePort = null.NewUint32(443, true)
+	s.cfg.Options.SSHAddr = opt.sshAddr
 
 	return nil
 }

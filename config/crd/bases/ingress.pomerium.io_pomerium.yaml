@@ -430,6 +430,22 @@ spec:
                   SetResponseHeaders specifies a mapping of HTTP Header to be added globally to all managed routes and pomerium's authenticate service.
                   See <a href="https://www.pomerium.com/docs/reference/set-response-headers">Set Response Headers</a>
                 type: object
+              ssh:
+                description: SSH sets the ssh settings.
+                properties:
+                  hostKeyFiles:
+                    items:
+                      type: string
+                    type: array
+                  hostKeys:
+                    items:
+                      type: string
+                    type: array
+                  userCaKey:
+                    type: string
+                  userCaKeyFile:
+                    type: string
+                type: object
               storage:
                 description: |-
                   Storage defines persistent storage for sessions and other data.

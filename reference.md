@@ -126,6 +126,23 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>circuitBreakerThresholds</code>&#160;&#160;
+
+                    <strong>object</strong>&#160;
+                    (<a href="#circuitbreakerthresholds">circuitBreakerThresholds</a>)
+
+                </p>
+                <p>
+
+                    CircuitBreakerThresholds sets the circuit breaker thresholds settings.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
                 <code>codecType</code>&#160;&#160;
 
                     <strong>string</strong>&#160;
@@ -325,6 +342,23 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>ssh</code>&#160;&#160;
+
+                    <strong>object</strong>&#160;
+                    (<a href="#ssh">ssh</a>)
+
+                </p>
+                <p>
+
+                    SSH sets the ssh settings.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
                 <code>storage</code>&#160;&#160;
 
                     <strong>object</strong>&#160;
@@ -417,6 +451,100 @@ Authenticate sets authenticate service parameters. If not specified, a Pomerium-
                 </p>
 
                     Format: an URI as parsed by Golang net/url.ParseRequestURI.
+
+            </td>
+        </tr>
+
+    </tbody>
+</table>
+
+
+
+### `circuitBreakerThresholds`
+
+CircuitBreakerThresholds sets the circuit breaker thresholds settings.
+
+<table>
+    <thead>
+    </thead>
+    <tbody>
+
+        <tr>
+            <td>
+                <p>
+                <code>maxConnectionPools</code>&#160;&#160;
+
+                    <strong>integer</strong>&#160;
+
+                </p>
+                <p>
+
+                    MaxConnectionPools sets the maximum number of connection pools per cluster that Envoy will concurrently support at once. If not specified, the default is unlimited. Set this for clusters which create a large number of connection pools.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>maxConnections</code>&#160;&#160;
+
+                    <strong>integer</strong>&#160;
+
+                </p>
+                <p>
+
+                    MaxConnections sets the maximum number of connections that Envoy will make to the upstream cluster. If not specified, the default is 1024.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>maxPendingRequests</code>&#160;&#160;
+
+                    <strong>integer</strong>&#160;
+
+                </p>
+                <p>
+
+                    MaxPendingRequests sets the maximum number of pending requests that Envoy will allow to the upstream cluster. If not specified, the default is 1024. This limit is applied as a connection limit for non-HTTP traffic.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>maxRequests</code>&#160;&#160;
+
+                    <strong>integer</strong>&#160;
+
+                </p>
+                <p>
+
+                    MaxRequests sets the maximum number of parallel requests that Envoy will make to the upstream cluster. If not specified, the default is 1024. This limit does not apply to non-HTTP traffic.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>maxRetries</code>&#160;&#160;
+
+                    <strong>integer</strong>&#160;
+
+                </p>
+                <p>
+
+                    MaxRetries sets the maximum number of parallel retries that Envoy will allow to the upstream cluster. If not specified, the default is 3.
+                </p>
 
             </td>
         </tr>
@@ -1148,6 +1276,84 @@ RefreshDirectory is no longer supported, please see <a href="https://docs.pomeri
                 </p>
 
                     Format: a duration string like "22s" as parsed by Golang time.ParseDuration.
+
+            </td>
+        </tr>
+
+    </tbody>
+</table>
+
+
+
+### `ssh`
+
+SSH sets the ssh settings.
+
+<table>
+    <thead>
+    </thead>
+    <tbody>
+
+        <tr>
+            <td>
+                <p>
+                <code>hostKeyFiles</code>&#160;&#160;
+
+                    <strong>[]string</strong>&#160;
+
+                </p>
+                <p>
+
+
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>hostKeys</code>&#160;&#160;
+
+                    <strong>[]string</strong>&#160;
+
+                </p>
+                <p>
+
+
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>userCaKey</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+
+                </p>
+                <p>
+
+
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>userCaKeyFile</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+
+                </p>
+                <p>
+
+
+                </p>
 
             </td>
         </tr>

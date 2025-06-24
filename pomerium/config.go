@@ -47,6 +47,7 @@ func ApplyConfig(ctx context.Context, dst *pb.Config, src *model.Config) error {
 		{"otel", applyOTEL},
 		{"downstream mtls", applyDownstreamMTLS},
 		{"circuit breaker thresholds", applyCircuitBreakerThresholds},
+		{"ssh", applySSH},
 	}
 	if src.Spec.IdentityProvider != nil {
 		opts = append(opts, []applyOpt{
@@ -404,6 +405,34 @@ func applyCircuitBreakerThresholds(_ context.Context, dst *pb.Config, src *model
 		MaxRetries:         src.Spec.CircuitBreakerThresholds.MaxRetries,
 		MaxConnectionPools: src.Spec.CircuitBreakerThresholds.MaxConnectionPools,
 	}
+	return nil
+}
+
+func applySSH(_ context.Context, dst *pb.Config, src *model.Config) error {
+	if src.Spec.SSH != nil && src.Spec.SSH.HostKeyFiles != nil {
+		dst.Settings.SshHostKeyFiles = &pb.Settings_StringList{Values: *src.Spec.SSH.HostKeyFiles}
+	} else {
+		dst.Settings.SshHostKeyFiles = nil
+	}
+
+	if src.Spec.SSH != nil && src.Spec.SSH.HostKeys != nil {
+		dst.Settings.SshHostKeys = &pb.Settings_StringList{Values: *src.Spec.SSH.HostKeys}
+	} else {
+		dst.Settings.SshHostKeys = nil
+	}
+
+	if src.Spec.SSH != nil && src.Spec.SSH.UserCAKey != nil {
+		dst.Settings.SshUserCaKey = proto.String(*src.Spec.SSH.UserCAKey)
+	} else {
+		dst.Settings.SshUserCaKey = nil
+	}
+
+	if src.Spec.SSH != nil && src.Spec.SSH.UserCAKeyFile != nil {
+		dst.Settings.SshUserCaKeyFile = proto.String(*src.Spec.SSH.UserCAKeyFile)
+	} else {
+		dst.Settings.SshUserCaKeyFile = nil
+	}
+
 	return nil
 }
 
