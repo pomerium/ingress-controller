@@ -100,7 +100,9 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 
 	s := cfg.Spec
 	return applyAll(
+		// bootstrap secrets
 		apply("bootstrap secret", required(&s.Secrets), &cfg.Secrets),
+		// ca secrets
 		func() error {
 			for _, caSecret := range s.CASecrets {
 				secret, err := get(caSecret)()
@@ -111,6 +113,7 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 			}
 			return nil
 		},
+		// identity provider secrets
 		func() error {
 			if s.IdentityProvider == nil {
 				return nil
@@ -121,6 +124,33 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 				apply("service account", optional(s.IdentityProvider.ServiceAccountFromSecret), &cfg.IdpServiceAccount),
 			)
 		},
+		// ssh secrets
+		func() error {
+			if s.SSH == nil {
+				return nil
+			}
+
+			if sshHostKeySecrets := s.SSH.HostKeySecrets; sshHostKeySecrets != nil {
+				for _, sshHostKeySecret := range *sshHostKeySecrets {
+					secret, err := get(sshHostKeySecret)()
+					if err != nil {
+						return fmt.Errorf("error retrieving ssh host key secret (%s): %w", sshHostKeySecret, err)
+					}
+					cfg.SSHSecrets.HostKeys = append(cfg.SSHSecrets.HostKeys, secret)
+				}
+			}
+
+			if sshUserCAKeySecret := s.SSH.UserCAKeySecret; sshUserCAKeySecret != nil {
+				secret, err := get(*sshUserCAKeySecret)()
+				if err != nil {
+					return fmt.Errorf("error retrieving ssh user ca key secret (%s): %w", *sshUserCAKeySecret, err)
+				}
+				cfg.SSHSecrets.UserCAKey = secret
+			}
+
+			return cfg.SSHSecrets.Validate()
+		},
+		// storage secrets
 		func() error {
 			if s.Storage == nil {
 				return nil

@@ -453,13 +453,9 @@ type CircuitBreakerThresholds struct {
 // SSH are the ssh settings.
 type SSH struct {
 	// +kubebuilder:validation:Optional
-	HostKeyFiles *[]string `json:"hostKeyFiles,omitempty"`
+	HostKeySecrets *[]string `json:"hostKeySecrets"`
 	// +kubebuilder:validation:Optional
-	HostKeys *[]string `json:"hostKeys"`
-	// +kubebuilder:validation:Optional
-	UserCAKey *string `json:"userCaKey"`
-	// +kubebuilder:validation:Optional
-	UserCAKeyFile *string `json:"userCaKeyFile"`
+	UserCAKeySecret *string `json:"userCaKeySecret"`
 }
 
 // ResourceStatus represents the outcome of the latest attempt to reconcile

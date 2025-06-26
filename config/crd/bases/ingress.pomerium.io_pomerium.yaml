@@ -433,17 +433,11 @@ spec:
               ssh:
                 description: SSH sets the ssh settings.
                 properties:
-                  hostKeyFiles:
+                  hostKeySecrets:
                     items:
                       type: string
                     type: array
-                  hostKeys:
-                    items:
-                      type: string
-                    type: array
-                  userCaKey:
-                    type: string
-                  userCaKeyFile:
+                  userCaKeySecret:
                     type: string
                 type: object
               storage:

@@ -409,28 +409,27 @@ func applyCircuitBreakerThresholds(_ context.Context, dst *pb.Config, src *model
 }
 
 func applySSH(_ context.Context, dst *pb.Config, src *model.Config) error {
-	if src.Spec.SSH != nil && src.Spec.SSH.HostKeyFiles != nil {
-		dst.Settings.SshHostKeyFiles = &pb.Settings_StringList{Values: *src.Spec.SSH.HostKeyFiles}
-	} else {
-		dst.Settings.SshHostKeyFiles = nil
-	}
-
-	if src.Spec.SSH != nil && src.Spec.SSH.HostKeys != nil {
-		dst.Settings.SshHostKeys = &pb.Settings_StringList{Values: *src.Spec.SSH.HostKeys}
+	if secrets := src.SSHSecrets.HostKeys; len(secrets) > 0 {
+		dst.Settings.SshHostKeys = &pb.Settings_StringList{Values: make([]string, 0, len(secrets))}
+		for _, secret := range secrets {
+			data, ok := secret.Data[model.SSHPrivateKey]
+			if !ok {
+				return fmt.Errorf("missing ssh host key data in %s", util.GetNamespacedName(secret))
+			}
+			dst.Settings.SshHostKeys.Values = append(dst.Settings.SshHostKeys.Values, string(data))
+		}
 	} else {
 		dst.Settings.SshHostKeys = nil
 	}
 
-	if src.Spec.SSH != nil && src.Spec.SSH.UserCAKey != nil {
-		dst.Settings.SshUserCaKey = proto.String(*src.Spec.SSH.UserCAKey)
+	if secret := src.SSHSecrets.UserCAKey; secret != nil {
+		data, ok := secret.Data[model.SSHPrivateKey]
+		if !ok {
+			return fmt.Errorf("missing ssh user ca key data in %s", util.GetNamespacedName(secret))
+		}
+		dst.Settings.SshUserCaKey = proto.String(string(data))
 	} else {
 		dst.Settings.SshUserCaKey = nil
-	}
-
-	if src.Spec.SSH != nil && src.Spec.SSH.UserCAKeyFile != nil {
-		dst.Settings.SshUserCaKeyFile = proto.String(*src.Spec.SSH.UserCAKeyFile)
-	} else {
-		dst.Settings.SshUserCaKeyFile = nil
 	}
 
 	return nil
