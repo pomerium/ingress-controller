@@ -50,7 +50,35 @@ const (
 	StorageConnectionStringKey = "connection"
 	// CAKey is certificate authority secret key
 	CAKey = "ca.crt"
+	// SSHPrivateKey is the ssh privatekey secret key
+	SSHPrivateKey = "ssh-privatekey"
 )
+
+// SSHSecrets is a grouping of ssh-related secrets.
+type SSHSecrets struct {
+	HostKeys  []*corev1.Secret
+	UserCAKey *corev1.Secret
+}
+
+// Validate validates that the ssh secrets are in the expected format.
+func (s SSHSecrets) Validate() error {
+	for _, hk := range s.HostKeys {
+		if hk.Type != corev1.SecretTypeSSHAuth {
+			return fmt.Errorf("ssh host key secret %s should be of type %s, got %s",
+				util.GetNamespacedName(hk), corev1.SecretTypeSSHAuth, hk.Type)
+		}
+	}
+
+	uk := s.UserCAKey
+	if uk != nil {
+		if uk.Type != corev1.SecretTypeSSHAuth {
+			return fmt.Errorf("ssh user ca key secret %s should be of type %s, got %s",
+				util.GetNamespacedName(uk), corev1.SecretTypeSSHAuth, uk.Type)
+		}
+	}
+
+	return nil
+}
 
 // StorageSecrets is a convenience grouping of storage-related secrets
 type StorageSecrets struct {
@@ -95,6 +123,8 @@ type Config struct {
 	IdpSecret *corev1.Secret
 	// IdpServiceAccount is Settings.IdentityProvider.ServiceAccountFromSecret
 	IdpServiceAccount *corev1.Secret
+	// SSHSecrets are secrets related to ssh.
+	SSHSecrets SSHSecrets
 	// StorageSecrets represent databroker storage settings
 	StorageSecrets StorageSecrets
 }

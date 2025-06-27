@@ -340,6 +340,9 @@ type PomeriumSpec struct {
 
 	// CircuitBreakerThresholds sets the circuit breaker thresholds settings.
 	CircuitBreakerThresholds *CircuitBreakerThresholds `json:"circuitBreakerThresholds,omitempty"`
+
+	// SSH sets the ssh settings.
+	SSH *SSH `json:"ssh,omitempty"`
 }
 
 // OTEL configures OpenTelemetry.
@@ -445,6 +448,14 @@ type CircuitBreakerThresholds struct {
 	//
 	// +kubebuilder:validation:Optional
 	MaxConnectionPools *uint32 `json:"maxConnectionPools"`
+}
+
+// SSH are the ssh settings.
+type SSH struct {
+	// +kubebuilder:validation:Optional
+	HostKeySecrets *[]string `json:"hostKeySecrets"`
+	// +kubebuilder:validation:Optional
+	UserCAKeySecret *string `json:"userCaKeySecret"`
 }
 
 // ResourceStatus represents the outcome of the latest attempt to reconcile

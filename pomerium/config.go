@@ -47,6 +47,7 @@ func ApplyConfig(ctx context.Context, dst *pb.Config, src *model.Config) error {
 		{"otel", applyOTEL},
 		{"downstream mtls", applyDownstreamMTLS},
 		{"circuit breaker thresholds", applyCircuitBreakerThresholds},
+		{"ssh", applySSH},
 	}
 	if src.Spec.IdentityProvider != nil {
 		opts = append(opts, []applyOpt{
@@ -404,6 +405,33 @@ func applyCircuitBreakerThresholds(_ context.Context, dst *pb.Config, src *model
 		MaxRetries:         src.Spec.CircuitBreakerThresholds.MaxRetries,
 		MaxConnectionPools: src.Spec.CircuitBreakerThresholds.MaxConnectionPools,
 	}
+	return nil
+}
+
+func applySSH(_ context.Context, dst *pb.Config, src *model.Config) error {
+	if secrets := src.SSHSecrets.HostKeys; len(secrets) > 0 {
+		dst.Settings.SshHostKeys = &pb.Settings_StringList{Values: make([]string, 0, len(secrets))}
+		for _, secret := range secrets {
+			data, ok := secret.Data[model.SSHPrivateKey]
+			if !ok {
+				return fmt.Errorf("missing ssh host key data in %s", util.GetNamespacedName(secret))
+			}
+			dst.Settings.SshHostKeys.Values = append(dst.Settings.SshHostKeys.Values, string(data))
+		}
+	} else {
+		dst.Settings.SshHostKeys = nil
+	}
+
+	if secret := src.SSHSecrets.UserCAKey; secret != nil {
+		data, ok := secret.Data[model.SSHPrivateKey]
+		if !ok {
+			return fmt.Errorf("missing ssh user ca key data in %s", util.GetNamespacedName(secret))
+		}
+		dst.Settings.SshUserCaKey = proto.String(string(data))
+	} else {
+		dst.Settings.SshUserCaKey = nil
+	}
+
 	return nil
 }
 

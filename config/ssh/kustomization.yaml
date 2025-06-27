@@ -1,0 +1,33 @@
+namespace: pomerium
+commonLabels:
+  app.kubernetes.io/name: pomerium
+resources:
+  - ../default
+patches:
+  - patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: '--ssh-addr=:4022'
+      - op: add
+        path: /spec/template/spec/containers/0/ports/-
+        value:
+          name: ssh
+          containerPort: 4022
+          protocol: TCP
+    target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: pomerium
+  - patch: |-
+      - op: add
+        path: /spec/ports/-
+        value:
+          name: ssh
+          targetPort: ssh
+          protocol: TCP
+          port: 4022
+    target:
+      version: v1
+      kind: Service
+      name: pomerium-proxy
