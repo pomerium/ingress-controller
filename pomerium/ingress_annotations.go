@@ -385,16 +385,12 @@ func applyMCPAnnotations(r *pomerium.Route, serverKVs, clientKVs map[string]stri
 		return applyMCPClientAnnotations(r, clientKVs)
 	}
 
+	r.Mcp = nil
 	return nil
 }
 
 func applyMCPServerAnnotations(r *pomerium.Route, kvs map[string]string) error {
-	var serverConfig *pomerium.MCPServer
-	if r.Mcp != nil && r.Mcp.GetServer() != nil {
-		serverConfig = r.Mcp.GetServer()
-	} else {
-		serverConfig = &pomerium.MCPServer{}
-	}
+	serverConfig := &pomerium.MCPServer{}
 
 	for k, v := range kvs {
 		if v == "" && k != model.MCPServer {
