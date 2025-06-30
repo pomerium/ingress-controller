@@ -284,3 +284,304 @@ func TestYaml(t *testing.T) {
 		}
 	}
 }
+
+func TestMCPAnnotations(t *testing.T) {
+	t.Run("MCP Server with OAuth2", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server":                           "true",
+						"a/mcp_server_max_request_bytes":         "1048576",
+						"a/mcp_server_upstream_oauth2_secret":    "mcp-oauth2-secret",
+						"a/mcp_server_upstream_oauth2_token_url": "https://auth.example.com/token",
+						"a/mcp_server_upstream_oauth2_scopes":    "read,write,admin",
+					},
+				},
+			},
+			Secrets: map[types.NamespacedName]*corev1.Secret{
+				{Name: "mcp-oauth2-secret", Namespace: "test"}: {
+					Type: corev1.SecretTypeOpaque,
+					Data: map[string][]byte{
+						model.MCPServerUpstreamOAuth2ClientIDKey:     []byte("test-client-id"),
+						model.MCPServerUpstreamOAuth2ClientSecretKey: []byte("test-client-secret"),
+					},
+				},
+			},
+		}
+
+		require.NoError(t, applyAnnotations(r, ic))
+		require.NotNil(t, r.Mcp)
+		require.NotNil(t, r.Mcp.GetServer())
+
+		server := r.Mcp.GetServer()
+		require.NotNil(t, server.MaxRequestBytes)
+		assert.Equal(t, uint32(1048576), *server.MaxRequestBytes)
+
+		require.NotNil(t, server.UpstreamOauth2)
+		assert.Equal(t, "test-client-id", server.UpstreamOauth2.ClientId)
+		assert.Equal(t, "test-client-secret", server.UpstreamOauth2.ClientSecret)
+		require.NotNil(t, server.UpstreamOauth2.Oauth2Endpoint)
+		assert.Equal(t, "https://auth.example.com/token", server.UpstreamOauth2.Oauth2Endpoint.TokenUrl)
+		assert.Equal(t, []string{"read", "write", "admin"}, server.UpstreamOauth2.Scopes)
+	})
+
+	t.Run("MCP Client", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-client.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_client": "true",
+					},
+				},
+			},
+		}
+
+		require.NoError(t, applyAnnotations(r, ic))
+		require.NotNil(t, r.Mcp)
+		require.NotNil(t, r.Mcp.GetClient())
+		assert.Nil(t, r.Mcp.GetServer())
+	})
+
+	t.Run("MCP Server minimal", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server": "true",
+					},
+				},
+			},
+		}
+
+		require.NoError(t, applyAnnotations(r, ic))
+		require.NotNil(t, r.Mcp)
+		require.NotNil(t, r.Mcp.GetServer())
+
+		server := r.Mcp.GetServer()
+		assert.Nil(t, server.MaxRequestBytes)
+		assert.Nil(t, server.UpstreamOauth2)
+	})
+
+	t.Run("Both server and client should fail", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server": "true",
+						"a/mcp_client": "true",
+					},
+				},
+			},
+		}
+
+		err := applyAnnotations(r, ic)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot specify both MCP server and client configurations")
+	})
+
+	t.Run("Invalid max_request_bytes should fail", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server":                   "true",
+						"a/mcp_server_max_request_bytes": "invalid",
+					},
+				},
+			},
+		}
+
+		err := applyAnnotations(r, ic)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid max_request_bytes value")
+	})
+
+	t.Run("Scopes with whitespace should be trimmed", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server":                        "true",
+						"a/mcp_server_upstream_oauth2_scopes": " read , write , admin ",
+					},
+				},
+			},
+		}
+
+		require.NoError(t, applyAnnotations(r, ic))
+		require.NotNil(t, r.Mcp)
+		server := r.Mcp.GetServer()
+		require.NotNil(t, server.UpstreamOauth2)
+		assert.Equal(t, []string{"read", "write", "admin"}, server.UpstreamOauth2.Scopes)
+	})
+
+	t.Run("MCP Server OAuth2 secret with only client ID", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server":                        "true",
+						"a/mcp_server_upstream_oauth2_secret": "oauth2-clientid-only",
+					},
+				},
+			},
+			Secrets: map[types.NamespacedName]*corev1.Secret{
+				{Name: "oauth2-clientid-only", Namespace: "test"}: {
+					Type: corev1.SecretTypeOpaque,
+					Data: map[string][]byte{
+						model.MCPServerUpstreamOAuth2ClientIDKey: []byte("client-id-only"),
+					},
+				},
+			},
+		}
+
+		require.NoError(t, applyAnnotations(r, ic))
+		require.NotNil(t, r.Mcp)
+		server := r.Mcp.GetServer()
+		require.NotNil(t, server.UpstreamOauth2)
+		assert.Equal(t, "client-id-only", server.UpstreamOauth2.ClientId)
+		assert.Equal(t, "", server.UpstreamOauth2.ClientSecret)
+	})
+
+	t.Run("MCP Server OAuth2 secret with only client secret", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server":                        "true",
+						"a/mcp_server_upstream_oauth2_secret": "oauth2-secret-only",
+					},
+				},
+			},
+			Secrets: map[types.NamespacedName]*corev1.Secret{
+				{Name: "oauth2-secret-only", Namespace: "test"}: {
+					Type: corev1.SecretTypeOpaque,
+					Data: map[string][]byte{
+						model.MCPServerUpstreamOAuth2ClientSecretKey: []byte("client-secret-only"),
+					},
+				},
+			},
+		}
+
+		require.NoError(t, applyAnnotations(r, ic))
+		require.NotNil(t, r.Mcp)
+		server := r.Mcp.GetServer()
+		require.NotNil(t, server.UpstreamOauth2)
+		assert.Equal(t, "", server.UpstreamOauth2.ClientId)
+		assert.Equal(t, "client-secret-only", server.UpstreamOauth2.ClientSecret)
+	})
+
+	t.Run("MCP Server OAuth2 secret with no valid keys should fail", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server":                        "true",
+						"a/mcp_server_upstream_oauth2_secret": "invalid-oauth2-secret",
+					},
+				},
+			},
+			Secrets: map[types.NamespacedName]*corev1.Secret{
+				{Name: "invalid-oauth2-secret", Namespace: "test"}: {
+					Type: corev1.SecretTypeOpaque,
+					Data: map[string][]byte{
+						"wrong_key": []byte("wrong-value"),
+					},
+				},
+			},
+		}
+
+		err := applyAnnotations(r, ic)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "secret must have at least one of client_id or client_secret keys")
+	})
+
+	t.Run("MCP Server implicit via nested annotations", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server_max_request_bytes": "2097152",
+					},
+				},
+			},
+		}
+
+		require.NoError(t, applyAnnotations(r, ic))
+		require.NotNil(t, r.Mcp)
+		require.NotNil(t, r.Mcp.GetServer())
+
+		server := r.Mcp.GetServer()
+		require.NotNil(t, server.MaxRequestBytes)
+		assert.Equal(t, uint32(2097152), *server.MaxRequestBytes)
+	})
+
+	t.Run("Invalid mcp_server value should fail", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server": "https://mcp-server.example.com",
+					},
+				},
+			},
+		}
+
+		err := applyAnnotations(r, ic)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "mcp_server annotation should be 'true' or omitted")
+	})
+
+	t.Run("Invalid mcp_client value should fail", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-client.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_client": "https://mcp-client.example.com",
+					},
+				},
+			},
+		}
+
+		err := applyAnnotations(r, ic)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "mcp_client annotation should be 'true' or omitted")
+	})
+}

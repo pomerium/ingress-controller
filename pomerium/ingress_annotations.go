@@ -3,6 +3,7 @@ package pomerium
 import (
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"strings"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -72,6 +73,14 @@ var (
 		model.KubernetesServiceAccountTokenSecret,
 		model.SetRequestHeadersSecret,
 		model.SetResponseHeadersSecret,
+		model.MCPServerUpstreamOAuth2Secret,
+	})
+	mcpAnnotations = boolMap([]string{
+		model.MCPServer,
+		model.MCPClient,
+		model.MCPServerMaxRequestBytes,
+		model.MCPServerUpstreamOAuth2TokenURL,
+		model.MCPServerUpstreamOAuth2Scopes,
 	})
 	handledElsewhere = boolMap([]string{
 		model.PathRegex,
@@ -95,7 +104,7 @@ func boolMap(keys []string) map[string]bool {
 }
 
 type keys struct {
-	Base, Envoy, Policy, TLS, Etc, Secret map[string]string
+	Base, Envoy, Policy, TLS, Etc, Secret, MCP map[string]string
 }
 
 func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
@@ -107,6 +116,7 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 		TLS:    make(map[string]string),
 		Etc:    make(map[string]string),
 		Secret: make(map[string]string),
+		MCP:    make(map[string]string),
 	}
 
 	for k, v := range src {
@@ -129,6 +139,7 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 			{policyAnnotations, kv.Policy},
 			{tlsAnnotations, kv.TLS},
 			{secretAnnotations, kv.Secret},
+			{mcpAnnotations, kv.MCP},
 			{handledElsewhere, kv.Etc},
 		} {
 			if m.keys[k] {
@@ -165,6 +176,9 @@ func applyAnnotations(
 		return err
 	}
 	if err = applySecretAnnotations(r, kv.Secret, ic.Secrets, ic.Ingress.Namespace); err != nil {
+		return err
+	}
+	if err = applyMCPAnnotations(r, kv.MCP); err != nil {
 		return err
 	}
 	p := new(pomerium.Policy)
@@ -285,6 +299,47 @@ func applySecretAnnotations(
 				return nil
 			},
 		},
+		model.MCPServerUpstreamOAuth2Secret: {
+			corev1.SecretTypeOpaque,
+			func(data map[string][]byte) error {
+				clientID, hasClientID := data[model.MCPServerUpstreamOAuth2ClientIDKey]
+				clientSecret, hasClientSecret := data[model.MCPServerUpstreamOAuth2ClientSecretKey]
+
+				if !hasClientID && !hasClientSecret {
+					return fmt.Errorf("secret must have at least one of %s or %s keys",
+						model.MCPServerUpstreamOAuth2ClientIDKey, model.MCPServerUpstreamOAuth2ClientSecretKey)
+				}
+
+				if r.Mcp == nil {
+					r.Mcp = &pomerium.MCP{
+						Mode: &pomerium.MCP_Server{
+							Server: &pomerium.MCPServer{},
+						},
+					}
+				} else if r.Mcp.GetServer() == nil {
+					if r.Mcp.GetClient() != nil {
+						return fmt.Errorf("route is already configured as MCP client, cannot add OAuth2 secret")
+					}
+					r.Mcp.Mode = &pomerium.MCP_Server{
+						Server: &pomerium.MCPServer{},
+					}
+				}
+
+				server := r.Mcp.GetServer()
+				if server.UpstreamOauth2 == nil {
+					server.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
+				}
+
+				if hasClientID {
+					server.UpstreamOauth2.ClientId = string(clientID)
+				}
+				if hasClientSecret {
+					server.UpstreamOauth2.ClientSecret = string(clientSecret)
+				}
+
+				return nil
+			},
+		},
 	}
 
 	for key, secretName := range annotations {
@@ -304,6 +359,114 @@ func applySecretAnnotations(
 
 		if err := handler.apply(secret.Data); err != nil {
 			return fmt.Errorf("annotation %s: %w", key, err)
+		}
+	}
+
+	return nil
+}
+
+func applyMCPAnnotations(r *pomerium.Route, kvs map[string]string) error {
+	if len(kvs) == 0 {
+		return nil
+	}
+
+	// Check if this is a server or client configuration
+	var isServer, isClient bool
+	var clientConfig *pomerium.MCPClient
+
+	// Determine mode and collect values
+	for k, v := range kvs {
+		switch k {
+		case model.MCPServer:
+			if v == "true" || v == "" {
+				isServer = true
+			} else {
+				return fmt.Errorf("mcp_server annotation should be 'true' or omitted, got %q", v)
+			}
+		case model.MCPClient:
+			if v == "true" || v == "" {
+				isClient = true
+			} else {
+				return fmt.Errorf("mcp_client annotation should be 'true' or omitted, got %q", v)
+			}
+		case model.MCPServerMaxRequestBytes, model.MCPServerUpstreamOAuth2TokenURL,
+			model.MCPServerUpstreamOAuth2Scopes:
+			isServer = true
+		}
+	}
+
+	// Validate that only one mode is specified
+	if isServer && isClient {
+		return fmt.Errorf("cannot specify both MCP server and client configurations")
+	}
+
+	if !isServer && !isClient {
+		return fmt.Errorf("no MCP configuration specified")
+	}
+
+	if isServer {
+		var serverConfig *pomerium.MCPServer
+		if r.Mcp != nil && r.Mcp.GetServer() != nil {
+			serverConfig = r.Mcp.GetServer()
+		} else {
+			serverConfig = &pomerium.MCPServer{}
+		}
+
+		for k, v := range kvs {
+			if v == "" {
+				continue
+			}
+			switch k {
+			case model.MCPServer:
+				continue
+			case model.MCPServerMaxRequestBytes:
+				val, err := strconv.ParseUint(v, 10, 32)
+				if err != nil {
+					return fmt.Errorf("invalid max_request_bytes value %q: %w", v, err)
+				}
+				maxBytes := uint32(val)
+				serverConfig.MaxRequestBytes = &maxBytes
+			case model.MCPServerUpstreamOAuth2TokenURL:
+				if serverConfig.UpstreamOauth2 == nil {
+					serverConfig.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
+				}
+				if serverConfig.UpstreamOauth2.Oauth2Endpoint == nil {
+					serverConfig.UpstreamOauth2.Oauth2Endpoint = &pomerium.OAuth2Endpoint{}
+				}
+				serverConfig.UpstreamOauth2.Oauth2Endpoint.TokenUrl = v
+			case model.MCPServerUpstreamOAuth2Scopes:
+				if serverConfig.UpstreamOauth2 == nil {
+					serverConfig.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
+				}
+				serverConfig.UpstreamOauth2.Scopes = strings.Split(v, ",")
+				for i, scope := range serverConfig.UpstreamOauth2.Scopes {
+					serverConfig.UpstreamOauth2.Scopes[i] = strings.TrimSpace(scope)
+				}
+			default:
+				return fmt.Errorf("unknown MCP server annotation %s", k)
+			}
+		}
+
+		r.Mcp = &pomerium.MCP{
+			Mode: &pomerium.MCP_Server{
+				Server: serverConfig,
+			},
+		}
+	} else if isClient {
+		for k := range kvs {
+			switch k {
+			case model.MCPClient:
+				continue
+			default:
+				return fmt.Errorf("unknown MCP client annotation %s", k)
+			}
+		}
+
+		clientConfig = &pomerium.MCPClient{}
+		r.Mcp = &pomerium.MCP{
+			Mode: &pomerium.MCP_Client{
+				Client: clientConfig,
+			},
 		}
 	}
 
