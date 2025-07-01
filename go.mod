@@ -15,11 +15,10 @@ require (
 	github.com/hashicorp/go-set/v3 v3.0.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
-	github.com/open-policy-agent/opa v1.5.0
-	github.com/pomerium/csrf v1.7.0
+	github.com/open-policy-agent/opa v1.6.0
 	github.com/pomerium/pomerium v0.28.1-0.20250626174952-717a7bdf5a4d
 	github.com/rs/zerolog v1.34.0
-	github.com/sergi/go-diff v1.3.1
+	github.com/sergi/go-diff v1.4.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.20.1
@@ -29,7 +28,7 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/net v0.41.0
 	golang.org/x/sync v0.15.0
-	google.golang.org/grpc v1.72.2
+	google.golang.org/grpc v1.73.0
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.33.1
@@ -87,7 +86,7 @@ require (
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
-	github.com/cncf/xds/go v0.0.0-20250121191232-2f005788dc42 // indirect
+	github.com/cncf/xds/go v0.0.0-20250326154945-ae57f3c0d45f // indirect
 	github.com/cockroachdb/crlib v0.0.0-20241015224233-894974b3ad94 // indirect
 	github.com/cockroachdb/errors v1.11.3 // indirect
 	github.com/cockroachdb/fifo v0.0.0-20240606204812-0bbfbd93a7ce // indirect
@@ -174,6 +173,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/pomerium/csrf v1.7.0 // indirect
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524 // indirect
 	github.com/pomerium/envoy-custom v1.33.0 // indirect
 	github.com/pomerium/protoutil v0.0.0-20240813175624-47b7ac43ff46 // indirect
@@ -201,7 +201,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.8.0 // indirect
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f // indirect
-	github.com/vektah/gqlparser/v2 v2.5.26 // indirect
+	github.com/vektah/gqlparser/v2 v2.5.28 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
