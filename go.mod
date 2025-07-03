@@ -7,7 +7,7 @@ require (
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4
 	github.com/go-logr/logr v1.4.3
 	github.com/go-logr/zapr v1.3.0
-	github.com/go-playground/validator/v10 v10.26.0
+	github.com/go-playground/validator/v10 v10.27.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.15.0
@@ -15,10 +15,10 @@ require (
 	github.com/hashicorp/go-set/v3 v3.0.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
-	github.com/open-policy-agent/opa v1.5.0
+	github.com/open-policy-agent/opa v1.6.0
 	github.com/pomerium/pomerium v0.28.1-0.20250703162811-59a1de4fb281
 	github.com/rs/zerolog v1.34.0
-	github.com/sergi/go-diff v1.3.1
+	github.com/sergi/go-diff v1.4.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.20.1
@@ -28,7 +28,7 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/net v0.41.0
 	golang.org/x/sync v0.15.0
-	google.golang.org/grpc v1.72.2
+	google.golang.org/grpc v1.73.0
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.33.2
@@ -219,7 +219,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.8.0 // indirect
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f // indirect
-	github.com/vektah/gqlparser/v2 v2.5.26 // indirect
+	github.com/vektah/gqlparser/v2 v2.5.28 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
