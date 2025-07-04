@@ -390,7 +390,13 @@ func applyMCPAnnotations(r *pomerium.Route, serverKVs, clientKVs map[string]stri
 }
 
 func applyMCPServerAnnotations(r *pomerium.Route, kvs map[string]string) error {
-	serverConfig := &pomerium.MCPServer{}
+	// Initialize or get existing server config
+	var serverConfig *pomerium.MCPServer
+	if r.Mcp != nil && r.Mcp.GetServer() != nil {
+		serverConfig = r.Mcp.GetServer()
+	} else {
+		serverConfig = &pomerium.MCPServer{}
+	}
 
 	for k, v := range kvs {
 		if v == "" && k != model.MCPServer {
@@ -430,10 +436,20 @@ func applyMCPServerAnnotations(r *pomerium.Route, kvs map[string]string) error {
 		}
 	}
 
-	r.Mcp = &pomerium.MCP{
-		Mode: &pomerium.MCP_Server{
+	// Only create new MCP structure if it doesn't exist
+	if r.Mcp == nil {
+		r.Mcp = &pomerium.MCP{
+			Mode: &pomerium.MCP_Server{
+				Server: serverConfig,
+			},
+		}
+	} else if r.Mcp.GetServer() == nil {
+		if r.Mcp.GetClient() != nil {
+			return fmt.Errorf("route is already configured as MCP client, cannot add server configuration")
+		}
+		r.Mcp.Mode = &pomerium.MCP_Server{
 			Server: serverConfig,
-		},
+		}
 	}
 	return nil
 }
