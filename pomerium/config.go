@@ -71,7 +71,7 @@ func checkForWarnings(ctx context.Context, _ *pb.Config, c *model.Config) error 
 	if c.Spec.Storage == nil || c.Spec.Storage.Postgres == nil {
 		util.Add(ctx, config.FieldMsg{
 			Key:           "storage",
-			DocsURL:       "https://www.pomerium.com/docs/topics/data-storage#persistence",
+			DocsURL:       "https://www.pomerium.com/docs/internals/data-storage",
 			FieldCheckMsg: "please specify a persistent storage backend",
 			KeyAction:     config.KeyActionWarn,
 		})
