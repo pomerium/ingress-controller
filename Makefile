@@ -128,10 +128,12 @@ internal/ui/dist/index.js: internal/ui/node_modules
 	@echo "==> $@"
 	@cd internal/ui && yarn build
 
+# run the controller locally (i.e. with docker-desktop)
+# that assumes that the CRDs and ingress class are already installed
 .PHONY: run
 run: generated
 	@echo "==> $@"
-	@go run $(GOTAGS) ./main.go
+	@go run $(GOTAGS) ./main.go all-in-one --pomerium-config global --update-status-from-service=pomerium/pomerium-proxy
 
 .PHONY: docker-build
 docker-build: build test ## Build docker image with the manager.

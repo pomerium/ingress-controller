@@ -52,6 +52,22 @@ const (
 	CAKey = "ca.crt"
 	// SSHPrivateKey is the ssh privatekey secret key
 	SSHPrivateKey = "ssh-privatekey"
+	// MCPServer indicates this route is an MCP server without any additional configuration
+	MCPServer = "mcp_server"
+	// MCPClient indicates this route is an MCP client without any additional configuration
+	MCPClient = "mcp_client"
+	// MCPServerMaxRequestBytes sets the maximum request body size for MCP server routes
+	MCPServerMaxRequestBytes = "mcp_server_max_request_bytes"
+	// MCPServerUpstreamOAuth2Secret references a secret containing OAuth2 configuration for MCP server upstream authentication
+	MCPServerUpstreamOAuth2Secret = "mcp_server_upstream_oauth2_secret" //nolint: gosec
+	// MCPServerUpstreamOAuth2TokenURL sets the OAuth2 token URL for MCP server upstream authentication
+	MCPServerUpstreamOAuth2TokenURL = "mcp_server_upstream_oauth2_token_url" //nolint: gosec
+	// MCPServerUpstreamOAuth2Scopes sets the OAuth2 scopes for MCP server upstream authentication
+	MCPServerUpstreamOAuth2Scopes = "mcp_server_upstream_oauth2_scopes"
+	// MCPServerUpstreamOAuth2ClientIDKey defines the key within the OAuth2 secret that contains the client ID
+	MCPServerUpstreamOAuth2ClientIDKey = "client_id"
+	// MCPServerUpstreamOAuth2ClientSecretKey defines the key within the OAuth2 secret that contains the client secret
+	MCPServerUpstreamOAuth2ClientSecretKey = "client_secret"
 )
 
 // SSHSecrets is a grouping of ssh-related secrets.
