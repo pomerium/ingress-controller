@@ -585,3 +585,46 @@ func TestMCPAnnotations(t *testing.T) {
 		assert.Contains(t, err.Error(), "mcp_client annotation should be 'true' or omitted")
 	})
 }
+
+func TestNameAnnotation(t *testing.T) {
+	t.Run("custom name annotation", func(t *testing.T) {
+		r := &pb.Route{}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "ingress.pomerium.io",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Name:      "test-ingress",
+					Namespace: "default",
+					Annotations: map[string]string{
+						"ingress.pomerium.io/name": "My Custom Route Name",
+					},
+				},
+			},
+		}
+
+		err := applyAnnotations(r, ic)
+		require.NoError(t, err)
+		assert.Equal(t, "My Custom Route Name", r.Name)
+	})
+
+	t.Run("no name annotation uses generated name", func(t *testing.T) {
+		r := &pb.Route{}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "ingress.pomerium.io",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Name:      "test-ingress",
+					Namespace: "default",
+					Annotations: map[string]string{
+						"ingress.pomerium.io/allow_any_authenticated_user": "true",
+					},
+				},
+			},
+		}
+
+		err := applyAnnotations(r, ic)
+		require.NoError(t, err)
+		// Name should be empty here since setRouteNameID hasn't been called yet
+		assert.Equal(t, "", r.Name)
+	})
+}

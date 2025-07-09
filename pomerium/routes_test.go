@@ -178,8 +178,8 @@ func TestUpsertIngress(t *testing.T) {
 	routes, err = routeList(cfg.Routes).toMap()
 	require.NoError(t, err)
 	require.Nil(t, routes[routeID{Name: "ingress", Namespace: "default", Path: "/a", Host: "service.localhost.pomerium.io"}])
-	require.NotNil(t, routes[routeID{Name: "ingress", Namespace: "default", Path: "/b", Host: "service.localhost.pomerium.io"}])
 	require.NotNil(t, routes[routeID{Name: "ingress", Namespace: "default", Path: "/c", Host: "service.localhost.pomerium.io"}])
+	require.NotNil(t, routes[routeID{Name: "ingress", Namespace: "default", Path: "/b", Host: "service.localhost.pomerium.io"}])
 }
 
 func TestSecureUpstream(t *testing.T) {
@@ -1398,4 +1398,92 @@ func TestEmptyHostRoute(t *testing.T) {
 
 	require.ErrorContains(t, upsertRoutes(context.Background(), &config, ic),
 		"ingress rule has empty host")
+}
+
+func TestCustomRouteName(t *testing.T) {
+	typePrefix := networkingv1.PathTypePrefix
+	ic := &model.IngressConfig{
+		AnnotationPrefix: "ingress.pomerium.io",
+		Ingress: &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-ingress",
+				Namespace: "default",
+				Annotations: map[string]string{
+					"ingress.pomerium.io/name": "My Custom Route Name",
+				},
+			},
+			Spec: networkingv1.IngressSpec{
+				TLS: []networkingv1.IngressTLS{{
+					Hosts:      []string{"service.localhost.pomerium.io"},
+					SecretName: "secret",
+				}},
+				Rules: []networkingv1.IngressRule{{
+					Host: "service.localhost.pomerium.io",
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{{
+								Path:     "/",
+								PathType: &typePrefix,
+								Backend: networkingv1.IngressBackend{
+									Service: &networkingv1.IngressServiceBackend{
+										Name: "service",
+										Port: networkingv1.ServiceBackendPort{
+											Name: "http",
+										},
+									},
+								},
+							}},
+						},
+					},
+				}},
+			},
+		},
+		Secrets: map[types.NamespacedName]*corev1.Secret{
+			{Name: "secret", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secret",
+					Namespace: "default",
+				},
+				Type: corev1.SecretTypeTLS,
+				Data: map[string][]byte{
+					corev1.TLSCertKey:       []byte("cert"),
+					corev1.TLSPrivateKeyKey: []byte("key"),
+				},
+			},
+		},
+		Services: map[types.NamespacedName]*corev1.Service{
+			{Name: "service", Namespace: "default"}: {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "service",
+					Namespace: "default",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{{
+						Name: "http",
+						Port: 80,
+					}},
+				},
+			},
+		},
+	}
+
+	cfg := new(pb.Config)
+	require.NoError(t, upsertRoutes(context.Background(), cfg, ic))
+	routes, err := routeList(cfg.Routes).toMap()
+	require.NoError(t, err)
+
+	route := routes[routeID{
+		Name:      "test-ingress",
+		Namespace: "default",
+		Path:      "/",
+		Host:      "service.localhost.pomerium.io",
+	}]
+	require.NotNil(t, route)
+
+	// The route should have the custom name from the annotation
+	assert.Equal(t, "My Custom Route Name", route.Name)
+
+	// The envoy opts should have the unique slug for stats
+	assert.NotNil(t, route.EnvoyOpts)
+	assert.Equal(t, "default-test-ingress-service-localhost-pomerium-io", route.EnvoyOpts.Name)
 }
