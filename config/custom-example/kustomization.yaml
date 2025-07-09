@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: pomerium-2
+commonLabels:
+  app.kubernetes.io/name: pomerium-2
+resources:
+  - ../pomerium/deployment
+  - ../pomerium/service
+  - ../pomerium/rbac
+  - ../gen_secrets
+  - ingressclass.yaml
+  - namespace.yaml
+patches:
+  - patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: '--name=pomerium.io/ingress-controller-2'
+      - op: replace
+        path: /spec/template/spec/containers/0/args/1
+        value: '--pomerium-config=global-2'
+    target:
+      group: apps
+      kind: Deployment
+      name: pomerium
+      version: v1
