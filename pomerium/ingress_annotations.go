@@ -80,6 +80,7 @@ var (
 		model.MCPServer,
 		model.MCPServerMaxRequestBytes,
 		model.MCPServerUpstreamOAuth2TokenURL,
+		model.MCPServerUpstreamOAuth2AuthURL,
 		model.MCPServerUpstreamOAuth2Scopes,
 	})
 	mcpClientAnnotations = boolMap([]string{
@@ -416,6 +417,14 @@ func applyMCPServerAnnotations(r *pomerium.Route, kvs map[string]string) error {
 			}
 			maxBytes := uint32(val)
 			serverConfig.MaxRequestBytes = &maxBytes
+		case model.MCPServerUpstreamOAuth2AuthURL:
+			if serverConfig.UpstreamOauth2 == nil {
+				serverConfig.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
+			}
+			if serverConfig.UpstreamOauth2.Oauth2Endpoint == nil {
+				serverConfig.UpstreamOauth2.Oauth2Endpoint = &pomerium.OAuth2Endpoint{}
+			}
+			serverConfig.UpstreamOauth2.Oauth2Endpoint.AuthUrl = v
 		case model.MCPServerUpstreamOAuth2TokenURL:
 			if serverConfig.UpstreamOauth2 == nil {
 				serverConfig.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}

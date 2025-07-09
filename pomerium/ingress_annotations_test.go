@@ -298,6 +298,7 @@ func TestMCPAnnotations(t *testing.T) {
 						"a/mcp_server_max_request_bytes":         "1048576",
 						"a/mcp_server_upstream_oauth2_secret":    "mcp-oauth2-secret",
 						"a/mcp_server_upstream_oauth2_token_url": "https://auth.example.com/token",
+						"a/mcp_server_upstream_oauth2_auth_url":  "https://auth.example.com/auth",
 						"a/mcp_server_upstream_oauth2_scopes":    "read,write,admin",
 					},
 				},
@@ -326,6 +327,7 @@ func TestMCPAnnotations(t *testing.T) {
 		assert.Equal(t, "test-client-secret", server.UpstreamOauth2.ClientSecret)
 		require.NotNil(t, server.UpstreamOauth2.Oauth2Endpoint)
 		assert.Equal(t, "https://auth.example.com/token", server.UpstreamOauth2.Oauth2Endpoint.TokenUrl)
+		assert.Equal(t, "https://auth.example.com/auth", server.UpstreamOauth2.Oauth2Endpoint.AuthUrl)
 		assert.Equal(t, []string{"read", "write", "admin"}, server.UpstreamOauth2.Scopes)
 	})
 
