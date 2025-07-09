@@ -62,6 +62,8 @@ const (
 	MCPServerMaxRequestBytes = "mcp_server_max_request_bytes"
 	// MCPServerUpstreamOAuth2Secret references a secret containing OAuth2 configuration for MCP server upstream authentication
 	MCPServerUpstreamOAuth2Secret = "mcp_server_upstream_oauth2_secret" //nolint: gosec
+	// MCPServerUpstreamOAuth2AuthURL sets the OAuth2 token URL for MCP server upstream authentication
+	MCPServerUpstreamOAuth2AuthURL = "mcp_server_upstream_oauth2_auth_url"
 	// MCPServerUpstreamOAuth2TokenURL sets the OAuth2 token URL for MCP server upstream authentication
 	MCPServerUpstreamOAuth2TokenURL = "mcp_server_upstream_oauth2_token_url" //nolint: gosec
 	// MCPServerUpstreamOAuth2Scopes sets the OAuth2 scopes for MCP server upstream authentication
