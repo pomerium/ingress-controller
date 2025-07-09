@@ -37,6 +37,7 @@ var (
 		"idle_timeout",
 		"idp_access_token_allowed_audiences",
 		"logo_url",
+		"name",
 		"pass_identity_headers",
 		"prefix_rewrite",
 		"preserve_host_header",

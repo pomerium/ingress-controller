@@ -14,6 +14,8 @@ import (
 )
 
 const (
+	// Name allows customizing the human-readable route name
+	Name = "name"
 	// TLSCustomCASecret replaces https://pomerium.io/reference/#tls-custom-certificate-authority
 	//nolint: gosec
 	TLSCustomCASecret = "tls_custom_ca_secret"

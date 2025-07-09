@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"sort"
 
+	clusterv3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/gosimple/slug"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
@@ -216,11 +217,20 @@ func setRouteNameID(r *pb.Route, name types.NamespacedName, u url.URL) error {
 	}
 	r.Id = id
 
-	r.Name = slug.Make(fmt.Sprintf("%s %s %s", name.Namespace, name.Name, u.Host))
+	slugName := slug.Make(fmt.Sprintf("%s %s %s", name.Namespace, name.Name, u.Host))
 	pathSlug := slug.Make(u.Path)
 	if pathSlug != "" {
-		r.Name = fmt.Sprintf("%s-%s", r.Name, pathSlug)
+		slugName = fmt.Sprintf("%s-%s", slugName, pathSlug)
 	}
+
+	if r.Name == "" {
+		r.Name = slugName
+	}
+
+	if r.EnvoyOpts == nil {
+		r.EnvoyOpts = &clusterv3.Cluster{}
+	}
+	r.EnvoyOpts.Name = slugName
 
 	return nil
 }
