@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/util"
@@ -43,7 +44,9 @@ func fetchConfigCerts(ctx context.Context, client client.Client, cfg *model.Conf
 		}
 		var secret corev1.Secret
 		if err := client.Get(ctx, *name, &secret); err != nil {
-			return fmt.Errorf("get %s: %w", name, err)
+			log := log.FromContext(ctx)
+			log.Info("certificate secret not found, skipping", "secret", name, "error", err)
+			continue
 		}
 		cfg.Certs[*name] = &secret
 	}
