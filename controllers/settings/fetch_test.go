@@ -11,11 +11,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
+	"github.com/pomerium/ingress-controller/controllers/deps"
 	controllers_mock "github.com/pomerium/ingress-controller/controllers/mock"
 	"github.com/pomerium/ingress-controller/controllers/settings"
 	"github.com/pomerium/ingress-controller/model"
@@ -148,14 +151,14 @@ func TestFetchConstraints(t *testing.T) {
 	}
 }
 
+// Related: https://github.com/pomerium/ingress-controller/issues/683
 func TestFetchConfigCertsMissingSecrets(t *testing.T) {
-	ctx := context.Background()
-	mc := controllers_mock.NewMockClient(gomock.NewController(t))
-	settingsName := types.NamespacedName{Namespace: "pomerium", Name: "settings"}
-
-	// This is important for cert-manager HTTP-01 challenge integration
-	// Related: https://github.com/pomerium/ingress-controller/issues/683
+	t.Parallel()
 	t.Run("missing certificate secrets should not fail", func(t *testing.T) {
+		ctx := t.Context()
+		mc := controllers_mock.NewMockClient(gomock.NewController(t))
+		settingsName := types.NamespacedName{Namespace: "pomerium", Name: "settings"}
+
 		mc.EXPECT().Get(ctx, settingsName,
 			gomock.AssignableToTypeOf(new(icsv1.Pomerium)),
 		).Do(func(_ context.Context, _ types.NamespacedName, dst *icsv1.Pomerium, _ ...client.GetOptions) {
@@ -212,6 +215,11 @@ func TestFetchConfigCertsMissingSecrets(t *testing.T) {
 	})
 
 	t.Run("partial certificate secrets should load existing ones", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		mc := controllers_mock.NewMockClient(gomock.NewController(t))
+		settingsName := types.NamespacedName{Namespace: "pomerium", Name: "settings"}
+
 		mc.EXPECT().Get(ctx, settingsName,
 			gomock.AssignableToTypeOf(new(icsv1.Pomerium)),
 		).Do(func(_ context.Context, _ types.NamespacedName, dst *icsv1.Pomerium, _ ...client.GetOptions) {
@@ -274,5 +282,81 @@ func TestFetchConfigCertsMissingSecrets(t *testing.T) {
 		existingCertKey := types.NamespacedName{Namespace: "pomerium", Name: "existing-cert"}
 		assert.Contains(t, cfg.Certs, existingCertKey, "Existing certificate should be in the map")
 		assert.Equal(t, corev1.SecretTypeTLS, cfg.Certs[existingCertKey].Type, "Certificate should be TLS type")
+	})
+
+	t.Run("missing certificates are tracked as dependencies for automatic pickup", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		mc := controllers_mock.NewMockClient(gomock.NewController(t))
+		settingsName := types.NamespacedName{Namespace: "pomerium", Name: "settings"}
+
+		scheme := runtime.NewScheme()
+		require.NoError(t, clientgoscheme.AddToScheme(scheme))
+		require.NoError(t, icsv1.AddToScheme(scheme))
+		mc.EXPECT().Scheme().Return(scheme).AnyTimes()
+
+		registry := model.NewRegistry()
+		settingsKey := model.Key{
+			Kind:           "Pomerium",
+			NamespacedName: settingsName,
+		}
+
+		trackingClient := deps.NewClient(mc, registry, settingsKey)
+
+		mc.EXPECT().Get(ctx, settingsName,
+			gomock.AssignableToTypeOf(new(icsv1.Pomerium)),
+		).Do(func(_ context.Context, _ types.NamespacedName, dst *icsv1.Pomerium, _ ...client.GetOptions) {
+			*dst = icsv1.Pomerium{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      settingsName.Name,
+					Namespace: settingsName.Namespace,
+				},
+				Spec: icsv1.PomeriumSpec{
+					Authenticate:     new(icsv1.Authenticate),
+					IdentityProvider: &icsv1.IdentityProvider{Secret: "pomerium/idp-secrets"},
+					Certificates:     []string{"pomerium/future-cert"},
+					Secrets:          "pomerium/bootstrap-secrets",
+				},
+			}
+		}).Return(nil)
+
+		mc.EXPECT().Get(ctx, types.NamespacedName{Namespace: "pomerium", Name: "bootstrap-secrets"},
+			gomock.AssignableToTypeOf(new(corev1.Secret)),
+		).Do(func(_ context.Context, name types.NamespacedName, dst *corev1.Secret, _ ...client.GetOption) {
+			*dst = corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: name.Name, Namespace: name.Namespace},
+				Data:       map[string][]byte{},
+				Type:       corev1.SecretTypeOpaque,
+			}
+		}).Return(nil)
+
+		mc.EXPECT().Get(ctx, types.NamespacedName{Namespace: "pomerium", Name: "idp-secrets"},
+			gomock.AssignableToTypeOf(new(corev1.Secret)),
+		).Do(func(_ context.Context, name types.NamespacedName, dst *corev1.Secret, _ ...client.GetOption) {
+			*dst = corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: name.Name, Namespace: name.Namespace},
+				Data:       map[string][]byte{},
+				Type:       corev1.SecretTypeOpaque,
+			}
+		}).Return(nil)
+
+		mc.EXPECT().Get(ctx, types.NamespacedName{Namespace: "pomerium", Name: "future-cert"},
+			gomock.AssignableToTypeOf(new(corev1.Secret)),
+		).Return(errors.NewNotFound(schema.GroupResource{Group: "", Resource: "secrets"}, "future-cert"))
+
+		_, err := settings.FetchConfig(ctx, trackingClient, settingsName)
+		require.NoError(t, err, "FetchConfig should not fail when certificate secrets are missing")
+
+		deps := registry.Deps(settingsKey)
+
+		var foundFutureCert bool
+		for _, dep := range deps {
+			if dep.Kind == "Secret" && dep.NamespacedName.Name == "future-cert" && dep.NamespacedName.Namespace == "pomerium" {
+				foundFutureCert = true
+				break
+			}
+		}
+
+		assert.True(t, foundFutureCert, "future-cert should be tracked as a dependency so controller will reconcile when it becomes available")
 	})
 }
