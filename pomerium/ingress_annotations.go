@@ -82,6 +82,7 @@ var (
 		model.MCPServerUpstreamOAuth2TokenURL,
 		model.MCPServerUpstreamOAuth2AuthURL,
 		model.MCPServerUpstreamOAuth2Scopes,
+		model.MCPServerPath,
 	})
 	mcpClientAnnotations = boolMap([]string{
 		model.MCPClient,
@@ -441,6 +442,8 @@ func applyMCPServerAnnotations(r *pomerium.Route, kvs map[string]string) error {
 			for i, scope := range serverConfig.UpstreamOauth2.Scopes {
 				serverConfig.UpstreamOauth2.Scopes[i] = strings.TrimSpace(scope)
 			}
+		case model.MCPServerPath:
+			serverConfig.Path = &v
 		default:
 			return fmt.Errorf("unknown MCP server annotation %s", k)
 		}

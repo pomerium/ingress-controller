@@ -68,6 +68,8 @@ const (
 	MCPServerUpstreamOAuth2TokenURL = "mcp_server_upstream_oauth2_token_url" //nolint: gosec
 	// MCPServerUpstreamOAuth2Scopes sets the OAuth2 scopes for MCP server upstream authentication
 	MCPServerUpstreamOAuth2Scopes = "mcp_server_upstream_oauth2_scopes"
+	// MCPServerPath sets the path property for MCP server routes
+	MCPServerPath = "mcp_server_path"
 	// MCPServerUpstreamOAuth2ClientIDKey defines the key within the OAuth2 secret that contains the client ID
 	MCPServerUpstreamOAuth2ClientIDKey = "client_id"
 	// MCPServerUpstreamOAuth2ClientSecretKey defines the key within the OAuth2 secret that contains the client secret

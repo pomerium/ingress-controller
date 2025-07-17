@@ -296,6 +296,7 @@ func TestMCPAnnotations(t *testing.T) {
 					Annotations: map[string]string{
 						"a/mcp_server":                           "true",
 						"a/mcp_server_max_request_bytes":         "1048576",
+						"a/mcp_server_path":                      "/api/mcp",
 						"a/mcp_server_upstream_oauth2_secret":    "mcp-oauth2-secret",
 						"a/mcp_server_upstream_oauth2_token_url": "https://auth.example.com/token",
 						"a/mcp_server_upstream_oauth2_auth_url":  "https://auth.example.com/auth",
@@ -321,6 +322,8 @@ func TestMCPAnnotations(t *testing.T) {
 		server := r.Mcp.GetServer()
 		require.NotNil(t, server.MaxRequestBytes)
 		assert.Equal(t, uint32(1048576), *server.MaxRequestBytes)
+
+		assert.Equal(t, "/api/mcp", server.GetPath())
 
 		require.NotNil(t, server.UpstreamOauth2)
 		assert.Equal(t, "test-client-id", server.UpstreamOauth2.ClientId)
@@ -549,6 +552,72 @@ func TestMCPAnnotations(t *testing.T) {
 		assert.Equal(t, uint32(2097152), *server.MaxRequestBytes)
 	})
 
+	t.Run("MCP Server with path", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server":      "true",
+						"a/mcp_server_path": "/api/v1/mcp",
+					},
+				},
+			},
+		}
+
+		require.NoError(t, applyAnnotations(r, ic))
+		require.NotNil(t, r.Mcp)
+		require.NotNil(t, r.Mcp.GetServer())
+
+		server := r.Mcp.GetServer()
+		require.NotNil(t, server.Path)
+		assert.Equal(t, "/api/v1/mcp", *server.Path)
+	})
+
+	t.Run("MCP Server with default path", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server": "true",
+					},
+				},
+			},
+		}
+
+		require.NoError(t, applyAnnotations(r, ic))
+		require.NotNil(t, r.Mcp.GetServer())
+		require.Equal(t, "", r.Mcp.GetServer().GetPath())
+		require.Nil(t, r.Mcp.GetServer().Path)
+	})
+
+	t.Run("MCP Server with just path", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server_path": "/api/v1/mcp",
+					},
+				},
+			},
+		}
+
+		require.NoError(t, applyAnnotations(r, ic))
+		require.NotNil(t, r.Mcp)
+		require.NotNil(t, r.Mcp.GetServer())
+
+		server := r.Mcp.GetServer()
+		require.NotNil(t, server.Path)
+		assert.Equal(t, "/api/v1/mcp", *server.Path)
+	})
 	t.Run("Invalid mcp_server value should fail", func(t *testing.T) {
 		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
 		ic := &model.IngressConfig{
