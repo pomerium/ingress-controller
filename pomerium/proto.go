@@ -37,7 +37,8 @@ func unmarshalAnnotations(dst proto.Message, kvs map[string]string) error {
 }
 
 func preprocessAnnotationMessage(md protoreflect.MessageDescriptor, data any) any {
-	switch md.FullName() {
+	name := md.FullName()
+	switch name {
 	case "google.protobuf.Duration":
 		// convert go duration strings into protojson duration strings
 		if v, ok := data.(string); ok {
@@ -47,6 +48,15 @@ func preprocessAnnotationMessage(md protoreflect.MessageDescriptor, data any) an
 		if v, ok := data.([]any); ok {
 			return map[string]any{"values": v}
 		}
+	case "envoy.type.v3.Percent":
+		// convert percentage value to percentage message {"value" : <double>}
+		v, ok := data.(float64)
+		if ok {
+			return map[string]float64{
+				"value": v,
+			}
+		}
+		fallthrough
 	default:
 		// preprocess all the fields
 		if v, ok := data.(map[string]any); ok {

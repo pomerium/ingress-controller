@@ -223,6 +223,7 @@ func TestAnnotations(t *testing.T) {
 		envoy_config_core_v3.HealthCheck_HttpHealthCheck{},
 		envoy_config_cluster_v3.Cluster_LeastRequestLbConfig{},
 		envoy_config_core_v3.RuntimeDouble{},
+		envoy_config_cluster_v3.Cluster_CommonLbConfig{},
 		envoy_config_cluster_v3.Cluster_SlowStartConfig{},
 		wrapperspb.UInt32Value{},
 		pb.CircuitBreakerThresholds{},
@@ -654,6 +655,53 @@ func TestMCPAnnotations(t *testing.T) {
 		err := applyAnnotations(r, ic)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "mcp_client annotation should be 'true' or omitted")
+	})
+}
+
+func TestCommonLbAnnotation(t *testing.T) {
+	t.Run("healthy_panic_threshold annotation", func(t *testing.T) {
+		type testcase struct {
+			input    float64
+			expected float64
+		}
+
+		tcs := []testcase{
+			{
+				input:    50,
+				expected: 50,
+			},
+			{
+				input:    -15.0,
+				expected: -15.0,
+			},
+			{
+				input:    75.0,
+				expected: 75.0,
+			},
+		}
+
+		for _, tc := range tcs {
+			r := &pb.Route{}
+			ic := &model.IngressConfig{
+				AnnotationPrefix: "a",
+				Ingress: &networkingv1.Ingress{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "test-ingress",
+						Namespace: "default",
+						Annotations: map[string]string{
+							"a/healthy_panic_threshold": fmt.Sprintf("%f", tc.input),
+						},
+					},
+				},
+			}
+			err := applyAnnotations(r, ic)
+			require.NoError(t, err)
+
+			require.NotNil(t, r.EnvoyOpts)
+			require.NotNil(t, r.EnvoyOpts.CommonLbConfig)
+			require.NotNil(t, r.EnvoyOpts.CommonLbConfig.HealthyPanicThreshold)
+			require.Equal(t, r.EnvoyOpts.CommonLbConfig.HealthyPanicThreshold.Value, tc.expected)
+		}
 	})
 }
 
