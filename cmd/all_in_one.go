@@ -16,7 +16,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	runtime_ctrl "sigs.k8s.io/controller-runtime"
+	controllerconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
@@ -349,6 +351,9 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 				BindAddress: s.ingressMetricsAddr,
 			},
 			LeaderElection: false,
+			Controller: controllerconfig.Controller{
+				SkipNameValidation: ptr.To(true),
+			},
 		},
 		IngressCtrlOpts:         s.ingressOpts,
 		GlobalSettings:          &s.settings,
