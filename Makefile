@@ -5,9 +5,9 @@ CRD_BASE=github.com/pomerium/ingress-controller/apis/
 # Image URL to use all building/pushing image targets
 IMG?=ingress-controller:latest
 CRD_OPTIONS?=
-ENVTEST_K8S_VERSION?=$(shell go list -f '{{.Module.Version}}' k8s.io/api | sed 's/v0/1/')
-SETUP_ENVTEST=go run sigs.k8s.io/controller-runtime/tools/setup-envtest@v0.0.0-20240813182054-0c7827e417ac
-CONTROLLER_GEN=go run sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0
+ENVTEST_K8S_VERSION?=$(shell go list -f '{{.Module.Version}}' k8s.io/api | sed -E 's/v0/1/; s/([0-9]+\.[0-9]+)\.[0-9]+/\1.x/')
+SETUP_ENVTEST=go run sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+CONTROLLER_GEN=go run sigs.k8s.io/controller-tools/cmd/controller-gen@v0.18.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -76,7 +76,7 @@ config/crd/bases/gateway.pomerium.io_policyfilters.yaml: apis/gateway/v1alpha1/f
 
 .PHONY: test
 test: envoy generated pomerium-ui
-	@echo "==> $@"
+	@echo "==> $@, k8s=$(ENVTEST_K8S_VERSION)"
 	@KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path --arch=$(KUBEENV_GOARCH))" go test $(GOTAGS) ./...
 
 .PHONY: lint
