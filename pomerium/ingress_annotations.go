@@ -64,6 +64,9 @@ var (
 		"outlier_detection",
 		"ring_hash_lb_config",
 	})
+	commonLbConfig = boolMap([]string{
+		"healthy_panic_threshold",
+	})
 	tlsAnnotations = boolMap([]string{
 		model.TLSClientSecret,
 		model.TLSCustomCASecret,
@@ -106,7 +109,7 @@ func boolMap(keys []string) map[string]bool {
 }
 
 type keys struct {
-	Base, Envoy, Policy, TLS, Etc, Secret, MCPServer, MCPClient map[string]string
+	Base, Envoy, Policy, CommonLb, TLS, Etc, Secret, MCPServer, MCPClient map[string]string
 }
 
 func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
@@ -115,6 +118,7 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 		Base:      make(map[string]string),
 		Envoy:     make(map[string]string),
 		Policy:    make(map[string]string),
+		CommonLb:  make(map[string]string),
 		TLS:       make(map[string]string),
 		Etc:       make(map[string]string),
 		Secret:    make(map[string]string),
@@ -139,6 +143,7 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 		}{
 			{baseAnnotations, kv.Base},
 			{envoyAnnotations, kv.Envoy},
+			{commonLbConfig, kv.CommonLb},
 			{policyAnnotations, kv.Policy},
 			{tlsAnnotations, kv.TLS},
 			{secretAnnotations, kv.Secret},
@@ -176,6 +181,13 @@ func applyAnnotations(
 	if err = unmarshalAnnotations(r.EnvoyOpts, kv.Envoy); err != nil {
 		return err
 	}
+	if len(kv.CommonLb) > 0 {
+		r.EnvoyOpts.CommonLbConfig = new(envoy_config_cluster_v3.Cluster_CommonLbConfig)
+		if err := unmarshalAnnotations(r.EnvoyOpts.CommonLbConfig, kv.CommonLb); err != nil {
+			return err
+		}
+	}
+
 	if err = applyTLSAnnotations(r, kv.TLS, ic.Secrets, ic.Ingress.Namespace); err != nil {
 		return err
 	}
