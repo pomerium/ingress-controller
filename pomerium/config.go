@@ -47,6 +47,7 @@ func ApplyConfig(ctx context.Context, dst *pb.Config, src *model.Config) error {
 		{"otel", applyOTEL},
 		{"downstream mtls", applyDownstreamMTLS},
 		{"circuit breaker thresholds", applyCircuitBreakerThresholds},
+		{"dns", applyDNS},
 		{"ssh", applySSH},
 	}
 	if src.Spec.IdentityProvider != nil {
@@ -400,6 +401,32 @@ func applyCircuitBreakerThresholds(_ context.Context, dst *pb.Config, src *model
 		MaxRequests:        src.Spec.CircuitBreakerThresholds.MaxRequests,
 		MaxRetries:         src.Spec.CircuitBreakerThresholds.MaxRetries,
 		MaxConnectionPools: src.Spec.CircuitBreakerThresholds.MaxConnectionPools,
+	}
+	return nil
+}
+
+func applyDNS(_ context.Context, dst *pb.Config, src *model.Config) error {
+	if src.Spec.DNS == nil {
+		dst.Settings.DnsLookupFamily = nil
+		dst.Settings.DnsUdpMaxQueries = nil
+		dst.Settings.DnsUseTcp = nil
+		dst.Settings.DnsQueryTries = nil
+		dst.Settings.DnsQueryTimeout = nil
+		return nil
+	}
+
+	if src.Spec.DNS.LookupFamily != nil {
+		dst.Settings.DnsLookupFamily = proto.String(strings.ToUpper(*src.Spec.DNS.LookupFamily))
+	} else {
+		dst.Settings.DnsLookupFamily = nil
+	}
+	dst.Settings.DnsUdpMaxQueries = src.Spec.DNS.UDPMaxQueries
+	dst.Settings.DnsUseTcp = src.Spec.DNS.UseTCP
+	dst.Settings.DnsQueryTries = src.Spec.DNS.QueryTries
+	if src.Spec.DNS.QueryTimeout != nil {
+		dst.Settings.DnsQueryTimeout = durationpb.New(src.Spec.DNS.QueryTimeout.Duration)
+	} else {
+		dst.Settings.DnsQueryTimeout = nil
 	}
 	return nil
 }
