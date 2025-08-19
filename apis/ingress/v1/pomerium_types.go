@@ -341,6 +341,9 @@ type PomeriumSpec struct {
 	// CircuitBreakerThresholds sets the circuit breaker thresholds settings.
 	CircuitBreakerThresholds *CircuitBreakerThresholds `json:"circuitBreakerThresholds,omitempty"`
 
+	// DNS sets the dns settings.
+	DNS *DNS `json:"dns,omitempty"`
+
 	// SSH sets the ssh settings.
 	SSH *SSH `json:"ssh,omitempty"`
 }
@@ -448,6 +451,32 @@ type CircuitBreakerThresholds struct {
 	//
 	// +kubebuilder:validation:Optional
 	MaxConnectionPools *uint32 `json:"maxConnectionPools"`
+}
+
+// DNS are the dns settings.
+type DNS struct {
+	// LookupFamily is the DNS IP address resolution policy.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=auto;v4_only;v6_only;v4_preferred;all
+	LookupFamily *string `json:"lookupFamily,omitempty"`
+	// UDPMaxQueries caps the number of UDP based DNS queries on a single port.
+	//
+	// +kubebuilder:validation:Optional
+	UDPMaxQueries *uint32 `json:"udpMaxQueries,omitempty"`
+	// UseTCP uses TCP for all DNS queries instead of the default protocol UDP.
+	//
+	// +kubebuilder:validation:Optional
+	UseTCP *bool `json:"useTcp,omitempty"`
+	// QueryTries is the maximum number of query attempts the resolver will make before giving up. Each attempt may use a different name server.
+	//
+	// +kubebuilder:validation:Optional
+	QueryTries *uint32 `json:"queryTries,omitempty"`
+	// QueryTimeout is the amount of time each name server is given to respond to a query on the first try of any given server.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Format=duration
+	QueryTimeout *metav1.Duration `json:"queryTimeout,omitempty"`
 }
 
 // SSH are the ssh settings.

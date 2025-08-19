@@ -143,7 +143,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.18.0
   labels:
     app.kubernetes.io/name: pomerium
   name: pomerium.ingress.pomerium.io
@@ -199,14 +199,13 @@ spec:
                       CallbackPath sets the path at which the authenticate service receives callback responses
                       from your identity provider. The value must exactly match one of the authorized redirect URIs for the OAuth 2.0 client.
 
-
                       <p>This value is referred to as the redirect_url in the OpenIDConnect and OAuth2 specs.</p>
                       <p>Defaults to <code>/oauth2/callback</code></p>
                     type: string
                   url:
                     description: "AuthenticateURL is a dedicated domain URL\nthe non-authenticated
-                      persons would be referred to.\n\n\n<p><ul>\n <li>You do not
-                      need to create a dedicated <code>Ingress</code> for this\n\t\tvirtual
+                      persons would be referred to.\n\n<p><ul>\n <li>You do not need
+                      to create a dedicated <code>Ingress</code> for this\n\t\tvirtual
                       route, as it is handled by Pomerium internally. </li>\n\t<li>You
                       do need create a secret with corresponding TLS certificate for
                       this route\n\t\tand reference it via <a href=\"#prop-certificates\"><code>certificates</code></a>.\n\t\tIf
@@ -331,6 +330,40 @@ spec:
                     - lax
                     - none
                     type: string
+                type: object
+              dns:
+                description: DNS sets the dns settings.
+                properties:
+                  lookupFamily:
+                    description: LookupFamily is the DNS IP address resolution policy.
+                    enum:
+                    - auto
+                    - v4_only
+                    - v6_only
+                    - v4_preferred
+                    - all
+                    type: string
+                  queryTimeout:
+                    description: QueryTimeout is the amount of time each name server
+                      is given to respond to a query on the first try of any given
+                      server.
+                    format: duration
+                    type: string
+                  queryTries:
+                    description: QueryTries is the maximum number of query attempts
+                      the resolver will make before giving up. Each attempt may use
+                      a different name server.
+                    format: int32
+                    type: integer
+                  udpMaxQueries:
+                    description: UDPMaxQueries caps the number of UDP based DNS queries
+                      on a single port.
+                    format: int32
+                    type: integer
+                  useTcp:
+                    description: UseTCP uses TCP for all DNS queries instead of the
+                      default protocol UDP.
+                    type: boolean
                 type: object
               downstreamMtls:
                 description: DownstreamMTLS sets the <a href="https://www.pomerium.com/docs/reference/downstream-mtls-settings">Downstream
@@ -550,7 +583,7 @@ spec:
                 type: object
               secrets:
                 description: "Secrets references a Secret with Pomerium bootstrap
-                  parameters.\n\n\n<p>\n<ul>\n\t<li><a href=\"https://pomerium.com/docs/reference/shared-secret\"><code>shared_secret</code></a>\n\t\t-
+                  parameters.\n\n<p>\n<ul>\n\t<li><a href=\"https://pomerium.com/docs/reference/shared-secret\"><code>shared_secret</code></a>\n\t\t-
                   secures inter-Pomerium service communications.\n\t</li>\n\t<li><a
                   href=\"https://pomerium.com/docs/reference/cookie-secret\"><code>cookie_secret</code></a>\n\t\t-
                   encrypts Pomerium session browser cookie.\n\t\tSee also other <a
