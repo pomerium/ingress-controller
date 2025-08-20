@@ -176,6 +176,23 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>dns</code>&#160;&#160;
+
+                    <strong>object</strong>&#160;
+                    (<a href="#dns">dns</a>)
+
+                </p>
+                <p>
+
+                    DNS sets the dns settings.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
                 <code>downstreamMtls</code>&#160;&#160;
 
                     <strong>object</strong>&#160;
@@ -641,6 +658,103 @@ Cookie defines Pomerium session cookie options.
                 <p>
 
                     SameSite sets the SameSite option for cookies. Defaults to <code></code>.
+                </p>
+
+            </td>
+        </tr>
+
+    </tbody>
+</table>
+
+
+
+### `dns`
+
+DNS sets the dns settings.
+
+<table>
+    <thead>
+    </thead>
+    <tbody>
+
+        <tr>
+            <td>
+                <p>
+                <code>lookupFamily</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+
+                </p>
+                <p>
+
+                    LookupFamily is the DNS IP address resolution policy.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>queryTimeout</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+                    (duration)
+
+                </p>
+                <p>
+
+                    QueryTimeout is the amount of time each name server is given to respond to a query on the first try of any given server.
+                </p>
+
+                    Format: a duration string like "22s" as parsed by Golang time.ParseDuration.
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>queryTries</code>&#160;&#160;
+
+                    <strong>integer</strong>&#160;
+
+                </p>
+                <p>
+
+                    QueryTries is the maximum number of query attempts the resolver will make before giving up. Each attempt may use a different name server.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>udpMaxQueries</code>&#160;&#160;
+
+                    <strong>integer</strong>&#160;
+
+                </p>
+                <p>
+
+                    UDPMaxQueries caps the number of UDP based DNS queries on a single port.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>useTcp</code>&#160;&#160;
+
+                    <strong>boolean</strong>&#160;
+
+                </p>
+                <p>
+
+                    UseTCP uses TCP for all DNS queries instead of the default protocol UDP.
                 </p>
 
             </td>
@@ -1297,7 +1411,7 @@ SSH sets the ssh settings.
         <tr>
             <td>
                 <p>
-                <code>hostKeyFiles</code>&#160;&#160;
+                <code>hostKeySecrets</code>&#160;&#160;
 
                     <strong>[]string</strong>&#160;
 
@@ -1313,39 +1427,7 @@ SSH sets the ssh settings.
         <tr>
             <td>
                 <p>
-                <code>hostKeys</code>&#160;&#160;
-
-                    <strong>[]string</strong>&#160;
-
-                </p>
-                <p>
-
-
-                </p>
-
-            </td>
-        </tr>
-
-        <tr>
-            <td>
-                <p>
-                <code>userCaKey</code>&#160;&#160;
-
-                    <strong>string</strong>&#160;
-
-                </p>
-                <p>
-
-
-                </p>
-
-            </td>
-        </tr>
-
-        <tr>
-            <td>
-                <p>
-                <code>userCaKeyFile</code>&#160;&#160;
+                <code>userCaKeySecret</code>&#160;&#160;
 
                     <strong>string</strong>&#160;
 
