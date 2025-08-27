@@ -25,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 
@@ -35,6 +36,7 @@ import (
 	"github.com/pomerium/ingress-controller/pomerium"
 	pomerium_ctrl "github.com/pomerium/ingress-controller/pomerium/ctrl"
 	"github.com/pomerium/ingress-controller/util"
+	ctrl_health "github.com/pomerium/ingress-controller/util/health"
 )
 
 type allCmdOptions struct {
@@ -203,13 +205,51 @@ func (s *allCmdParam) run(ctx context.Context) error {
 		return fmt.Errorf("preparing to run pomerium: %w", err)
 	}
 
-	eg.Go(func() error { return runner.Run(ctx) })
-	eg.Go(func() error { return s.runBootstrapConfigController(ctx, runner) })
 	eg.Go(func() error {
-		return cfgCtl.Run(log.IntoContext(ctx, log.FromContext(ctx).WithName("config_restarter")),
+		health.RegisterExpected(ctrl_health.IngressCtrlEmbeddedPomerium)
+		health.ReportRunning(ctrl_health.IngressCtrlEmbeddedPomerium)
+		err := runner.Run(ctx)
+		health.ReportTerminating(ctrl_health.IngressCtrlEmbeddedPomerium)
+		if err != nil {
+			health.ReportError(ctrl_health.IngressCtrlEmbeddedPomerium, err)
+		}
+		return err
+	})
+	eg.Go(func() error {
+		health.RegisterExpected(ctrl_health.IngressCtrlSettingsBootstrapReconciler)
+		err := s.runBootstrapConfigController(ctx, runner)
+		health.ReportTerminating(ctrl_health.IngressCtrlSettingsBootstrapReconciler)
+		if err != nil {
+			health.ReportError(ctrl_health.IngressCtrlSettingsBootstrapReconciler, err)
+		}
+		return err
+	})
+	eg.Go(func() error {
+		// Ingress controller is always required to run once,
+		// the other optional ones will be required to run once if they are enabled off the bat
+
+		// TODO: this should only register as expected if the lease is acquired
+		// not super clear if there's a good way to do that
+		// health.RegisterExpected(ctrl_health.IngressCtrlIngressReconciler)
+
+		err := cfgCtl.Run(
+			log.IntoContext(ctx, log.FromContext(ctx).WithName("config_restarter")),
 			isBootstrapEqual,
 			s.runConfigControllers,
-			s.configControllerShutdownTimeout)
+			s.configControllerShutdownTimeout,
+		)
+
+		// I don't believe there is a good way to check which reconcilers are enabled
+		// from here besides defining duplicate checks
+		health.ReportTerminating(ctrl_health.IngressCtrlGatewayReconciler)
+		health.ReportTerminating(ctrl_health.IngressCtrlIngressReconciler)
+		health.ReportTerminating(ctrl_health.IngressCtrlConfigReconciler)
+		if err != nil {
+			health.ReportError(ctrl_health.IngressCtrlGatewayReconciler, err)
+			health.ReportError(ctrl_health.IngressCtrlIngressReconciler, err)
+			health.ReportError(ctrl_health.IngressCtrlConfigReconciler, err)
+		}
+		return err
 	})
 	eg.Go(func() error {
 		<-ctx.Done()
@@ -383,11 +423,18 @@ func (s *allCmdParam) runBootstrapConfigController(ctx context.Context, reconcil
 	if err != nil {
 		return fmt.Errorf("manager: %w", err)
 	}
-	name := "bootstrap"
+	name := settings.ControllerNameBootstrap
 	if host, err := os.Hostname(); err == nil {
 		name = fmt.Sprintf("%s pod/%s", name, host)
 	}
-	if err := settings.NewSettingsController(mgr, reconciler, s.settings, name, false); err != nil {
+	if err := settings.NewSettingsController(
+		mgr,
+		reconciler,
+		s.settings,
+		name,
+		false,
+		ctrl_health.IngressCtrlSettingsBootstrapReconciler,
+	); err != nil {
 		return fmt.Errorf("settings controller: %w", err)
 	}
 	return mgr.Start(ctx)

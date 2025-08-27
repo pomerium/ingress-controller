@@ -90,6 +90,7 @@ func (s *controllerCmd) setupFlags() error {
 
 func (s *controllerCmd) exec(*cobra.Command, []string) error {
 	setupLogger(s.debug)
+	// TODO : this needs to be amended to potentially set pod readiness gates on pomerium core instances
 	ctx := ctrl.SetupSignalHandler()
 
 	c, err := s.buildController(ctx)

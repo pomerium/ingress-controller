@@ -47,7 +47,8 @@ func (r *restartOnChange[T]) OnConfigUpdated(ctx context.Context, cfg T) {
 	}
 }
 
-func (r *restartOnChange[T]) Run(ctx context.Context,
+func (r *restartOnChange[T]) Run(
+	ctx context.Context,
 	equal func(prev, next T) bool,
 	fn func(ctx context.Context, cfg T) error,
 	shutdownTimeout time.Duration,
