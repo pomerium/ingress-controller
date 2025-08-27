@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	pom_cfg "github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/health"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/controllers/deps"
@@ -23,6 +24,10 @@ import (
 	"github.com/pomerium/ingress-controller/pomerium"
 	"github.com/pomerium/ingress-controller/util"
 	"github.com/pomerium/ingress-controller/util/generic"
+)
+
+const (
+	ControllerNameBootstrap = "bootstrap"
 )
 
 type settingsController struct {
@@ -38,6 +43,8 @@ type settingsController struct {
 	reporter.MultiPomeriumStatusReporter
 	// emitWarnings related to configuration. as there are multiple controllers running, not all should report
 	emitWarnings bool
+
+	healthCheck health.Check
 }
 
 // NewSettingsController creates and registers a new controller for
@@ -48,7 +55,9 @@ func NewSettingsController(
 	name types.NamespacedName,
 	controllerName string,
 	emitWarnings bool,
+	healthCheck health.Check,
 ) error {
+	health.ReportStarting(healthCheck)
 	if name.Namespace != "" {
 		return fmt.Errorf("pomerium CRD is cluster-scoped")
 	}
@@ -59,6 +68,7 @@ func NewSettingsController(
 	r := model.NewRegistry()
 
 	stc := &settingsController{
+		healthCheck:      healthCheck,
 		key:              key,
 		Client:           deps.NewClient(mgr.GetClient(), r, key),
 		Registry:         r,
@@ -117,9 +127,14 @@ func (c *settingsController) Reconcile(ctx context.Context, req ctrl.Request) (c
 	cfg, err := FetchConfig(ctx, c.Client, c.key.NamespacedName)
 	logger.Info("fetch", "deps", c.Registry.Deps(c.key), "error", err)
 	if err != nil {
+		// TODO : may not want to report errors here
+		// but at least we want exactly one reconcile to work before starting up...
+		// health.ReportError(ctrl_health.IngressCtrlSettingsReconciler, err)
 		c.SettingsRejected(ctx, &cfg.Pomerium, err)
 		return ctrl.Result{Requeue: true}, fmt.Errorf("get settings: %w", err)
 	}
+	// reports running after at least one successful fetch of the configs required
+	health.ReportRunning(c.healthCheck)
 
 	if deprecations, err := icsv1.GetDeprecations(&cfg.Pomerium.Spec); err != nil {
 		logger.Error(err, "checking config for deprecations")

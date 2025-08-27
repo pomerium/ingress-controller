@@ -13,7 +13,9 @@ import (
 	runtime_ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	ctrl_health "github.com/pomerium/ingress-controller/util/health"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/health"
 
 	"github.com/pomerium/ingress-controller/controllers/gateway"
 	"github.com/pomerium/ingress-controller/controllers/ingress"
@@ -47,7 +49,8 @@ type Controller struct {
 	// GlobalSettings if provided, will also reconcile configuration options
 	GlobalSettings *types.NamespacedName
 
-	running int32
+	running           int32
+	lastAppliedChecks []health.Check
 }
 
 // Run runs controller using lease
@@ -61,9 +64,35 @@ func (c *Controller) GetDataBrokerServiceClient() databroker.DataBrokerServiceCl
 	return c.DataBrokerServiceClient
 }
 
+func (c *Controller) isGatewayCtrlEnabled() bool {
+	return c.GatewayControllerConfig != nil
+}
+
+func (c *Controller) isSettingsCtrlEnabled() bool {
+	return c.GlobalSettings != nil
+}
+
+func (c *Controller) ExpectedChecks() []health.Check {
+	checks := []health.Check{}
+
+	checks = append(checks, ctrl_health.IngressCtrlIngressReconciler)
+	if c.isGatewayCtrlEnabled() {
+		checks = append(checks, ctrl_health.IngressCtrlGatewayReconciler)
+	}
+	if c.isSettingsCtrlEnabled() {
+		checks = append(checks, ctrl_health.IngressCtrlSettingsReconciler)
+	}
+
+	return checks
+}
+
 // RunLeased implements databroker.LeaseHandler
 func (c *Controller) RunLeased(ctx context.Context) (err error) {
 	defer c.setRunning(false)
+	health.ModifyExpected(
+		c.lastAppliedChecks,
+		c.ExpectedChecks(),
+	)
 
 	cfg, err := runtime_ctrl.GetConfig()
 	if err != nil {
@@ -73,12 +102,18 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("unable to create controller manager: %w", err)
 	}
-
 	if err = ingress.NewIngressController(mgr, c.IngressReconciler, c.getIngressOpts(mgr)...); err != nil {
 		return fmt.Errorf("create ingress controller: %w", err)
 	}
 	if c.GlobalSettings != nil {
-		if err = settings.NewSettingsController(mgr, c.ConfigReconciler, *c.GlobalSettings, "pomerium-crd", true); err != nil {
+		if err = settings.NewSettingsController(
+			mgr,
+			c.ConfigReconciler,
+			*c.GlobalSettings,
+			"pomerium-crd",
+			true,
+			ctrl_health.IngressCtrlSettingsReconciler,
+		); err != nil {
 			return fmt.Errorf("create settings controller: %w", err)
 		}
 	} else {

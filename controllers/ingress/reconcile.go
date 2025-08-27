@@ -12,6 +12,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/pomerium/ingress-controller/model"
+	ctrl_health "github.com/pomerium/ingress-controller/util/health"
+	"github.com/pomerium/pomerium/pkg/health"
 )
 
 // reconcileInitial walks over all ingresses and updates configuration at once
@@ -72,6 +74,7 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err := r.initComplete.yield(ctx); err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("initial reconciliation: %w", err)
 	}
+	health.ReportRunning(ctrl_health.IngressCtrlIngressReconciler)
 
 	ingress := new(networkingv1.Ingress)
 	if err := r.Client.Get(ctx, req.NamespacedName, ingress); err != nil {

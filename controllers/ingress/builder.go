@@ -9,6 +9,8 @@ import (
 	"github.com/pomerium/ingress-controller/controllers/reporter"
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/pomerium"
+	ctrl_health "github.com/pomerium/ingress-controller/util/health"
+	"github.com/pomerium/pomerium/pkg/health"
 )
 
 const (
@@ -25,6 +27,7 @@ func NewIngressController(
 	opts ...Option,
 ) error {
 	registry := model.NewRegistry()
+	health.ReportStarting(ctrl_health.IngressCtrlIngressReconciler)
 	ic := &ingressController{
 		annotationPrefix:  DefaultAnnotationPrefix,
 		controllerName:    DefaultClassControllerName,

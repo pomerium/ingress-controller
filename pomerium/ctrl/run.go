@@ -7,8 +7,10 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	ctrl_health "github.com/pomerium/ingress-controller/util/health"
 	"github.com/pomerium/pomerium/config"
 	pomerium_cmd "github.com/pomerium/pomerium/pkg/cmd/pomerium"
+	"github.com/pomerium/pomerium/pkg/health"
 
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/pomerium"
@@ -59,6 +61,7 @@ func (r *Runner) SetConfig(ctx context.Context, src *model.Config) (changes bool
 
 // NewPomeriumRunner creates new pomerium command and control
 func NewPomeriumRunner(base config.Config, listener config.ChangeListener) (*Runner, error) {
+	health.ReportStarting(ctrl_health.IngressCtrlBootstrapConfig)
 	return &Runner{
 		base: base,
 		src: &InMemoryConfigSource{
@@ -71,9 +74,11 @@ func NewPomeriumRunner(base config.Config, listener config.ChangeListener) (*Run
 // Run starts pomerium once config is available
 func (r *Runner) Run(ctx context.Context) error {
 	if err := r.waitForConfig(ctx); err != nil {
-		return fmt.Errorf("waiting for pomerium bootstrap config: %w", err)
+		retErr := fmt.Errorf("waiting for pomerium bootstrap config: %w", err)
+		health.ReportError(ctrl_health.IngressCtrlBootstrapConfig, retErr)
+		return retErr
 	}
-
+	health.ReportRunning(ctrl_health.IngressCtrlBootstrapConfig)
 	log.FromContext(ctx).V(1).Info("got bootstrap config, starting pomerium...", "cfg", r.src.GetConfig())
 
 	return pomerium_cmd.Run(ctx, r.src)

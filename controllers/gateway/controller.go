@@ -18,6 +18,8 @@ import (
 
 	icgv1alpha1 "github.com/pomerium/ingress-controller/apis/gateway/v1alpha1"
 	"github.com/pomerium/ingress-controller/pomerium"
+	ctrl_health "github.com/pomerium/ingress-controller/util/health"
+	"github.com/pomerium/pomerium/pkg/health"
 )
 
 // DefaultClassControllerName is the default GatewayClass ControllerName.
@@ -38,6 +40,7 @@ func NewControllers(
 	pgr pomerium.GatewayReconciler,
 	config ControllerConfig,
 ) error {
+	health.ReportStarting(ctrl_health.IngressCtrlGatewayReconciler)
 	if err := NewGatewayClassController(mgr, config.ControllerName); err != nil {
 		return fmt.Errorf("couldn't create GatewayClass controller: %w", err)
 	}
@@ -111,6 +114,7 @@ func NewGatewayController(
 }
 
 func (c *gatewayController) Reconcile(ctx context.Context, _ ctrl.Request) (ctrl.Result, error) {
+	health.ReportRunning(ctrl_health.IngressCtrlGatewayReconciler)
 	o, err := c.fetchObjects(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
