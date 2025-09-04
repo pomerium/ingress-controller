@@ -408,10 +408,12 @@ func applyCircuitBreakerThresholds(_ context.Context, dst *pb.Config, src *model
 func applyDNS(_ context.Context, dst *pb.Config, src *model.Config) error {
 	if src.Spec.DNS == nil {
 		dst.Settings.DnsLookupFamily = nil
+		dst.Settings.DnsFailureRefreshRate = nil
+		dst.Settings.DnsQueryTimeout = nil
+		dst.Settings.DnsQueryTries = nil
+		dst.Settings.DnsRefreshRate = nil
 		dst.Settings.DnsUdpMaxQueries = nil
 		dst.Settings.DnsUseTcp = nil
-		dst.Settings.DnsQueryTries = nil
-		dst.Settings.DnsQueryTimeout = nil
 		return nil
 	}
 
@@ -420,14 +422,24 @@ func applyDNS(_ context.Context, dst *pb.Config, src *model.Config) error {
 	} else {
 		dst.Settings.DnsLookupFamily = nil
 	}
-	dst.Settings.DnsUdpMaxQueries = src.Spec.DNS.UDPMaxQueries
-	dst.Settings.DnsUseTcp = src.Spec.DNS.UseTCP
-	dst.Settings.DnsQueryTries = src.Spec.DNS.QueryTries
+	if src.Spec.DNS.FailureRefreshRate != nil {
+		dst.Settings.DnsFailureRefreshRate = durationpb.New(src.Spec.DNS.FailureRefreshRate.Duration)
+	} else {
+		dst.Settings.DnsFailureRefreshRate = nil
+	}
 	if src.Spec.DNS.QueryTimeout != nil {
 		dst.Settings.DnsQueryTimeout = durationpb.New(src.Spec.DNS.QueryTimeout.Duration)
 	} else {
 		dst.Settings.DnsQueryTimeout = nil
 	}
+	dst.Settings.DnsQueryTries = src.Spec.DNS.QueryTries
+	if src.Spec.DNS.RefreshRate != nil {
+		dst.Settings.DnsRefreshRate = durationpb.New(src.Spec.DNS.RefreshRate.Duration)
+	} else {
+		dst.Settings.DnsRefreshRate = nil
+	}
+	dst.Settings.DnsUdpMaxQueries = src.Spec.DNS.UDPMaxQueries
+	dst.Settings.DnsUseTcp = src.Spec.DNS.UseTCP
 	return nil
 }
 
