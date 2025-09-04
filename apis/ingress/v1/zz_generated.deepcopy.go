@@ -117,6 +117,26 @@ func (in *DNS) DeepCopyInto(out *DNS) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.FailureRefreshRate != nil {
+		in, out := &in.FailureRefreshRate, &out.FailureRefreshRate
+		*out = new(metav1.Duration)
+		**out = **in
+	}
+	if in.QueryTimeout != nil {
+		in, out := &in.QueryTimeout, &out.QueryTimeout
+		*out = new(metav1.Duration)
+		**out = **in
+	}
+	if in.QueryTries != nil {
+		in, out := &in.QueryTries, &out.QueryTries
+		*out = new(uint32)
+		**out = **in
+	}
+	if in.RefreshRate != nil {
+		in, out := &in.RefreshRate, &out.RefreshRate
+		*out = new(metav1.Duration)
+		**out = **in
+	}
 	if in.UDPMaxQueries != nil {
 		in, out := &in.UDPMaxQueries, &out.UDPMaxQueries
 		*out = new(uint32)
@@ -125,16 +145,6 @@ func (in *DNS) DeepCopyInto(out *DNS) {
 	if in.UseTCP != nil {
 		in, out := &in.UseTCP, &out.UseTCP
 		*out = new(bool)
-		**out = **in
-	}
-	if in.QueryTries != nil {
-		in, out := &in.QueryTries, &out.QueryTries
-		*out = new(uint32)
-		**out = **in
-	}
-	if in.QueryTimeout != nil {
-		in, out := &in.QueryTimeout, &out.QueryTimeout
-		*out = new(metav1.Duration)
 		**out = **in
 	}
 }

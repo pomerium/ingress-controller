@@ -460,6 +460,25 @@ type DNS struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=auto;v4_only;v6_only;v4_preferred;all
 	LookupFamily *string `json:"lookupFamily,omitempty"`
+	// FailureRefreshRate is the rate at which DNS lookups are refreshed when requests are failing.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Format=duration
+	FailureRefreshRate *metav1.Duration `json:"failureRefreshRate,omitempty"`
+	// QueryTimeout is the amount of time each name server is given to respond to a query on the first try of any given server.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Format=duration
+	QueryTimeout *metav1.Duration `json:"queryTimeout,omitempty"`
+	// QueryTries is the maximum number of query attempts the resolver will make before giving up. Each attempt may use a different name server.
+	//
+	// +kubebuilder:validation:Optional
+	QueryTries *uint32 `json:"queryTries,omitempty"`
+	// RefreshRate is the rate at which DNS lookups are refreshed.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Format=duration
+	RefreshRate *metav1.Duration `json:"refreshRate,omitempty"`
 	// UDPMaxQueries caps the number of UDP based DNS queries on a single port.
 	//
 	// +kubebuilder:validation:Optional
@@ -468,15 +487,6 @@ type DNS struct {
 	//
 	// +kubebuilder:validation:Optional
 	UseTCP *bool `json:"useTcp,omitempty"`
-	// QueryTries is the maximum number of query attempts the resolver will make before giving up. Each attempt may use a different name server.
-	//
-	// +kubebuilder:validation:Optional
-	QueryTries *uint32 `json:"queryTries,omitempty"`
-	// QueryTimeout is the amount of time each name server is given to respond to a query on the first try of any given server.
-	//
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Format=duration
-	QueryTimeout *metav1.Duration `json:"queryTimeout,omitempty"`
 }
 
 // SSH are the ssh settings.
