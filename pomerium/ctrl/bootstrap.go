@@ -109,10 +109,10 @@ func applyStoragePostgres(dst *config.Options, src *model.Config) error {
 		return fmt.Errorf("storage secret must have %s key", model.StorageConnectionStringKey)
 	}
 
-	dst.DataBrokerStorageType = config.StoragePostgresName
+	dst.DataBroker.StorageType = config.StoragePostgresName
 
 	if src.StorageSecrets.CA == nil && src.StorageSecrets.TLS == nil {
-		dst.DataBrokerStorageConnectionString = string(conn)
+		dst.DataBroker.StorageConnectionString = string(conn)
 		return nil
 	}
 
@@ -154,7 +154,7 @@ func applyStoragePostgres(dst *config.Options, src *model.Config) error {
 	}
 
 	u.RawQuery = param.Encode()
-	dst.DataBrokerStorageConnectionString = u.String()
+	dst.DataBroker.StorageConnectionString = u.String()
 	return nil
 }
 

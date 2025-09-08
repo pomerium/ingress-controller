@@ -192,6 +192,11 @@ spec:
               dns:
                 description: DNS sets the dns settings.
                 properties:
+                  failureRefreshRate:
+                    description: FailureRefreshRate is the rate at which DNS lookups
+                      are refreshed when requests are failing.
+                    format: duration
+                    type: string
                   lookupFamily:
                     description: LookupFamily is the DNS IP address resolution policy.
                     enum:
@@ -213,6 +218,11 @@ spec:
                       a different name server.
                     format: int32
                     type: integer
+                  refreshRate:
+                    description: RefreshRate is the rate at which DNS lookups are
+                      refreshed.
+                    format: duration
+                    type: string
                   udpMaxQueries:
                     description: UDPMaxQueries caps the number of UDP based DNS queries
                       on a single port.
