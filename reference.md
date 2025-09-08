@@ -680,6 +680,25 @@ DNS sets the dns settings.
         <tr>
             <td>
                 <p>
+                <code>failureRefreshRate</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+                    (duration)
+
+                </p>
+                <p>
+
+                    FailureRefreshRate is the rate at which DNS lookups are refreshed when requests are failing.
+                </p>
+
+                    Format: a duration string like "22s" as parsed by Golang time.ParseDuration.
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
                 <code>lookupFamily</code>&#160;&#160;
 
                     <strong>string</strong>&#160;
@@ -724,6 +743,25 @@ DNS sets the dns settings.
 
                     QueryTries is the maximum number of query attempts the resolver will make before giving up. Each attempt may use a different name server.
                 </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
+                <code>refreshRate</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+                    (duration)
+
+                </p>
+                <p>
+
+                    RefreshRate is the rate at which DNS lookups are refreshed.
+                </p>
+
+                    Format: a duration string like "22s" as parsed by Golang time.ParseDuration.
 
             </td>
         </tr>
