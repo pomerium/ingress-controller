@@ -7,15 +7,21 @@ spec:
     spec:
       containers:
         - name: pomerium
+          startupProbe:
+            httpGet:
+              path: /startupz
+              port : 28080
           livenessProbe:
             httpGet:
               path: /healthz
-              port: 8081
+              port: 28080
             initialDelaySeconds: 15
-            periodSeconds: 20
+            periodSeconds: 60
+            failureThreshold: 10
           readinessProbe:
             httpGet:
               path: /readyz
-              port: 8081
-            initialDelaySeconds: 5
-            periodSeconds: 10
+              port: 28080
+            initialDelaySeconds: 15
+            periodSeconds: 60
+            failureThreshold: 5
