@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/ingress-controller/controllers/reporter"
 	"github.com/pomerium/ingress-controller/controllers/settings"
 	"github.com/pomerium/ingress-controller/pomerium"
+	health_ctrl "github.com/pomerium/ingress-controller/util/health"
 )
 
 const (
@@ -78,7 +79,7 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 		return fmt.Errorf("create ingress controller: %w", err)
 	}
 	if c.GlobalSettings != nil {
-		if err = settings.NewSettingsController(mgr, c.ConfigReconciler, *c.GlobalSettings, "pomerium-crd", true); err != nil {
+		if err = settings.NewSettingsController(mgr, c.ConfigReconciler, *c.GlobalSettings, "pomerium-crd", true, health_ctrl.SettingsReconciler); err != nil {
 			return fmt.Errorf("create settings controller: %w", err)
 		}
 	} else {

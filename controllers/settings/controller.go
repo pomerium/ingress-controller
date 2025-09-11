@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	pom_cfg "github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/health"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/controllers/deps"
@@ -23,6 +24,12 @@ import (
 	"github.com/pomerium/ingress-controller/pomerium"
 	"github.com/pomerium/ingress-controller/util"
 	"github.com/pomerium/ingress-controller/util/generic"
+)
+
+const (
+	// ControllerNameBootstrap is a default name for the bootstrap config settings
+	// controller
+	ControllerNameBootstrap = "bootstrap"
 )
 
 type settingsController struct {
@@ -38,6 +45,8 @@ type settingsController struct {
 	reporter.MultiPomeriumStatusReporter
 	// emitWarnings related to configuration. as there are multiple controllers running, not all should report
 	emitWarnings bool
+
+	ctrlCheck health.Check
 }
 
 // NewSettingsController creates and registers a new controller for
@@ -48,6 +57,7 @@ func NewSettingsController(
 	name types.NamespacedName,
 	controllerName string,
 	emitWarnings bool,
+	check health.Check,
 ) error {
 	if name.Namespace != "" {
 		return fmt.Errorf("pomerium CRD is cluster-scoped")
@@ -80,8 +90,8 @@ func NewSettingsController(
 			&reporter.SettingsLogReporter{},
 		},
 		emitWarnings: emitWarnings,
+		ctrlCheck:    check,
 	}
-
 	secretKind := generic.GVKForType[*corev1.Secret](mgr.GetScheme()).Kind
 	err := ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
@@ -120,6 +130,8 @@ func (c *settingsController) Reconcile(ctx context.Context, req ctrl.Request) (c
 		c.SettingsRejected(ctx, &cfg.Pomerium, err)
 		return ctrl.Result{Requeue: true}, fmt.Errorf("get settings: %w", err)
 	}
+	// bootstrap configu must at least construct a vaild config once to be considered running
+	health.ReportRunning(c.ctrlCheck)
 
 	if deprecations, err := icsv1.GetDeprecations(&cfg.Pomerium.Spec); err != nil {
 		logger.Error(err, "checking config for deprecations")
