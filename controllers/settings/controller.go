@@ -130,7 +130,7 @@ func (c *settingsController) Reconcile(ctx context.Context, req ctrl.Request) (c
 		c.SettingsRejected(ctx, &cfg.Pomerium, err)
 		return ctrl.Result{Requeue: true}, fmt.Errorf("get settings: %w", err)
 	}
-	// bootstrap configu must at least construct a vaild config once to be considered running
+	// bootstrap config must at least construct a valid config once to be considered running
 	health.ReportRunning(c.ctrlCheck)
 
 	if deprecations, err := icsv1.GetDeprecations(&cfg.Pomerium.Spec); err != nil {
