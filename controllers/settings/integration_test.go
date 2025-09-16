@@ -26,6 +26,7 @@ import (
 	controllers_mock "github.com/pomerium/ingress-controller/controllers/mock"
 	"github.com/pomerium/ingress-controller/controllers/settings"
 	"github.com/pomerium/ingress-controller/pomerium"
+	health_ctrl "github.com/pomerium/ingress-controller/util/health"
 )
 
 var (
@@ -97,7 +98,7 @@ func (s *ControllerTestSuite) createTestController(ctx context.Context, reconcil
 		Scheme: s.Environment.Scheme,
 	})
 	s.NoError(err)
-	s.NoError(settings.NewSettingsController(mgr, reconciler, name, "test", false))
+	s.NoError(settings.NewSettingsController(mgr, reconciler, name, "test", false, health_ctrl.SettingsReconciler))
 
 	go func() {
 		if err = mgr.Start(ctx); err != nil && ctx.Err() == nil {
