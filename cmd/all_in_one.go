@@ -2,18 +2,16 @@ package cmd
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"net"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	validate "github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
 	"github.com/volatiletech/null/v9"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -24,7 +22,6 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 
@@ -49,8 +46,12 @@ type allCmdOptions struct {
 	metricsBindAddress string `validate:"required,hostname_port"`
 	serverAddr         string `validate:"required,hostname_port"`
 	sshAddr            string
-	httpRedirectAddr   string `validate:"required,hostname_port"`
-	deriveTLS          string `validate:"required,hostname"`
+	httpRedirectAddr   string   `validate:"required,hostname_port"`
+	deriveTLS          string   `validate:"required,hostname"`
+	grpcAddr           string   `validate:"required,hostname_port"`
+	services           []string `validate:"dive,oneof=all authenticate authorize databroker proxy"`
+
+	DataBrokerOptions dataBrokerOptions
 }
 
 type allCmdParam struct {
@@ -124,6 +125,8 @@ func (s *allCmd) setupFlags() error {
 	flags.StringVar(&s.httpRedirectAddr, "http-redirect-addr", ":8080", "the address HTTP redirect would bind to")
 	flags.StringVar(&s.deriveTLS, "databroker-auto-tls", "", "enable auto TLS and generate server certificate for the domain")
 	flags.DurationVar(&s.configControllerShutdownTimeout, configControllerShutdown, time.Second*30, "timeout waiting for graceful config controller shutdown")
+	flags.StringVar(&s.grpcAddr, "grpc-addr", ":5443", "the address the gRPC server would bind to")
+	flags.StringSliceVar(&s.services, "services", []string{"all"}, "the pomerium services to run")
 
 	for _, flag := range hidden {
 		if err := s.PersistentFlags().MarkHidden(flag); err != nil {
@@ -132,6 +135,7 @@ func (s *allCmd) setupFlags() error {
 	}
 
 	s.ingressControllerOpts.setupFlags(flags)
+	s.DataBrokerOptions.setupFlags(flags)
 	return viperWalk(flags)
 }
 
@@ -225,7 +229,9 @@ func (s *allCmdParam) run(ctx context.Context) error {
 func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 	s.cfg.Options = config.NewDefaultOptions()
 
+	s.cfg.Options.Services = strings.Join(opt.services, ",")
 	s.cfg.Options.Addr = opt.serverAddr
+	s.cfg.Options.GRPCAddr = opt.grpcAddr
 	s.cfg.Options.HTTPRedirectAddr = opt.httpRedirectAddr
 
 	ports, err := netutil.AllocatePorts(8)
@@ -283,6 +289,8 @@ func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 	s.cfg.Options.HTTP3AdvertisePort = null.NewUint32(443, true)
 	s.cfg.Options.SSHAddr = opt.sshAddr
 
+	opt.DataBrokerOptions.apply(&s.cfg)
+
 	return nil
 }
 
@@ -294,23 +302,6 @@ func (s *allCmdParam) runConfigControllers(ctx context.Context, cfg *config.Conf
 	}
 
 	return c.Run(ctx)
-}
-
-func getDataBrokerConnection(ctx context.Context, cfg *config.Config) (*grpc.ClientConn, error) {
-	sharedSecret, err := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
-	if err != nil {
-		return nil, fmt.Errorf("decode shared_secret: %w", err)
-	}
-
-	return grpcutil.NewGRPCClientConn(ctx, &grpcutil.Options{
-		Address: &url.URL{
-			Scheme: "http",
-			Host:   net.JoinHostPort("localhost", cfg.GRPCPort),
-		},
-		ServiceName:    "databroker",
-		SignedJWTKey:   sharedSecret,
-		RequestTimeout: defaultGRPCTimeout,
-	})
 }
 
 func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (*controllers.Controller, error) {
