@@ -22,7 +22,6 @@ func TestDataBrokerOptions(t *testing.T) {
 	}
 
 	options := parseOptions([]string{
-		"--databroker-cluster-leader-id", "node-1",
 		"--databroker-cluster-node-id", "node-2",
 		"--databroker-cluster-nodes", `[
 			{ "id": "node-0", "grpc_address": "127.0.0.1:15000", "raft_address": "127.0.0.1:15100" },
@@ -35,8 +34,7 @@ func TestDataBrokerOptions(t *testing.T) {
 		"--databroker-service-urls=https://databroker-3.example.com",
 	})
 	assert.Equal(t, &dataBrokerOptions{
-		ClusterLeaderID: "node-1",
-		ClusterNodeID:   "node-2",
+		ClusterNodeID: "node-2",
 		ClusterNodes: dataBrokerClusterNodes{
 			{ID: "node-0", GRPCAddress: "127.0.0.1:15000", RaftAddress: null.StringFrom("127.0.0.1:15100")},
 			{ID: "node-1", GRPCAddress: "127.0.0.1:15001", RaftAddress: null.StringFrom("127.0.0.1:15101")},

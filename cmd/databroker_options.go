@@ -17,7 +17,6 @@ import (
 )
 
 type dataBrokerOptions struct {
-	ClusterLeaderID string
 	ClusterNodeID   string
 	ClusterNodes    dataBrokerClusterNodes
 	RaftBindAddress string   `validate:"omitempty,hostname_port"`
@@ -36,7 +35,6 @@ func (n *dataBrokerClusterNodes) UnmarshalText(text []byte) error {
 }
 
 func (o *dataBrokerOptions) setupFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&o.ClusterLeaderID, "databroker-cluster-leader-id", "", "the databroker cluster leader id")
 	flags.StringVar(&o.ClusterNodeID, "databroker-cluster-node-id", "", "the databroker cluster node id")
 	flags.TextVar(&o.ClusterNodes, "databroker-cluster-nodes", dataBrokerClusterNodes(nil), "the databroker cluster nodes")
 	flags.StringVar(&o.RaftBindAddress, "databroker-raft-bind-address", "", "the databroker raft bind address")
@@ -44,9 +42,6 @@ func (o *dataBrokerOptions) setupFlags(flags *pflag.FlagSet) {
 }
 
 func (o *dataBrokerOptions) apply(dst *config.Config) {
-	if o.ClusterLeaderID != "" {
-		dst.Options.DataBroker.ClusterLeaderID = null.StringFrom(o.ClusterLeaderID)
-	}
 	if o.ClusterNodeID != "" {
 		dst.Options.DataBroker.ClusterNodeID = null.StringFrom(o.ClusterNodeID)
 	}

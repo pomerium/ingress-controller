@@ -341,6 +341,9 @@ type PomeriumSpec struct {
 	// CircuitBreakerThresholds sets the circuit breaker thresholds settings.
 	CircuitBreakerThresholds *CircuitBreakerThresholds `json:"circuitBreakerThresholds,omitempty"`
 
+	// DataBroker sets the databroker settings.
+	DataBroker *DataBroker `json:"dataBroker,omitempty"`
+
 	// DNS sets the dns settings.
 	DNS *DNS `json:"dns,omitempty"`
 
@@ -451,6 +454,13 @@ type CircuitBreakerThresholds struct {
 	//
 	// +kubebuilder:validation:Optional
 	MaxConnectionPools *uint32 `json:"maxConnectionPools"`
+}
+
+// DataBroker are the databroker settings.
+type DataBroker struct {
+	// ClusterLeaderID defines the cluster leader in a clustered databroker.
+	// +kubebuilder:validation:Optional
+	ClusterLeaderID *string `json:"clusterLeaderId,omitempty"`
 }
 
 // DNS are the dns settings.
