@@ -48,9 +48,13 @@ type allCmdOptions struct {
 	// metricsBindAddress must be externally accessible host:port
 	metricsBindAddress string `validate:"required,hostname_port"`
 	serverAddr         string `validate:"required,hostname_port"`
+	grpcAddr           string `validate:"required,hostname_port"`
 	sshAddr            string
 	httpRedirectAddr   string `validate:"required,hostname_port"`
 	deriveTLS          string `validate:"required,hostname"`
+	services           string
+
+	dataBroker dataBrokerOptions
 }
 
 type allCmdParam struct {
@@ -120,10 +124,12 @@ func (s *allCmd) setupFlags() error {
 	flags.StringVar(&s.metricsBindAddress, metricsBindAddress, "", "host:port for aggregate metrics. host is mandatory")
 	flags.StringVar(&s.adminBindAddr, debugAdminBindAddr, "", "host:port for admin server")
 	flags.StringVar(&s.serverAddr, "server-addr", ":8443", "the address the HTTPS server would bind to")
+	flags.StringVar(&s.grpcAddr, "grpc-addr", ":5443", "the address the gRPC server would bind to")
 	flags.StringVar(&s.sshAddr, "ssh-addr", "", "the address the SSH server would bind to")
 	flags.StringVar(&s.httpRedirectAddr, "http-redirect-addr", ":8080", "the address HTTP redirect would bind to")
 	flags.StringVar(&s.deriveTLS, "databroker-auto-tls", "", "enable auto TLS and generate server certificate for the domain")
 	flags.DurationVar(&s.configControllerShutdownTimeout, configControllerShutdown, time.Second*30, "timeout waiting for graceful config controller shutdown")
+	flags.StringVar(&s.services, "services", "all", "the services to run")
 
 	for _, flag := range hidden {
 		if err := s.PersistentFlags().MarkHidden(flag); err != nil {
@@ -131,6 +137,7 @@ func (s *allCmd) setupFlags() error {
 		}
 	}
 
+	s.dataBroker.setupFlags(flags)
 	s.ingressControllerOpts.setupFlags(flags)
 	return viperWalk(flags)
 }
@@ -224,7 +231,9 @@ func (s *allCmdParam) run(ctx context.Context) error {
 
 func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 	s.cfg.Options = config.NewDefaultOptions()
-
+	s.cfg.Options.Services = opt.services
+	s.cfg.Options.GRPCAddr = opt.grpcAddr
+	s.cfg.Options.GRPCInsecure = proto.Bool(true)
 	s.cfg.Options.Addr = opt.serverAddr
 	s.cfg.Options.HTTPRedirectAddr = opt.httpRedirectAddr
 
@@ -283,6 +292,8 @@ func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 	s.cfg.Options.HTTP3AdvertisePort = null.NewUint32(443, true)
 	s.cfg.Options.SSHAddr = opt.sshAddr
 
+	opt.dataBroker.apply(&s.cfg)
+
 	return nil
 }
 
@@ -305,7 +316,7 @@ func getDataBrokerConnection(ctx context.Context, cfg *config.Config) (*grpc.Cli
 	return grpcutil.NewGRPCClientConn(ctx, &grpcutil.Options{
 		Address: &url.URL{
 			Scheme: "http",
-			Host:   net.JoinHostPort("localhost", cfg.GRPCPort),
+			Host:   net.JoinHostPort("127.0.0.1", cfg.OutboundPort),
 		},
 		ServiceName:    "databroker",
 		SignedJWTKey:   sharedSecret,
