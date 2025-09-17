@@ -20,11 +20,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/netutil"
-	"github.com/pomerium/pomerium/pkg/telemetry/trace"
-
 	"github.com/pomerium/ingress-controller/controllers"
 	"github.com/pomerium/ingress-controller/controllers/gateway"
 	"github.com/pomerium/ingress-controller/controllers/ingress"
@@ -32,6 +27,12 @@ import (
 	"github.com/pomerium/ingress-controller/pomerium"
 	pomerium_ctrl "github.com/pomerium/ingress-controller/pomerium/ctrl"
 	"github.com/pomerium/ingress-controller/util"
+	health_ctrl "github.com/pomerium/ingress-controller/util/health"
+	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/health"
+	"github.com/pomerium/pomerium/pkg/netutil"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 type allCmdOptions struct {
@@ -42,6 +43,8 @@ type allCmdOptions struct {
 	debugEnvoy                      bool
 	adminBindAddr                   string
 	configControllerShutdownTimeout time.Duration
+	// healthProbeBindAddress must be externally accessible host:port
+	healthProbeBindAddress string
 	// metricsBindAddress must be externally accessible host:port
 	metricsBindAddress string `validate:"required,hostname_port"`
 	serverAddr         string `validate:"required,hostname_port"`
@@ -119,6 +122,7 @@ func (s *allCmd) setupFlags() error {
 	flags.BoolVar(&s.debugPomerium, debugPomerium, false, "enable debug logging for pomerium")
 	flags.BoolVar(&s.debugEnvoy, debugEnvoy, false, "enable debug logging for envoy")
 	flags.StringVar(&s.metricsBindAddress, metricsBindAddress, "", "host:port for aggregate metrics. host is mandatory")
+	flags.StringVar(&s.healthProbeBindAddress, healthProbeBindAddress, "127.0.0.1:28080", "host:port for http health probes")
 	flags.StringVar(&s.adminBindAddr, debugAdminBindAddr, "", "host:port for admin server")
 	flags.StringVar(&s.serverAddr, "server-addr", ":8443", "the address the HTTPS server would bind to")
 	flags.StringVar(&s.sshAddr, "ssh-addr", "", "the address the SSH server would bind to")
@@ -199,6 +203,10 @@ func (s *allCmdParam) run(ctx context.Context) error {
 	defer cancel()
 
 	ctx = trace.NewContext(ctx, trace.NewSyncClient(nil))
+	ctx = health.Context(
+		ctx,
+		health_ctrl.SettingsBootstrapReconciler,
+	)
 
 	eg, ctx := errgroup.WithContext(ctx)
 	cfgCtl := util.NewRestartOnChange[*config.Config]()
@@ -250,6 +258,7 @@ func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 	s.ingressMetricsAddr = fmt.Sprintf("localhost:%s", ports[7])
 
 	s.cfg.Options.MetricsAddr = opt.metricsBindAddress
+	s.cfg.Options.HealthCheckAddr = opt.healthProbeBindAddress
 
 	s.cfg.MetricsScrapeEndpoints = []config.MetricsScrapeEndpoint{
 		{
@@ -374,11 +383,11 @@ func (s *allCmdParam) runBootstrapConfigController(ctx context.Context, reconcil
 	if err != nil {
 		return fmt.Errorf("manager: %w", err)
 	}
-	name := "bootstrap"
+	name := settings.ControllerNameBootstrap
 	if host, err := os.Hostname(); err == nil {
 		name = fmt.Sprintf("%s pod/%s", name, host)
 	}
-	if err := settings.NewSettingsController(mgr, reconciler, s.settings, name, false); err != nil {
+	if err := settings.NewSettingsController(mgr, reconciler, s.settings, name, false, health_ctrl.SettingsBootstrapReconciler); err != nil {
 		return fmt.Errorf("settings controller: %w", err)
 	}
 	return mgr.Start(ctx)
