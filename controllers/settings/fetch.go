@@ -169,7 +169,7 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 					apply("tls", optional(p.TLSSecret), &cfg.StorageSecrets.TLS),
 					apply("ca", optional(p.CASecret), &cfg.StorageSecrets.CA),
 				); err != nil {
-					return fmt.Errorf("postgresql: %w", err)
+					return fmt.Errorf("postgres: %w", err)
 				}
 			} else {
 				return fmt.Errorf("if storage is specified, file or postgres storage should be provided")

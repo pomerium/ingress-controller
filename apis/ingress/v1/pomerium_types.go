@@ -124,7 +124,7 @@ type PostgresStorage struct {
 // Storage defines persistent storage option for the databroker
 // and is only applied for all-in-one pomerium bootstrap,
 // and has no effect for the split-mode deployment.
-// If Storage is specified, the `postgresql` parameter should be set.
+// If Storage is specified, the `postgres` or `file` parameter should be set.
 // Omit setting storage to use the in-memory storage implementation.
 type Storage struct {
 	// File specifies file storage options.
