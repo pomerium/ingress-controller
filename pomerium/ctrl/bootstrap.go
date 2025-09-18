@@ -10,14 +10,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/volatiletech/null/v9"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/pomerium/pomerium/config"
-
 	"github.com/pomerium/ingress-controller/internal/filemgr"
 	"github.com/pomerium/ingress-controller/model"
+	"github.com/pomerium/pomerium/config"
 )
 
 // Apply prepares a minimal bootstrap configuration for Pomerium
@@ -27,6 +27,7 @@ func Apply(ctx context.Context, dst *config.Options, src *model.Config) error {
 		fn   func(context.Context, *config.Options, *model.Config) error
 	}{
 		{"authenticate", applyAuthenticate},
+		{"databroker", applyDataBroker},
 		{"secrets", applySecrets},
 		{"storage", applyStorage},
 		{"runtime flags", applyRuntimeFlags},
@@ -64,6 +65,19 @@ func applyAuthenticate(_ context.Context, dst *config.Options, src *model.Config
 		Scheme: "https",
 		Host:   net.JoinHostPort(host, port),
 	}).String()
+	return nil
+}
+
+func applyDataBroker(_ context.Context, dst *config.Options, src *model.Config) error {
+	if src.Spec.DataBroker == nil {
+		return nil
+	}
+
+	if src.Spec.DataBroker.ClusterLeaderID == nil {
+		return nil
+	}
+
+	dst.DataBroker.ClusterLeaderID = null.StringFrom(*src.Spec.DataBroker.ClusterLeaderID)
 	return nil
 }
 

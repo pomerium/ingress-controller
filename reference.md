@@ -176,6 +176,23 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>dataBroker</code>&#160;&#160;
+
+                    <strong>object</strong>&#160;
+                    (<a href="#databroker">dataBroker</a>)
+
+                </p>
+                <p>
+
+                    DataBroker sets the databroker settings.
+                </p>
+
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <p>
                 <code>dns</code>&#160;&#160;
 
                     <strong>object</strong>&#160;
@@ -658,6 +675,36 @@ Cookie defines Pomerium session cookie options.
                 <p>
 
                     SameSite sets the SameSite option for cookies. Defaults to <code></code>.
+                </p>
+
+            </td>
+        </tr>
+
+    </tbody>
+</table>
+
+
+
+### `dataBroker`
+
+DataBroker sets the databroker settings.
+
+<table>
+    <thead>
+    </thead>
+    <tbody>
+
+        <tr>
+            <td>
+                <p>
+                <code>clusterLeaderId</code>&#160;&#160;
+
+                    <strong>string</strong>&#160;
+
+                </p>
+                <p>
+
+                    ClusterLeaderID defines the cluster leader in a clustered databroker.
                 </p>
 
             </td>

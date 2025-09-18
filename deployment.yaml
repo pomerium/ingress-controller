@@ -331,6 +331,14 @@ spec:
                     - none
                     type: string
                 type: object
+              dataBroker:
+                description: DataBroker sets the databroker settings.
+                properties:
+                  clusterLeaderId:
+                    description: ClusterLeaderID defines the cluster leader in a clustered
+                      databroker.
+                    type: string
+                type: object
               dns:
                 description: DNS sets the dns settings.
                 properties:
