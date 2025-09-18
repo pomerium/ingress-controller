@@ -79,6 +79,15 @@ type RefreshDirectorySettings struct {
 	Timeout metav1.Duration `json:"timeout"`
 }
 
+// FileStorage defines File storage options.
+type FileStorage struct {
+	// Path defines the local file system path to store data.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MinLength=1
+	Path string `json:"path"`
+}
+
 // PostgresStorage defines Postgres connection parameters.
 type PostgresStorage struct {
 	// Secret specifies a name of a Secret that must contain
@@ -118,6 +127,9 @@ type PostgresStorage struct {
 // If Storage is specified, the `postgresql` parameter should be set.
 // Omit setting storage to use the in-memory storage implementation.
 type Storage struct {
+	// File specifies file storage options.
+	// +kubebuilder:validation:Optional
+	File *FileStorage `json:"file"`
 	// Postgres specifies PostgreSQL database connection parameters
 	// +kubebuilder:validation:Optional
 	Postgres *PostgresStorage `json:"postgres"`

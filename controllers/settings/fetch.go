@@ -159,6 +159,10 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 				return nil
 			}
 
+			if f := s.Storage.File; f != nil {
+				return nil
+			}
+
 			if p := s.Storage.Postgres; p != nil {
 				if err := applyAll(
 					apply("connection", required(&p.Secret), &cfg.StorageSecrets.Secret),
@@ -168,7 +172,7 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 					return fmt.Errorf("postgresql: %w", err)
 				}
 			} else {
-				return fmt.Errorf("if storage is specified, postgres storage should be provided")
+				return fmt.Errorf("if storage is specified, file or postgres storage should be provided")
 			}
 
 			return cfg.StorageSecrets.Validate()
