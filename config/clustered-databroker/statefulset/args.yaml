@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pomerium-databroker
+spec:
+  template:
+    spec:
+      containers:
+        - name: pomerium
+          args:
+            - all-in-one
+            - --pomerium-config=global
+            - --metrics-bind-address=$(POD_IP):9090
+            - --services=databroker
+            - --databroker-cluster-node-id=$(POD_NAME)
+            - --databroker-raft-bind-address=:5999
+            - --databroker-auto-tls=*.pomerium-databroker
+          env:
+            - name: POMERIUM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: DATABROKER_CLUSTER_NODES
+              value: |-
+                [
+                  { "id": "pomerium-databroker-0", "grpc_address": "https://pomerium-databroker-0.pomerium-databroker:5443", "raft_address": "pomerium-databroker-0.pomerium-databroker:5999" },
+                  { "id": "pomerium-databroker-1", "grpc_address": "https://pomerium-databroker-1.pomerium-databroker:5443", "raft_address": "pomerium-databroker-1.pomerium-databroker:5999" },
+                  { "id": "pomerium-databroker-2", "grpc_address": "https://pomerium-databroker-2.pomerium-databroker:5443", "raft_address": "pomerium-databroker-2.pomerium-databroker:5999" }
+                ]

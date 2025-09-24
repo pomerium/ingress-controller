@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pomerium-databroker
+  labels:
+    app.kubernetes.io/name: pomerium
+    app.kubernetes.io/component: databroker
+spec:
+  clusterIP: None
+  ports:
+    - port: 5443
+      name: grpc
+    - port: 5999
+      name: raft
+  selector:
+    app.kubernetes.io/name: pomerium
+    app.kubernetes.io/component: databroker
