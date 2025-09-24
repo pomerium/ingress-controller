@@ -990,6 +990,13 @@ spec:
               fieldPath: status.podIP
         image: pomerium/ingress-controller:main
         imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /healthz
+            port: 28080
+          initialDelaySeconds: 15
+          periodSeconds: 60
         name: pomerium
         ports:
         - containerPort: 8443
@@ -1004,6 +1011,13 @@ spec:
         - containerPort: 9090
           name: metrics
           protocol: TCP
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: 28080
+          initialDelaySeconds: 15
+          periodSeconds: 60
         resources:
           limits:
             cpu: 5000m
@@ -1020,6 +1034,12 @@ spec:
           runAsGroup: 65532
           runAsNonRoot: true
           runAsUser: 65532
+        startupProbe:
+          failureThreshold: 40
+          httpGet:
+            path: /startupz
+            port: 28080
+          periodSeconds: 15
         volumeMounts:
         - mountPath: /tmp
           name: tmp
