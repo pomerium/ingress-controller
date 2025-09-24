@@ -8,8 +8,6 @@ spec:
       containers:
         - name: pomerium
           volumeMounts:
-            - mountPath: /tmp
-              name: tmp
             - name: storage
               mountPath: /var/pomerium/databroker
   volumeClaimTemplates:
