@@ -9,3 +9,4 @@ patches:
 - path: resources.yaml
 - path: no-root.yaml
 - path: readonly-root-fs.yaml
+- path: healthcheck.yaml
