@@ -100,6 +100,10 @@ func applyStorage(ctx context.Context, dst *config.Options, src *model.Config) e
 		return nil
 	}
 
+	if src.Spec.Storage.File != nil {
+		return applyStorageFile(dst, src)
+	}
+
 	if err := src.StorageSecrets.Validate(); err != nil {
 		return err
 	}
@@ -108,7 +112,13 @@ func applyStorage(ctx context.Context, dst *config.Options, src *model.Config) e
 		return applyStoragePostgres(dst, src)
 	}
 
-	return fmt.Errorf("if storage is specified, it must contain postgresql config. omit storage key for in-memory")
+	return fmt.Errorf("if storage is specified, it must contain file or postgres config. omit storage key for in-memory")
+}
+
+func applyStorageFile(dst *config.Options, src *model.Config) error {
+	dst.DataBroker.StorageType = config.StorageFileName
+	dst.DataBroker.StorageConnectionString = "file://" + src.Spec.Storage.File.Path
+	return nil
 }
 
 func applyStoragePostgres(dst *config.Options, src *model.Config) error {

@@ -69,7 +69,7 @@ func ApplyConfig(ctx context.Context, dst *pb.Config, src *model.Config) error {
 }
 
 func checkForWarnings(ctx context.Context, _ *pb.Config, c *model.Config) error {
-	if c.Spec.Storage == nil || c.Spec.Storage.Postgres == nil {
+	if c.Spec.Storage == nil || (c.Spec.Storage.File == nil && c.Spec.Storage.Postgres == nil) {
 		util.Add(ctx, config.FieldMsg{
 			Key:           "storage",
 			DocsURL:       "https://www.pomerium.com/docs/internals/data-storage",

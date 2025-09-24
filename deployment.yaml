@@ -639,6 +639,17 @@ spec:
                   See <a href="https://www.pomerium.com/docs/topics/data-storage">Storage</a> for details.
                   If no storage is specified, Pomerium would use a transient in-memory storage (not recommended for production).
                 properties:
+                  file:
+                    description: File specifies file storage options.
+                    properties:
+                      path:
+                        description: Path defines the local file system path to store
+                          data.
+                        minLength: 1
+                        type: string
+                    required:
+                    - path
+                    type: object
                   postgres:
                     description: Postgres specifies PostgreSQL database connection
                       parameters
