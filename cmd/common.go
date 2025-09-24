@@ -29,7 +29,6 @@ const (
 )
 
 const (
-	webhookPort            = "webhook-port"
 	metricsBindAddress     = "metrics-bind-address"
 	healthProbeBindAddress = "health-probe-bind-address"
 )
