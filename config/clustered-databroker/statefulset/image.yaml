@@ -1,0 +1,11 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pomerium-databroker
+spec:
+  template:
+    spec:
+      containers:
+        - name: pomerium
+          image: pomerium/ingress-controller:main
+          imagePullPolicy: Always

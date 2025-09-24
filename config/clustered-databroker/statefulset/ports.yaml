@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pomerium-databroker
+spec:
+  template:
+    spec:
+      containers:
+        - name: pomerium
+          ports:
+            - name: grpc
+              containerPort: 5443
+              protocol: TCP
+            - name: raft
+              containerPort: 5999
+              protocol: TCP

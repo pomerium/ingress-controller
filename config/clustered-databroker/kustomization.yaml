@@ -1,27 +1,25 @@
 namespace: pomerium
 resources:
   - ../default
-  - ./databroker.yaml
+  - ./statefulset
+  - ./service
 patches:
   - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/image
-        value: pomerium/ingress-controller:dev
-      - op: replace
-        path: /spec/template/spec/containers/0/imagePullPolicy
-        value: Never
       - op: add
         path: /spec/template/spec/containers/0/args/-
         value: '--services=authenticate,authorize,proxy'
       - op: add
         path: /spec/template/spec/containers/0/args/-
-        value: '--databroker-service-urls=http://pomerium-databroker-0.pomerium-databroker:5443'
+        value: '--databroker-service-urls=https://pomerium-databroker-0.pomerium-databroker:5443'
       - op: add
         path: /spec/template/spec/containers/0/args/-
-        value: '--databroker-service-urls=http://pomerium-databroker-1.pomerium-databroker:5443'
+        value: '--databroker-service-urls=https://pomerium-databroker-1.pomerium-databroker:5443'
       - op: add
         path: /spec/template/spec/containers/0/args/-
-        value: '--databroker-service-urls=http://pomerium-databroker-2.pomerium-databroker:5443'
+        value: '--databroker-service-urls=https://pomerium-databroker-2.pomerium-databroker:5443'
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: '--databroker-auto-tls=*.pomerium-databroker'
     target:
       group: apps
       version: v1
