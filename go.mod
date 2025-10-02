@@ -16,7 +16,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.9.0
-	github.com/pomerium/pomerium v0.28.1-0.20250930205726-e4854c414f5e
+	github.com/pomerium/pomerium v0.28.1-0.20251001204946-562352cb7b15
 	github.com/rs/zerolog v1.34.0
 	github.com/sergi/go-diff v1.4.0
 	github.com/spf13/cobra v1.10.1
