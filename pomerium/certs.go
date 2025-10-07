@@ -1,8 +1,11 @@
 package pomerium
 
 import (
+	"cmp"
 	"fmt"
+	"maps"
 	"net/url"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -15,7 +18,15 @@ func addCerts(cfg *pb.Config, secrets map[types.NamespacedName]*corev1.Secret) {
 		cfg.Settings = new(pb.Settings)
 	}
 
-	for _, secret := range secrets {
+	keys := slices.Collect(maps.Keys(secrets))
+	slices.SortStableFunc(keys, func(a, b types.NamespacedName) int {
+		if cmp := cmp.Compare(a.Namespace, b.Namespace); cmp != 0 {
+			return cmp
+		}
+		return cmp.Compare(a.Name, b.Name)
+	})
+	for _, key := range keys {
+		secret := secrets[key]
 		if secret.Type != corev1.SecretTypeTLS {
 			continue
 		}
