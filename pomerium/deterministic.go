@@ -17,7 +17,7 @@ func ensureDeterministicConfigOrder(cfg *pb.Config) {
 	sort.Sort(routeList(cfg.Routes))
 
 	if len(cfg.GetSettings().GetCertificates()) > 0 {
-		slices.SortFunc(cfg.GetSettings().GetCertificates(), func(a, b *pb.Settings_Certificate) int {
+		slices.SortFunc(cfg.Settings.Certificates, func(a, b *pb.Settings_Certificate) int {
 			return cmp.Compare(a.Id, b.Id)
 		})
 	}
