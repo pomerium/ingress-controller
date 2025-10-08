@@ -4,7 +4,6 @@ package pomerium
 import (
 	"context"
 	"fmt"
-	"sort"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -194,9 +193,7 @@ func (r *DataBrokerReconciler) saveConfig(ctx context.Context, prev, next *pb.Co
 		}
 	}
 
-	// https://kubernetes.io/docs/concepts/services-networking/ingress/#multiple-matches
-	// envoy matches according to the order routes are present in the configuration
-	sort.Sort(routeList(next.Routes))
+	ensureDeterministicConfigOrder(next)
 
 	if err := validate(ctx, next, id); err != nil {
 		return false, fmt.Errorf("config validation: %w", err)
