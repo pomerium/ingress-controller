@@ -154,14 +154,6 @@ type Authenticate struct {
 	// +kubebuilder:validation:Format=uri
 	// +kubebuilder:validation:Pattern=`^https://`
 	URL string `json:"url"`
-	// CallbackPath sets the path at which the authenticate service receives callback responses
-	// from your identity provider. The value must exactly match one of the authorized redirect URIs for the OAuth 2.0 client.
-	//
-	// <p>This value is referred to as the redirect_url in the OpenIDConnect and OAuth2 specs.</p>
-	// <p>Defaults to <code>/oauth2/callback</code></p>
-	//
-	// +optional
-	CallbackPath *string `json:"callbackPath,omitempty"`
 }
 
 // Cookie customizes HTTP cookie set by Pomerium.
