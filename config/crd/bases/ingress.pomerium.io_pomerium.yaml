@@ -52,14 +52,6 @@ spec:
                   Authenticate sets authenticate service parameters.
                   If not specified, a Pomerium-hosted authenticate service would be used.
                 properties:
-                  callbackPath:
-                    description: |-
-                      CallbackPath sets the path at which the authenticate service receives callback responses
-                      from your identity provider. The value must exactly match one of the authorized redirect URIs for the OAuth 2.0 client.
-
-                      <p>This value is referred to as the redirect_url in the OpenIDConnect and OAuth2 specs.</p>
-                      <p>Defaults to <code>/oauth2/callback</code></p>
-                    type: string
                   url:
                     description: "AuthenticateURL is a dedicated domain URL\nthe non-authenticated
                       persons would be referred to.\n\n<p><ul>\n <li>You do not need

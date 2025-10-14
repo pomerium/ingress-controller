@@ -457,22 +457,6 @@ Authenticate sets authenticate service parameters. If not specified, a Pomerium-
         <tr>
             <td>
                 <p>
-                <code>callbackPath</code>&#160;&#160;
-
-                    <strong>string</strong>&#160;
-
-                </p>
-                <p>
-
-                    CallbackPath sets the path at which the authenticate service receives callback responses from your identity provider. The value must exactly match one of the authorized redirect URIs for the OAuth 2.0 client. <p>This value is referred to as the redirect_url in the OpenIDConnect and OAuth2 specs.</p> <p>Defaults to <code>/oauth2/callback</code></p>
-                </p>
-
-            </td>
-        </tr>
-
-        <tr>
-            <td>
-                <p>
                 <code>url</code>&#160;&#160;
 
                     <strong>string</strong>&#160;
