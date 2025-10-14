@@ -266,7 +266,6 @@ func applyCerts(_ context.Context, p *pb.Config, c *model.Config) error {
 func applyAuthenticate(_ context.Context, p *pb.Config, c *model.Config) error {
 	if c.Spec.Authenticate == nil {
 		p.Settings.AuthenticateServiceUrl = proto.String("https://authenticate.pomerium.app")
-		p.Settings.AuthenticateCallbackPath = proto.String("/oauth2/callback")
 		return nil
 	}
 
@@ -275,7 +274,6 @@ func applyAuthenticate(_ context.Context, p *pb.Config, c *model.Config) error {
 		return fmt.Errorf("parsing %s: %w", c.Spec.Authenticate.URL, err)
 	}
 	p.Settings.AuthenticateServiceUrl = &c.Spec.Authenticate.URL
-	p.Settings.AuthenticateCallbackPath = c.Spec.Authenticate.CallbackPath
 
 	return nil
 }
