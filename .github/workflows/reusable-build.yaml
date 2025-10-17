@@ -1,0 +1,105 @@
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup Go
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00
+        with:
+          go-version: 1.24.x
+
+      - name: Build
+        run: make build
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref }}
+
+      - name: Setup Go
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00
+        with:
+          go-version: 1.24.x
+          cache: false
+
+      - run: make envoy
+      - run: make pomerium-ui
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84
+        with:
+          version: v1.64.8
+          args: --timeout=10m
+
+  pre-commit:
+    name: Pre-Commit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref }}
+
+      - name: Setup Go
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00
+        with:
+          go-version: 1.24.x
+
+      - name: Setup Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
+        with:
+          python-version: "3.x"
+
+      - name: Install Kustomize
+        run: make kustomize
+
+      - name: Pre-Commit
+        uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd
+        with:
+          extra_args: --show-diff-on-failure --from-ref ${{
+            github.event.pull_request.base.sha }} --to-ref ${{
+            github.event.pull_request.head.sha }}
+        env:
+          SKIP: go-mod-tidy,lint
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref }}
+
+      - name: Setup Go
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00
+        with:
+          go-version: 1.24.x
+
+      - name: set env vars
+        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Test
+        if: runner.os == 'Linux'
+        run: make test
