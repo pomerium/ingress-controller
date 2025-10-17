@@ -212,6 +212,9 @@ docs: generated
 	@echo "==> $@"
 	@go run docs/cmd/main.go > reference.md
 
+.PHONY: generate
+generate: deployment docs
+
 #
 # --- internal development targets
 #
