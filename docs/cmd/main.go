@@ -41,7 +41,7 @@ func generateMarkdown(w io.Writer) error {
 			return fmt.Errorf("parsing %s: %w", key, err)
 		}
 
-		fmt.Fprintf(w, "## %s\n", strcase.ToCamel(key))
+		fmt.Fprintf(w, "\n## %s\n", strcase.ToCamel(key))
 		if err := tmpl.ExecuteTemplate(w, "object", objects[key]); err != nil {
 			return fmt.Errorf("exec template: %w", err)
 		}
