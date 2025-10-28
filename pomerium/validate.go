@@ -40,7 +40,7 @@ func validate(ctx context.Context, cfg *pb.Config, id string) error {
 
 	pCfg := &config.Config{Options: options, OutboundPort: "8002"}
 
-	builder := envoyconfig.New("127.0.0.1:8000", "127.0.0.1:8001", "127.0.0.1:8003", filemgr.NewManager(), nil, nettest.SupportsIPv6())
+	builder := envoyconfig.New("127.0.0.1:8000", "127.0.0.1:8001", "127.0.0.1:8003", "127.0.0.1:8004", filemgr.NewManager(), nil, nettest.SupportsIPv6())
 	bootstrap, err := builder.BuildBootstrap(ctx, pCfg, true)
 	if err != nil {
 		return err
