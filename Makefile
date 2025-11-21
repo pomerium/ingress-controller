@@ -120,13 +120,13 @@ internal/ui:
 
 internal/ui/node_modules: internal/ui
 	@echo "==> $@"
-	@cd internal/ui && yarn install --network-timeout 1000000
+	@cd internal/ui && npm ci
 
 .PHONY: pomerium-ui
 pomerium-ui: internal/ui/dist/index.js
 internal/ui/dist/index.js: internal/ui/node_modules
 	@echo "==> $@"
-	@cd internal/ui && yarn build
+	@cd internal/ui && npm run build
 
 # run the controller locally (i.e. with docker-desktop)
 # that assumes that the CRDs and ingress class are already installed
