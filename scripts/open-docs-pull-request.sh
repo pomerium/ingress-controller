@@ -13,17 +13,17 @@ export GITHUB_TOKEN=$API_TOKEN_GITHUB
 
 echo "Cloning destination git repository"
 git clone --depth 1 \
-    "https://$API_TOKEN_GITHUB@github.com/$destination_repo.git" "$clone_dir"
+	"https://$API_TOKEN_GITHUB@github.com/$destination_repo.git" "$clone_dir"
 
 echo "Copying contents to git repo"
 cp -R "$source_path" "$clone_dir/$destination_path"
 cd "$clone_dir"
-yarn && yarn prettier --write "$destination_path/$source_path"
+npm ci && npm run prettier --write "$destination_path/$source_path"
 git checkout -b "$destination_head_branch"
 
 if [ -z "$(git status -z)" ]; then
-    echo "No changes detected"
-    exit
+	echo "No changes detected"
+	exit
 fi
 
 echo "Adding git commit"
@@ -38,4 +38,4 @@ git push -u origin HEAD:$destination_head_branch
 
 echo "Creating a pull request"
 gh pr create --title $destination_head_branch --body "$message" \
-    --base $destination_base_branch --head $destination_head_branch
+	--base $destination_base_branch --head $destination_head_branch

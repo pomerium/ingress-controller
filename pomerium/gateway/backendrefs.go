@@ -61,7 +61,7 @@ func backendRefToToURLAndWeight(
 		namespace = string(*br.Namespace)
 	}
 
-	port := int32(*br.Port)
+	port := *br.Port
 
 	// For a headless service we need the targetPort instead.
 	// For now this supports only port numbers, not named ports, but this is enough to pass the
