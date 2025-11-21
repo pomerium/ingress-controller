@@ -118,13 +118,13 @@ internal/ui:
 	@cp -rf $(UI_DIR) ./internal
 	@chmod u+w internal/ui internal/ui/dist
 
-internal/ui/node_modules: internal/ui
+internal/ui/package.json: internal/ui
 	@echo "==> $@"
 	@cd internal/ui && npm ci
 
 .PHONY: pomerium-ui
 pomerium-ui: internal/ui/dist/index.js
-internal/ui/dist/index.js: internal/ui/node_modules
+internal/ui/dist/index.js: internal/ui/package.json
 	@echo "==> $@"
 	@cd internal/ui && npm run build
 
