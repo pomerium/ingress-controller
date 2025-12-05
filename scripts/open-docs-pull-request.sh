@@ -18,7 +18,7 @@ git clone --depth 1 \
 echo "Copying contents to git repo"
 cp -R "$source_path" "$clone_dir/$destination_path"
 cd "$clone_dir"
-npm ci && npm run prettier --write "$destination_path/$source_path"
+yarn && yarn prettier --write "$destination_path/$source_path"
 git checkout -b "$destination_head_branch"
 
 if [ -z "$(git status -z)" ]; then
