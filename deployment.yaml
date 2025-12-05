@@ -992,7 +992,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: pomerium/ingress-controller:v0.31.1
+        image: pomerium/ingress-controller:v0.31.2
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 10
