@@ -14,7 +14,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
         with:
-          go-version: 1.24.x
+          go-version-file: .tool-versions
       - name: Update Core
         run: |
           go get -u github.com/pomerium/pomerium@main
