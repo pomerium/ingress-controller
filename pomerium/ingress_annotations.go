@@ -78,6 +78,7 @@ var (
 		model.SetRequestHeadersSecret,
 		model.SetResponseHeadersSecret,
 		model.MCPServerUpstreamOAuth2Secret,
+		model.IdentityProviderSecret,
 	})
 	mcpServerAnnotations = boolMap([]string{
 		model.MCPServer,
@@ -354,6 +355,25 @@ func applySecretAnnotations(
 				}
 				if hasClientSecret {
 					server.UpstreamOauth2.ClientSecret = string(clientSecret)
+				}
+
+				return nil
+			},
+		},
+		model.IdentityProviderSecret: {
+			corev1.SecretTypeOpaque,
+			func(data map[string][]byte) error {
+				// client id and client secret are both optional
+				// if not set the global will be used
+
+				clientID, hasClientID := data[model.IdentityProviderClientIDKey]
+				if hasClientID {
+					r.IdpClientId = proto.String(string(clientID))
+				}
+
+				clientSecret, hasClientSecret := data[model.IdentityProviderClientSecretKey]
+				if hasClientSecret {
+					r.IdpClientSecret = proto.String(string(clientSecret))
 				}
 
 				return nil
