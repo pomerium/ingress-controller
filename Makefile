@@ -82,8 +82,8 @@ test: envoy generated pomerium-ui
 .PHONY: lint
 lint: envoy pomerium-ui
 	@echo "==> $@"
-	@VERSION=$$(go run github.com/mikefarah/yq/v4@v4.34.1 '.jobs.lint.steps[] | select(.uses == "golangci/golangci-lint-action*") | .with.version' .github/workflows/lint.yml) && \
-		go run github.com/golangci/golangci-lint/cmd/golangci-lint@$$VERSION run --fix ./...
+	@go run ./pomerium/tools/get-tools.go && \
+	./bin/golangci-lint run --fix --timeout=10m ./...
 
 ##@ Build
 .PHONY: build
