@@ -74,6 +74,12 @@ const (
 	MCPServerUpstreamOAuth2ClientIDKey = "client_id"
 	// MCPServerUpstreamOAuth2ClientSecretKey defines the key within the OAuth2 secret that contains the client secret
 	MCPServerUpstreamOAuth2ClientSecretKey = "client_secret"
+	// IdentityProviderSecret defines a secret to set the idp_client_id and idp_client_secret from.
+	IdentityProviderSecret = "identity_provider_secret"
+	// IdentityProviderClientIDKey is the client id key in the IdentityProviderSecret.
+	IdentityProviderClientIDKey = "client_id"
+	// IdentityProviderClientSecretKey is the client secret key in the IdentityProviderSecret.
+	IdentityProviderClientSecretKey = "client_secret"
 )
 
 // SSHSecrets is a grouping of ssh-related secrets.

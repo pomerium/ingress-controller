@@ -55,6 +55,7 @@ func TestAnnotations(t *testing.T) {
 					"a/host_path_regex_rewrite_substitution":    "rewrite-sub",
 					"a/host_rewrite_header":                     "rewrite-header",
 					"a/host_rewrite":                            "rewrite",
+					"a/identity_provider_secret":                "identity_provider_secret",
 					"a/idle_timeout":                            `60s`,
 					"a/idp_access_token_allowed_audiences":      `["x","y","z"]`,
 					"a/kubernetes_service_account_token_secret": "k8s_token",
@@ -118,6 +119,13 @@ func TestAnnotations(t *testing.T) {
 				Data: map[string][]byte{
 					"res_key_1": []byte("res_data1"),
 					"res_key_2": []byte("res_data2"),
+				},
+				Type: corev1.SecretTypeOpaque,
+			},
+			{Name: "identity_provider_secret", Namespace: "test"}: {
+				Data: map[string][]byte{
+					"client_id":     []byte("CLIENT_ID"),
+					"client_secret": []byte("CLIENT_SECRET"),
 				},
 				Type: corev1.SecretTypeOpaque,
 			},
@@ -201,6 +209,8 @@ func TestAnnotations(t *testing.T) {
 		LogoUrl:                        "LOGO_URL",
 		BearerTokenFormat:              pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN.Enum(),
 		IdpAccessTokenAllowedAudiences: &pb.Route_StringList{Values: []string{"x", "y", "z"}},
+		IdpClientId:                    proto.String("CLIENT_ID"),
+		IdpClientSecret:                proto.String("CLIENT_SECRET"),
 		DependsOn:                      []string{"foo.example.com", "bar.example.com", "baz.example.com"},
 		CircuitBreakerThresholds: &pb.CircuitBreakerThresholds{
 			MaxConnections:     proto.Uint32(1),
