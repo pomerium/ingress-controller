@@ -16,7 +16,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.9.0
-	github.com/pomerium/pomerium v0.31.2
+	github.com/pomerium/pomerium v0.31.3
 	github.com/rs/zerolog v1.34.0
 	github.com/sergi/go-diff v1.4.0
 	github.com/spf13/cobra v1.10.1
@@ -26,8 +26,8 @@ require (
 	github.com/volatiletech/null/v9 v9.0.0
 	go.uber.org/mock v0.6.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/net v0.44.0
-	golang.org/x/sync v0.17.0
+	golang.org/x/net v0.47.0
+	golang.org/x/sync v0.18.0
 	google.golang.org/grpc v1.75.1
 	google.golang.org/protobuf v1.36.9
 	gopkg.in/yaml.v3 v3.0.1
@@ -216,7 +216,7 @@ require (
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524 // indirect
-	github.com/pomerium/envoy-custom v1.35.6-p1 // indirect
+	github.com/pomerium/envoy-custom v1.35.8-p1 // indirect
 	github.com/pomerium/protoutil v0.0.0-20240813175624-47b7ac43ff46 // indirect
 	github.com/pomerium/webauthn v0.0.0-20240603205124-0428df511172 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
@@ -284,15 +284,15 @@ require (
 	go.uber.org/zap/exp v0.3.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.42.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
-	golang.org/x/mod v0.27.0 // indirect
+	golang.org/x/mod v0.29.0 // indirect
 	golang.org/x/oauth2 v0.31.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
-	golang.org/x/term v0.35.0 // indirect
-	golang.org/x/text v0.29.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/term v0.37.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/time v0.13.0 // indirect
-	golang.org/x/tools v0.36.0 // indirect
+	golang.org/x/tools v0.38.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/api v0.251.0 // indirect
 	google.golang.org/genproto v0.0.0-20250603155806-513f23925822 // indirect
