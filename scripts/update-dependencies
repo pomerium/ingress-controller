@@ -1,0 +1,55 @@
+#!/bin/bash
+set -euo pipefail
+
+_project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/.."
+
+require-command() {
+	local _command="${1?"command is required"}"
+
+	if ! command -v "$_command" >/dev/null 2>&1; then
+		echo "$_command is required"
+		exit 1
+	fi
+}
+
+update-pomerium() {
+	pushd "$_project_root"
+
+	require-command go
+
+	go get -u github.com/pomerium/pomerium@main
+	go mod tidy
+
+	popd
+}
+
+update-tools() {
+	pushd "$_project_root"
+
+	require-command asdf
+
+	asdf install golang latest:1.25
+	asdf set golang latest:1.25
+	asdf install golangci-lint latest:2
+	asdf set golangci-lint latest:2
+
+	popd
+}
+
+run() {
+	local _command="$1"
+	case "$_command" in
+	pomerium)
+		update-pomerium
+		;;
+	tools)
+		update-tools
+		;;
+	*)
+		echo "unknown command $_command"
+		exit 1
+		;;
+	esac
+}
+
+run "${1?'command is required'}"
