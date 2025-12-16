@@ -1,4 +1,4 @@
-name: Update Core to Latest Commit
+name: Update Dependencies
 
 on:
   schedule:
@@ -6,25 +6,30 @@ on:
   workflow_dispatch:
 
 jobs:
-  update-pomerium-core:
+  update-dependencies:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
-      - name: Setup Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
-        with:
-          go-version-file: .tool-versions
-      - name: Update Core
-        run: |
-          go get -u github.com/pomerium/pomerium@main
-          go mod tidy
-      - name: Check for changes
+
+      - name: Setup ASDF
+        uses: asdf-vm/actions/install@b7bcd026f18772e44fe1026d729e1611cc435d47
+
+      - name: Update Tools
+        run: ./scripts/update-dependencies tools
+
+      - name: Update Pomerium Dependencies
+        run: ./scripts/update-dependencies pomerium
+
+      - name: Generate
+        run: make generate
+
+      - name: Check for Changes
         id: git-diff
         run: |
           git config --global user.email "apparitor@users.noreply.github.com"
           git config --global user.name "GitHub Actions"
-          git add go.mod go.sum
+          git add .
           git diff --cached --exit-code || echo "changed=true" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request
@@ -32,10 +37,10 @@ jobs:
         uses: peter-evans/create-pull-request@84ae59a2cdc2258d6fa0732dd66352dddae2a412
         with:
           author: GitHub Actions <apparitor@users.noreply.github.com>
-          body: "This PR updates the Pomerium Core to the latest commit in main"
+          body: "This PR updates dependencies not managed by dependabot."
           branch: ci/update-core
-          commit-message: "ci: update core to latest commit in main"
+          commit-message: "ci: update dependencies"
           delete-branch: true
           labels: ci
-          title: "ci: update core to latest commit in main"
+          title: "ci: update dependencies"
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
