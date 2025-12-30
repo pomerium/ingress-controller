@@ -1,38 +1,44 @@
-{{define "object-properties"}}{{if .}}
+{{- define "object-properties" }}
+{{- if . }}
 <table>
     <thead>
     </thead>
     <tbody>
-    {{range .}}
+    {{- range .}}
         <tr>
             <td>
                 <p>
                 <code>{{.ID}}</code>&#160;&#160;
-                {{if .ObjectRef}}
+                {{- if .ObjectRef}}
                     <strong>object</strong>&#160;
                     (<a href="#{{.ObjectRef | anchor}}">{{.ObjectRef}}</a>)
-                {{else if and .Atomic .Atomic.ExplainFormat}}
+                {{- else if and .Atomic .Atomic.ExplainFormat}}
                     <strong>{{.Atomic.Type}}</strong>&#160;
                     ({{.Atomic.Format}})
-                {{else if .Atomic}}
+                {{- else if .Atomic}}
                     <strong>{{.Atomic.Type}}</strong>&#160;
-                {{else if .Map.Atomic}}
+                {{- else if .Map.Atomic}}
                     <strong>map[string]{{.Map.Atomic.Type}}</strong>
-                {{else if .Map.ObjectRef}}
+                {{- else if .Map.ObjectRef}}
                     <strong>map[string]</strong>
                     <a href="#{{.Map.ObjectRef | anchor}}">{{.Map.ObjectRef}}</a>
-                {{end}}
+                {{- end}}
                 </p>
                 <p>
-                    {{if .Required}}<strong>Required.</strong>&#160;{{end}}
+                {{- if .Required}}
+                    <strong>Required.</strong>&#160;
+                {{- end}}
+                {{- if .Description}}
                     {{.Description}}
+                {{- end}}
                 </p>
-                {{if and .Atomic .Atomic.ExplainFormat}}
-                    Format: {{.Atomic.ExplainFormat}}
-                {{end}}
+            {{- if and .Atomic .Atomic.ExplainFormat}}
+                Format: {{.Atomic.ExplainFormat}}
+            {{- end}}
             </td>
         </tr>
-    {{end}}
+    {{- end}}
     </tbody>
 </table>
-{{end}}{{end}}
+{{- end }}
+{{- end }}
