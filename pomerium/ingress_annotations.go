@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/open-policy-agent/opa/ast"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
@@ -28,16 +27,20 @@ var (
 		"bearer_token_format",
 		"circuit_breaker_thresholds",
 		"cors_allow_preflight",
-		"description",
 		"depends_on",
+		"description",
+		"health_checks",
+		"healthy_panic_threshold",
 		"host_path_regex_rewrite_pattern",
 		"host_path_regex_rewrite_substitution",
 		"host_rewrite_header",
 		"host_rewrite",
 		"idle_timeout",
 		"idp_access_token_allowed_audiences",
+		"load_balancing_policy",
 		"logo_url",
 		"name",
+		"outlier_detection",
 		"pass_identity_headers",
 		"prefix_rewrite",
 		"preserve_host_header",
@@ -56,17 +59,6 @@ var (
 		"allowed_idp_claims",
 		"allowed_users",
 		"policy",
-	})
-	envoyAnnotations = boolMap([]string{
-		"health_checks",
-		"lb_policy",
-		"least_request_lb_config",
-		"maglev_lb_config",
-		"outlier_detection",
-		"ring_hash_lb_config",
-	})
-	commonLbConfig = boolMap([]string{
-		"healthy_panic_threshold",
 	})
 	tlsAnnotations = boolMap([]string{
 		model.TLSClientSecret,
@@ -113,16 +105,14 @@ func boolMap(keys []string) map[string]bool {
 }
 
 type keys struct {
-	Base, Envoy, Policy, CommonLb, TLS, Etc, Secret, MCPServer, MCPClient map[string]string
+	Base, Policy, TLS, Etc, Secret, MCPServer, MCPClient map[string]string
 }
 
 func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 	prefix = fmt.Sprintf("%s/", prefix)
 	kv := keys{
 		Base:      make(map[string]string),
-		Envoy:     make(map[string]string),
 		Policy:    make(map[string]string),
-		CommonLb:  make(map[string]string),
 		TLS:       make(map[string]string),
 		Etc:       make(map[string]string),
 		Secret:    make(map[string]string),
@@ -146,8 +136,6 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 			dst  map[string]string
 		}{
 			{baseAnnotations, kv.Base},
-			{envoyAnnotations, kv.Envoy},
-			{commonLbConfig, kv.CommonLb},
 			{policyAnnotations, kv.Policy},
 			{tlsAnnotations, kv.TLS},
 			{secretAnnotations, kv.Secret},
@@ -181,17 +169,6 @@ func applyAnnotations(
 	if err = unmarshalAnnotations(r, kv.Base); err != nil {
 		return err
 	}
-	r.EnvoyOpts = new(envoy_config_cluster_v3.Cluster)
-	if err = unmarshalAnnotations(r.EnvoyOpts, kv.Envoy); err != nil {
-		return err
-	}
-	if len(kv.CommonLb) > 0 {
-		r.EnvoyOpts.CommonLbConfig = new(envoy_config_cluster_v3.Cluster_CommonLbConfig)
-		if err := unmarshalAnnotations(r.EnvoyOpts.CommonLbConfig, kv.CommonLb); err != nil {
-			return err
-		}
-	}
-
 	if err = applyTLSAnnotations(r, kv.TLS, ic.Secrets, ic.Ingress.Namespace); err != nil {
 		return err
 	}

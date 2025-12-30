@@ -6,13 +6,12 @@ import (
 	"testing"
 	"time"
 
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
-	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -48,9 +47,10 @@ func TestAnnotations(t *testing.T) {
 					"a/bearer_token_format":                     `idp_access_token`,
 					"a/circuit_breaker_thresholds":              `{"max_connections": 1, "max_pending_requests": 2, "max_requests": 3, "max_retries": 4, "max_connection_pools": 5}`,
 					"a/cors_allow_preflight":                    "true",
-					"a/description":                             "DESCRIPTION",
 					"a/depends_on":                              `["foo.example.com", "bar.example.com", "baz.example.com"]`,
+					"a/description":                             "DESCRIPTION",
 					"a/health_checks":                           `[{"timeout": "10s", "interval": "1m", "healthy_threshold": 1, "unhealthy_threshold": 2, "http_health_check": {"path": "/"}}]`,
+					"a/healthy_panic_threshold":                 "27",
 					"a/host_path_regex_rewrite_pattern":         "rewrite-pattern",
 					"a/host_path_regex_rewrite_substitution":    "rewrite-sub",
 					"a/host_rewrite_header":                     "rewrite-header",
@@ -59,9 +59,8 @@ func TestAnnotations(t *testing.T) {
 					"a/idle_timeout":                            `60s`,
 					"a/idp_access_token_allowed_audiences":      `["x","y","z"]`,
 					"a/kubernetes_service_account_token_secret": "k8s_token",
-					"a/lb_policy":                               "LEAST_REQUEST",
+					"a/load_balancing_policy":                   "LEAST_REQUEST",
 					"a/logo_url":                                "LOGO_URL",
-					"a/least_request_lb_config":                 `{"choice_count":3,"active_request_bias":{"default_value":4,"runtime_key":"key"},"slow_start_config":{"slow_start_window":"3s","aggression":{"runtime_key":"key"}}}`,
 					"a/pass_identity_headers":                   "true",
 					"a/policy":                                  testPPL,
 					"a/prefix_rewrite":                          "/",
@@ -133,68 +132,45 @@ func TestAnnotations(t *testing.T) {
 	}
 	require.NoError(t, applyAnnotations(r, ic))
 	require.Empty(t, cmp.Diff(r, &pb.Route{
-		TlsCustomCa:                      base64.StdEncoding.EncodeToString([]byte("my_custom_ca_secret+cert")),
-		TlsDownstreamClientCa:            base64.StdEncoding.EncodeToString([]byte("my_downstream_client_ca_secret+cert")),
-		TlsClientCert:                    base64.StdEncoding.EncodeToString([]byte("my_client_secret+cert")),
-		TlsClientKey:                     base64.StdEncoding.EncodeToString([]byte("my_client_secret+key")),
-		CorsAllowPreflight:               true,
-		AllowPublicUnauthenticatedAccess: false,
 		AllowAnyAuthenticatedUser:        false,
-		Timeout:                          durationpb.New(time.Minute * 2),
-		IdleTimeout:                      durationpb.New(time.Minute),
-		AllowWebsockets:                  true,
+		AllowPublicUnauthenticatedAccess: false,
 		AllowSpdy:                        true,
-		KubernetesServiceAccountToken:    "k8s-token-data",
-		SetRequestHeaders:                map[string]string{"a": "aaa", "req_key_1": "req_data1", "req_key_2": "req_data2"},
-		RemoveRequestHeaders:             []string{"a"},
-		SetResponseHeaders:               map[string]string{"disable": "true", "res_key_1": "res_data1", "res_key_2": "res_data2"},
-		RewriteResponseHeaders: []*pb.RouteRewriteHeader{{
-			Header:  "a",
-			Matcher: &pb.RouteRewriteHeader_Prefix{Prefix: "b"},
-			Value:   "c",
-		}},
-		PreserveHostHeader:               true,
-		HostRewrite:                      strp("rewrite"),
-		HostRewriteHeader:                strp("rewrite-header"),
-		HostPathRegexRewritePattern:      strp("rewrite-pattern"),
-		HostPathRegexRewriteSubstitution: strp("rewrite-sub"),
-		PassIdentityHeaders:              proto.Bool(true),
-		PrefixRewrite:                    "/",
-		RegexRewritePattern:              `^/service/([^/]+)(/.*)$`,
-		RegexRewriteSubstitution:         `\\2/instance/\\1`,
-		EnvoyOpts: &envoy_config_cluster_v3.Cluster{
-			HealthChecks: []*envoy_config_core_v3.HealthCheck{{
-				Timeout:            durationpb.New(time.Second * 10),
-				Interval:           durationpb.New(time.Minute),
-				UnhealthyThreshold: wrapperspb.UInt32(2),
-				HealthyThreshold:   wrapperspb.UInt32(1),
-				HealthChecker: &envoy_config_core_v3.HealthCheck_HttpHealthCheck_{
-					HttpHealthCheck: &envoy_config_core_v3.HealthCheck_HttpHealthCheck{Path: "/"},
-				},
-			}},
-			LbPolicy: envoy_config_cluster_v3.Cluster_LEAST_REQUEST,
-			LbConfig: &envoy_config_cluster_v3.Cluster_LeastRequestLbConfig_{
-				LeastRequestLbConfig: &envoy_config_cluster_v3.Cluster_LeastRequestLbConfig{
-					ChoiceCount: &wrapperspb.UInt32Value{
-						Value: 3,
-					},
-					ActiveRequestBias: &envoy_config_core_v3.RuntimeDouble{
-						DefaultValue: 4,
-						RuntimeKey:   "key",
-					},
-					SlowStartConfig: &envoy_config_cluster_v3.Cluster_SlowStartConfig{
-						SlowStartWindow: &durationpb.Duration{
-							Seconds: 3,
-							Nanos:   0,
-						},
-						Aggression: &envoy_config_core_v3.RuntimeDouble{
-							DefaultValue: 0,
-							RuntimeKey:   "key",
-						},
-					},
+		AllowWebsockets:                  true,
+		BearerTokenFormat:                pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN.Enum(),
+		CircuitBreakerThresholds: &pb.CircuitBreakerThresholds{
+			MaxConnections:     proto.Uint32(1),
+			MaxPendingRequests: proto.Uint32(2),
+			MaxRequests:        proto.Uint32(3),
+			MaxRetries:         proto.Uint32(4),
+			MaxConnectionPools: proto.Uint32(5),
+		},
+		CorsAllowPreflight: true,
+		DependsOn:          []string{"foo.example.com", "bar.example.com", "baz.example.com"},
+		Description:        "DESCRIPTION",
+		HealthChecks: []*pb.HealthCheck{{
+			Timeout:            durationpb.New(10 * time.Second),
+			Interval:           durationpb.New(time.Minute),
+			HealthyThreshold:   wrapperspb.UInt32(1),
+			UnhealthyThreshold: wrapperspb.UInt32(2),
+			HealthChecker: &pb.HealthCheck_HttpHealthCheck_{
+				HttpHealthCheck: &pb.HealthCheck_HttpHealthCheck{
+					Path: "/",
 				},
 			},
-		},
+		}},
+		HealthyPanicThreshold:            proto.Int32(27),
+		HostPathRegexRewritePattern:      strp("rewrite-pattern"),
+		HostPathRegexRewriteSubstitution: strp("rewrite-sub"),
+		HostRewrite:                      strp("rewrite"),
+		HostRewriteHeader:                strp("rewrite-header"),
+		IdleTimeout:                      durationpb.New(time.Minute),
+		IdpAccessTokenAllowedAudiences:   &pb.Route_StringList{Values: []string{"x", "y", "z"}},
+		IdpClientId:                      proto.String("CLIENT_ID"),
+		IdpClientSecret:                  proto.String("CLIENT_SECRET"),
+		KubernetesServiceAccountToken:    "k8s-token-data",
+		LoadBalancingPolicy:              pb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_LEAST_REQUEST.Enum(),
+		LogoUrl:                          "LOGO_URL",
+		PassIdentityHeaders:              proto.Bool(true),
 		Policies: []*pb.Policy{{
 			AllowedUsers:   []string{"a"},
 			AllowedDomains: []string{"a"},
@@ -203,42 +179,28 @@ func TestAnnotations(t *testing.T) {
 			},
 			SourcePpl: proto.String(`{"allow":{"or":[{"domain":{"is":"pomerium.com"}}]}}`),
 		}},
-		TlsSkipVerify:                  true,
-		TlsServerName:                  "my.server.name",
-		Description:                    "DESCRIPTION",
-		LogoUrl:                        "LOGO_URL",
-		BearerTokenFormat:              pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN.Enum(),
-		IdpAccessTokenAllowedAudiences: &pb.Route_StringList{Values: []string{"x", "y", "z"}},
-		IdpClientId:                    proto.String("CLIENT_ID"),
-		IdpClientSecret:                proto.String("CLIENT_SECRET"),
-		DependsOn:                      []string{"foo.example.com", "bar.example.com", "baz.example.com"},
-		CircuitBreakerThresholds: &pb.CircuitBreakerThresholds{
-			MaxConnections:     proto.Uint32(1),
-			MaxPendingRequests: proto.Uint32(2),
-			MaxRequests:        proto.Uint32(3),
-			MaxRetries:         proto.Uint32(4),
-			MaxConnectionPools: proto.Uint32(5),
-		},
-	}, cmpopts.IgnoreUnexported(
-		pb.Route{},
-		pb.Route_StringList{},
-		pb.RouteRewriteHeader{},
-		pb.Policy{},
-		structpb.ListValue{},
-		structpb.Value{},
-		durationpb.Duration{},
-		envoy_config_cluster_v3.Cluster{},
-		envoy_config_core_v3.HealthCheck{},
-		envoy_config_core_v3.HealthCheck_HttpHealthCheck_{},
-		envoy_config_core_v3.HealthCheck_HttpHealthCheck{},
-		envoy_config_cluster_v3.Cluster_LeastRequestLbConfig{},
-		envoy_config_core_v3.RuntimeDouble{},
-		envoy_config_cluster_v3.Cluster_CommonLbConfig{},
-		envoy_config_cluster_v3.Cluster_SlowStartConfig{},
-		wrapperspb.UInt32Value{},
-		pb.CircuitBreakerThresholds{},
-	),
-		cmpopts.IgnoreFields(pb.Policy{}, "Rego")))
+		PrefixRewrite:            "/",
+		PreserveHostHeader:       true,
+		RegexRewritePattern:      `^/service/([^/]+)(/.*)$`,
+		RegexRewriteSubstitution: `\\2/instance/\\1`,
+		RemoveRequestHeaders:     []string{"a"},
+		RewriteResponseHeaders: []*pb.RouteRewriteHeader{{
+			Header:  "a",
+			Matcher: &pb.RouteRewriteHeader_Prefix{Prefix: "b"},
+			Value:   "c",
+		}},
+		SetRequestHeaders:     map[string]string{"a": "aaa", "req_key_1": "req_data1", "req_key_2": "req_data2"},
+		SetResponseHeaders:    map[string]string{"disable": "true", "res_key_1": "res_data1", "res_key_2": "res_data2"},
+		Timeout:               durationpb.New(time.Minute * 2),
+		TlsClientCert:         base64.StdEncoding.EncodeToString([]byte("my_client_secret+cert")),
+		TlsClientKey:          base64.StdEncoding.EncodeToString([]byte("my_client_secret+key")),
+		TlsCustomCa:           base64.StdEncoding.EncodeToString([]byte("my_custom_ca_secret+cert")),
+		TlsDownstreamClientCa: base64.StdEncoding.EncodeToString([]byte("my_downstream_client_ca_secret+cert")),
+		TlsServerName:         "my.server.name",
+		TlsSkipVerify:         true,
+	}, protocmp.Transform(), cmpopts.IgnoreMapEntries(func(k string, _ any) bool {
+		return k == "rego"
+	})))
 	require.NotEmpty(t, r.Policies[0].Rego)
 }
 
@@ -665,53 +627,6 @@ func TestMCPAnnotations(t *testing.T) {
 		err := applyAnnotations(r, ic)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "mcp_client annotation should be 'true' or omitted")
-	})
-}
-
-func TestCommonLbAnnotation(t *testing.T) {
-	t.Run("healthy_panic_threshold annotation", func(t *testing.T) {
-		type testcase struct {
-			input    float64
-			expected float64
-		}
-
-		tcs := []testcase{
-			{
-				input:    50,
-				expected: 50,
-			},
-			{
-				input:    -15.0,
-				expected: -15.0,
-			},
-			{
-				input:    75.0,
-				expected: 75.0,
-			},
-		}
-
-		for _, tc := range tcs {
-			r := &pb.Route{}
-			ic := &model.IngressConfig{
-				AnnotationPrefix: "a",
-				Ingress: &networkingv1.Ingress{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "test-ingress",
-						Namespace: "default",
-						Annotations: map[string]string{
-							"a/healthy_panic_threshold": fmt.Sprintf("%f", tc.input),
-						},
-					},
-				},
-			}
-			err := applyAnnotations(r, ic)
-			require.NoError(t, err)
-
-			require.NotNil(t, r.EnvoyOpts)
-			require.NotNil(t, r.EnvoyOpts.CommonLbConfig)
-			require.NotNil(t, r.EnvoyOpts.CommonLbConfig.HealthyPanicThreshold)
-			require.Equal(t, r.EnvoyOpts.CommonLbConfig.HealthyPanicThreshold.Value, tc.expected)
-		}
 	})
 }
 

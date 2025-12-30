@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	http_connection_managerv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	corev1 "k8s.io/api/core/v1"
@@ -170,13 +169,13 @@ func applySetOtherOptions(_ context.Context, p *pb.Config, c *model.Config) erro
 	if c.Spec.CodecType != nil {
 		switch *c.Spec.CodecType {
 		case "auto":
-			p.Settings.CodecType = http_connection_managerv3.HttpConnectionManager_AUTO.Enum()
+			p.Settings.CodecType = pb.CodecType_CODEC_TYPE_AUTO.Enum()
 		case "http1":
-			p.Settings.CodecType = http_connection_managerv3.HttpConnectionManager_HTTP1.Enum()
+			p.Settings.CodecType = pb.CodecType_CODEC_TYPE_HTTP1.Enum()
 		case "http2":
-			p.Settings.CodecType = http_connection_managerv3.HttpConnectionManager_HTTP2.Enum()
+			p.Settings.CodecType = pb.CodecType_CODEC_TYPE_HTTP2.Enum()
 		case "http3":
-			p.Settings.CodecType = http_connection_managerv3.HttpConnectionManager_HTTP3.Enum()
+			p.Settings.CodecType = pb.CodecType_CODEC_TYPE_HTTP3.Enum()
 		default:
 			return fmt.Errorf("unknown codecType %s", *c.Spec.CodecType)
 		}
