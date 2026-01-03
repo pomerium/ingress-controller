@@ -16,7 +16,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.11.0
-	github.com/pomerium/pomerium v0.30.7-0.20251227223433-7430333a6948
+	github.com/pomerium/pomerium v0.30.7-0.20260102223337-85c033193d73
 	github.com/rs/zerolog v1.34.0
 	github.com/sergi/go-diff v1.4.0
 	github.com/spf13/cobra v1.10.2
@@ -45,7 +45,7 @@ require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.10-20250912141014-52f32327d4b0.1 // indirect
 	buf.build/go/protovalidate v1.0.0 // indirect
 	cel.dev/expr v0.24.0 // indirect
-	charm.land/bubbles/v2 v2.0.0-beta.1.0.20251110211018-84a82dfeeed8 // indirect
+	charm.land/bubbles/v2 v2.0.0-rc.1 // indirect
 	charm.land/bubbletea/v2 v2.0.0-rc.2 // indirect
 	charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251106192539-4b304240aab7 // indirect
 	cloud.google.com/go v0.121.6 // indirect
@@ -93,20 +93,20 @@ require (
 	github.com/aws/smithy-go v1.24.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bits-and-blooms/bitset v1.24.3 // indirect
+	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/caddyserver/certmagic v0.25.0 // indirect
 	github.com/caddyserver/zerossl v0.1.3 // indirect
 	github.com/ccoveille/go-safecast v1.8.2 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/charmbracelet/colorprofile v0.3.3 // indirect
+	github.com/charmbracelet/colorprofile v0.4.1 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20251116181749-377898bcce38 // indirect
-	github.com/charmbracelet/x/ansi v0.11.1 // indirect
+	github.com/charmbracelet/x/ansi v0.11.3 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
-	github.com/clipperhouse/displaywidth v0.5.0 // indirect
+	github.com/clipperhouse/displaywidth v0.6.1 // indirect
 	github.com/clipperhouse/stringish v0.1.1 // indirect
 	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
@@ -155,7 +155,7 @@ require (
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/cel-go v0.26.1 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
-	github.com/google/go-tpm v0.9.7 // indirect
+	github.com/google/go-tpm v0.9.8 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.7 // indirect
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
@@ -206,6 +206,7 @@ require (
 	github.com/miekg/dns v1.1.68 // indirect
 	github.com/minio/minlz v1.0.1-0.20250507153514-87eb42fe8882 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
+	github.com/modelcontextprotocol/go-sdk v1.2.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
