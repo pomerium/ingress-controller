@@ -604,7 +604,11 @@ spec:
                   via a\n<a href=\"https://github.com/pomerium/ingress-controller/blob/main/config/gen_secrets/job.yaml\">one-time
                   job</a>\nand stored in a <code>pomerium/bootstrap</code> Secret.\nYou
                   may re-run the job to rotate the secrets, or update the Secret values
-                  manually.\n</p>"
+                  manually.\n</p>\n<p>\nWhen defining the Secret in a manifest, put
+                  raw values in <code>stringData</code> so\nKubernetes base64-encodes
+                  them. Use <code>data</code> only when values are already\nbase64-encoded.\n</p>\n<p>\nExample:
+                  <code>stringData.shared_secret</code> and <code>stringData.cookie_secret</code>
+                  are\nraw strings, while <code>data.signing_key</code> is base64-encoded.\n</p>"
                 format: namespace/name
                 minLength: 1
                 type: string
