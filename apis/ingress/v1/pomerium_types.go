@@ -294,6 +294,15 @@ type PomeriumSpec struct {
 	// and stored in a <code>pomerium/bootstrap</code> Secret.
 	// You may re-run the job to rotate the secrets, or update the Secret values manually.
 	// </p>
+	// <p>
+	// When defining the Secret in a manifest, put raw values in <code>stringData</code> so
+	// Kubernetes base64-encodes them. Use <code>data</code> only when values are already
+	// base64-encoded.
+	// </p>
+	// <p>
+	// Example: <code>stringData.shared_secret</code> and <code>stringData.cookie_secret</code> are
+	// raw strings, while <code>data.signing_key</code> is base64-encoded.
+	// </p>
 	//
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Type=string
