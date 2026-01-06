@@ -7,7 +7,7 @@ require (
 	github.com/envoyproxy/go-control-plane/envoy v1.36.0
 	github.com/go-logr/logr v1.4.3
 	github.com/go-logr/zapr v1.3.0
-	github.com/go-playground/validator/v10 v10.29.0
+	github.com/go-playground/validator/v10 v10.30.1
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.15.0
@@ -15,7 +15,7 @@ require (
 	github.com/hashicorp/go-set/v3 v3.0.1
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
-	github.com/open-policy-agent/opa v1.11.0
+	github.com/open-policy-agent/opa v1.12.1
 	github.com/pomerium/pomerium v0.30.7-0.20260102223337-85c033193d73
 	github.com/rs/zerolog v1.34.0
 	github.com/sergi/go-diff v1.4.0
@@ -28,7 +28,7 @@ require (
 	go.uber.org/zap v1.27.1
 	golang.org/x/net v0.48.0
 	golang.org/x/sync v0.19.0
-	google.golang.org/grpc v1.77.0
+	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.34.2
@@ -300,7 +300,7 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/api v0.258.0 // indirect
 	google.golang.org/genproto v0.0.0-20250715232539-7130f93afb79 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20251022142026-3a174f9686a8 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20251029180050-ab9386a59fda // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251213004720-97cd9d5aeac2 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
