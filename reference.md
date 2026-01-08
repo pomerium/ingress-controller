@@ -193,7 +193,7 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
                     <strong>map[string]string</strong>
                 </p>
                 <p>
-                    JWTClaimHeaders convert claims from the assertion token into HTTP headers and adds them into JWT assertion header. Please make sure to read <a href="https://www.pomerium.com/docs/topics/getting-users-identity"> Getting User Identity</a> guide.
+                    JWTClaimHeaders convert claims from the assertion token into HTTP headers and adds them into JWT assertion header. Please make sure to read <a href="https://www.pomerium.com/docs/capabilities/getting-users-identity"> Getting User Identity</a> guide.
                 </p>
             </td>
         </tr>
@@ -205,7 +205,7 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
                     (<a href="#otel">otel</a>)
                 </p>
                 <p>
-                    OTEL sets the <a href="https://www.pomerium.com/docs/reference/tracing.mdx">OpenTelemetry Tracing</a>.
+                    OTEL sets the <a href="https://www.pomerium.com/docs/reference/tracing">OpenTelemetry Tracing</a>.
                 </p>
             </td>
         </tr>
@@ -251,7 +251,7 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
                 </p>
                 <p>
                     <strong>Required.</strong>&#160;
-                    Secrets references a Secret with Pomerium bootstrap parameters. <p> <ul> <li><a href="https://pomerium.com/docs/reference/shared-secret"><code>shared_secret</code></a> - secures inter-Pomerium service communications. </li> <li><a href="https://pomerium.com/docs/reference/cookie-secret"><code>cookie_secret</code></a> - encrypts Pomerium session browser cookie. See also other <a href="#cookie">Cookie</a> parameters. </li> <li><a href="https://pomerium.com/docs/reference/signing-key"><code>signing_key</code></a> signs Pomerium JWT assertion header. See <a href="https://www.pomerium.com/docs/topics/getting-users-identity">Getting the user's identity</a> guide. </li> </ul> </p> <p> In a default Pomerium installation manifest, they would be generated via a <a href="https://github.com/pomerium/ingress-controller/blob/main/config/gen_secrets/job.yaml">one-time job</a> and stored in a <code>pomerium/bootstrap</code> Secret. You may re-run the job to rotate the secrets, or update the Secret values manually. </p> <p> When defining the Secret in a manifest, put raw values in <code>stringData</code> so Kubernetes base64-encodes them. Use <code>data</code> only when values are already base64-encoded. </p> <p> Example: <code>stringData.shared_secret</code> and <code>stringData.cookie_secret</code> are raw strings, while <code>data.signing_key</code> is base64-encoded. </p>
+                    Secrets references a Secret with Pomerium bootstrap parameters. <p> <ul> <li><a href="https://pomerium.com/docs/reference/shared-secret"><code>shared_secret</code></a> - secures inter-Pomerium service communications. </li> <li><a href="https://pomerium.com/docs/reference/cookie-secret"><code>cookie_secret</code></a> - encrypts Pomerium session browser cookie. See also other <a href="#cookie">Cookie</a> parameters. </li> <li><a href="https://pomerium.com/docs/reference/signing-key"><code>signing_key</code></a> signs Pomerium JWT assertion header. See <a href="https://www.pomerium.com/docs/capabilities/getting-users-identity">Getting the user's identity</a> guide. </li> </ul> </p> <p> In a default Pomerium installation manifest, they would be generated via a <a href="https://github.com/pomerium/ingress-controller/blob/main/config/gen_secrets/job.yaml">one-time job</a> and stored in a <code>pomerium/bootstrap</code> Secret. You may re-run the job to rotate the secrets, or update the Secret values manually. </p> <p> When defining the Secret in a manifest, put raw values in <code>stringData</code> so Kubernetes base64-encodes them. Use <code>data</code> only when values are already base64-encoded. </p> <p> Example: <code>stringData.shared_secret</code> and <code>stringData.cookie_secret</code> are raw strings, while <code>data.signing_key</code> is base64-encoded. </p>
                 </p>
                 Format: reference to Kubernetes resource with namespace prefix: <code>namespace/name</code> format.
             </td>
@@ -287,7 +287,7 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
                     (<a href="#storage">storage</a>)
                 </p>
                 <p>
-                    Storage defines persistent storage for sessions and other data. See <a href="https://www.pomerium.com/docs/topics/data-storage">Storage</a> for details. If no storage is specified, Pomerium would use a transient in-memory storage (not recommended for production).
+                    Storage defines persistent storage for sessions and other data. See <a href="https://www.pomerium.com/docs/internals/data-storage">Storage</a> for details. If no storage is specified, Pomerium would use a transient in-memory storage (not recommended for production).
                 </p>
             </td>
         </tr>
@@ -857,7 +857,7 @@ Match Subject Alt Names can be used to add an additional constraint when validat
 
 ### `otel`
 
-OTEL sets the <a href="https://www.pomerium.com/docs/reference/tracing.mdx">OpenTelemetry Tracing</a>.
+OTEL sets the <a href="https://www.pomerium.com/docs/reference/tracing">OpenTelemetry Tracing</a>.
 
 <table>
     <thead>
@@ -1094,7 +1094,7 @@ SSH sets the ssh settings.
 
 ### `storage`
 
-Storage defines persistent storage for sessions and other data. See <a href="https://www.pomerium.com/docs/topics/data-storage">Storage</a> for details. If no storage is specified, Pomerium would use a transient in-memory storage (not recommended for production).
+Storage defines persistent storage for sessions and other data. See <a href="https://www.pomerium.com/docs/internals/data-storage">Storage</a> for details. If no storage is specified, Pomerium would use a transient in-memory storage (not recommended for production).
 
 <table>
     <thead>
