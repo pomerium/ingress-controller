@@ -254,7 +254,7 @@ type PomeriumSpec struct {
 	// JWTClaimHeaders convert claims from the assertion token
 	// into HTTP headers and adds them into JWT assertion header.
 	// Please make sure to read
-	// <a href="https://www.pomerium.com/docs/topics/getting-users-identity">
+	// <a href="https://www.pomerium.com/docs/capabilities/getting-users-identity">
 	// Getting User Identity</a> guide.
 	//
 	// +optional
@@ -283,7 +283,7 @@ type PomeriumSpec struct {
 	//	</li>
 	// 	<li><a href="https://pomerium.com/docs/reference/signing-key"><code>signing_key</code></a>
 	//		signs Pomerium JWT assertion header. See
-	//		<a href="https://www.pomerium.com/docs/topics/getting-users-identity">Getting the user's identity</a>
+	//		<a href="https://www.pomerium.com/docs/capabilities/getting-users-identity">Getting the user's identity</a>
 	//		guide.
 	//	</li>
 	// </ul>
@@ -316,7 +316,7 @@ type PomeriumSpec struct {
 	SetResponseHeaders map[string]string `json:"setResponseHeaders,omitempty"`
 
 	// Storage defines persistent storage for sessions and other data.
-	// See <a href="https://www.pomerium.com/docs/topics/data-storage">Storage</a> for details.
+	// See <a href="https://www.pomerium.com/docs/internals/data-storage">Storage</a> for details.
 	// If no storage is specified, Pomerium would use a transient in-memory storage (not recommended for production).
 	//
 	// +kubebuilder:validation:Optional
@@ -345,7 +345,7 @@ type PomeriumSpec struct {
 	// list.
 	IDPAccessTokenAllowedAudiences *[]string `json:"idpAccessTokenAllowedAudiences,omitempty"`
 
-	// OTEL sets the <a href="https://www.pomerium.com/docs/reference/tracing.mdx">OpenTelemetry Tracing</a>.
+	// OTEL sets the <a href="https://www.pomerium.com/docs/reference/tracing">OpenTelemetry Tracing</a>.
 	OTEL *OTEL `json:"otel,omitempty"`
 
 	// DownstreamMTLS sets the <a href="https://www.pomerium.com/docs/reference/downstream-mtls-settings">Downstream MTLS Settings</a>.
