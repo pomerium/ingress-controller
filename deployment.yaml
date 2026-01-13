@@ -514,11 +514,11 @@ spec:
                   JWTClaimHeaders convert claims from the assertion token
                   into HTTP headers and adds them into JWT assertion header.
                   Please make sure to read
-                  <a href="https://www.pomerium.com/docs/topics/getting-users-identity">
+                  <a href="https://www.pomerium.com/docs/capabilities/getting-users-identity">
                   Getting User Identity</a> guide.
                 type: object
               otel:
-                description: OTEL sets the <a href="https://www.pomerium.com/docs/reference/tracing.mdx">OpenTelemetry
+                description: OTEL sets the <a href="https://www.pomerium.com/docs/reference/tracing">OpenTelemetry
                   Tracing</a>.
                 properties:
                   bspMaxExportBatchSize:
@@ -598,7 +598,7 @@ spec:
                   href=\"https://pomerium.com/docs/reference/cookie-secret\"><code>cookie_secret</code></a>\n\t\t-
                   encrypts Pomerium session browser cookie.\n\t\tSee also other <a
                   href=\"#cookie\">Cookie</a> parameters.\n\t</li>\n\t<li><a href=\"https://pomerium.com/docs/reference/signing-key\"><code>signing_key</code></a>\n\t\tsigns
-                  Pomerium JWT assertion header. See\n\t\t<a href=\"https://www.pomerium.com/docs/topics/getting-users-identity\">Getting
+                  Pomerium JWT assertion header. See\n\t\t<a href=\"https://www.pomerium.com/docs/capabilities/getting-users-identity\">Getting
                   the user's identity</a>\n\t\tguide.\n\t</li>\n</ul>\n</p>\n<p>\nIn
                   a default Pomerium installation manifest, they would be generated
                   via a\n<a href=\"https://github.com/pomerium/ingress-controller/blob/main/config/gen_secrets/job.yaml\">one-time
@@ -632,7 +632,7 @@ spec:
               storage:
                 description: |-
                   Storage defines persistent storage for sessions and other data.
-                  See <a href="https://www.pomerium.com/docs/topics/data-storage">Storage</a> for details.
+                  See <a href="https://www.pomerium.com/docs/internals/data-storage">Storage</a> for details.
                   If no storage is specified, Pomerium would use a transient in-memory storage (not recommended for production).
                 properties:
                   file:
