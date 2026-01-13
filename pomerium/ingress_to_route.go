@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"sort"
 
-	clusterv3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/gosimple/slug"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
@@ -226,11 +225,7 @@ func setRouteNameID(r *pb.Route, name types.NamespacedName, u url.URL) error {
 	if r.Name == "" {
 		r.Name = slugName
 	}
-
-	if r.EnvoyOpts == nil {
-		r.EnvoyOpts = &clusterv3.Cluster{}
-	}
-	r.EnvoyOpts.Name = slugName
+	r.StatName = proto.String(slugName)
 
 	return nil
 }

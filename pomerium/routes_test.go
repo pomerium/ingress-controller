@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -1484,6 +1485,5 @@ func TestCustomRouteName(t *testing.T) {
 	assert.Equal(t, "My Custom Route Name", route.Name)
 
 	// The envoy opts should have the unique slug for stats
-	assert.NotNil(t, route.EnvoyOpts)
-	assert.Equal(t, "default-test-ingress-service-localhost-pomerium-io", route.EnvoyOpts.Name)
+	assert.Equal(t, proto.String("default-test-ingress-service-localhost-pomerium-io"), route.StatName)
 }

@@ -76,6 +76,24 @@ func preprocessAnnotationMessage(md protoreflect.MessageDescriptor, data any) an
 }
 
 func preprocessAnnotationField(fd protoreflect.FieldDescriptor, data any) any {
+	if fd.Enum() != nil && fd.Enum().FullName() == "pomerium.config.LoadBalancingPolicy" {
+		if v, ok := data.(string); ok {
+			switch strings.ToLower(v) {
+			case "", "load_balancing_policy_unspecified", "unspecified":
+				return "LOAD_BALANCING_POLICY_UNSPECIFIED"
+			case "load_balancing_policy_round_robin", "round_robin":
+				return "LOAD_BALANCING_POLICY_ROUND_ROBIN"
+			case "load_balancing_policy_maglev", "maglev":
+				return "LOAD_BALANCING_POLICY_MAGLEV"
+			case "load_balancing_policy_random", "random":
+				return "LOAD_BALANCING_POLICY_RANDOM"
+			case "load_balancing_policy_ring_hash", "ring_hash":
+				return "LOAD_BALANCING_POLICY_RING_HASH"
+			case "load_balancing_policy_least_request", "least_request":
+				return "LOAD_BALANCING_POLICY_LEAST_REQUEST"
+			}
+		}
+	}
 	if fd.Enum() != nil && fd.Enum().FullName() == "pomerium.config.BearerTokenFormat" {
 		if v, ok := data.(string); ok {
 			switch v {
