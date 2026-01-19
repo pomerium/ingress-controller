@@ -260,6 +260,11 @@ type PomeriumSpec struct {
 	// +optional
 	JWTClaimHeaders map[string]string `json:"jwtClaimHeaders,omitempty"`
 
+	// MCPAllowedClientIDDomains specifies the allowed domains for MCP client ID metadata URLs.
+	// This is required when MCP is enabled.
+	// See <a href="https://www.pomerium.com/docs/reference/mcp">MCP Settings</a>.
+	MCPAllowedClientIDDomains []string `json:"mcpAllowedClientIdDomains,omitempty"`
+
 	// PassIdentityHeaders sets the <a href="https://www.pomerium.com/docs/reference/pass-identity-headers">pass identity headers</a> option.
 	PassIdentityHeaders *bool `json:"passIdentityHeaders,omitempty"`
 

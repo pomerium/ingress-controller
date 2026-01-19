@@ -200,6 +200,17 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>mcpAllowedClientIdDomains</code>&#160;&#160;
+                    <strong>[]string</strong>&#160;
+                </p>
+                <p>
+                    MCPAllowedClientIDDomains specifies the allowed domains for MCP client ID metadata URLs. This is required when MCP is enabled. See <a href="https://www.pomerium.com/docs/reference/mcp">MCP Settings</a>.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
                 <code>otel</code>&#160;&#160;
                     <strong>object</strong>&#160;
                     (<a href="#otel">otel</a>)

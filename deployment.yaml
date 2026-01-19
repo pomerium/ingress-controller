@@ -517,6 +517,14 @@ spec:
                   <a href="https://www.pomerium.com/docs/capabilities/getting-users-identity">
                   Getting User Identity</a> guide.
                 type: object
+              mcpAllowedClientIdDomains:
+                description: |-
+                  MCPAllowedClientIDDomains specifies the allowed domains for MCP client ID metadata URLs.
+                  This is required when MCP is enabled.
+                  See <a href="https://www.pomerium.com/docs/reference/mcp">MCP Settings</a>.
+                items:
+                  type: string
+                type: array
               otel:
                 description: OTEL sets the <a href="https://www.pomerium.com/docs/reference/tracing">OpenTelemetry
                   Tracing</a>.

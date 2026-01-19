@@ -457,6 +457,11 @@ func (in *PomeriumSpec) DeepCopyInto(out *PomeriumSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.MCPAllowedClientIDDomains != nil {
+		in, out := &in.MCPAllowedClientIDDomains, &out.MCPAllowedClientIDDomains
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.PassIdentityHeaders != nil {
 		in, out := &in.PassIdentityHeaders, &out.PassIdentityHeaders
 		*out = new(bool)
