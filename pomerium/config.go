@@ -165,6 +165,7 @@ func applyJWTClaimHeaders(_ context.Context, p *pb.Config, c *model.Config) erro
 func applySetOtherOptions(_ context.Context, p *pb.Config, c *model.Config) error {
 	p.Settings.SetResponseHeaders = c.Spec.SetResponseHeaders
 	p.Settings.ProgrammaticRedirectDomainWhitelist = c.Spec.ProgrammaticRedirectDomains
+	p.Settings.McpAllowedClientIdDomains = c.Spec.MCPAllowedClientIDDomains
 	p.Settings.UseProxyProtocol = c.Spec.UseProxyProtocol
 	if c.Spec.CodecType != nil {
 		switch *c.Spec.CodecType {
