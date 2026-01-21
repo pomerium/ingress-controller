@@ -50,6 +50,9 @@ yq -i '(.spec.template.spec.containers[] | select(.name == "pomerium") | .imageP
 git add config/pomerium/deployment/image.yaml
 git add config/clustered-databroker/statefulset/image.yaml
 
+make lint
+make deployment
+
 git commit -m "Customize ingress controller ${latest}"
 git push origin "${branch_name}"
 
