@@ -4,10 +4,21 @@ set -euo pipefail
 IFS=$'\n\t'
 
 # Modifies the Pomerium deployment and the databroker statefulset
-# then cuts a new release with the same version as the latest Pomerium release
+# then cuts a new release with the provided semver.
 
 # requires the gh tool
 # requires jq
+
+if [ $# -lt 1 ]; then
+  echo "Usage: ./scripts/release.sh <vX.Y.Z> where vX.Y.Z is the semver of the ingress-controller release."
+  exit 1
+fi
+
+new_version="${1:-blank}"
+if ! [[ "$new_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  printf "Got desired version %s. Invalid semver\n" "${new_version}"
+  exit 1
+fi
 
 ensure_branch () {
   desired=$1
@@ -30,15 +41,9 @@ ensure_branch "main"
 # Ensure there are no changes
 ensure_no_changes
 
-latest=$(gh release view --repo pomerium/pomerium --json tagName --jq '.tagName')
-if ! [[ "$latest" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  printf "Got latest pomerium version %s. Invalid semver\n" "${latest}"
-  exit 1
-fi
+branch_name=$(echo "${new_version}" | tr -d 'v' | tr '.' '-')
 
-branch_name=$(echo "${latest}" | tr -d 'v' | tr '.' '-')
-
-printf "About to modify images and create a new release for ingress-controller@%s\n" "${latest}"
+printf "About to modify images and create a new release for ingress-controller@%s\n" "${new_version}"
 select yn in "Yes" "No"; do
     case $yn in
         Yes ) make install; break;;
@@ -50,10 +55,10 @@ done
 git checkout -b "${branch_name}"
 
 # Update the pomerium version
-yq -i '(.spec.template.spec.containers[] | select(.name == "pomerium") | .image) = "pomerium/ingress-controller:" + env(latest)' config/pomerium/deployment/image.yaml
+yq -i '(.spec.template.spec.containers[] | select(.name == "pomerium") | .image) = "pomerium/ingress-controller:" + env(new_version)' config/pomerium/deployment/image.yaml
 yq -i '(.spec.template.spec.containers[] | select(.name == "pomerium") | .imagePullPolicy) = "IfNotPresent"' config/pomerium/deployment/image.yaml
 
-yq -i '(.spec.template.spec.containers[] | select(.name == "pomerium") | .image) = "pomerium/ingress-controller:" + env(latest)' config/clustered-databroker/statefulset/image.yaml
+yq -i '(.spec.template.spec.containers[] | select(.name == "pomerium") | .image) = "pomerium/ingress-controller:" + env(new_version)' config/clustered-databroker/statefulset/image.yaml
 yq -i '(.spec.template.spec.containers[] | select(.name == "pomerium") | .imagePullPolicy) = "IfNotPresent"' config/clustered-databroker/statefulset/image.yaml
 
 git add config/pomerium/deployment/image.yaml
@@ -64,11 +69,11 @@ make deployment
 
 git add deployment.yaml
 
-git commit -m "Customize ingress controller ${latest}"
+git commit -m "Customize ingress controller ${new_version}"
 
 ##Ensure there are no changes again
 ensure_no_changes
 
 git push origin "${branch_name}"
 
-gh release create "$latest" --target "$branch_name" --title "$latest" --prerelease
+gh release create "$new_version" --target "$branch_name" --title "$new_version" --prerelease
