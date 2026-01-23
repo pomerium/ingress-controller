@@ -908,36 +908,36 @@ func TestUseServiceProxy(t *testing.T) {
 
 func TestSortRoutes(t *testing.T) {
 	r1 := &pb.Route{
-		Name: "route1",
+		Name: proto.String("route1"),
 		From: "http://a.example.com",
 	}
 	r2 := &pb.Route{
-		Name: "route2",
+		Name: proto.String("route2"),
 		From: "http://b.example.com",
 		Path: "/path/a",
 	}
 	r3 := &pb.Route{
-		Name: "route3",
+		Name: proto.String("route3"),
 		From: "http://b.example.com",
 		Path: "/path",
 	}
 	r4 := &pb.Route{
-		Name:  "route4",
+		Name:  proto.String("route4"),
 		From:  "http://b.example.com",
 		Regex: "REGEX/A",
 	}
 	r5 := &pb.Route{
-		Name:  "route5",
+		Name:  proto.String("route5"),
 		From:  "http://b.example.com",
 		Regex: "REGEX",
 	}
 	r6 := &pb.Route{
-		Name:   "route6",
+		Name:   proto.String("route6"),
 		From:   "http://b.example.com",
 		Prefix: "/prefix/a/",
 	}
 	r7 := &pb.Route{
-		Name:   "route7",
+		Name:   proto.String("route7"),
 		From:   "http://b.example.com",
 		Prefix: "/prefix/",
 	}
@@ -1482,7 +1482,7 @@ func TestCustomRouteName(t *testing.T) {
 	require.NotNil(t, route)
 
 	// The route should have the custom name from the annotation
-	assert.Equal(t, "My Custom Route Name", route.Name)
+	assert.Equal(t, "My Custom Route Name", route.GetName())
 
 	// The envoy opts should have the unique slug for stats
 	assert.Equal(t, proto.String("default-test-ingress-service-localhost-pomerium-io"), route.StatName)

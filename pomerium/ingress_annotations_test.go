@@ -146,7 +146,7 @@ func TestAnnotations(t *testing.T) {
 		},
 		CorsAllowPreflight: true,
 		DependsOn:          []string{"foo.example.com", "bar.example.com", "baz.example.com"},
-		Description:        "DESCRIPTION",
+		Description:        proto.String("DESCRIPTION"),
 		HealthChecks: []*pb.HealthCheck{{
 			Timeout:            durationpb.New(10 * time.Second),
 			Interval:           durationpb.New(time.Minute),
@@ -169,7 +169,7 @@ func TestAnnotations(t *testing.T) {
 		IdpClientSecret:                  proto.String("CLIENT_SECRET"),
 		KubernetesServiceAccountToken:    "k8s-token-data",
 		LoadBalancingPolicy:              pb.LoadBalancingPolicy_LOAD_BALANCING_POLICY_LEAST_REQUEST.Enum(),
-		LogoUrl:                          "LOGO_URL",
+		LogoUrl:                          proto.String("LOGO_URL"),
 		PassIdentityHeaders:              proto.Bool(true),
 		Policies: []*pb.Policy{{
 			AllowedUsers:   []string{"a"},
@@ -648,7 +648,7 @@ func TestNameAnnotation(t *testing.T) {
 
 		err := applyAnnotations(r, ic)
 		require.NoError(t, err)
-		assert.Equal(t, "My Custom Route Name", r.Name)
+		assert.Equal(t, "My Custom Route Name", r.GetName())
 	})
 
 	t.Run("no name annotation uses generated name", func(t *testing.T) {
@@ -669,6 +669,6 @@ func TestNameAnnotation(t *testing.T) {
 		err := applyAnnotations(r, ic)
 		require.NoError(t, err)
 		// Name should be empty here since setRouteNameID hasn't been called yet
-		assert.Equal(t, "", r.Name)
+		assert.Equal(t, "", r.GetName())
 	})
 }

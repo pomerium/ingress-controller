@@ -214,7 +214,7 @@ func setRouteNameID(r *pb.Route, name types.NamespacedName, u url.URL) error {
 	if err != nil {
 		return err
 	}
-	r.Id = id
+	r.Id = proto.String(id)
 
 	slugName := slug.Make(fmt.Sprintf("%s %s %s", name.Namespace, name.Name, u.Host))
 	pathSlug := slug.Make(u.Path)
@@ -222,8 +222,8 @@ func setRouteNameID(r *pb.Route, name types.NamespacedName, u url.URL) error {
 		slugName = fmt.Sprintf("%s-%s", slugName, pathSlug)
 	}
 
-	if r.Name == "" {
-		r.Name = slugName
+	if r.Name == nil || *r.Name == "" {
+		r.Name = proto.String(slugName)
 	}
 	r.StatName = proto.String(slugName)
 

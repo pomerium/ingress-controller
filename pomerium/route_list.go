@@ -29,8 +29,10 @@ func (r *routeID) Unmarshal(txt string) error {
 	return json.Unmarshal([]byte(txt), r)
 }
 
-type routeList []*pb.Route
-type routeMap map[routeID]*pb.Route
+type (
+	routeList []*pb.Route
+	routeMap  map[routeID]*pb.Route
+)
 
 func (routes routeList) Sort()         { sort.Sort(routes) }
 func (routes routeList) Len() int      { return len(routes) }
@@ -93,8 +95,8 @@ func (routes routeList) toMap() (routeMap, error) {
 	m := make(routeMap, len(routes))
 	for _, r := range routes {
 		var key routeID
-		if err := key.Unmarshal(r.Id); err != nil {
-			return nil, fmt.Errorf("cannot decode route id %s: %w", r.Id, err)
+		if err := key.Unmarshal(r.GetId()); err != nil {
+			return nil, fmt.Errorf("cannot decode route id %s: %w", r.GetId(), err)
 		}
 		if _, exists := m[key]; exists {
 			return nil, fmt.Errorf("duplicate route %+v", key)
