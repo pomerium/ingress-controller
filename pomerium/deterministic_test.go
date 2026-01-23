@@ -22,8 +22,8 @@ func TestEnsureDeterministicConfigOrder(t *testing.T) {
 			name: "sorts routes and certificates",
 			cfg: &configpb.Config{
 				Routes: []*configpb.Route{
-					{Name: "route-b", From: "https://b.example.com"},
-					{Name: "route-a", From: "https://a.example.com"},
+					{Name: proto.String("route-b"), From: "https://b.example.com"},
+					{Name: proto.String("route-a"), From: "https://a.example.com"},
 				},
 				Settings: &configpb.Settings{
 					Certificates: []*configpb.Settings_Certificate{
@@ -34,8 +34,8 @@ func TestEnsureDeterministicConfigOrder(t *testing.T) {
 			},
 			want: &configpb.Config{
 				Routes: []*configpb.Route{
-					{Name: "route-a", From: "https://a.example.com"},
-					{Name: "route-b", From: "https://b.example.com"},
+					{Name: proto.String("route-a"), From: "https://a.example.com"},
+					{Name: proto.String("route-b"), From: "https://b.example.com"},
 				},
 				Settings: &configpb.Settings{
 					Certificates: []*configpb.Settings_Certificate{
@@ -50,12 +50,12 @@ func TestEnsureDeterministicConfigOrder(t *testing.T) {
 			cfg: &configpb.Config{
 				Routes: []*configpb.Route{
 					{
-						Name: "route-root",
+						Name: proto.String("route-root"),
 						From: "https://a.example.com",
 						Path: "/",
 					},
 					{
-						Name: "route-deep",
+						Name: proto.String("route-deep"),
 						From: "https://a.example.com",
 						Path: "/nested",
 					},
@@ -64,12 +64,12 @@ func TestEnsureDeterministicConfigOrder(t *testing.T) {
 			want: &configpb.Config{
 				Routes: []*configpb.Route{
 					{
-						Name: "route-deep",
+						Name: proto.String("route-deep"),
 						From: "https://a.example.com",
 						Path: "/nested",
 					},
 					{
-						Name: "route-root",
+						Name: proto.String("route-root"),
 						From: "https://a.example.com",
 						Path: "/",
 					},
@@ -80,7 +80,7 @@ func TestEnsureDeterministicConfigOrder(t *testing.T) {
 			name: "leaves sorted config untouched",
 			cfg: &configpb.Config{
 				Routes: []*configpb.Route{
-					{Name: "route-a", From: "https://a.example.com"},
+					{Name: proto.String("route-a"), From: "https://a.example.com"},
 				},
 				Settings: &configpb.Settings{
 					Certificates: []*configpb.Settings_Certificate{
@@ -90,7 +90,7 @@ func TestEnsureDeterministicConfigOrder(t *testing.T) {
 			},
 			want: &configpb.Config{
 				Routes: []*configpb.Route{
-					{Name: "route-a", From: "https://a.example.com"},
+					{Name: proto.String("route-a"), From: "https://a.example.com"},
 				},
 				Settings: &configpb.Settings{
 					Certificates: []*configpb.Settings_Certificate{
