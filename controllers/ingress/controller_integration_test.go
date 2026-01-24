@@ -205,6 +205,12 @@ func (s *ControllerTestSuite) deleteAll() {
 		s.NoError(s.Client.Delete(ctx, &secrets.Items[i]))
 	}
 
+	endpointSlices := new(discoveryv1.EndpointSliceList)
+	s.NoError(s.Client.List(ctx, endpointSlices))
+	for i := range endpointSlices.Items {
+		s.NoError(s.Client.Delete(ctx, &endpointSlices.Items[i]))
+	}
+
 	settings := new(icsv1.PomeriumList)
 	s.NoError(s.Client.List(ctx, settings))
 	for i := range settings.Items {
