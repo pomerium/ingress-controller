@@ -19,12 +19,14 @@ import (
 	"go.uber.org/zap/zaptest"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/config"
@@ -252,7 +254,7 @@ func (s *ControllerTestSuite) createTestController(ctx context.Context, opts ...
 type testObjs struct {
 	*networkingv1.IngressClass
 	*networkingv1.Ingress
-	*corev1.Endpoints
+	*discoveryv1.EndpointSlice
 	*corev1.Service
 	*corev1.Secret
 }
@@ -296,13 +298,23 @@ func (s *ControllerTestSuite) initialTestObjects(namespace string) *testObjs {
 				}},
 			},
 		},
-		&corev1.Endpoints{
+		&discoveryv1.EndpointSlice{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "service",
+				Name:      "service-slice",
 				Namespace: namespace,
+				Labels: map[string]string{
+					discoveryv1.LabelServiceName: "service",
+				},
 			},
-			Subsets: []corev1.EndpointSubset{{
-				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
+			AddressType: discoveryv1.AddressTypeIPv4,
+			Endpoints: []discoveryv1.Endpoint{{
+				Addresses:  []string{"1.2.3.4"},
+				Conditions: discoveryv1.EndpointConditions{Ready: ptr.To(true)},
+			}},
+			Ports: []discoveryv1.EndpointPort{{
+				Name:     ptr.To("http"),
+				Port:     ptr.To(int32(80)),
+				Protocol: ptr.To(corev1.ProtocolTCP),
 			}},
 		},
 		&corev1.Service{
@@ -339,7 +351,7 @@ func (s *ControllerTestSuite) TestIngressClass() {
 	s.createTestController(ctx)
 
 	to := s.initialTestObjects("default")
-	ingressClass, ingress, endpoints, service := to.IngressClass, to.Ingress, to.Endpoints, to.Service
+	ingressClass, ingress, endpoints, service := to.IngressClass, to.Ingress, to.EndpointSlice, to.Service
 
 	s.Run("no ingress class", func() {
 		ingress.Spec.IngressClassName = nil
@@ -405,7 +417,7 @@ func (s *ControllerTestSuite) TestDependencies() {
 	s.createTestController(ctx)
 
 	to := s.initialTestObjects("default")
-	ingressClass, ingress, endpoints, service, secret := to.IngressClass, to.Ingress, to.Endpoints, to.Service, to.Secret
+	ingressClass, ingress, endpoints, service, secret := to.IngressClass, to.Ingress, to.EndpointSlice, to.Service, to.Secret
 	svcName := types.NamespacedName{Name: "service", Namespace: "default"}
 	secretName := types.NamespacedName{Name: "secret", Namespace: "default"}
 
@@ -444,7 +456,7 @@ func (s *ControllerTestSuite) TestAnnotationDependencies() {
 	s.createTestController(ctx)
 
 	to := s.initialTestObjects("default")
-	ingressClass, ingress, endpoints, service, secret := to.IngressClass, to.Ingress, to.Endpoints, to.Service, to.Secret
+	ingressClass, ingress, endpoints, service, secret := to.IngressClass, to.Ingress, to.EndpointSlice, to.Service, to.Secret
 	ingress.Annotations = map[string]string{
 		fmt.Sprintf("%s/%s", ingress_controller.DefaultAnnotationPrefix, model.TLSCustomCASecret):           "custom-ca",
 		fmt.Sprintf("%s/%s", ingress_controller.DefaultAnnotationPrefix, model.TLSClientSecret):             "client",
@@ -509,7 +521,7 @@ func (s *ControllerTestSuite) TestNamespaces() {
 
 	for ns, shouldCreate := range namespaces {
 		to := s.initialTestObjects(ns)
-		ingress, endpoints, service, secret := to.Ingress, to.Endpoints, to.Service, to.Secret
+		ingress, endpoints, service, secret := to.Ingress, to.EndpointSlice, to.Service, to.Secret
 		for _, obj := range []client.Object{
 			&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}},
 			ingress, endpoints, service, secret,
@@ -557,7 +569,7 @@ func (s *ControllerTestSuite) TestIngressStatus() {
 		},
 	}
 	to := s.initialTestObjects("default")
-	class, ingress, endpoints, service, secret := to.IngressClass, to.Ingress, to.Endpoints, to.Service, to.Secret
+	class, ingress, endpoints, service, secret := to.IngressClass, to.Ingress, to.EndpointSlice, to.Service, to.Secret
 	del := func(obj client.Object) { s.Client.Delete(ctx, obj) }
 	for _, obj := range []client.Object{
 		ns, proxySvc,
@@ -631,7 +643,7 @@ func (s *ControllerTestSuite) TestIngressAddressWithNodeport() {
 		},
 	}
 	to := s.initialTestObjects("default")
-	class, ingress, endpoints, service, secret := to.IngressClass, to.Ingress, to.Endpoints, to.Service, to.Secret
+	class, ingress, endpoints, service, secret := to.IngressClass, to.Ingress, to.EndpointSlice, to.Service, to.Secret
 	del := func(obj client.Object) { s.Client.Delete(ctx, obj) }
 	for _, obj := range []client.Object{
 		ns, proxySvc,
@@ -704,13 +716,23 @@ func (s *ControllerTestSuite) TestHttp01Solver() {
 		},
 	}
 
-	endpoints := &corev1.Endpoints{
+	endpointSlice := &discoveryv1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "service",
+			Name:      "service-slice",
 			Namespace: "default",
+			Labels: map[string]string{
+				discoveryv1.LabelServiceName: "service",
+			},
 		},
-		Subsets: []corev1.EndpointSubset{{
-			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
+		AddressType: discoveryv1.AddressTypeIPv4,
+		Endpoints: []discoveryv1.Endpoint{{
+			Addresses:  []string{"1.2.3.4"},
+			Conditions: discoveryv1.EndpointConditions{Ready: ptr.To(true)},
+		}},
+		Ports: []discoveryv1.EndpointPort{{
+			Name:     ptr.To("http"),
+			Port:     ptr.To(int32(8089)),
+			Protocol: ptr.To(corev1.ProtocolTCP),
 		}},
 	}
 	service := &corev1.Service{
@@ -731,7 +753,7 @@ func (s *ControllerTestSuite) TestHttp01Solver() {
 	// ingress should not be picked up unless there's a certificate
 	s.NoError(s.Client.Create(ctx, ingressClass))
 	s.NoError(s.Client.Create(ctx, ingress))
-	s.NoError(s.Client.Create(ctx, endpoints))
+	s.NoError(s.Client.Create(ctx, endpointSlice))
 	s.NoError(s.Client.Create(ctx, service))
 
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
@@ -743,7 +765,7 @@ func (s *ControllerTestSuite) TestCustomSecrets() {
 	ctx := context.Background()
 	s.createTestController(ctx)
 	to := s.initialTestObjects("default")
-	ingressClass, ingress, endpoints, service, secret := to.IngressClass, to.Ingress, to.Endpoints, to.Service, to.Secret
+	ingressClass, ingress, endpoints, service, secret := to.IngressClass, to.Ingress, to.EndpointSlice, to.Service, to.Secret
 	ingress.Annotations = map[string]string{
 		fmt.Sprintf("%s/%s", ingress_controller.DefaultAnnotationPrefix, model.SetRequestHeadersSecret):  "request-headers",
 		fmt.Sprintf("%s/%s", ingress_controller.DefaultAnnotationPrefix, model.SetResponseHeadersSecret): "response-headers",

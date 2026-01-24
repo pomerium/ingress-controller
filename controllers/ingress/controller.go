@@ -4,6 +4,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -56,12 +57,12 @@ type ingressController struct {
 	globalSettings *types.NamespacedName
 
 	// object Kinds are frequently used, do not change and are cached
-	endpointsKind    string
-	ingressKind      string
-	ingressClassKind string
-	secretKind       string
-	serviceKind      string
-	settingsKind     string
+	endpointSliceKind string
+	ingressKind       string
+	ingressClassKind  string
+	secretKind        string
+	serviceKind       string
+	settingsKind      string
 
 	initComplete *once
 }
@@ -129,7 +130,7 @@ func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 	r.ingressKind = generic.GVKForType[*networkingv1.Ingress](r.Scheme).Kind
 	r.serviceKind = generic.GVKForType[*corev1.Service](r.Scheme).Kind
 	r.settingsKind = generic.GVKForType[*icsv1.Pomerium](r.Scheme).Kind
-	r.endpointsKind = generic.GVKForType[*corev1.Endpoints](r.Scheme).Kind
+	r.endpointSliceKind = generic.GVKForType[*discoveryv1.EndpointSlice](r.Scheme).Kind
 	r.ingressClassKind = generic.GVKForType[*networkingv1.IngressClass](r.Scheme).Kind
 
 	err := ctrl.NewControllerManagedBy(mgr).
@@ -144,7 +145,7 @@ func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 		).
 		Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(r.secretKind))).
 		Watches(&corev1.Service{}, handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(r.serviceKind))).
-		Watches(&corev1.Endpoints{}, handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(r.endpointsKind))).
+		Watches(&discoveryv1.EndpointSlice{}, handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(r.endpointSliceKind))).
 		WithEventFilter(predicate.ResourceVersionChangedPredicate{}).
 		Complete(r)
 	if err != nil {

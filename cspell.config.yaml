@@ -2,6 +2,7 @@ version: "0.2"
 language: en-US
 words:
   - apimachinery
+  - corev
   - apiserver
   - configmap
   - databroker

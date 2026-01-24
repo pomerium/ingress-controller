@@ -22,15 +22,15 @@ func TestManagingIngressClass(t *testing.T) {
 	ctx := context.Background()
 	mc := controllers_mock.NewMockClient(gomock.NewController(t))
 	ctrl := ingressController{
-		controllerName:   pomeriumControllerName,
-		annotationPrefix: DefaultAnnotationPrefix,
-		Client:           mc,
-		endpointsKind:    "Endpoints",
-		ingressKind:      "Ingress",
-		ingressClassKind: "IngressClass",
-		secretKind:       "Secret",
-		serviceKind:      "Service",
-		initComplete:     newOnce(func(_ context.Context) error { return nil }),
+		controllerName:    pomeriumControllerName,
+		annotationPrefix:  DefaultAnnotationPrefix,
+		Client:            mc,
+		endpointSliceKind: "EndpointSlice",
+		ingressKind:       "Ingress",
+		ingressClassKind:  "IngressClass",
+		secretKind:        "Secret",
+		serviceKind:       "Service",
+		initComplete:      newOnce(func(_ context.Context) error { return nil }),
 	}
 
 	testCases := []struct {
