@@ -455,6 +455,25 @@ func (s *ControllerTestSuite) TestDependencies() {
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
 		return cmp.Diff(secret, ic.Secrets[secretName], cmpOpts...)
 	}, "updated secret")
+
+	// update endpoint slice - verify that changes to EndpointSlice trigger reconciliation
+	s.NoError(s.Client.Get(ctx, types.NamespacedName{Name: endpoints.Name, Namespace: endpoints.Namespace}, endpoints))
+	endpoints.Endpoints[0].Addresses = []string{"5.6.7.8"}
+	s.NoError(s.Client.Update(ctx, endpoints))
+	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
+		ep := ic.Endpoints[svcName]
+		if ep == nil || len(ep.Subsets) == 0 {
+			return "no endpoints"
+		}
+		for _, subset := range ep.Subsets {
+			for _, addr := range subset.Addresses {
+				if addr.IP == "5.6.7.8" {
+					return ""
+				}
+			}
+		}
+		return "expected IP 5.6.7.8 not found in endpoints"
+	}, "updated endpoint slice")
 }
 
 func (s *ControllerTestSuite) TestAnnotationDependencies() {
