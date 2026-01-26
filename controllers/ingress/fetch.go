@@ -127,6 +127,12 @@ func fetchIngressService(
 		return fmt.Errorf("list endpoint slices: %w", err)
 	}
 
+	if len(endpointSliceList.Items) == 0 {
+		log.FromContext(ctx).V(1).Info("no EndpointSlices found for service",
+			"service", name.String(),
+			"labelSelector", discoveryv1.LabelServiceName+"="+name.Name)
+	}
+
 	// Convert list items to pointer slice for aggregation
 	slices := make([]*discoveryv1.EndpointSlice, len(endpointSliceList.Items))
 	for i := range endpointSliceList.Items {
