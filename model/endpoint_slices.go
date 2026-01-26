@@ -1,6 +1,8 @@
 package model
 
 import (
+	"sort"
+
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 )
@@ -122,6 +124,20 @@ func AggregateEndpointSlices(slices []*discoveryv1.EndpointSlice) *EndpointInfo 
 			Ports:     data.ports,
 		})
 	}
+
+	// Sort subsets for deterministic output. Without sorting, map iteration
+	// order is non-deterministic, which could cause unnecessary reconciliation
+	// churn when the same inputs produce different orderings.
+	sort.Slice(subsets, func(i, j int) bool {
+		pi, pj := subsets[i].Ports[0], subsets[j].Ports[0]
+		if pi.Name != pj.Name {
+			return pi.Name < pj.Name
+		}
+		if pi.Port != pj.Port {
+			return pi.Port < pj.Port
+		}
+		return pi.Protocol < pj.Protocol
+	})
 
 	return &EndpointInfo{
 		Subsets: subsets,
