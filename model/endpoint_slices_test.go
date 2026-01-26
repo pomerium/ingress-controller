@@ -289,4 +289,82 @@ func TestAggregateEndpointSlices(t *testing.T) {
 		require.Len(t, result.Subsets, 1)
 		assert.Equal(t, "", result.Subsets[0].Ports[0].Name)
 	})
+
+	t.Run("slice with empty endpoints array", func(t *testing.T) {
+		// Tests a slice that has valid ports but an empty Endpoints array
+		// (not just all non-ready endpoints). This can happen temporarily
+		// during rolling deployments.
+		slices := []*discoveryv1.EndpointSlice{{
+			Ports: []discoveryv1.EndpointPort{{
+				Name:     ptr.To("http"),
+				Port:     ptr.To(int32(8080)),
+				Protocol: ptr.To(corev1.ProtocolTCP),
+			}},
+			Endpoints: []discoveryv1.Endpoint{}, // Empty, not just non-ready
+		}}
+
+		result := AggregateEndpointSlices(slices)
+
+		assert.Empty(t, result.Subsets)
+	})
+
+	t.Run("same port different protocols creates separate subsets", func(t *testing.T) {
+		// Tests that ports with the same number but different protocols
+		// are kept separate (e.g., DNS service using both TCP and UDP on port 53)
+		slices := []*discoveryv1.EndpointSlice{{
+			Ports: []discoveryv1.EndpointPort{
+				{Name: ptr.To("dns-tcp"), Port: ptr.To(int32(53)), Protocol: ptr.To(corev1.ProtocolTCP)},
+				{Name: ptr.To("dns-udp"), Port: ptr.To(int32(53)), Protocol: ptr.To(corev1.ProtocolUDP)},
+			},
+			Endpoints: []discoveryv1.Endpoint{{
+				Addresses:  []string{"10.0.0.1"},
+				Conditions: discoveryv1.EndpointConditions{Ready: ptr.To(true)},
+			}},
+		}}
+
+		result := AggregateEndpointSlices(slices)
+
+		require.Len(t, result.Subsets, 2)
+		// Subsets are sorted by port name, so dns-tcp comes before dns-udp
+		assert.Equal(t, "dns-tcp", result.Subsets[0].Ports[0].Name)
+		assert.Equal(t, corev1.ProtocolTCP, result.Subsets[0].Ports[0].Protocol)
+		assert.Equal(t, "dns-udp", result.Subsets[1].Ports[0].Name)
+		assert.Equal(t, corev1.ProtocolUDP, result.Subsets[1].Ports[0].Protocol)
+	})
+
+	t.Run("multiple slices with different ports", func(t *testing.T) {
+		// Tests that multiple slices with different ports are aggregated correctly
+		// This can happen with large services where endpoints are split across slices
+		slices := []*discoveryv1.EndpointSlice{
+			{
+				Ports: []discoveryv1.EndpointPort{{
+					Name: ptr.To("http"), Port: ptr.To(int32(8080)), Protocol: ptr.To(corev1.ProtocolTCP),
+				}},
+				Endpoints: []discoveryv1.Endpoint{{
+					Addresses:  []string{"10.0.0.1"},
+					Conditions: discoveryv1.EndpointConditions{Ready: ptr.To(true)},
+				}},
+			},
+			{
+				Ports: []discoveryv1.EndpointPort{{
+					Name: ptr.To("grpc"), Port: ptr.To(int32(9090)), Protocol: ptr.To(corev1.ProtocolTCP),
+				}},
+				Endpoints: []discoveryv1.Endpoint{{
+					Addresses:  []string{"10.0.0.2"},
+					Conditions: discoveryv1.EndpointConditions{Ready: ptr.To(true)},
+				}},
+			},
+		}
+
+		result := AggregateEndpointSlices(slices)
+
+		require.Len(t, result.Subsets, 2)
+		// Subsets are sorted by port name, so grpc comes before http
+		assert.Equal(t, "grpc", result.Subsets[0].Ports[0].Name)
+		assert.Equal(t, int32(9090), result.Subsets[0].Ports[0].Port)
+		assert.Equal(t, "10.0.0.2", result.Subsets[0].Addresses[0].IP)
+		assert.Equal(t, "http", result.Subsets[1].Ports[0].Name)
+		assert.Equal(t, int32(8080), result.Subsets[1].Ports[0].Port)
+		assert.Equal(t, "10.0.0.1", result.Subsets[1].Addresses[0].IP)
+	})
 }
