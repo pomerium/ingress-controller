@@ -242,20 +242,20 @@ func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 	s.cfg.Options.GRPCAddr = opt.grpcAddr
 	s.cfg.Options.HTTPRedirectAddr = opt.httpRedirectAddr
 
-	ports, err := netutil.AllocatePorts(8)
+	ports, err := netutil.AllocatePorts(9)
 	if err != nil {
 		return fmt.Errorf("allocating ports: %w", err)
 	}
 
-	s.cfg.AllocatePorts(*(*[6]string)(ports[:6]))
+	s.cfg.AllocatePorts(*(*[7]string)(ports[:7]))
 
 	if opt.deriveTLS != "" {
 		s.cfg.Options.DeriveInternalDomainCert = &opt.deriveTLS
 		s.cfg.Options.GRPCInsecure = proto.Bool(false)
 	}
 
-	s.bootstrapMetricsAddr = fmt.Sprintf("localhost:%s", ports[6])
-	s.ingressMetricsAddr = fmt.Sprintf("localhost:%s", ports[7])
+	s.bootstrapMetricsAddr = fmt.Sprintf("localhost:%s", ports[7])
+	s.ingressMetricsAddr = fmt.Sprintf("localhost:%s", ports[8])
 
 	s.cfg.Options.MetricsAddr = opt.metricsBindAddress
 	s.cfg.Options.HealthCheckAddr = opt.healthProbeBindAddress
