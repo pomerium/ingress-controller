@@ -8,7 +8,6 @@ rules:
       - ""
     resources:
       - services
-      - endpoints
       - secrets
     verbs:
       - get
@@ -19,9 +18,15 @@ rules:
     resources:
       - services/status
       - secrets/status
-      - endpoints/status
     verbs:
       - get
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
+    verbs:
+      - list
+      - watch
   - apiGroups:
       - networking.k8s.io
     resources:
