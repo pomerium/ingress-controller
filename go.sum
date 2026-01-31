@@ -98,7 +98,6 @@ github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/cloudmock v0
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/cloudmock v0.54.0/go.mod h1:vB2GH9GAYYJTO3mEn8oYwzEdhlayZIdQz6zdzgUIRvA=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.54.0 h1:s0WlVbf9qpvkh1c/uDAPElam0WrL7fHRIidgZJ7UqZI=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.54.0/go.mod h1:Mf6O40IAyB9zR/1J8nGDDPirZQQPbYJni8Yisy7NTMc=
-github.com/Masterminds/semver v1.5.0 h1:H65muMkzWKEuNDnfl9d70GUjFniHKHRbFPGBuZ3QEww=
 github.com/Masterminds/semver/v3 v3.4.0 h1:Zog+i5UMtVoCU8oKka5P7i9q9HgrJeGzI9SA1Xbatp0=
 github.com/Masterminds/semver/v3 v3.4.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
@@ -711,8 +710,8 @@ github.com/pomerium/datasource v0.18.2-0.20260116153236-1f58110d0e17 h1:0xmmqjD1
 github.com/pomerium/datasource v0.18.2-0.20260116153236-1f58110d0e17/go.mod h1:E+aEx9rVJm+lNWcKUzMHY6MobZC0HchBCn9zdP2EfHE=
 github.com/pomerium/envoy-custom v1.36.4-rc3 h1:VCJN03YO1KGz3oVR3Y8+FNIF82CbxdVaeBOgwJcESoQ=
 github.com/pomerium/envoy-custom v1.36.4-rc3/go.mod h1:+wpbZvum83bq/OD4cp9/8IZiMV6boBkwDhlFPLOoWoI=
-github.com/pomerium/pomerium v0.32.1-0.20260128223246-01640c3b3fcb h1:L9UtT5TQ/siCWpJtIwTGBtEtuDgH6GqREkz3HwNq87Y=
-github.com/pomerium/pomerium v0.32.1-0.20260128223246-01640c3b3fcb/go.mod h1:8RiJQS5n3XWT6yqBB4JASlEZqnvW03VwqoHYbyYbaZ8=
+github.com/pomerium/pomerium v0.32.1-0.20260130180242-f0c3c14740a9 h1:1uCHvsXxgYGurydco7m4Uh4F/A7pM4OxnYh7sxWxLu4=
+github.com/pomerium/pomerium v0.32.1-0.20260130180242-f0c3c14740a9/go.mod h1:Tr/QGUgjuq1KFVxJfa8J5fB/gQPWs2wc80pkKZkYGZA=
 github.com/pomerium/protoutil v0.0.0-20260116153545-19d2ae5b7518 h1:xIW5acZOr+EBXMapcOYsBCY/o7uh5GpKVVkk8iaTRFU=
 github.com/pomerium/protoutil v0.0.0-20260116153545-19d2ae5b7518/go.mod h1:vPV2+oC0DppJcM14IwN5nCJXW0Bh6J6r5Kg/vjEb0kQ=
 github.com/pomerium/webauthn v0.0.0-20260116153041-d32e028c3f7e h1:ACaHHitpK9WxN8Rd+hXPktyE3dWvfsfq9Hq86Kb8yU4=
