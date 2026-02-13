@@ -902,7 +902,7 @@ func TestUseServiceProxy(t *testing.T) {
 	}]
 	require.NotNil(t, route, "route not found in %v", routes)
 	require.Equal(t, []string{
-		"http://service.default.svc.cluster.local:80",
+		"http://service.default.svc:80",
 	}, route.To)
 }
 
@@ -1190,13 +1190,13 @@ func TestEndpointsHTTPS(t *testing.T) {
 				"https://1.2.3.4:443",
 				"https://1.2.3.5:443",
 			},
-			"service.default.svc.cluster.local",
+			"service.default.svc",
 		},
 		{
 			"HTTPS multiple IPs - override",
 			map[string]string{
 				fmt.Sprintf("p/%s", model.SecureUpstream): "true",
-				fmt.Sprintf("p/%s", model.TLSServerName):  "custom-service.default.svc.cluster.local",
+				fmt.Sprintf("p/%s", model.TLSServerName):  "custom-service.default.svc",
 			},
 			networkingv1.ServiceBackendPort{Name: "https"},
 			[]corev1.ServicePort{{
@@ -1212,7 +1212,7 @@ func TestEndpointsHTTPS(t *testing.T) {
 				"https://1.2.3.4:443",
 				"https://1.2.3.5:443",
 			},
-			"custom-service.default.svc.cluster.local",
+			"custom-service.default.svc",
 		},
 		{
 			"HTTPS use service proxy",
@@ -1231,7 +1231,7 @@ func TestEndpointsHTTPS(t *testing.T) {
 				Ports:     []corev1.EndpointPort{{Name: "https", Port: 443}},
 			}},
 			[]string{
-				"https://service.default.svc.cluster.local:443",
+				"https://service.default.svc:443",
 			},
 			"",
 		},
