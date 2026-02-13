@@ -161,7 +161,7 @@ type Config struct {
 type IngressConfig struct {
 	AnnotationPrefix string
 	*networkingv1.Ingress
-	Endpoints map[types.NamespacedName]*corev1.Endpoints
+	Endpoints map[types.NamespacedName]*EndpointInfo
 	Secrets   map[types.NamespacedName]*corev1.Secret
 	Services  map[types.NamespacedName]*corev1.Service
 }
@@ -238,9 +238,14 @@ func (ic *IngressConfig) Clone() *IngressConfig {
 	dst := &IngressConfig{
 		AnnotationPrefix: ic.AnnotationPrefix,
 		Ingress:          ic.Ingress.DeepCopy(),
-		Endpoints:        make(map[types.NamespacedName]*corev1.Endpoints, len(ic.Endpoints)),
+		Endpoints:        make(map[types.NamespacedName]*EndpointInfo, len(ic.Endpoints)),
 		Secrets:          make(map[types.NamespacedName]*corev1.Secret, len(ic.Secrets)),
 		Services:         make(map[types.NamespacedName]*corev1.Service, len(ic.Services)),
+	}
+
+	for k, v := range ic.Endpoints {
+		// EndpointInfo is read-only after creation, so shallow copy is fine
+		dst.Endpoints[k] = v
 	}
 
 	for k, v := range ic.Secrets {

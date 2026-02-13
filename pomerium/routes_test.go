@@ -221,12 +221,8 @@ func TestSecureUpstream(t *testing.T) {
 				}},
 			},
 		},
-		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
+		Endpoints: map[types.NamespacedName]*model.EndpointInfo{
 			{Name: "service", Namespace: "default"}: {
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "service",
-					Namespace: "default",
-				},
 				Subsets: []corev1.EndpointSubset{{
 					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
 					Ports:     []corev1.EndpointPort{{Name: "https", Port: 443}},
@@ -307,12 +303,8 @@ func TestCustomSecrets(t *testing.T) {
 				}},
 			},
 		},
-		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
+		Endpoints: map[types.NamespacedName]*model.EndpointInfo{
 			{Name: "service", Namespace: "default"}: {
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "service",
-					Namespace: "default",
-				},
 				Subsets: []corev1.EndpointSubset{{
 					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
 					Ports:     []corev1.EndpointPort{{Name: "http", Port: 80}},
@@ -413,12 +405,8 @@ func TestKubernetesToken(t *testing.T) {
 				}},
 			},
 		},
-		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
+		Endpoints: map[types.NamespacedName]*model.EndpointInfo{
 			{Name: "service", Namespace: "default"}: {
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "service",
-					Namespace: "default",
-				},
 				Subsets: []corev1.EndpointSubset{{
 					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
 					Ports:     []corev1.EndpointPort{{Name: "http", Port: 80}},
@@ -487,12 +475,8 @@ func TestTCPUpstream(t *testing.T) {
 				}},
 			},
 		},
-		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
+		Endpoints: map[types.NamespacedName]*model.EndpointInfo{
 			{Name: "service", Namespace: "default"}: {
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "service",
-					Namespace: "default",
-				},
 				Subsets: []corev1.EndpointSubset{{
 					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
 					Ports:     []corev1.EndpointPort{{Name: "app", Port: 12345}},
@@ -859,12 +843,8 @@ func TestUseServiceProxy(t *testing.T) {
 				}},
 			},
 		},
-		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
+		Endpoints: map[types.NamespacedName]*model.EndpointInfo{
 			{Name: "service", Namespace: "default"}: {
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "service",
-					Namespace: "default",
-				},
 				Subsets: []corev1.EndpointSubset{{
 					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
 					Ports:     []corev1.EndpointPort{{Port: 80}},
@@ -1119,12 +1099,8 @@ func TestServicePortsAndEndpoints(t *testing.T) {
 						}},
 					},
 				},
-				Endpoints: map[types.NamespacedName]*corev1.Endpoints{
+				Endpoints: map[types.NamespacedName]*model.EndpointInfo{
 					{Name: "service", Namespace: "default"}: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "service",
-							Namespace: "default",
-						},
 						Subsets: tc.endpointSubsets,
 					},
 				},
@@ -1270,12 +1246,8 @@ func TestEndpointsHTTPS(t *testing.T) {
 						}},
 					},
 				},
-				Endpoints: map[types.NamespacedName]*corev1.Endpoints{
+				Endpoints: map[types.NamespacedName]*model.EndpointInfo{
 					{Name: "service", Namespace: "default"}: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "service",
-							Namespace: "default",
-						},
 						Subsets: tc.endpointSubsets,
 					},
 				},
@@ -1348,12 +1320,8 @@ func TestEmptyHostRoute(t *testing.T) {
 				},
 			},
 		},
-		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
+		Endpoints: map[types.NamespacedName]*model.EndpointInfo{
 			{Name: "service", Namespace: "default"}: {
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "service",
-					Namespace: "default",
-				},
 				Subsets: []corev1.EndpointSubset{
 					{
 						Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
