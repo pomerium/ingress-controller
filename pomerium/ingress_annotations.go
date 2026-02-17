@@ -6,14 +6,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/open-policy-agent/opa/ast"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
-	"github.com/pomerium/pomerium/pkg/policy"
 
+	"github.com/pomerium/ingress-controller/internal/policy"
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/util"
 )
@@ -200,21 +199,12 @@ func unmarshalPolicyAnnotations(p *pomerium.Policy, kvs map[string]string) error
 		return nil
 	}
 
-	src, err := policy.GenerateRegoFromReader(strings.NewReader(ppl))
+	var err error
+	p.SourcePpl, p.Rego, err = policy.Parse(ppl)
 	if err != nil {
-		return fmt.Errorf("parsing policy: %w", err)
+		return err
 	}
 
-	_, err = ast.ParseModule("policy.rego", src)
-	if err != nil && strings.Contains(err.Error(), "package expected") {
-		_, err = ast.ParseModule("policy.rego", "package pomerium.policy\n\n"+src)
-	}
-	if err != nil {
-		return fmt.Errorf("invalid custom rego: %w", err)
-	}
-
-	p.SourcePpl = proto.String(ppl)
-	p.Rego = []string{src}
 	return nil
 }
 
