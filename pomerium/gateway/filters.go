@@ -2,15 +2,13 @@ package gateway
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/open-policy-agent/opa/ast"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	icgv1alpha1 "github.com/pomerium/ingress-controller/apis/gateway/v1alpha1"
+	"github.com/pomerium/ingress-controller/internal/policy"
 	"github.com/pomerium/ingress-controller/model"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
-	"github.com/pomerium/pomerium/pkg/policy"
 )
 
 func applyFilters(
@@ -107,27 +105,25 @@ func applyExtensionFilter(
 
 // PolicyFilter applies a Pomerium policy defined by the PolicyFilter CRD.
 type PolicyFilter struct {
-	rego string
+	ppl  *string
+	rego []string
 }
 
 // NewPolicyFilter parses a PolicyFilter CRD object, returning an error if the object is not valid.
 func NewPolicyFilter(obj *icgv1alpha1.PolicyFilter) (*PolicyFilter, error) {
-	src, err := policy.GenerateRegoFromReader(strings.NewReader(obj.Spec.PPL))
+	var err error
+	filter := new(PolicyFilter)
+	filter.ppl, filter.rego, err = policy.Parse(obj.Spec.PPL)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't parse policy: %w", err)
+		return nil, err
 	}
-
-	_, err = ast.ParseModule("policy.rego", src)
-	if err != nil && strings.Contains(err.Error(), "package expected") {
-		_, err = ast.ParseModule("policy.rego", "package pomerium.policy\n\n"+src)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("internal error: %w", err)
-	}
-	return &PolicyFilter{src}, nil
+	return filter, nil
 }
 
 // ApplyToRoute applies this policy filter to a Pomerium route proto.
 func (f *PolicyFilter) ApplyToRoute(r *pb.Route) {
-	r.Policies = append(r.Policies, &pb.Policy{Rego: []string{f.rego}})
+	r.Policies = append(r.Policies, &pb.Policy{
+		Rego:      f.rego,
+		SourcePpl: f.ppl,
+	})
 }
