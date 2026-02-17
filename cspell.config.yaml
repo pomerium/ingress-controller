@@ -17,6 +17,7 @@ words:
   - protobuf
   - protojson
   - readyz
+  - rego
   - sharedkey
   - sslcert
   - sslkey
