@@ -58,7 +58,7 @@ linters:
     rules:
       - linters:
           - gocritic
-        text: 'unnecessaryDefer:'
+        text: "unnecessaryDefer:"
       - linters:
           - bodyclose
           - errcheck
@@ -70,10 +70,10 @@ linters:
           - staticcheck
           - unparam
           - unused
-        path: _test\.go$|^tests/|^integration/|^samples/|templates\.go$
+        path: _test\.go$|^tests/|^integration/|^samples/|templates\.go$|^internal/stress/
       - linters:
           - lll
-        source: '^//go:generate '
+        source: "^//go:generate "
       - linters:
           - gosec
         path: internal/identity/google.go
@@ -107,6 +107,8 @@ linters:
         text: Subprocess launch(ed with variable|ing should be audited)
       - path: (.+)\.go$
         text: G104
+      - path: (.+)\.go$
+        text: G117
       - path: (.+)\.go$
         text: (Expect directory permissions to be 0750 or less|Expect file permissions to be 0600 or less)
       - path: (.+)\.go$
