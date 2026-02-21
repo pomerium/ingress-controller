@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -24,6 +25,37 @@ import (
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/pomerium/gateway"
 )
+
+// NewDataBrokerReconciler returns a set of reconcilers that use the databroker API.
+func NewDataBrokerReconciler(
+	client databroker.DataBrokerServiceClient,
+	dumpConfigDiff bool,
+) Reconciler {
+	return struct {
+		IngressReconciler
+		ConfigReconciler
+		GatewayReconciler
+	}{
+		IngressReconciler: &DataBrokerReconciler{
+			ConfigID:                IngressControllerConfigID,
+			DataBrokerServiceClient: client,
+			DebugDumpConfigDiff:     dumpConfigDiff,
+			RemoveUnreferencedCerts: true,
+		},
+		ConfigReconciler: &DataBrokerReconciler{
+			ConfigID:                SharedSettingsConfigID,
+			DataBrokerServiceClient: client,
+			DebugDumpConfigDiff:     dumpConfigDiff,
+			RemoveUnreferencedCerts: false,
+		},
+		GatewayReconciler: &DataBrokerReconciler{
+			ConfigID:                GatewayControllerConfigID,
+			DataBrokerServiceClient: client,
+			DebugDumpConfigDiff:     dumpConfigDiff,
+			RemoveUnreferencedCerts: false,
+		},
+	}
+}
 
 const (
 	// IngressControllerConfigID is for Ingress-defined configuration
@@ -110,7 +142,7 @@ func (r *DataBrokerReconciler) SetConfig(ctx context.Context, cfg *model.Config)
 }
 
 // Delete should delete pomerium routes corresponding to this ingress name
-func (r *DataBrokerReconciler) Delete(ctx context.Context, namespacedName types.NamespacedName) (bool, error) {
+func (r *DataBrokerReconciler) Delete(ctx context.Context, namespacedName types.NamespacedName, _ *networkingv1.Ingress) (bool, error) {
 	prev, err := r.getConfig(ctx)
 	if err != nil {
 		return false, fmt.Errorf("get pomerium config: %w", err)
