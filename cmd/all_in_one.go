@@ -325,25 +325,11 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 	}
 
 	client := databroker.NewDataBrokerServiceClient(conn)
+	ir, cr, gr := pomerium.NewDataBrokerReconcilers(client, s.dumpConfigDiff)
 	c := &controllers.Controller{
-		IngressReconciler: &pomerium.DataBrokerReconciler{
-			ConfigID:                pomerium.IngressControllerConfigID,
-			DataBrokerServiceClient: client,
-			DebugDumpConfigDiff:     s.dumpConfigDiff,
-			RemoveUnreferencedCerts: true,
-		},
-		ConfigReconciler: &pomerium.DataBrokerReconciler{
-			ConfigID:                pomerium.SharedSettingsConfigID,
-			DataBrokerServiceClient: client,
-			DebugDumpConfigDiff:     s.dumpConfigDiff,
-			RemoveUnreferencedCerts: false,
-		},
-		GatewayReconciler: &pomerium.DataBrokerReconciler{
-			ConfigID:                pomerium.GatewayControllerConfigID,
-			DataBrokerServiceClient: client,
-			DebugDumpConfigDiff:     s.dumpConfigDiff,
-			RemoveUnreferencedCerts: false,
-		},
+		IngressReconciler:       ir,
+		ConfigReconciler:        cr,
+		GatewayReconciler:       gr,
 		DataBrokerServiceClient: client,
 		MgrOpts: runtime_ctrl.Options{
 			Scheme: scheme,

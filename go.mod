@@ -75,6 +75,7 @@ require (
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
+	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.41.1 // indirect
@@ -216,6 +217,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/natefinch/atomic v1.0.1 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
+	github.com/oapi-codegen/runtime v1.1.2 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pires/go-proxyproto v0.9.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -224,6 +226,7 @@ require (
 	github.com/pomerium/datasource v0.18.2-0.20260213160123-8c5912d42589 // indirect
 	github.com/pomerium/envoy-custom v1.36.4-rc4 // indirect
 	github.com/pomerium/protoutil v0.0.0-20260209181235-7f885c699ece // indirect
+	github.com/pomerium/sdk-go v0.0.10-0.20260218185201-d9957b458f1b // indirect
 	github.com/pomerium/webauthn v0.0.0-20260212215845-f1b5cfa48a39 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
