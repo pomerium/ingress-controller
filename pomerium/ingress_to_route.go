@@ -264,7 +264,7 @@ func getPathServiceHosts(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.
 	if service.Spec.Type == corev1.ServiceTypeExternalName {
 		hosts = append(hosts, fmt.Sprintf("%s:%d", service.Spec.ExternalName, port))
 	} else if ic.UseServiceProxy() {
-		hosts = append(hosts, fmt.Sprintf("%s.%s.svc.cluster.local:%d", backend.Name, ic.Namespace, port))
+		hosts = append(hosts, fmt.Sprintf("%s.%s.svc:%d", backend.Name, ic.Namespace, port))
 	} else {
 		endpoints, ok := ic.Endpoints[ic.GetNamespacedName(backend.Name)]
 		if ok {
@@ -272,9 +272,9 @@ func getPathServiceHosts(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.
 		}
 		// this can happen if no endpoints are ready, or none match, in which case we fallback to the Kubernetes DNS name
 		if len(hosts) == 0 {
-			hosts = append(hosts, fmt.Sprintf("%s.%s.svc.cluster.local:%d", backend.Name, ic.Namespace, port))
+			hosts = append(hosts, fmt.Sprintf("%s.%s.svc:%d", backend.Name, ic.Namespace, port))
 		} else if ic.IsSecureUpstream() && r.TlsServerName == "" {
-			r.TlsServerName = fmt.Sprintf("%s.%s.svc.cluster.local", backend.Name, ic.Namespace)
+			r.TlsServerName = fmt.Sprintf("%s.%s.svc", backend.Name, ic.Namespace)
 		}
 	}
 
