@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
+	discoveryv1 "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,8 +24,25 @@ func (r *ingressController) getDependantIngressFn(kind string) handler.MapFunc {
 			return nil
 		}
 
+		lookupKind := kind
 		name := types.NamespacedName{Name: a.GetName(), Namespace: a.GetNamespace()}
-		deps := r.DepsOfKind(model.Key{Kind: kind, NamespacedName: name}, r.ingressKind)
+
+		// For EndpointSlice, look up dependencies by the associated Service name.
+		// EndpointSlices have a label "kubernetes.io/service-name" that identifies
+		// which Service they belong to. Dependencies are registered under the Service,
+		// not the EndpointSlice, so we need to translate the lookup.
+		if kind == r.endpointSliceKind {
+			serviceName := a.GetLabels()[discoveryv1.LabelServiceName]
+			if serviceName == "" {
+				log.FromContext(ctx).V(1).Info("EndpointSlice missing service-name label",
+					"endpointSlice", name)
+				return nil
+			}
+			name.Name = serviceName
+			lookupKind = r.serviceKind
+		}
+
+		deps := r.DepsOfKind(model.Key{Kind: lookupKind, NamespacedName: name}, r.ingressKind)
 		reqs := make([]reconcile.Request, 0, len(deps))
 		for _, k := range deps {
 			reqs = append(reqs, reconcile.Request{NamespacedName: k.NamespacedName})
