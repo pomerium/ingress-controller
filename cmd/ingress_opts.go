@@ -7,6 +7,8 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/pomerium/sdk-go"
+
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/controllers/gateway"
 	"github.com/pomerium/ingress-controller/controllers/ingress"
@@ -21,6 +23,9 @@ type ingressControllerOpts struct {
 	Namespaces              []string
 	UpdateStatusFromService string ``
 	GlobalSettings          string `validate:"required"`
+	SyncAPIOptions          []sdk.ClientOption
+	SyncAPIURL              string
+	SyncAPIToken            string
 }
 
 const (
@@ -32,6 +37,8 @@ const (
 	sharedSecret               = "shared-secret"
 	updateStatusFromService    = "update-status-from-service"
 	globalSettings             = "pomerium-config"
+	syncAPIURL                 = "sync-api-url"
+	syncAPIToken               = "sync-api-token"
 )
 
 func (s *ingressControllerOpts) setupFlags(flags *pflag.FlagSet) {
@@ -43,6 +50,8 @@ func (s *ingressControllerOpts) setupFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&s.UpdateStatusFromService, updateStatusFromService, "", "update ingress status from given service status (pomerium-proxy)")
 	flags.StringVar(&s.GlobalSettings, globalSettings, "",
 		fmt.Sprintf("namespace/name to a resource of type %s/Settings", icsv1.GroupVersion.Group))
+	flags.StringVar(&s.SyncAPIURL, syncAPIURL, "", "unified API sync URL")
+	flags.StringVar(&s.SyncAPIToken, syncAPIToken, "", "unified API sync token")
 }
 
 func (s *ingressControllerOpts) Validate() error {

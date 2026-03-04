@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -20,6 +21,15 @@ import (
 	"github.com/pomerium/ingress-controller/pomerium/gateway"
 )
 
+func NewUnifiedAPIReconciler(
+	url, token string,
+) Reconciler {
+	client := sdk.NewClient(
+		sdk.WithURL(url),
+		sdk.WithAPIToken(token))
+	return &APIReconciler{apiClient: client}
+}
+
 var (
 	_ = IngressReconciler((*APIReconciler)(nil))
 	_ = GatewayReconciler((*APIReconciler)(nil))
@@ -28,8 +38,11 @@ var (
 
 // APIReconciler updates pomerium configuration using the unified API.
 type APIReconciler struct {
-	client sdk.Client
+	apiClient sdk.Client
+	k8sClient client.Client
 }
+
+const apiIDAnnotation = "api.pomerium.io/id"
 
 // XXX: the bool return value from this method is maybe unused in practice? can we remove it?
 func (r *APIReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
@@ -64,10 +77,14 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 	}
 
 	var anyChanges bool
-	for _, route := range routes {
-		changed, err := r.upsertOneRoute(ctx, route)
+	for i, route := range routes {
+		k := routeIDAnnotation(i)
+		changed, err := r.upsertOneRoute(ctx, ic.Annotations[k], route)
 		if err != nil {
 			return anyChanges, err
+		}
+		if ic.Annotations[k] == "" {
+			ic.Annotations[k] = *route.Id
 		}
 		anyChanges = anyChanges || changed
 	}
@@ -78,58 +95,44 @@ func (r *APIReconciler) upsertCerts(
 	ctx context.Context,
 	certs []*pb.Settings_Certificate,
 ) (bool, error) {
+	// XXX: TODO
+	return false, nil
 }
 
 // SetConfig updates just the shared config settings
 func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (changes bool, err error) {
-	prev, err := r.getConfig(ctx)
-	if err != nil {
-		return false, fmt.Errorf("get config: %w", err)
-	}
-	next := new(pb.Config)
-
-	if err = ApplyConfig(ctx, next, cfg); err != nil {
-		return false, fmt.Errorf("settings: %w", err)
-	}
-
-	return r.saveConfig(ctx, prev, next, r.ConfigID)
+	// XXX: TODO
+	return false, nil
 }
 
 // Delete should delete pomerium routes corresponding to this ingress name
 func (r *APIReconciler) Delete(ctx context.Context, namespacedName types.NamespacedName) (bool, error) {
-	prev, err := r.getConfig(ctx)
-	if err != nil {
-		return false, fmt.Errorf("get pomerium config: %w", err)
-	}
-	cfg := proto.Clone(prev).(*pb.Config)
-	if err := deleteRoutes(cfg, namespacedName); err != nil {
-		return false, fmt.Errorf("deleting pomerium config records %s: %w", namespacedName.String(), err)
-	}
-	changed, err := r.saveConfig(ctx, prev, cfg, fmt.Sprintf("%s-%s", namespacedName.Namespace, namespacedName.Name))
-	if err != nil {
-		return false, fmt.Errorf("updating pomerium config: %w", err)
-	}
-	return changed, nil
+	// XXX: TODO
+	return false, nil
 }
 
 // SetGatewayConfig applies Gateway-defined configuration.
 func (r *APIReconciler) SetGatewayConfig(
 	ctx context.Context,
-	config *model.GatewayConfig,
+	gatewayConfig *model.GatewayConfig,
 ) (changes bool, err error) {
-	var routes []*pb.Route
-	for i := range config.Routes {
-		r := &config.Routes[i]
-		routes = append(routes, gateway.TranslateRoutes(ctx, config, r)...)
-	}
-	for _, route := range routes {
-		routeChanged, err := r.upsertOneRoute(ctx, route)
-		if err != nil {
-			return changes, err
-		} else if routeChanged {
-			changes = true
+	for i := range gatewayConfig.Routes {
+		gr := &gatewayConfig.Routes[i]
+		routes := gateway.TranslateRoutes(ctx, gatewayConfig, gr)
+		for i, route := range routes {
+			k := routeIDAnnotation(i)
+			routeChanged, err := r.upsertOneRoute(ctx, gr.Annotations[k], route)
+			if err != nil {
+				return changes, err
+			} else if routeChanged {
+				changes = true
+			}
+			if gr.Annotations[k] == "" {
+				gr.Annotations[k] = *route.Id
+			}
 		}
 	}
+
 	// XXX: apply settings + certs
 
 	return changes, nil
@@ -165,36 +168,45 @@ func deriveCertID(cert *pb.Settings_Certificate) {
 
 //type entityUpserter[]
 
-func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *pb.Route) (bool, error) {
+func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb.Route) (bool, error) {
 	apiRoute, err := convertProto[*pomerium.Route](route)
 	if err != nil {
 		return false, err
 	}
+	apiRoute.Id = &id // XXX: new(id) ?
 
-	resp, err := r.client.GetRoute(ctx, connect.NewRequest(&pomerium.GetRouteRequest{
-		Id: route.GetId(),
-	}))
-	notFound := connect.CodeOf(err) == connect.CodeNotFound
-	if err != nil && !notFound {
-		return false, err
+	var existing *pomerium.Route
+
+	if id != "" {
+		resp, err := r.apiClient.GetRoute(ctx, connect.NewRequest(&pomerium.GetRouteRequest{
+			Id: id,
+		}))
+		if err != nil && connect.CodeOf(err) == connect.CodeNotFound {
+			return false, err
+		}
+		existing = resp.Msg.Route
 	}
 
-	if notFound {
+	if existing == nil {
 		// If the route does not currently exist, create it.
-		_, err := r.client.CreateRoute(ctx, connect.NewRequest(&pomerium.CreateRouteRequest{
+		resp, err := r.apiClient.CreateRoute(ctx, connect.NewRequest(&pomerium.CreateRouteRequest{
 			Route: apiRoute,
 		}))
-		return err == nil, err
+		if err != nil {
+			return false, err
+		}
+		route.Id = resp.Msg.Route.Id
+		return true, nil
 	}
 
 	// XXX: is it possible for resp.Msg to be nil at this point?
 	// XXX: do we need to ignore certain fields in this comparison?
-	if proto.Equal(resp.Msg, apiRoute) {
+	if proto.Equal(existing, apiRoute) {
 		// No changes needed.
 		return false, nil
 	}
 
-	_, err = r.client.UpdateRoute(ctx, connect.NewRequest(&pomerium.UpdateRouteRequest{
+	_, err = r.apiClient.UpdateRoute(ctx, connect.NewRequest(&pomerium.UpdateRouteRequest{
 		Route: apiRoute,
 	}))
 	return err == nil, err
@@ -206,7 +218,7 @@ func (r *APIReconciler) upsertOneCert(ctx context.Context, cert *pb.Settings_Cer
 		return false, err
 	}
 
-	resp, err := r.client.GetKeyPair(ctx, connect.NewRequest(&pomerium.GetKeyPairRequest{
+	resp, err := r.apiClient.GetKeyPair(ctx, connect.NewRequest(&pomerium.GetKeyPairRequest{
 		Id: cert.GetId(),
 	}))
 	notFound := connect.CodeOf(err) == connect.CodeNotFound
@@ -216,8 +228,8 @@ func (r *APIReconciler) upsertOneCert(ctx context.Context, cert *pb.Settings_Cer
 
 	if notFound {
 		// If the route does not currently exist, create it.
-		_, err := r.client.CreateRoute(ctx, connect.NewRequest(&pomerium.CreateRouteRequest{
-			Route: apiCert,
+		_, err := r.apiClient.CreateKeyPair(ctx, connect.NewRequest(&pomerium.CreateKeyPairRequest{
+			//Route: apiCert,
 		}))
 		return err == nil, err
 	}
@@ -229,10 +241,14 @@ func (r *APIReconciler) upsertOneCert(ctx context.Context, cert *pb.Settings_Cer
 		return false, nil
 	}
 
-	_, err = r.client.UpdateRoute(ctx, connect.NewRequest(&pomerium.UpdateRouteRequest{
-		Route: apiCert,
+	_, err = r.apiClient.UpdateKeyPair(ctx, connect.NewRequest(&pomerium.UpdateKeyPairRequest{
+		//Route: apiCert,
 	}))
 	return err == nil, err
+}
+
+func routeIDAnnotation(i int) string {
+	return fmt.Sprintf("%s-route-%d", apiIDAnnotation, i)
 }
 
 func convertProto[Dst, Src proto.Message](msg Src) (Dst, error) {
