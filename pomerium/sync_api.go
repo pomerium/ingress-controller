@@ -5,12 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"strconv"
+	"strings"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -42,7 +46,12 @@ type APIReconciler struct {
 	k8sClient client.Client
 }
 
-const apiIDAnnotation = "api.pomerium.io/id"
+const (
+	apiRouteIDAnnotationPrefix = "api.pomerium.io/route-id-"
+	apiFinalizer               = "api.pomerium.io/finalizer"
+)
+
+var originatorID = "ingress-controller"
 
 // XXX: the bool return value from this method is maybe unused in practice? can we remove it?
 func (r *APIReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
@@ -76,9 +85,14 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 		return false, fmt.Errorf("couldn't convert ingress to routes: %w", err)
 	}
 
+	controllerutil.AddFinalizer(ic, apiFinalizer)
+
+	unusedRouteIDAnnotations := allRouteIDAnnotations(ic.Annotations)
+
 	var anyChanges bool
 	for i, route := range routes {
-		k := routeIDAnnotation(i)
+		k := routeIDAnnotationForIndex(i)
+		delete(unusedRouteIDAnnotations, k)
 		changed, err := r.upsertOneRoute(ctx, ic.Annotations[k], route)
 		if err != nil {
 			return anyChanges, err
@@ -88,6 +102,12 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 		}
 		anyChanges = anyChanges || changed
 	}
+
+	// If the Ingress object has any other route ID annotations, these indicate
+	// API routes that are no longer in use and should be deleted. (This will be
+	// the case when an existing Rule is deleted from an Ingress.)
+	r.deleteRoutes(ctx, ic.Ingress, unusedRouteIDAnnotations)
+
 	return anyChanges, nil
 }
 
@@ -106,9 +126,20 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 }
 
 // Delete should delete pomerium routes corresponding to this ingress name
-func (r *APIReconciler) Delete(ctx context.Context, namespacedName types.NamespacedName) (bool, error) {
-	// XXX: TODO
-	return false, nil
+func (r *APIReconciler) Delete(ctx context.Context, _ types.NamespacedName, ingress *networkingv1.Ingress) (bool, error) {
+	if ingress == nil {
+		return false, nil
+	}
+
+	routeAnnotations := allRouteIDAnnotations(ingress.Annotations)
+	anyDeletes, err := r.deleteRoutes(ctx, ingress, routeAnnotations)
+	if err != nil {
+		return anyDeletes, err
+	}
+
+	controllerutil.RemoveFinalizer(ingress, apiFinalizer)
+
+	return anyDeletes, nil
 }
 
 // SetGatewayConfig applies Gateway-defined configuration.
@@ -120,7 +151,7 @@ func (r *APIReconciler) SetGatewayConfig(
 		gr := &gatewayConfig.Routes[i]
 		routes := gateway.TranslateRoutes(ctx, gatewayConfig, gr)
 		for i, route := range routes {
-			k := routeIDAnnotation(i)
+			k := routeIDAnnotationForIndex(i)
 			routeChanged, err := r.upsertOneRoute(ctx, gr.Annotations[k], route)
 			if err != nil {
 				return changes, err
@@ -136,12 +167,6 @@ func (r *APIReconciler) SetGatewayConfig(
 	// XXX: apply settings + certs
 
 	return changes, nil
-}
-
-// DeleteAll cleans pomerium configuration entirely
-func (r *APIReconciler) DeleteAll(ctx context.Context) error {
-	// XXX: need to tag all entities created by this controller, and then delete all by this tag
-	return fmt.Errorf("not implemented")
 }
 
 func extractCerts(secrets map[types.NamespacedName]*corev1.Secret) []*pb.Settings_Certificate {
@@ -173,8 +198,6 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb
 	if err != nil {
 		return false, err
 	}
-	apiRoute.Id = &id // XXX: new(id) ?
-
 	var existing *pomerium.Route
 
 	if id != "" {
@@ -183,11 +206,20 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb
 		}))
 		if err != nil && connect.CodeOf(err) == connect.CodeNotFound {
 			return false, err
+		} else if err == nil {
+			existing = resp.Msg.Route
 		}
-		existing = resp.Msg.Route
+
+		apiRoute.Id = &id // XXX: new(id) ?
+	} else {
+		// The ID must be assigned during route creation. (We can't use the
+		// derived ID from the conversion logic.)
+		apiRoute.Id = nil
 	}
 
 	if existing == nil {
+		apiRoute.OriginatorId = &originatorID
+
 		// If the route does not currently exist, create it.
 		resp, err := r.apiClient.CreateRoute(ctx, connect.NewRequest(&pomerium.CreateRouteRequest{
 			Route: apiRoute,
@@ -210,6 +242,27 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb
 		Route: apiRoute,
 	}))
 	return err == nil, err
+}
+
+// deleteRoutes deletes routes corresponding to the annotation keys in
+// routeAnnotations and removes the corresponding annotations from ingress.
+// Returns true if any routes were deleted, and an error if some delete
+// operation failed.
+func (r *APIReconciler) deleteRoutes(
+	ctx context.Context, ingress *networkingv1.Ingress, routeAnnotations map[string]struct{},
+) (bool, error) {
+	var anyDeletes bool
+	for k := range routeAnnotations {
+		_, err := r.apiClient.DeleteRoute(ctx, connect.NewRequest(&pomerium.DeleteRouteRequest{
+			Id: ingress.Annotations[k],
+		}))
+		if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
+			return anyDeletes, err
+		}
+		delete(ingress.Annotations, k)
+		anyDeletes = true
+	}
+	return anyDeletes, nil
 }
 
 func (r *APIReconciler) upsertOneCert(ctx context.Context, cert *pb.Settings_Certificate) (bool, error) {
@@ -247,8 +300,18 @@ func (r *APIReconciler) upsertOneCert(ctx context.Context, cert *pb.Settings_Cer
 	return err == nil, err
 }
 
-func routeIDAnnotation(i int) string {
-	return fmt.Sprintf("%s-route-%d", apiIDAnnotation, i)
+func routeIDAnnotationForIndex(i int) string {
+	return apiRouteIDAnnotationPrefix + strconv.Itoa(i)
+}
+
+func allRouteIDAnnotations(annotations map[string]string) map[string]struct{} {
+	m := make(map[string]struct{})
+	for k := range annotations {
+		if strings.HasPrefix(k, apiRouteIDAnnotationPrefix) {
+			m[k] = struct{}{}
+		}
+	}
+	return m
 }
 
 func convertProto[Dst, Src proto.Message](msg Src) (Dst, error) {

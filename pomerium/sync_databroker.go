@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -141,7 +142,7 @@ func (r *DataBrokerReconciler) SetConfig(ctx context.Context, cfg *model.Config)
 }
 
 // Delete should delete pomerium routes corresponding to this ingress name
-func (r *DataBrokerReconciler) Delete(ctx context.Context, namespacedName types.NamespacedName) (bool, error) {
+func (r *DataBrokerReconciler) Delete(ctx context.Context, namespacedName types.NamespacedName, _ *networkingv1.Ingress) (bool, error) {
 	prev, err := r.getConfig(ctx)
 	if err != nil {
 		return false, fmt.Errorf("get pomerium config: %w", err)

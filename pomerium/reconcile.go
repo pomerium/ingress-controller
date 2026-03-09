@@ -3,6 +3,7 @@ package pomerium
 import (
 	"context"
 
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/pomerium/ingress-controller/model"
@@ -16,7 +17,7 @@ type IngressReconciler interface {
 	// Set configuration to match provided ingresses and shared config settings
 	Set(ctx context.Context, ics []*model.IngressConfig) (changes bool, err error)
 	// Delete should delete pomerium routes corresponding to this ingress name
-	Delete(ctx context.Context, namespacedName types.NamespacedName) (changes bool, err error)
+	Delete(ctx context.Context, namespacedName types.NamespacedName, ingress *networkingv1.Ingress) (changes bool, err error)
 }
 
 // GatewayReconciler updates Pomerium configuration based on Gateway-defined resources.

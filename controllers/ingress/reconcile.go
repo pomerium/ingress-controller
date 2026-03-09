@@ -73,6 +73,8 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 	return err
 }
 
+const reasonIngressDeleted = "Ingress resource was deleted"
+
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -85,7 +87,12 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if !apierrors.IsNotFound(err) {
 			return ctrl.Result{Requeue: true}, fmt.Errorf("get ingress: %w", err)
 		}
-		return r.deleteIngress(ctx, req.NamespacedName, "Ingress resource was deleted")
+		return r.deleteIngress(ctx, req.NamespacedName, ingress, reasonIngressDeleted)
+	} else if ingress.DeletionTimestamp != nil {
+		logger := log.FromContext(ctx).WithName("deleteIngress")
+		logger.Info("deleting ingress based on deletionTimestamp", "ingress", ingress.Name)
+
+		return r.deleteIngress(ctx, req.NamespacedName, ingress, reasonIngressDeleted)
 	}
 
 	managing, err := r.isManaging(ctx, ingress)
@@ -94,7 +101,7 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	if !managing.managed {
-		return r.deleteIngress(ctx, req.NamespacedName, managing.reasonIfNot)
+		return r.deleteIngress(ctx, req.NamespacedName, ingress, managing.reasonIfNot)
 	}
 
 	ic, err := r.fetchIngress(ctx, ingress)
@@ -110,13 +117,24 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	return res, nil
 }
 
-func (r *ingressController) deleteIngress(ctx context.Context, name types.NamespacedName, reason string) (ctrl.Result, error) {
-	changed, err := r.IngressReconciler.Delete(ctx, name)
+func (r *ingressController) deleteIngress(ctx context.Context, name types.NamespacedName, ingress *networkingv1.Ingress, reason string) (ctrl.Result, error) {
+	originalIngress := ingress.DeepCopy()
+
+	changed, err := r.IngressReconciler.Delete(ctx, name, ingress)
 	if err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("deleting ingress: %w", err)
 	}
 	if changed {
 		r.IngressDeleted(ctx, name, reason)
+
+		logger := log.FromContext(ctx).WithName("deleteIngress")
+		logger.Info("about to patch ingress after deletion", "ingress", name.Name)
+
+		if err := r.Client.Patch(ctx, ingress, client.MergeFrom(originalIngress)); err != nil {
+			// XXX: what to do here?
+			logger := log.FromContext(ctx).WithName("deleteIngress")
+			logger.Info("patch", "ingress", name.Name, "error", err.Error())
+		}
 	}
 	r.DeleteCascade(model.Key{Kind: r.ingressKind, NamespacedName: name})
 	return ctrl.Result{}, nil
@@ -135,7 +153,7 @@ func (r *ingressController) upsertIngress(ctx context.Context, ic *model.Ingress
 	if err := r.Client.Patch(ctx, ic.Ingress, client.MergeFrom(originalIngress)); err != nil {
 		// XXX: what to do here?
 		logger := log.FromContext(ctx).WithName("upsertIngress")
-		logger.V(1).Info("patch", "ingress", ic.Name, "error", err.Error())
+		logger.Info("patch", "ingress", ic.Name, "error", err.Error())
 	}
 
 	r.IngressReconciled(ctx, ic.Ingress)
