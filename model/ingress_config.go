@@ -80,6 +80,10 @@ const (
 	IdentityProviderClientIDKey = "client_id"
 	// IdentityProviderClientSecretKey is the client secret key in the IdentityProviderSecret.
 	IdentityProviderClientSecretKey = "client_secret"
+	// UpstreamTunnel sets the upstream tunnel property.
+	UpstreamTunnel = "upstream_tunnel"
+	// UpstreamTunnelSSHPolicy sets the upstream tunnel ssh policy property.
+	UpstreamTunnelSSHPolicy = "upstream_tunnel_ssh_policy"
 )
 
 // SSHSecrets is a grouping of ssh-related secrets.

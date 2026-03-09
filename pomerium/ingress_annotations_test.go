@@ -26,7 +26,10 @@ import (
 	"github.com/pomerium/ingress-controller/model"
 )
 
-var testPPL = `{"allow":{"or":[{"domain":{"is":"pomerium.com"}}]}}`
+var (
+	testPPL1 = `{"allow":{"or":[{"domain":{"is":"pomerium.com"}}]}}`
+	testPPL2 = `{"allow":{"or":[{"email":{"is":"user@example.com"}}]}}`
+)
 
 func TestAnnotations(t *testing.T) {
 	strp := func(txt string) *string { return &txt }
@@ -62,7 +65,7 @@ func TestAnnotations(t *testing.T) {
 					"a/load_balancing_policy":                   "LEAST_REQUEST",
 					"a/logo_url":                                "LOGO_URL",
 					"a/pass_identity_headers":                   "true",
-					"a/policy":                                  testPPL,
+					"a/policy":                                  testPPL1,
 					"a/prefix_rewrite":                          "/",
 					"a/preserve_host_header":                    "true",
 					"a/regex_rewrite_pattern":                   `^/service/([^/]+)(/.*)$`,
@@ -80,6 +83,7 @@ func TestAnnotations(t *testing.T) {
 					"a/tls_downstream_client_ca_secret":         "my_downstream_client_ca_secret",
 					"a/tls_server_name":                         "my.server.name",
 					"a/tls_skip_verify":                         "true",
+					"a/upstream_tunnel_ssh_policy":              testPPL2,
 				},
 			},
 		},
@@ -198,6 +202,11 @@ func TestAnnotations(t *testing.T) {
 		TlsDownstreamClientCa: base64.StdEncoding.EncodeToString([]byte("my_downstream_client_ca_secret+cert")),
 		TlsServerName:         "my.server.name",
 		TlsSkipVerify:         true,
+		UpstreamTunnel: &pb.UpstreamTunnel{
+			SshPolicy: &pb.PPLPolicy{
+				Raw: []byte(testPPL2),
+			},
+		},
 	}, protocmp.Transform(), cmpopts.IgnoreMapEntries(func(k string, _ any) bool {
 		return k == "rego"
 	})))
