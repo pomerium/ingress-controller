@@ -82,6 +82,10 @@ var (
 	mcpClientAnnotations = boolMap([]string{
 		model.MCPClient,
 	})
+	upstreamTunnelAnnotations = boolMap([]string{
+		model.UpstreamTunnel,
+		model.UpstreamTunnelSSHPolicy,
+	})
 	handledElsewhere = boolMap([]string{
 		model.PathRegex,
 		model.SecureUpstream,
@@ -104,19 +108,20 @@ func boolMap(keys []string) map[string]bool {
 }
 
 type keys struct {
-	Base, Policy, TLS, Etc, Secret, MCPServer, MCPClient map[string]string
+	Base, Policy, TLS, Etc, Secret, MCPServer, MCPClient, UpstreamTunnel map[string]string
 }
 
 func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 	prefix = fmt.Sprintf("%s/", prefix)
 	kv := keys{
-		Base:      make(map[string]string),
-		Policy:    make(map[string]string),
-		TLS:       make(map[string]string),
-		Etc:       make(map[string]string),
-		Secret:    make(map[string]string),
-		MCPServer: make(map[string]string),
-		MCPClient: make(map[string]string),
+		Base:           make(map[string]string),
+		Policy:         make(map[string]string),
+		TLS:            make(map[string]string),
+		Etc:            make(map[string]string),
+		Secret:         make(map[string]string),
+		MCPServer:      make(map[string]string),
+		MCPClient:      make(map[string]string),
+		UpstreamTunnel: make(map[string]string),
 	}
 
 	for k, v := range src {
@@ -140,6 +145,7 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 			{secretAnnotations, kv.Secret},
 			{mcpServerAnnotations, kv.MCPServer},
 			{mcpClientAnnotations, kv.MCPClient},
+			{upstreamTunnelAnnotations, kv.UpstreamTunnel},
 			{handledElsewhere, kv.Etc},
 		} {
 			if m.keys[k] {
@@ -175,6 +181,9 @@ func applyAnnotations(
 		return err
 	}
 	if err = applyMCPAnnotations(r, kv.MCPServer, kv.MCPClient); err != nil {
+		return err
+	}
+	if err = applyUpstreamAnnotations(r, kv.UpstreamTunnel); err != nil {
 		return err
 	}
 	p := new(pomerium.Policy)
@@ -485,6 +494,28 @@ func applyMCPClientAnnotations(r *pomerium.Route, kvs map[string]string) error {
 			Client: clientConfig,
 		},
 	}
+	return nil
+}
+
+func applyUpstreamAnnotations(r *pomerium.Route, kvs map[string]string) error {
+	for k, v := range kvs {
+		switch k {
+		case model.UpstreamTunnel:
+			if r.UpstreamTunnel == nil {
+				r.UpstreamTunnel = &pomerium.UpstreamTunnel{}
+			}
+		case model.UpstreamTunnelSSHPolicy:
+			if r.UpstreamTunnel == nil {
+				r.UpstreamTunnel = &pomerium.UpstreamTunnel{}
+			}
+			r.UpstreamTunnel.SshPolicy = &pomerium.PPLPolicy{
+				Raw: []byte(v),
+			}
+		default:
+			return fmt.Errorf("unknown upstream tunnel annotation %s", k)
+		}
+	}
+
 	return nil
 }
 
