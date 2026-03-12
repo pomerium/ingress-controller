@@ -10,12 +10,15 @@ import (
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/sdk-go"
@@ -48,6 +51,7 @@ type APIReconciler struct {
 
 const (
 	apiRouteIDAnnotationPrefix = "api.pomerium.io/route-id-"
+	apiPolicyIDAnnotation      = "api.pomerium.io/policy-id"
 	apiFinalizer               = "api.pomerium.io/finalizer"
 )
 
@@ -85,14 +89,39 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 		return false, fmt.Errorf("couldn't convert ingress to routes: %w", err)
 	}
 
-	controllerutil.AddFinalizer(ic, apiFinalizer)
+	var anyChanges bool
+
+	anyChanges = anyChanges || controllerutil.AddFinalizer(ic.Ingress, apiFinalizer)
+
+	// The unified API does not support "inline" policies, so separate the
+	// policy into its own entity.
+	// XXX: delete policy if no longer needed?
+	policyID := ic.Annotations[apiPolicyIDAnnotation]
+	policy, err := ingressToPolicy(ic)
+	if err != nil {
+		return false, fmt.Errorf("couldn't extract ingress policy: %w", err)
+	} else if policy != nil {
+		changed, err := r.upsertPolicy(ctx, policyID, policy)
+		if err != nil {
+			return false, fmt.Errorf("couldn't update ingress policy: %w", err)
+		}
+		if policyID == "" {
+			policyID = *policy.Id
+			ic.Annotations[apiPolicyIDAnnotation] = policyID
+		}
+		anyChanges = anyChanges || changed
+	}
 
 	unusedRouteIDAnnotations := allRouteIDAnnotations(ic.Annotations)
 
-	var anyChanges bool
 	for i, route := range routes {
 		k := routeIDAnnotationForIndex(i)
 		delete(unusedRouteIDAnnotations, k)
+
+		// Swap out the inline policy for a policy ID reference.
+		route.Policies = nil
+		route.PolicyIds = []string{policyID}
+
 		changed, err := r.upsertOneRoute(ctx, ic.Annotations[k], route)
 		if err != nil {
 			return anyChanges, err
@@ -106,7 +135,11 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 	// If the Ingress object has any other route ID annotations, these indicate
 	// API routes that are no longer in use and should be deleted. (This will be
 	// the case when an existing Rule is deleted from an Ingress.)
-	r.deleteRoutes(ctx, ic.Ingress, unusedRouteIDAnnotations)
+	anyDeletes, err := r.deleteRoutes(ctx, ic.Ingress, unusedRouteIDAnnotations)
+	if err != nil {
+		return anyChanges, nil
+	}
+	anyChanges = anyChanges || anyDeletes
 
 	return anyChanges, nil
 }
@@ -136,6 +169,12 @@ func (r *APIReconciler) Delete(ctx context.Context, _ types.NamespacedName, ingr
 	if err != nil {
 		return anyDeletes, err
 	}
+
+	policyDeleted, err := r.deletePolicy(ctx, ingress)
+	if err != nil {
+		return anyDeletes, err
+	}
+	anyDeletes = anyDeletes || policyDeleted
 
 	controllerutil.RemoveFinalizer(ingress, apiFinalizer)
 
@@ -263,6 +302,77 @@ func (r *APIReconciler) deleteRoutes(
 		anyDeletes = true
 	}
 	return anyDeletes, nil
+}
+
+func (r *APIReconciler) upsertPolicy(ctx context.Context, id string, policy *pb.Policy) (bool, error) {
+	apiPolicy, err := convertProto[*pomerium.Policy](policy)
+	if err != nil {
+		return false, err
+	}
+	var existing *pomerium.Policy
+
+	if id != "" {
+		resp, err := r.apiClient.GetPolicy(ctx, connect.NewRequest(&pomerium.GetPolicyRequest{
+			Id: id,
+		}))
+		if err != nil && connect.CodeOf(err) == connect.CodeNotFound {
+			return false, err
+		} else if err == nil {
+			existing = resp.Msg.Policy
+		}
+
+		apiPolicy.Id = &id // XXX: new(id) ?
+	}
+
+	if existing == nil {
+		apiPolicy.OriginatorId = &originatorID
+
+		// If the policy does not currently exist, create it.
+		resp, err := r.apiClient.CreatePolicy(ctx, connect.NewRequest(&pomerium.CreatePolicyRequest{
+			Policy: apiPolicy,
+		}))
+		if err != nil {
+			return false, err
+		}
+		policy.Id = resp.Msg.Policy.Id
+		return true, nil
+	}
+
+	// XXX: is it possible for resp.Msg to be nil at this point?
+	// XXX: do we need to ignore certain fields in this comparison?
+	if proto.Equal(existing, apiPolicy) {
+		// No changes needed.
+		return false, nil
+	}
+
+	// XXX: debugging
+	logger := log.FromContext(ctx).WithName("APIReconciler.upsertPolicy")
+	logger.Info("updating existing policy", "id", *apiPolicy.Id, "diff", cmp.Diff(existing, apiPolicy, protocmp.Transform()))
+
+	_, err = r.apiClient.UpdatePolicy(ctx, connect.NewRequest(&pomerium.UpdatePolicyRequest{
+		Policy: apiPolicy,
+	}))
+	return err == nil, err
+}
+
+// deletePolicy deletes the policy for the ingress and clears its policy ID
+// annotation. Returns true if any changes were made, or an error if the delete
+// operation failed.
+func (r *APIReconciler) deletePolicy(
+	ctx context.Context, ingress *networkingv1.Ingress,
+) (bool, error) {
+	policyID := ingress.Annotations[apiPolicyIDAnnotation]
+	if policyID == "" {
+		return false, nil
+	}
+	_, err := r.apiClient.DeletePolicy(ctx, connect.NewRequest(&pomerium.DeletePolicyRequest{
+		Id: policyID,
+	}))
+	if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
+		return false, err
+	}
+	delete(ingress.Annotations, apiPolicyIDAnnotation)
+	return true, nil
 }
 
 func (r *APIReconciler) upsertOneCert(ctx context.Context, cert *pb.Settings_Certificate) (bool, error) {
