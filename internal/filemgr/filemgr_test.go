@@ -2,17 +2,14 @@ package filemgr
 
 import (
 	"io/fs"
-	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestManager(t *testing.T) {
-	dir := filepath.Join(os.TempDir(), uuid.New().String())
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	mgr := New(dir)
 	fp1, err := mgr.CreateFile("hello.txt", []byte("HELLO WORLD"))

@@ -3,6 +3,7 @@ package filemgr
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -56,17 +57,24 @@ func (mgr *Manager) CreateFile(fileName string, data []byte) (filePath string, e
 
 // DeleteFiles deletes all the files managed by the file manager.
 func (mgr *Manager) DeleteFiles() error {
-	if _, err := os.Stat(mgr.cacheDir); os.IsNotExist(err) {
+	root, err := os.OpenRoot(mgr.cacheDir)
+	if os.IsNotExist(err) {
 		return nil
+	} else if err != nil {
+		return err
 	}
 
-	return filepath.Walk(mgr.cacheDir, func(p string, fi os.FileInfo, err error) error {
+	fs, err := fs.ReadDir(root.FS(), ".")
+	if err != nil {
+		return err
+	}
+
+	for _, f := range fs {
+		err = root.RemoveAll(f.Name())
 		if err != nil {
-			return err
+			return nil
 		}
-		if !fi.IsDir() {
-			return os.Remove(p)
-		}
-		return nil
-	})
+	}
+
+	return nil
 }
