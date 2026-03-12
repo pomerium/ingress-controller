@@ -508,9 +508,10 @@ func applyUpstreamAnnotations(r *pomerium.Route, kvs map[string]string) error {
 			if r.UpstreamTunnel == nil {
 				r.UpstreamTunnel = &pomerium.UpstreamTunnel{}
 			}
-			r.UpstreamTunnel.SshPolicy = &pomerium.PPLPolicy{
+			_ = v
+			/*r.UpstreamTunnel.SshPolicy = &pomerium.PPLPolicy{
 				Raw: []byte(v),
-			}
+			}*/
 		default:
 			return fmt.Errorf("unknown upstream tunnel annotation %s", k)
 		}

@@ -63,6 +63,8 @@ type allCmdParam struct {
 	gatewayConfig           *gateway.ControllerConfig
 	updateStatusFromService string
 	dumpConfigDiff          bool
+	syncAPIURL              string
+	syncAPIToken            string
 
 	// bootstrapMetricsAddr for bootstrap configuration controller metrics
 	bootstrapMetricsAddr string
@@ -190,6 +192,8 @@ func (s *allCmdOptions) getParam() (*allCmdParam, error) {
 		updateStatusFromService:         s.UpdateStatusFromService,
 		dumpConfigDiff:                  s.debugDumpConfigDiff,
 		configControllerShutdownTimeout: s.configControllerShutdownTimeout,
+		syncAPIURL:                      s.SyncAPIURL,
+		syncAPIToken:                    s.SyncAPIToken,
 	}
 	if err := p.makeBootstrapConfig(*s); err != nil {
 		return nil, fmt.Errorf("bootstrap: %w", err)
@@ -325,25 +329,14 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 	}
 
 	client := databroker.NewDataBrokerServiceClient(conn)
+	var reconciler pomerium.Reconciler
+	if s.syncAPIURL != "" {
+		reconciler = pomerium.NewUnifiedAPIReconciler(s.syncAPIURL, s.syncAPIToken)
+	} else {
+		reconciler = pomerium.NewDataBrokerReconciler(client, s.dumpConfigDiff)
+	}
 	c := &controllers.Controller{
-		IngressReconciler: &pomerium.DataBrokerReconciler{
-			ConfigID:                pomerium.IngressControllerConfigID,
-			DataBrokerServiceClient: client,
-			DebugDumpConfigDiff:     s.dumpConfigDiff,
-			RemoveUnreferencedCerts: true,
-		},
-		ConfigReconciler: &pomerium.DataBrokerReconciler{
-			ConfigID:                pomerium.SharedSettingsConfigID,
-			DataBrokerServiceClient: client,
-			DebugDumpConfigDiff:     s.dumpConfigDiff,
-			RemoveUnreferencedCerts: false,
-		},
-		GatewayReconciler: &pomerium.DataBrokerReconciler{
-			ConfigID:                pomerium.GatewayControllerConfigID,
-			DataBrokerServiceClient: client,
-			DebugDumpConfigDiff:     s.dumpConfigDiff,
-			RemoveUnreferencedCerts: false,
-		},
+		Reconciler:              reconciler,
 		DataBrokerServiceClient: client,
 		MgrOpts: runtime_ctrl.Options{
 			Scheme: scheme,

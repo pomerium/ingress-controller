@@ -146,26 +146,15 @@ func (s *controllerCmd) buildController(ctx context.Context) (*controllers.Contr
 		return nil, fmt.Errorf("databroker connection: %w", err)
 	}
 	client := databroker.NewDataBrokerServiceClient(conn)
+	var reconciler pomerium.Reconciler
+	if s.SyncAPIURL != "" {
+		reconciler = pomerium.NewUnifiedAPIReconciler(s.SyncAPIURL, s.SyncAPIToken)
+	} else {
+		reconciler = pomerium.NewDataBrokerReconciler(client, s.debug)
+	}
 
 	c := &controllers.Controller{
-		IngressReconciler: &pomerium.DataBrokerReconciler{
-			ConfigID:                pomerium.IngressControllerConfigID,
-			DataBrokerServiceClient: client,
-			DebugDumpConfigDiff:     s.debug,
-			RemoveUnreferencedCerts: true,
-		},
-		ConfigReconciler: &pomerium.DataBrokerReconciler{
-			ConfigID:                pomerium.SharedSettingsConfigID,
-			DataBrokerServiceClient: client,
-			DebugDumpConfigDiff:     s.debug,
-			RemoveUnreferencedCerts: false,
-		},
-		GatewayReconciler: &pomerium.DataBrokerReconciler{
-			ConfigID:                pomerium.GatewayControllerConfigID,
-			DataBrokerServiceClient: client,
-			DebugDumpConfigDiff:     s.debug,
-			RemoveUnreferencedCerts: false,
-		},
+		Reconciler:              reconciler,
 		DataBrokerServiceClient: client,
 		MgrOpts: ctrl.Options{
 			Scheme:         scheme,
