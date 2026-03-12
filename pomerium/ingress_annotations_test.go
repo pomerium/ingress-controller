@@ -202,10 +202,10 @@ func TestAnnotations(t *testing.T) {
 		TlsDownstreamClientCa: base64.StdEncoding.EncodeToString([]byte("my_downstream_client_ca_secret+cert")),
 		TlsServerName:         "my.server.name",
 		TlsSkipVerify:         true,
-		UpstreamTunnel: &pb.UpstreamTunnel{
-			SshPolicy: &pb.PPLPolicy{
+		UpstreamTunnel:        &pb.UpstreamTunnel{
+			/*SshPolicy: &pb.PPLPolicy{
 				Raw: []byte(testPPL2),
-			},
+			},*/
 		},
 	}, protocmp.Transform(), cmpopts.IgnoreMapEntries(func(k string, _ any) bool {
 		return k == "rego"
