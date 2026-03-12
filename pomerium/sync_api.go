@@ -93,15 +93,15 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 
 	anyChanges = anyChanges || controllerutil.AddFinalizer(ic.Ingress, apiFinalizer)
 
-	changed, err := r.syncPolicy(ctx, ic)
+	changed, updatedPolicyID, err := r.syncPolicy(ctx, ic)
 	if err != nil {
 		return anyChanges, err
 	}
 	anyChanges = anyChanges || changed
 
 	var policyIDs []string
-	if policyID := ic.Annotations[apiPolicyIDAnnotation]; policyID != "" {
-		policyIDs = []string{policyID}
+	if updatedPolicyID != "" {
+		policyIDs = []string{updatedPolicyID}
 	}
 
 	unusedRouteIDAnnotations := allRouteIDAnnotations(ic.Annotations)
@@ -129,9 +129,20 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 	// the case when an existing Rule is deleted from an Ingress.)
 	anyDeletes, err := r.deleteRoutes(ctx, ic.Ingress, unusedRouteIDAnnotations)
 	if err != nil {
-		return anyChanges, nil
+		return anyChanges, err
 	}
 	anyChanges = anyChanges || anyDeletes
+
+	// If there was a linked policy that is no no longer needed, delete it.
+	// (This cannot be done until all of the linked routes are updated to no
+	// longer reference the existing policy ID.)
+	if ic.Annotations[apiPolicyIDAnnotation] != "" && updatedPolicyID == "" {
+		deleted, err := r.deletePolicy(ctx, ic.Ingress)
+		if err != nil {
+			return anyChanges, err
+		}
+		anyChanges = anyChanges || deleted
+	}
 
 	return anyChanges, nil
 }
@@ -296,47 +307,45 @@ func (r *APIReconciler) deleteRoutes(
 	return anyDeletes, nil
 }
 
-func (r *APIReconciler) syncPolicy(ctx context.Context, ic *model.IngressConfig) (bool, error) {
-	policyID := ic.Annotations[apiPolicyIDAnnotation]
+type policyCleanupFn func(context.Context) (bool, error)
+
+func (r *APIReconciler) syncPolicy(
+	ctx context.Context, ic *model.IngressConfig,
+) (changed bool, updatedPolicyID string, err error) {
+	existingPolicyID := ic.Annotations[apiPolicyIDAnnotation]
 	policy, err := ingressToPolicy(ic)
 	if err != nil {
-		return false, fmt.Errorf("couldn't extract ingress policy: %w", err)
+		return false, "", fmt.Errorf("couldn't extract ingress policy: %w", err)
 	}
 
 	if policy == nil {
-		// If the Ingress has a linked policy but now no longer has any policy
-		// annotations, delete the linked policy.
-		if policyID != "" {
-			return r.deletePolicy(ctx, ic.Ingress)
-		}
-
 		// No policy needed.
-		return false, nil
+		return false, "", nil
 	}
 
 	apiPolicy, err := convertProto[*pomerium.Policy](policy)
 	if err != nil {
-		return false, fmt.Errorf("internal error: %w", err)
+		return false, "", fmt.Errorf("internal error: %w", err)
 	}
 	apiPolicy.OriginatorId = &originatorID
 
-	if policyID == "" {
+	if existingPolicyID == "" {
 		// No linked policy, so we need to create one.
-		policyID, err = r.createPolicy(ctx, apiPolicy)
+		updatedPolicyID, err = r.createPolicy(ctx, apiPolicy)
 		if err != nil {
-			return false, fmt.Errorf("couldn't create ingress policy: %w", err)
+			return false, "", fmt.Errorf("couldn't create ingress policy: %w", err)
 		}
-		ic.Annotations[apiPolicyIDAnnotation] = policyID
-		return true, nil
+		ic.Annotations[apiPolicyIDAnnotation] = updatedPolicyID
+		return true, updatedPolicyID, nil
 	}
 
 	// Sync any changes to linked policy.
-	apiPolicy.Id = &policyID
-	changed, err := r.upsertPolicy(ctx, apiPolicy)
+	apiPolicy.Id = &existingPolicyID
+	changed, err = r.upsertPolicy(ctx, apiPolicy)
 	if err != nil {
-		return false, fmt.Errorf("couldn't update ingress policy: %w", err)
+		return false, "", fmt.Errorf("couldn't update ingress policy: %w", err)
 	}
-	return changed, nil
+	return changed, *apiPolicy.Id, nil
 }
 
 func (r *APIReconciler) createPolicy(ctx context.Context, policy *pomerium.Policy) (newID string, err error) {
