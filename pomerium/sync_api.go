@@ -93,23 +93,15 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 
 	anyChanges = anyChanges || controllerutil.AddFinalizer(ic.Ingress, apiFinalizer)
 
-	// The unified API does not support "inline" policies, so separate the
-	// policy into its own entity.
-	// XXX: delete policy if no longer needed?
-	policyID := ic.Annotations[apiPolicyIDAnnotation]
-	policy, err := ingressToPolicy(ic)
+	changed, err := r.syncPolicy(ctx, ic)
 	if err != nil {
-		return false, fmt.Errorf("couldn't extract ingress policy: %w", err)
-	} else if policy != nil {
-		changed, err := r.upsertPolicy(ctx, policyID, policy)
-		if err != nil {
-			return false, fmt.Errorf("couldn't update ingress policy: %w", err)
-		}
-		if policyID == "" {
-			policyID = *policy.Id
-			ic.Annotations[apiPolicyIDAnnotation] = policyID
-		}
-		anyChanges = anyChanges || changed
+		return anyChanges, err
+	}
+	anyChanges = anyChanges || changed
+
+	var policyIDs []string
+	if policyID := ic.Annotations[apiPolicyIDAnnotation]; policyID != "" {
+		policyIDs = []string{policyID}
 	}
 
 	unusedRouteIDAnnotations := allRouteIDAnnotations(ic.Annotations)
@@ -118,9 +110,9 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 		k := routeIDAnnotationForIndex(i)
 		delete(unusedRouteIDAnnotations, k)
 
-		// Swap out the inline policy for a policy ID reference.
+		// Swap out any inline policies for the policy ID reference.
 		route.Policies = nil
-		route.PolicyIds = []string{policyID}
+		route.PolicyIds = policyIDs
 
 		changed, err := r.upsertOneRoute(ctx, ic.Annotations[k], route)
 		if err != nil {
@@ -304,53 +296,93 @@ func (r *APIReconciler) deleteRoutes(
 	return anyDeletes, nil
 }
 
-func (r *APIReconciler) upsertPolicy(ctx context.Context, id string, policy *pb.Policy) (bool, error) {
+func (r *APIReconciler) syncPolicy(ctx context.Context, ic *model.IngressConfig) (bool, error) {
+	policyID := ic.Annotations[apiPolicyIDAnnotation]
+	policy, err := ingressToPolicy(ic)
+	if err != nil {
+		return false, fmt.Errorf("couldn't extract ingress policy: %w", err)
+	}
+
+	if policy == nil {
+		// If the Ingress has a linked policy but now no longer has any policy
+		// annotations, delete the linked policy.
+		if policyID != "" {
+			return r.deletePolicy(ctx, ic.Ingress)
+		}
+
+		// No policy needed.
+		return false, nil
+	}
+
 	apiPolicy, err := convertProto[*pomerium.Policy](policy)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("internal error: %w", err)
 	}
-	var existing *pomerium.Policy
+	apiPolicy.OriginatorId = &originatorID
 
-	if id != "" {
-		resp, err := r.apiClient.GetPolicy(ctx, connect.NewRequest(&pomerium.GetPolicyRequest{
-			Id: id,
-		}))
-		if err != nil && connect.CodeOf(err) == connect.CodeNotFound {
-			return false, err
-		} else if err == nil {
-			existing = resp.Msg.Policy
-		}
-
-		apiPolicy.Id = &id // XXX: new(id) ?
-	}
-
-	if existing == nil {
-		apiPolicy.OriginatorId = &originatorID
-
-		// If the policy does not currently exist, create it.
-		resp, err := r.apiClient.CreatePolicy(ctx, connect.NewRequest(&pomerium.CreatePolicyRequest{
-			Policy: apiPolicy,
-		}))
+	if policyID == "" {
+		// No linked policy, so we need to create one.
+		policyID, err = r.createPolicy(ctx, apiPolicy)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("couldn't create ingress policy: %w", err)
 		}
-		policy.Id = resp.Msg.Policy.Id
+		ic.Annotations[apiPolicyIDAnnotation] = policyID
 		return true, nil
 	}
 
-	// XXX: is it possible for resp.Msg to be nil at this point?
-	// XXX: do we need to ignore certain fields in this comparison?
-	if proto.Equal(existing, apiPolicy) {
+	// Sync any changes to linked policy.
+	apiPolicy.Id = &policyID
+	changed, err := r.upsertPolicy(ctx, apiPolicy)
+	if err != nil {
+		return false, fmt.Errorf("couldn't update ingress policy: %w", err)
+	}
+	return changed, nil
+}
+
+func (r *APIReconciler) createPolicy(ctx context.Context, policy *pomerium.Policy) (newID string, err error) {
+	resp, err := r.apiClient.CreatePolicy(ctx, connect.NewRequest(&pomerium.CreatePolicyRequest{
+		Policy: policy,
+	}))
+	if err != nil {
+		return "", err
+	}
+	return resp.Msg.GetPolicy().GetId(), nil
+}
+
+func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *pomerium.Policy) (changed bool, err error) {
+	resp, err := r.apiClient.GetPolicy(ctx, connect.NewRequest(&pomerium.GetPolicyRequest{
+		Id: policy.GetId(),
+	}))
+	if err != nil {
+		if connect.CodeOf(err) != connect.CodeNotFound {
+			// If the existing policy was deleted, recreate it.
+			_, err := r.createPolicy(ctx, policy)
+			return err == nil, err
+		}
+		return false, err
+	}
+
+	// Zero out fields that should be ignored when looking for changes
+	existing := resp.Msg.Policy
+	existing.AssignedRoutes = nil
+	existing.CreatedAt = nil
+	existing.NamespaceId = nil
+	existing.ModifiedAt = nil
+	if !existing.GetEnforced() {
+		existing.Enforced = nil
+	}
+
+	if proto.Equal(existing, policy) {
 		// No changes needed.
 		return false, nil
 	}
 
 	// XXX: debugging
 	logger := log.FromContext(ctx).WithName("APIReconciler.upsertPolicy")
-	logger.Info("updating existing policy", "id", *apiPolicy.Id, "diff", cmp.Diff(existing, apiPolicy, protocmp.Transform()))
+	logger.Info("updating existing policy", "id", policy.GetId(), "diff", cmp.Diff(existing, policy, protocmp.Transform()))
 
 	_, err = r.apiClient.UpdatePolicy(ctx, connect.NewRequest(&pomerium.UpdatePolicyRequest{
-		Policy: apiPolicy,
+		Policy: policy,
 	}))
 	return err == nil, err
 }
