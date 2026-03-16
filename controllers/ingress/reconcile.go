@@ -89,6 +89,7 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 		return r.deleteIngress(ctx, req.NamespacedName, ingress, reasonIngressDeleted)
 	} else if ingress.DeletionTimestamp != nil {
+		// XXX: remove this log call or demote to V(1)
 		logger := log.FromContext(ctx).WithName("deleteIngress")
 		logger.Info("deleting ingress based on deletionTimestamp", "ingress", ingress.Name)
 

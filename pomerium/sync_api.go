@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -19,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/gosimple/slug"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/sdk-go"
@@ -34,7 +36,10 @@ func NewUnifiedAPIReconciler(
 	client := sdk.NewClient(
 		sdk.WithURL(url),
 		sdk.WithAPIToken(token))
-	return &APIReconciler{apiClient: client}
+	return &APIReconciler{
+		apiClient:  client,
+		secretsMap: newSecretsMap(),
+	}
 }
 
 var (
@@ -46,12 +51,17 @@ var (
 // APIReconciler updates pomerium configuration using the unified API.
 type APIReconciler struct {
 	apiClient sdk.Client
+
+	// XXX: not currently populated -- need to figure out if we need this or not
 	k8sClient client.Client
+
+	secretsMap *secretsMap
 }
 
 const (
 	apiRouteIDAnnotationPrefix = "api.pomerium.io/route-id-"
 	apiPolicyIDAnnotation      = "api.pomerium.io/policy-id"
+	apiKeypairIDAnnotation     = "api.pomerium.io/keypair-id"
 	apiFinalizer               = "api.pomerium.io/finalizer"
 )
 
@@ -59,10 +69,27 @@ var originatorID = "ingress-controller"
 
 // XXX: the bool return value from this method is maybe unused in practice? can we remove it?
 func (r *APIReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
+	var anyChanges bool
+
+	changed, err := r.upsertOneIngress(ctx, ic)
+	if err != nil {
+		return anyChanges, err
+	}
+	anyChanges = anyChanges || changed
+
+	// Look for any changes to TLS secrets
+	unreferencedSecrets := r.secretsMap.updateIngress(ic)
+	anyDeletes, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
+	if err != nil {
+		return anyChanges, err
+	}
+	anyChanges = anyChanges || anyDeletes
+
 	return r.Set(ctx, []*model.IngressConfig{ic})
 }
 
 func (r *APIReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bool, error) {
+	r.secretsMap.reset()
 	secrets := make(map[types.NamespacedName]*corev1.Secret)
 	var anyChanges bool
 	var errs []error
@@ -73,12 +100,16 @@ func (r *APIReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bo
 		}
 		anyChanges = anyChanges || changed
 
-		// Collect all of the referenced secrets into one map.
-		maps.Copy(secrets, ic.Secrets)
+		// Keep track of all the referenced TLS secrets.
+		for n, s := range ic.Secrets {
+			if s.Type == corev1.SecretTypeTLS {
+				r.secretsMap.add(ic.GetIngressNamespacedName(), n)
+				secrets[n] = s
+			}
+		}
 	}
 
-	certs := extractCerts(secrets)
-	r.upsertCerts(ctx, certs)
+	r.upsertCerts(ctx, slices.Collect(maps.Values(secrets)))
 
 	return anyChanges, errors.Join(errs...)
 }
@@ -147,12 +178,47 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 	return anyChanges, nil
 }
 
+// XXX: rename to syncKeyPairs?
 func (r *APIReconciler) upsertCerts(
 	ctx context.Context,
-	certs []*pb.Settings_Certificate,
+	secrets []*corev1.Secret,
 ) (bool, error) {
-	// XXX: TODO
-	return false, nil
+	var anyChanges bool
+	for _, secret := range secrets {
+		changed, err := r.upsertOneCert(ctx, secret)
+		if err != nil {
+			return anyChanges, err
+		}
+		anyChanges = anyChanges || changed
+	}
+	return anyChanges, nil
+}
+
+func (r *APIReconciler) upsertOneCert(
+	ctx context.Context,
+	secret *corev1.Secret,
+) (bool, error) {
+	name := slug.Make(fmt.Sprintf("%s %s", secret.Namespace, secret.Name))
+	keyPair := &pomerium.KeyPair{
+		Name:         &name,
+		Certificate:  secret.Data[corev1.TLSCertKey],
+		Key:          secret.Data[corev1.TLSPrivateKeyKey],
+		OriginatorId: &originatorID,
+	}
+
+	existingKeyPairID := secret.Annotations[apiKeypairIDAnnotation]
+	if existingKeyPairID == "" {
+		// No linked policy, so we need to create one.
+		updatedKeyPairID, err := r.createKeyPair(ctx, keyPair)
+		if err != nil {
+			return false, fmt.Errorf("couldn't create key pair: %w", err)
+		}
+		secret.Annotations[apiPolicyIDAnnotation] = updatedKeyPairID
+		return true, nil
+	}
+
+	keyPair.Id = &existingKeyPairID
+	return r.upsertKeyPair(ctx, keyPair)
 }
 
 // SetConfig updates just the shared config settings
@@ -416,39 +482,71 @@ func (r *APIReconciler) deletePolicy(
 	return true, nil
 }
 
-func (r *APIReconciler) upsertOneCert(ctx context.Context, cert *pb.Settings_Certificate) (bool, error) {
-	apiCert, err := convertProto[*pomerium.Settings_Certificate](cert)
-	if err != nil {
-		return false, err
-	}
-
-	resp, err := r.apiClient.GetKeyPair(ctx, connect.NewRequest(&pomerium.GetKeyPairRequest{
-		Id: cert.GetId(),
+func (r *APIReconciler) createKeyPair(ctx context.Context, keyPair *pomerium.KeyPair) (newID string, err error) {
+	resp, err := r.apiClient.CreateKeyPair(ctx, connect.NewRequest(&pomerium.CreateKeyPairRequest{
+		KeyPair: keyPair,
 	}))
-	notFound := connect.CodeOf(err) == connect.CodeNotFound
-	if err != nil && !notFound {
+	if err != nil {
+		return "", err
+	}
+	return resp.Msg.GetKeyPair().GetId(), nil
+}
+
+func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.KeyPair) (changed bool, err error) {
+	resp, err := r.apiClient.GetKeyPair(ctx, connect.NewRequest(&pomerium.GetKeyPairRequest{
+		Id: keyPair.GetId(),
+	}))
+	if err != nil {
+		if connect.CodeOf(err) != connect.CodeNotFound {
+			// If the existing key pair was deleted, recreate it.
+			_, err := r.createKeyPair(ctx, keyPair)
+			return err == nil, err
+		}
 		return false, err
 	}
 
-	if notFound {
-		// If the route does not currently exist, create it.
-		_, err := r.apiClient.CreateKeyPair(ctx, connect.NewRequest(&pomerium.CreateKeyPairRequest{
-			//Route: apiCert,
-		}))
-		return err == nil, err
-	}
+	// Zero out fields that should be ignored when looking for changes
+	existing := resp.Msg.KeyPair
+	existing.CreatedAt = nil
+	existing.NamespaceId = nil
+	existing.ModifiedAt = nil
 
-	// XXX: is it possible for resp.Msg to be nil at this point?
-	// XXX: do we need to ignore certain fields in this comparison?
-	if proto.Equal(resp.Msg, apiCert) {
+	if proto.Equal(existing, keyPair) {
 		// No changes needed.
 		return false, nil
 	}
 
+	// XXX: debugging
+	logger := log.FromContext(ctx).WithName("APIReconciler.upsertPolicy")
+	logger.Info("updating existing policy", "id", keyPair.GetId(), "diff", cmp.Diff(existing, keyPair, protocmp.Transform()))
+
 	_, err = r.apiClient.UpdateKeyPair(ctx, connect.NewRequest(&pomerium.UpdateKeyPairRequest{
-		//Route: apiCert,
+		KeyPair: keyPair,
 	}))
 	return err == nil, err
+}
+
+// deletePolicy deletes the policy for the ingress and clears its policy ID
+// annotation. Returns true if any changes were made, or an error if the delete
+// operation failed.
+func (r *APIReconciler) deleteKeyPairs(
+	ctx context.Context, secrets ...*corev1.Secret,
+) (bool, error) {
+	var anyDeletes bool
+	for _, s := range secrets {
+		keyPairID := s.Annotations[apiKeypairIDAnnotation] // XXX: standardize capitalization
+		if keyPairID == "" {
+			continue
+		}
+		_, err := r.apiClient.DeleteKeyPair(ctx, connect.NewRequest(&pomerium.DeleteKeyPairRequest{
+			Id: keyPairID,
+		}))
+		if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
+			return anyDeletes, err
+		}
+		delete(s.Annotations, apiKeypairIDAnnotation)
+		return true, nil
+	}
 }
 
 func routeIDAnnotationForIndex(i int) string {
@@ -475,4 +573,70 @@ func convertProto[Dst, Src proto.Message](msg Src) (Dst, error) {
 	newMsg = newMsg.ProtoReflect().Type().New().Interface().(Dst)
 	err = proto.Unmarshal(b, newMsg)
 	return newMsg, err
+}
+
+type secretsMap struct {
+	// Mapping from Ingress to names to TLS secret names. This is to track
+	// when an Ingress is modified in a way that removes a TLS secret.
+	ingressToSecrets map[types.NamespacedName]map[types.NamespacedName]struct{}
+
+	// Reverse mapping from TLS secret names to Ingress names. This is to track
+	// when a TLS secret is no longer in use by any Ingress.
+	secretToIngresses map[types.NamespacedName]map[types.NamespacedName]struct{}
+}
+
+func newSecretsMap() *secretsMap {
+	return &secretsMap{
+		ingressToSecrets:  make(map[types.NamespacedName]map[types.NamespacedName]struct{}),
+		secretToIngresses: make(map[types.NamespacedName]map[types.NamespacedName]struct{}),
+	}
+}
+
+func (m *secretsMap) reset() {
+	clear(m.ingressToSecrets)
+	clear(m.secretToIngresses)
+}
+
+func (m *secretsMap) updateIngress(ic *model.IngressConfig) []types.NamespacedName {
+	currentSecrets := make(map[types.NamespacedName]struct{})
+	for n, s := range ic.Secrets {
+		if s.Type == corev1.SecretTypeTLS {
+			currentSecrets[n] = struct{}{}
+		}
+	}
+
+	n := ic.GetIngressNamespacedName()
+	previousSecrets := m.ingressToSecrets[n]
+	m.ingressToSecrets[n] = currentSecrets
+
+	for s := range currentSecrets {
+		delete(previousSecrets, s)
+	}
+
+	var unreferencedSecrets []types.NamespacedName
+	for s := range previousSecrets {
+		delete(m.secretToIngresses[s], n)
+		if len(m.secretToIngresses[s]) == 0 {
+			unreferencedSecrets = append(unreferencedSecrets, s)
+		}
+	}
+	return unreferencedSecrets
+}
+
+func (m *secretsMap) add(ingress, secret types.NamespacedName) {
+	ensureMapEntry(m.ingressToSecrets, ingress)
+	m.ingressToSecrets[ingress][secret] = struct{}{}
+	ensureMapEntry(m.secretToIngresses, secret)
+	m.secretToIngresses[secret][ingress] = struct{}{}
+}
+
+func (m *secretsMap) remove(ingress, secret types.NamespacedName) {
+	delete(m.ingressToSecrets[ingress], secret)
+	delete(m.secretToIngresses[secret], ingress)
+}
+
+func ensureMapEntry(m map[types.NamespacedName]map[types.NamespacedName]struct{}, k types.NamespacedName) {
+	if _, exists := m[k]; !exists {
+		m[k] = make(map[types.NamespacedName]struct{})
+	}
 }

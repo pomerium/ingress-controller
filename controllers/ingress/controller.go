@@ -165,3 +165,8 @@ func (r *ingressController) isWatching(obj client.Object) bool {
 
 	return r.namespaces[obj.GetNamespace()]
 }
+
+type secretCleanupController struct {
+	// Client is k8s apiserver client with object caching
+	client.Client
+}
