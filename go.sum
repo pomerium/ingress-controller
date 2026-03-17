@@ -90,7 +90,6 @@ github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/cloudmock v0
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/cloudmock v0.54.0/go.mod h1:vB2GH9GAYYJTO3mEn8oYwzEdhlayZIdQz6zdzgUIRvA=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.54.0 h1:s0WlVbf9qpvkh1c/uDAPElam0WrL7fHRIidgZJ7UqZI=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.54.0/go.mod h1:Mf6O40IAyB9zR/1J8nGDDPirZQQPbYJni8Yisy7NTMc=
-github.com/Masterminds/semver v1.5.0 h1:H65muMkzWKEuNDnfl9d70GUjFniHKHRbFPGBuZ3QEww=
 github.com/Masterminds/semver/v3 v3.4.0 h1:Zog+i5UMtVoCU8oKka5P7i9q9HgrJeGzI9SA1Xbatp0=
 github.com/Masterminds/semver/v3 v3.4.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
@@ -701,10 +700,10 @@ github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRI
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pomerium/datasource v0.18.2-0.20260116153236-1f58110d0e17 h1:0xmmqjD1vvGKuUdV7XmVfVndgBYqjKcXB4o7Szv5fso=
 github.com/pomerium/datasource v0.18.2-0.20260116153236-1f58110d0e17/go.mod h1:E+aEx9rVJm+lNWcKUzMHY6MobZC0HchBCn9zdP2EfHE=
-github.com/pomerium/envoy-custom v1.36.4-rc3 h1:VCJN03YO1KGz3oVR3Y8+FNIF82CbxdVaeBOgwJcESoQ=
-github.com/pomerium/envoy-custom v1.36.4-rc3/go.mod h1:+wpbZvum83bq/OD4cp9/8IZiMV6boBkwDhlFPLOoWoI=
-github.com/pomerium/pomerium v0.32.1 h1:6bT8nsT7HdUMKcxTSCzr06Czanw6iM/lSLj5JySDq4g=
-github.com/pomerium/pomerium v0.32.1/go.mod h1:RL812UMtFssYcT+2zPVq03q0GVgKSG0/v0ztZR2QRAo=
+github.com/pomerium/envoy-custom v1.36.5-p1 h1:Cs/KLpVAlI1gFflRh0EGaeh5VlAHW+IltAflV+HB1No=
+github.com/pomerium/envoy-custom v1.36.5-p1/go.mod h1:+wpbZvum83bq/OD4cp9/8IZiMV6boBkwDhlFPLOoWoI=
+github.com/pomerium/pomerium v0.32.3 h1:IHtp06kFpu9cyS0r+HcBpdd7jGeZUQfxmBdf6c4GZw0=
+github.com/pomerium/pomerium v0.32.3/go.mod h1:AF5wjnZDt4srr2PRGYOWdSaB5skLtSJz7XWmfrK8Btk=
 github.com/pomerium/protoutil v0.0.0-20260116153545-19d2ae5b7518 h1:xIW5acZOr+EBXMapcOYsBCY/o7uh5GpKVVkk8iaTRFU=
 github.com/pomerium/protoutil v0.0.0-20260116153545-19d2ae5b7518/go.mod h1:vPV2+oC0DppJcM14IwN5nCJXW0Bh6J6r5Kg/vjEb0kQ=
 github.com/pomerium/webauthn v0.0.0-20260116153041-d32e028c3f7e h1:ACaHHitpK9WxN8Rd+hXPktyE3dWvfsfq9Hq86Kb8yU4=
