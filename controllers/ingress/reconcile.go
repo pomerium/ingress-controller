@@ -131,6 +131,7 @@ func (r *ingressController) deleteIngress(ctx context.Context, name types.Namesp
 		logger := log.FromContext(ctx).WithName("deleteIngress")
 		logger.Info("about to patch ingress after deletion", "ingress", name.Name)
 
+		// XXX: move this back into APIReconciler now that we've exposed the Client there
 		if err := r.Client.Patch(ctx, ingress, client.MergeFrom(originalIngress)); err != nil {
 			// XXX: what to do here?
 			logger := log.FromContext(ctx).WithName("deleteIngress")

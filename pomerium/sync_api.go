@@ -51,8 +51,6 @@ var (
 // APIReconciler updates pomerium configuration using the unified API.
 type APIReconciler struct {
 	apiClient sdk.Client
-
-	// XXX: not currently populated -- need to figure out if we need this or not
 	k8sClient client.Client
 
 	secretsMap *secretsMap
@@ -66,6 +64,11 @@ const (
 )
 
 var originatorID = "ingress-controller"
+
+// XXX: this is quick hack for prototyping
+func (r *APIReconciler) SetK8sClient(client client.Client) {
+	r.k8sClient = client
+}
 
 // XXX: the bool return value from this method is maybe unused in practice? can we remove it?
 func (r *APIReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
@@ -85,7 +88,13 @@ func (r *APIReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bo
 	}
 	anyChanges = anyChanges || anyDeletes
 
-	return r.Set(ctx, []*model.IngressConfig{ic})
+	changed, err := r.upsertOneIngress(ctx, ic)
+	if err != nil {
+		return anyChanges, err
+	}
+	anyChanges = anyChanges || changed
+
+	return anyChanges, nil
 }
 
 func (r *APIReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bool, error) {
@@ -213,8 +222,11 @@ func (r *APIReconciler) upsertOneCert(
 		if err != nil {
 			return false, fmt.Errorf("couldn't create key pair: %w", err)
 		}
-		secret.Annotations[apiPolicyIDAnnotation] = updatedKeyPairID
-		return true, nil
+
+		updatedSecret := secret.DeepCopy()
+		updatedSecret.Annotations[apiPolicyIDAnnotation] = updatedKeyPairID
+		err = r.k8sClient.Patch(ctx, updatedSecret, client.MergeFrom(secret))
+		return err == nil, err
 	}
 
 	keyPair.Id = &existingKeyPairID
@@ -228,7 +240,7 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 }
 
 // Delete should delete pomerium routes corresponding to this ingress name
-func (r *APIReconciler) Delete(ctx context.Context, _ types.NamespacedName, ingress *networkingv1.Ingress) (bool, error) {
+func (r *APIReconciler) Delete(ctx context.Context, name types.NamespacedName, ingress *networkingv1.Ingress) (bool, error) {
 	if ingress == nil {
 		return false, nil
 	}
@@ -244,6 +256,8 @@ func (r *APIReconciler) Delete(ctx context.Context, _ types.NamespacedName, ingr
 		return anyDeletes, err
 	}
 	anyDeletes = anyDeletes || policyDeleted
+
+	r.secretsMap.removeIngress(name)
 
 	controllerutil.RemoveFinalizer(ingress, apiFinalizer)
 
@@ -530,23 +544,36 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.Key
 // annotation. Returns true if any changes were made, or an error if the delete
 // operation failed.
 func (r *APIReconciler) deleteKeyPairs(
-	ctx context.Context, secrets ...*corev1.Secret,
+	ctx context.Context, secretNames ...types.NamespacedName,
 ) (bool, error) {
 	var anyDeletes bool
-	for _, s := range secrets {
-		keyPairID := s.Annotations[apiKeypairIDAnnotation] // XXX: standardize capitalization
+	for _, n := range secretNames {
+		secret := new(corev1.Secret)
+		err := r.k8sClient.Get(ctx, n, secret)
+		if err != nil {
+			// XXX: may want to swallow this error if apierrors.IsNotFound(err) is true
+			//      this probably results in a dangling KeyPair in the API, but we likely
+			//      cannot recover from this situation
+			return anyDeletes, err
+		}
+		keyPairID := secret.Annotations[apiKeypairIDAnnotation] // XXX: standardize capitalization
 		if keyPairID == "" {
 			continue
 		}
-		_, err := r.apiClient.DeleteKeyPair(ctx, connect.NewRequest(&pomerium.DeleteKeyPairRequest{
+		_, err = r.apiClient.DeleteKeyPair(ctx, connect.NewRequest(&pomerium.DeleteKeyPairRequest{
 			Id: keyPairID,
 		}))
 		if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
 			return anyDeletes, err
 		}
-		delete(s.Annotations, apiKeypairIDAnnotation)
-		return true, nil
+		updatedSecret := secret.DeepCopy()
+		delete(updatedSecret.Annotations, apiKeypairIDAnnotation)
+		if err := r.k8sClient.Patch(ctx, updatedSecret, client.MergeFrom(secret)); err != nil {
+			return anyDeletes, err
+		}
+		anyDeletes = true
 	}
+	return anyDeletes, nil
 }
 
 func routeIDAnnotationForIndex(i int) string {
@@ -621,6 +648,22 @@ func (m *secretsMap) updateIngress(ic *model.IngressConfig) []types.NamespacedNa
 		}
 	}
 	return unreferencedSecrets
+}
+
+func (m *secretsMap) removeIngress(n types.NamespacedName) []types.NamespacedName {
+	// XXX: conslidate the logic shared between here and updateIngress()?
+	previousSecrets := m.ingressToSecrets[n]
+	m.ingressToSecrets[n] = make(map[types.NamespacedName]struct{})
+
+	var unreferencedSecrets []types.NamespacedName
+	for s := range previousSecrets {
+		delete(m.secretToIngresses[s], n)
+		if len(m.secretToIngresses[s]) == 0 {
+			unreferencedSecrets = append(unreferencedSecrets, s)
+		}
+	}
+	return unreferencedSecrets
+
 }
 
 func (m *secretsMap) add(ingress, secret types.NamespacedName) {

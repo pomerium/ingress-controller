@@ -166,7 +166,12 @@ func (r *ingressController) isWatching(obj client.Object) bool {
 	return r.namespaces[obj.GetNamespace()]
 }
 
-type secretCleanupController struct {
-	// Client is k8s apiserver client with object caching
+// secretCleanupController watches for Secret deletion events, to remove
+// any linked keypairs in the unified API.
+/*type secretCleanupController struct {
 	client.Client
 }
+
+func (r *secretCleanupController) SetupWithManager(mgr ctrl.Manager) error {
+	r.Client = mgr.GetClient()
+}*/
