@@ -276,13 +276,14 @@ func TestMCPAnnotations(t *testing.T) {
 				ObjectMeta: v1.ObjectMeta{
 					Namespace: "test",
 					Annotations: map[string]string{
-						"a/mcp_server":                           "true",
-						"a/mcp_server_max_request_bytes":         "1048576",
-						"a/mcp_server_path":                      "/api/mcp",
-						"a/mcp_server_upstream_oauth2_secret":    "mcp-oauth2-secret",
-						"a/mcp_server_upstream_oauth2_token_url": "https://auth.example.com/token",
-						"a/mcp_server_upstream_oauth2_auth_url":  "https://auth.example.com/auth",
-						"a/mcp_server_upstream_oauth2_scopes":    "read,write,admin",
+						"a/mcp_server":                   "true",
+						"a/mcp_server_max_request_bytes": "1048576",
+						"a/mcp_server_path":              "/api/mcp",
+						"a/mcp_server_upstream_oauth2_authorization_url_params": "a: b\nx: y",
+						"a/mcp_server_upstream_oauth2_secret":                   "mcp-oauth2-secret",
+						"a/mcp_server_upstream_oauth2_token_url":                "https://auth.example.com/token",
+						"a/mcp_server_upstream_oauth2_auth_url":                 "https://auth.example.com/auth",
+						"a/mcp_server_upstream_oauth2_scopes":                   "read,write,admin",
 					},
 				},
 			},
@@ -308,6 +309,10 @@ func TestMCPAnnotations(t *testing.T) {
 		assert.Equal(t, "/api/mcp", server.GetPath())
 
 		require.NotNil(t, server.UpstreamOauth2)
+		assert.Equal(t, map[string]string{
+			"a": "b",
+			"x": "y",
+		}, server.UpstreamOauth2.AuthorizationUrlParams)
 		assert.Equal(t, "test-client-id", server.UpstreamOauth2.ClientId)
 		assert.Equal(t, "test-client-secret", server.UpstreamOauth2.ClientSecret)
 		require.NotNil(t, server.UpstreamOauth2.Oauth2Endpoint)

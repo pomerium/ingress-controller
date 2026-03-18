@@ -60,6 +60,8 @@ const (
 	MCPClient = "mcp_client"
 	// MCPServerMaxRequestBytes sets the maximum request body size for MCP server routes
 	MCPServerMaxRequestBytes = "mcp_server_max_request_bytes"
+	// MCPServerUpstreamOAuth2AuthorizationURLParams sets the OAuth2 authorization url params for MCP server authentication
+	MCPServerUpstreamOAuth2AuthorizationURLParams = "mcp_server_upstream_oauth2_authorization_url_params"
 	// MCPServerUpstreamOAuth2Secret references a secret containing OAuth2 configuration for MCP server upstream authentication
 	MCPServerUpstreamOAuth2Secret = "mcp_server_upstream_oauth2_secret" //nolint: gosec
 	// MCPServerUpstreamOAuth2AuthURL sets the OAuth2 token URL for MCP server upstream authentication
