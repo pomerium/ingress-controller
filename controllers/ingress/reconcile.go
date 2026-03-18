@@ -119,7 +119,7 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func (r *ingressController) deleteIngress(ctx context.Context, name types.NamespacedName, ingress *networkingv1.Ingress, reason string) (ctrl.Result, error) {
-	originalIngress := ingress.DeepCopy()
+	//originalIngress := ingress.DeepCopy()
 
 	changed, err := r.IngressReconciler.Delete(ctx, name, ingress)
 	if err != nil {
@@ -132,11 +132,11 @@ func (r *ingressController) deleteIngress(ctx context.Context, name types.Namesp
 		logger.Info("about to patch ingress after deletion", "ingress", name.Name)
 
 		// XXX: move this back into APIReconciler now that we've exposed the Client there
-		if err := r.Client.Patch(ctx, ingress, client.MergeFrom(originalIngress)); err != nil {
+		/*if err := r.Client.Patch(ctx, ingress, client.MergeFrom(originalIngress)); err != nil {
 			// XXX: what to do here?
 			logger := log.FromContext(ctx).WithName("deleteIngress")
 			logger.Info("patch", "ingress", name.Name, "error", err.Error())
-		}
+		}*/
 	}
 	r.DeleteCascade(model.Key{Kind: r.ingressKind, NamespacedName: name})
 	return ctrl.Result{}, nil

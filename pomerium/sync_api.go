@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/gosimple/slug"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/sdk-go"
 	"github.com/pomerium/sdk-go/proto/pomerium"
@@ -80,19 +79,26 @@ func (r *APIReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bo
 	}
 	anyChanges = anyChanges || changed
 
-	// Look for any changes to TLS secrets
+	// Sync any referenced TLS secrets to API keypairs.
+	var tlsSecrets []*corev1.Secret
+	for _, s := range ic.Secrets {
+		if s.Type == corev1.SecretTypeTLS {
+			tlsSecrets = append(tlsSecrets, s)
+		}
+	}
+	changed, err = r.upsertCerts(ctx, tlsSecrets)
+	if err != nil {
+		return anyChanges, err
+	}
+	anyChanges = anyChanges || changed
+
+	// Remove keypairs corresponding to any newly-unreferenced TLS secrets.
 	unreferencedSecrets := r.secretsMap.updateIngress(ic)
 	anyDeletes, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
 	if err != nil {
 		return anyChanges, err
 	}
 	anyChanges = anyChanges || anyDeletes
-
-	changed, err := r.upsertOneIngress(ctx, ic)
-	if err != nil {
-		return anyChanges, err
-	}
-	anyChanges = anyChanges || changed
 
 	return anyChanges, nil
 }
@@ -109,7 +115,7 @@ func (r *APIReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bo
 		}
 		anyChanges = anyChanges || changed
 
-		// Keep track of all the referenced TLS secrets.
+		// Track all the referenced TLS secrets.
 		for n, s := range ic.Secrets {
 			if s.Type == corev1.SecretTypeTLS {
 				r.secretsMap.add(ic.GetIngressNamespacedName(), n)
@@ -130,6 +136,18 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 	}
 
 	var anyChanges bool
+
+	originalIngress := ic.Ingress.DeepCopy()
+	defer func() {
+		if !anyChanges {
+			return
+		}
+		err := r.k8sClient.Patch(ctx, ic.Ingress, client.MergeFrom(originalIngress))
+		if err != nil {
+			logger := log.FromContext(ctx).WithName("APIReconciler.upsertOneIngress")
+			logger.Error(err, "patch", "ingress", ic.Name)
+		}
+	}()
 
 	anyChanges = anyChanges || controllerutil.AddFinalizer(ic.Ingress, apiFinalizer)
 
@@ -159,7 +177,7 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 			return anyChanges, err
 		}
 		if ic.Annotations[k] == "" {
-			ic.Annotations[k] = *route.Id
+			setAnnotation(ic, k, *route.Id)
 		}
 		anyChanges = anyChanges || changed
 	}
@@ -192,6 +210,9 @@ func (r *APIReconciler) upsertCerts(
 	ctx context.Context,
 	secrets []*corev1.Secret,
 ) (bool, error) {
+	logger := log.FromContext(ctx).WithName("APIReconciler.upsertCerts")
+	logger.Info("syncing...", "count", len(secrets))
+
 	var anyChanges bool
 	for _, secret := range secrets {
 		changed, err := r.upsertOneCert(ctx, secret)
@@ -207,6 +228,8 @@ func (r *APIReconciler) upsertOneCert(
 	ctx context.Context,
 	secret *corev1.Secret,
 ) (bool, error) {
+	logger := log.FromContext(ctx).WithName("APIReconciler.upsertOneCert")
+
 	name := slug.Make(fmt.Sprintf("%s %s", secret.Namespace, secret.Name))
 	keyPair := &pomerium.KeyPair{
 		Name:         &name,
@@ -217,17 +240,22 @@ func (r *APIReconciler) upsertOneCert(
 
 	existingKeyPairID := secret.Annotations[apiKeypairIDAnnotation]
 	if existingKeyPairID == "" {
+		logger.Info("creating new keypair...", "name", name)
+
 		// No linked policy, so we need to create one.
 		updatedKeyPairID, err := r.createKeyPair(ctx, keyPair)
 		if err != nil {
 			return false, fmt.Errorf("couldn't create key pair: %w", err)
 		}
 
-		updatedSecret := secret.DeepCopy()
-		updatedSecret.Annotations[apiPolicyIDAnnotation] = updatedKeyPairID
-		err = r.k8sClient.Patch(ctx, updatedSecret, client.MergeFrom(secret))
+		originalSecret := secret.DeepCopy()
+		setAnnotation(secret, apiKeypairIDAnnotation, updatedKeyPairID)
+		controllerutil.AddFinalizer(secret, apiFinalizer)
+		err = r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret))
 		return err == nil, err
 	}
+
+	logger.Info("updating existing keypair...", "name", name)
 
 	keyPair.Id = &existingKeyPairID
 	return r.upsertKeyPair(ctx, keyPair)
@@ -245,6 +273,16 @@ func (r *APIReconciler) Delete(ctx context.Context, name types.NamespacedName, i
 		return false, nil
 	}
 
+	originalIngress := ingress.DeepCopy()
+	defer func() {
+		// XXX: track "dirty" state?
+		err := r.k8sClient.Patch(ctx, ingress, client.MergeFrom(originalIngress))
+		if err != nil {
+			logger := log.FromContext(ctx).WithName("APIReconciler.upsertOneIngress")
+			logger.Error(err, "patch", "ingress", ingress.Name)
+		}
+	}()
+
 	routeAnnotations := allRouteIDAnnotations(ingress.Annotations)
 	anyDeletes, err := r.deleteRoutes(ctx, ingress, routeAnnotations)
 	if err != nil {
@@ -257,7 +295,13 @@ func (r *APIReconciler) Delete(ctx context.Context, name types.NamespacedName, i
 	}
 	anyDeletes = anyDeletes || policyDeleted
 
-	r.secretsMap.removeIngress(name)
+	// Remove keypairs corresponding to any newly-unreferenced TLS secrets.
+	unreferencedSecrets := r.secretsMap.removeIngress(name)
+	anyKeyPairDeletes, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
+	if err != nil {
+		return anyDeletes, err
+	}
+	anyDeletes = anyDeletes || anyKeyPairDeletes
 
 	controllerutil.RemoveFinalizer(ingress, apiFinalizer)
 
@@ -281,7 +325,7 @@ func (r *APIReconciler) SetGatewayConfig(
 				changes = true
 			}
 			if gr.Annotations[k] == "" {
-				gr.Annotations[k] = *route.Id
+				setAnnotation(gr, k, *route.Id)
 			}
 		}
 	}
@@ -304,16 +348,6 @@ func extractCerts(secrets map[types.NamespacedName]*corev1.Secret) []*pb.Setting
 	}
 	return certs
 }
-
-func deriveCertID(cert *pb.Settings_Certificate) {
-	// XXX: error handling
-	cryptutil.ParsePEMCertificate(cert.CertBytes)
-
-}
-
-//type ConnectMethod[Req, Resp proto.Message] func(context.Context, *connect.Request[Req]) (*connect.Response[Resp], error)
-
-//type entityUpserter[]
 
 func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb.Route) (bool, error) {
 	apiRoute, err := convertProto[*pomerium.Route](route)
@@ -415,7 +449,7 @@ func (r *APIReconciler) syncPolicy(
 		if err != nil {
 			return false, "", fmt.Errorf("couldn't create ingress policy: %w", err)
 		}
-		ic.Annotations[apiPolicyIDAnnotation] = updatedPolicyID
+		setAnnotation(ic, apiPolicyIDAnnotation, updatedPolicyID)
 		return true, updatedPolicyID, nil
 	}
 
@@ -521,9 +555,12 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.Key
 
 	// Zero out fields that should be ignored when looking for changes
 	existing := resp.Msg.KeyPair
-	existing.CreatedAt = nil
 	existing.NamespaceId = nil
+	existing.CreatedAt = nil
 	existing.ModifiedAt = nil
+	existing.Status = pomerium.KeyPairStatus_KEY_PAIR_STATUS_UNKNOWN
+	existing.Origin = pomerium.KeyPairOrigin_KEY_PAIR_ORIGIN_UNKNOWN
+	existing.CertificateInfo = nil
 
 	if proto.Equal(existing, keyPair) {
 		// No changes needed.
@@ -566,9 +603,10 @@ func (r *APIReconciler) deleteKeyPairs(
 		if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
 			return anyDeletes, err
 		}
-		updatedSecret := secret.DeepCopy()
-		delete(updatedSecret.Annotations, apiKeypairIDAnnotation)
-		if err := r.k8sClient.Patch(ctx, updatedSecret, client.MergeFrom(secret)); err != nil {
+		originalSecret := secret.DeepCopy()
+		delete(secret.Annotations, apiKeypairIDAnnotation)
+		controllerutil.RemoveFinalizer(secret, apiFinalizer)
+		if err := r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret)); err != nil {
 			return anyDeletes, err
 		}
 		anyDeletes = true
@@ -602,7 +640,18 @@ func convertProto[Dst, Src proto.Message](msg Src) (Dst, error) {
 	return newMsg, err
 }
 
+func setAnnotation(object client.Object, key, value string) {
+	m := object.GetAnnotations()
+	if m == nil {
+		m = make(map[string]string)
+	}
+	m[key] = value
+	object.SetAnnotations(m)
+}
+
 type secretsMap struct {
+	// XXX: need to account for global settings + Gateway Listener secrets
+	// maybe better to call these 'deps' and 'reverseDeps'?
 	// Mapping from Ingress to names to TLS secret names. This is to track
 	// when an Ingress is modified in a way that removes a TLS secret.
 	ingressToSecrets map[types.NamespacedName]map[types.NamespacedName]struct{}
@@ -651,7 +700,7 @@ func (m *secretsMap) updateIngress(ic *model.IngressConfig) []types.NamespacedNa
 }
 
 func (m *secretsMap) removeIngress(n types.NamespacedName) []types.NamespacedName {
-	// XXX: conslidate the logic shared between here and updateIngress()?
+	// XXX: consolidate the logic shared between here and updateIngress()?
 	previousSecrets := m.ingressToSecrets[n]
 	m.ingressToSecrets[n] = make(map[types.NamespacedName]struct{})
 
@@ -673,10 +722,10 @@ func (m *secretsMap) add(ingress, secret types.NamespacedName) {
 	m.secretToIngresses[secret][ingress] = struct{}{}
 }
 
-func (m *secretsMap) remove(ingress, secret types.NamespacedName) {
+/*func (m *secretsMap) remove(ingress, secret types.NamespacedName) {
 	delete(m.ingressToSecrets[ingress], secret)
 	delete(m.secretToIngresses[secret], ingress)
-}
+}*/
 
 func ensureMapEntry(m map[types.NamespacedName]map[types.NamespacedName]struct{}, k types.NamespacedName) {
 	if _, exists := m[k]; !exists {
