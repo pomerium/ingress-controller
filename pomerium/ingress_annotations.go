@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"google.golang.org/protobuf/proto"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -74,6 +75,7 @@ var (
 	mcpServerAnnotations = boolMap([]string{
 		model.MCPServer,
 		model.MCPServerMaxRequestBytes,
+		model.MCPServerUpstreamOAuth2AuthorizationURLParams,
 		model.MCPServerUpstreamOAuth2TokenURL,
 		model.MCPServerUpstreamOAuth2AuthURL,
 		model.MCPServerUpstreamOAuth2Scopes,
@@ -426,6 +428,14 @@ func applyMCPServerAnnotations(r *pomerium.Route, kvs map[string]string) error {
 			}
 			maxBytes := uint32(val)
 			serverConfig.MaxRequestBytes = &maxBytes
+		case model.MCPServerUpstreamOAuth2AuthorizationURLParams:
+			if serverConfig.UpstreamOauth2 == nil {
+				serverConfig.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
+			}
+			err := yaml.Unmarshal([]byte(v), &serverConfig.UpstreamOauth2.AuthorizationUrlParams)
+			if err != nil {
+				return fmt.Errorf("invalid mcp_server_upstream_oauth2_authorization_url_params: %w", err)
+			}
 		case model.MCPServerUpstreamOAuth2AuthURL:
 			if serverConfig.UpstreamOauth2 == nil {
 				serverConfig.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
