@@ -124,10 +124,6 @@ func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 	r.Client = mgr.GetClient()
 	r.Scheme = mgr.GetScheme()
 
-	if ar, ok := r.IngressReconciler.(*pomerium.APIReconciler); ok {
-		ar.SetK8sClient(r.Client)
-	}
-
 	// cache frequently used object kinds
 	r.secretKind = generic.GVKForType[*corev1.Secret](r.Scheme).Kind
 	r.ingressKind = generic.GVKForType[*networkingv1.Ingress](r.Scheme).Kind

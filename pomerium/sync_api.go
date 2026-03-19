@@ -255,7 +255,7 @@ func (r *APIReconciler) upsertOneCert(
 		return err == nil, err
 	}
 
-	logger.Info("updating existing keypair...", "name", name)
+	logger.Info("found existing keypair...", "name", name)
 
 	keyPair.Id = &existingKeyPairID
 	return r.upsertKeyPair(ctx, keyPair)
@@ -686,6 +686,9 @@ func (m *secretsMap) updateIngress(ic *model.IngressConfig) []types.NamespacedNa
 	m.ingressToSecrets[n] = currentSecrets
 
 	for s := range currentSecrets {
+		ensureMapEntry(m.secretToIngresses, s)
+		m.secretToIngresses[s][n] = struct{}{}
+
 		delete(previousSecrets, s)
 	}
 
@@ -706,8 +709,11 @@ func (m *secretsMap) removeIngress(n types.NamespacedName) []types.NamespacedNam
 
 	var unreferencedSecrets []types.NamespacedName
 	for s := range previousSecrets {
+		logger := log.FromContext(context.TODO()).WithName("secretsMap.removeIngress")
+		logger.Info("previous secrets", "secrets", previousSecrets)
 		delete(m.secretToIngresses[s], n)
 		if len(m.secretToIngresses[s]) == 0 {
+			logger.Info("found unreferenced secret", "name", n)
 			unreferencedSecrets = append(unreferencedSecrets, s)
 		}
 	}
