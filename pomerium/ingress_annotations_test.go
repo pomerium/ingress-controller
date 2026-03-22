@@ -651,7 +651,7 @@ func TestMCPAnnotations(t *testing.T) {
 				ObjectMeta: v1.ObjectMeta{
 					Namespace: "test",
 					Annotations: map[string]string{
-						"a/mcp_server":                        "true",
+						"a/mcp_server":                          "true",
 						"a/mcp_server_authorization_server_url": "https://auth.example.com",
 					},
 				},
@@ -674,10 +674,10 @@ func TestMCPAnnotations(t *testing.T) {
 				ObjectMeta: v1.ObjectMeta{
 					Namespace: "test",
 					Annotations: map[string]string{
-						"a/mcp_server":                               "true",
-						"a/mcp_server_upstream_oauth2_auth_style":    "in_params",
-						"a/mcp_server_upstream_oauth2_token_url":     "https://auth.example.com/token",
-						"a/mcp_server_upstream_oauth2_auth_url":      "https://auth.example.com/auth",
+						"a/mcp_server": "true",
+						"a/mcp_server_upstream_oauth2_auth_style": "in_params",
+						"a/mcp_server_upstream_oauth2_token_url":  "https://auth.example.com/token",
+						"a/mcp_server_upstream_oauth2_auth_url":   "https://auth.example.com/auth",
 					},
 				},
 			},
@@ -700,10 +700,10 @@ func TestMCPAnnotations(t *testing.T) {
 				ObjectMeta: v1.ObjectMeta{
 					Namespace: "test",
 					Annotations: map[string]string{
-						"a/mcp_server":                               "true",
-						"a/mcp_server_upstream_oauth2_auth_style":    "in_header",
-						"a/mcp_server_upstream_oauth2_token_url":     "https://auth.example.com/token",
-						"a/mcp_server_upstream_oauth2_auth_url":      "https://auth.example.com/auth",
+						"a/mcp_server": "true",
+						"a/mcp_server_upstream_oauth2_auth_style": "in_header",
+						"a/mcp_server_upstream_oauth2_token_url":  "https://auth.example.com/token",
+						"a/mcp_server_upstream_oauth2_auth_url":   "https://auth.example.com/auth",
 					},
 				},
 			},
@@ -726,7 +726,7 @@ func TestMCPAnnotations(t *testing.T) {
 				ObjectMeta: v1.ObjectMeta{
 					Namespace: "test",
 					Annotations: map[string]string{
-						"a/mcp_server":                            "true",
+						"a/mcp_server": "true",
 						"a/mcp_server_upstream_oauth2_auth_style": "invalid",
 					},
 				},
