@@ -266,6 +266,14 @@ type PomeriumSpec struct {
 	// +optional
 	MCPAllowedClientIDDomains []string `json:"mcpAllowedClientIdDomains,omitempty"`
 
+	// MCPAllowedASMetadataDomains specifies the allowed domains for upstream AS/PRM metadata URLs.
+	// Supports wildcard patterns like "*.example.com".
+	// This restricts which domains Pomerium will contact during upstream OAuth discovery
+	// (resource_metadata from WWW-Authenticate, authorization_servers from PRM).
+	// See <a href="https://www.pomerium.com/docs/reference/mcp">MCP Settings</a>.
+	// +optional
+	MCPAllowedASMetadataDomains []string `json:"mcpAllowedAsMetadataDomains,omitempty"`
+
 	// PassIdentityHeaders sets the <a href="https://www.pomerium.com/docs/reference/pass-identity-headers">pass identity headers</a> option.
 	PassIdentityHeaders *bool `json:"passIdentityHeaders,omitempty"`
 

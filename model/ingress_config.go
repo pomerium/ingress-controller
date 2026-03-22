@@ -72,6 +72,13 @@ const (
 	MCPServerUpstreamOAuth2Scopes = "mcp_server_upstream_oauth2_scopes"
 	// MCPServerPath sets the path property for MCP server routes
 	MCPServerPath = "mcp_server_path"
+	// MCPServerAuthorizationServerURL sets the authorization server URL for MCP server upstream OAuth2.
+	// When set, Pomerium uses this URL directly instead of performing RFC 9728 auto-discovery.
+	MCPServerAuthorizationServerURL = "mcp_server_authorization_server_url"
+	// MCPServerUpstreamOAuth2AuthStyle sets the OAuth2 authentication style for upstream token exchange.
+	// Valid values: "in_params" (client credentials in POST body), "in_header" (HTTP Basic Auth).
+	// Defaults to auto-detect when not set.
+	MCPServerUpstreamOAuth2AuthStyle = "mcp_server_upstream_oauth2_auth_style"
 	// MCPServerUpstreamOAuth2ClientIDKey defines the key within the OAuth2 secret that contains the client ID
 	MCPServerUpstreamOAuth2ClientIDKey = "client_id"
 	// MCPServerUpstreamOAuth2ClientSecretKey defines the key within the OAuth2 secret that contains the client secret

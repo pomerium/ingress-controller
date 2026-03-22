@@ -642,6 +642,101 @@ func TestMCPAnnotations(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "mcp_client annotation should be 'true' or omitted")
 	})
+
+	t.Run("MCP Server with authorization_server_url", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server":                        "true",
+						"a/mcp_server_authorization_server_url": "https://auth.example.com",
+					},
+				},
+			},
+		}
+
+		require.NoError(t, applyAnnotations(r, ic))
+		require.NotNil(t, r.Mcp)
+		server := r.Mcp.GetServer()
+		require.NotNil(t, server)
+		require.NotNil(t, server.AuthorizationServerUrl)
+		assert.Equal(t, "https://auth.example.com", *server.AuthorizationServerUrl)
+	})
+
+	t.Run("MCP Server with upstream oauth2 auth style in_params", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server":                               "true",
+						"a/mcp_server_upstream_oauth2_auth_style":    "in_params",
+						"a/mcp_server_upstream_oauth2_token_url":     "https://auth.example.com/token",
+						"a/mcp_server_upstream_oauth2_auth_url":      "https://auth.example.com/auth",
+					},
+				},
+			},
+		}
+
+		require.NoError(t, applyAnnotations(r, ic))
+		require.NotNil(t, r.Mcp)
+		server := r.Mcp.GetServer()
+		require.NotNil(t, server.UpstreamOauth2)
+		require.NotNil(t, server.UpstreamOauth2.Oauth2Endpoint)
+		require.NotNil(t, server.UpstreamOauth2.Oauth2Endpoint.AuthStyle)
+		assert.Equal(t, pb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS, *server.UpstreamOauth2.Oauth2Endpoint.AuthStyle)
+	})
+
+	t.Run("MCP Server with upstream oauth2 auth style in_header", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server":                               "true",
+						"a/mcp_server_upstream_oauth2_auth_style":    "in_header",
+						"a/mcp_server_upstream_oauth2_token_url":     "https://auth.example.com/token",
+						"a/mcp_server_upstream_oauth2_auth_url":      "https://auth.example.com/auth",
+					},
+				},
+			},
+		}
+
+		require.NoError(t, applyAnnotations(r, ic))
+		require.NotNil(t, r.Mcp)
+		server := r.Mcp.GetServer()
+		require.NotNil(t, server.UpstreamOauth2)
+		require.NotNil(t, server.UpstreamOauth2.Oauth2Endpoint)
+		require.NotNil(t, server.UpstreamOauth2.Oauth2Endpoint.AuthStyle)
+		assert.Equal(t, pb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_HEADER, *server.UpstreamOauth2.Oauth2Endpoint.AuthStyle)
+	})
+
+	t.Run("MCP Server with invalid oauth2 auth style should fail", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "test",
+					Annotations: map[string]string{
+						"a/mcp_server":                            "true",
+						"a/mcp_server_upstream_oauth2_auth_style": "invalid",
+					},
+				},
+			},
+		}
+
+		err := applyAnnotations(r, ic)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid mcp_server_upstream_oauth2_auth_style")
+	})
 }
 
 func TestNameAnnotation(t *testing.T) {
