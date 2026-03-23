@@ -101,3 +101,32 @@ func TestApplyConfig_DownstreamMTLS(t *testing.T) {
 			"should match in %s", tc.name)
 	}
 }
+
+func TestApplyConfig_MCPAllowedASMetadataDomains(t *testing.T) {
+	ctx := context.Background()
+
+	for _, tc := range []struct {
+		name    string
+		domains []string
+		expect  []string
+	}{
+		{"nil", nil, nil},
+		{"empty", []string{}, []string{}},
+		{"single domain", []string{"api.githubcopilot.com"}, []string{"api.githubcopilot.com"}},
+		{"wildcard", []string{"*.example.com"}, []string{"*.example.com"}},
+		{"multiple domains", []string{"api.githubcopilot.com", "*.github.com"}, []string{"api.githubcopilot.com", "*.github.com"}},
+	} {
+		src := &model.Config{
+			Pomerium: v1.Pomerium{
+				Spec: v1.PomeriumSpec{
+					MCPAllowedASMetadataDomains: tc.domains,
+				},
+			},
+		}
+		dst := new(pb.Config)
+		err := pomerium.ApplyConfig(ctx, dst, src)
+		assert.NoError(t, err, "should have no error in %s", tc.name)
+		assert.Equal(t, tc.expect, dst.Settings.McpAllowedAsMetadataDomains,
+			"should match in %s", tc.name)
+	}
+}

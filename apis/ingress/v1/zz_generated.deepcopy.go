@@ -462,6 +462,11 @@ func (in *PomeriumSpec) DeepCopyInto(out *PomeriumSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.MCPAllowedASMetadataDomains != nil {
+		in, out := &in.MCPAllowedASMetadataDomains, &out.MCPAllowedASMetadataDomains
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.PassIdentityHeaders != nil {
 		in, out := &in.PassIdentityHeaders, &out.PassIdentityHeaders
 		*out = new(bool)

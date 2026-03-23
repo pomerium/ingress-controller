@@ -200,6 +200,17 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>mcpAllowedAsMetadataDomains</code>&#160;&#160;
+                    <strong>[]string</strong>&#160;
+                </p>
+                <p>
+                    MCPAllowedASMetadataDomains specifies the allowed domains for upstream AS/PRM metadata URLs. Supports wildcard patterns like "*.example.com". This restricts which domains Pomerium will contact during upstream OAuth discovery (resource_metadata from WWW-Authenticate, authorization_servers from PRM). See <a href="https://www.pomerium.com/docs/reference/mcp">MCP Settings</a>.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
                 <code>mcpAllowedClientIdDomains</code>&#160;&#160;
                     <strong>[]string</strong>&#160;
                 </p>

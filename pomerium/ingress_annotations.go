@@ -79,7 +79,9 @@ var (
 		model.MCPServerUpstreamOAuth2TokenURL,
 		model.MCPServerUpstreamOAuth2AuthURL,
 		model.MCPServerUpstreamOAuth2Scopes,
+		model.MCPServerUpstreamOAuth2AuthStyle,
 		model.MCPServerPath,
+		model.MCPServerAuthorizationServerURL,
 	})
 	mcpClientAnnotations = boolMap([]string{
 		model.MCPClient,
@@ -462,6 +464,23 @@ func applyMCPServerAnnotations(r *pomerium.Route, kvs map[string]string) error {
 			}
 		case model.MCPServerPath:
 			serverConfig.Path = &v
+		case model.MCPServerAuthorizationServerURL:
+			serverConfig.AuthorizationServerUrl = &v
+		case model.MCPServerUpstreamOAuth2AuthStyle:
+			if serverConfig.UpstreamOauth2 == nil {
+				serverConfig.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
+			}
+			if serverConfig.UpstreamOauth2.Oauth2Endpoint == nil {
+				serverConfig.UpstreamOauth2.Oauth2Endpoint = &pomerium.OAuth2Endpoint{}
+			}
+			switch v {
+			case "in_params":
+				serverConfig.UpstreamOauth2.Oauth2Endpoint.AuthStyle = pomerium.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS.Enum()
+			case "in_header":
+				serverConfig.UpstreamOauth2.Oauth2Endpoint.AuthStyle = pomerium.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_HEADER.Enum()
+			default:
+				return fmt.Errorf("invalid mcp_server_upstream_oauth2_auth_style %q: must be 'in_params' or 'in_header'", v)
+			}
 		default:
 			return fmt.Errorf("unknown MCP server annotation %s", k)
 		}

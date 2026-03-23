@@ -517,6 +517,16 @@ spec:
                   <a href="https://www.pomerium.com/docs/capabilities/getting-users-identity">
                   Getting User Identity</a> guide.
                 type: object
+              mcpAllowedAsMetadataDomains:
+                description: |-
+                  MCPAllowedASMetadataDomains specifies the allowed domains for upstream AS/PRM metadata URLs.
+                  Supports wildcard patterns like "*.example.com".
+                  This restricts which domains Pomerium will contact during upstream OAuth discovery
+                  (resource_metadata from WWW-Authenticate, authorization_servers from PRM).
+                  See <a href="https://www.pomerium.com/docs/reference/mcp">MCP Settings</a>.
+                items:
+                  type: string
+                type: array
               mcpAllowedClientIdDomains:
                 description: |-
                   MCPAllowedClientIDDomains specifies the allowed domains for MCP client ID metadata URLs.
