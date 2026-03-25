@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
@@ -118,7 +119,7 @@ func (r *APIReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bo
 		// Track all the referenced TLS secrets.
 		for n, s := range ic.Secrets {
 			if s.Type == corev1.SecretTypeTLS {
-				r.secretsMap.add(ic.GetIngressNamespacedName(), n)
+				r.secretsMap.add(getEntity(ic), n)
 				secrets[n] = s
 			}
 		}
@@ -263,8 +264,43 @@ func (r *APIReconciler) upsertOneCert(
 
 // SetConfig updates just the shared config settings
 func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (changes bool, err error) {
-	// XXX: TODO
-	return false, nil
+	pbConfig := new(pb.Config)
+	if err = ApplyConfig(ctx, pbConfig, cfg); err != nil {
+		return false, fmt.Errorf("couldn't convert settings: %w", err)
+	}
+	apiConfig, err := convertProto[*pomerium.Config](pbConfig)
+	if err != nil {
+		return false, err
+	}
+	settings := apiConfig.Settings
+
+	resp, err := r.apiClient.GetSettings(ctx, connect.NewRequest(&pomerium.GetSettingsRequest{}))
+	if err != nil {
+		return false, err
+	}
+
+	// XXX: mask any derived values?
+	existing := resp.Msg.Settings
+
+	if proto.Equal(existing, settings) {
+		// No changes needed.
+		// XXX: should not be an early return, still needs to update secret deps
+		return false, nil
+	}
+
+	logger := log.FromContext(ctx).WithName("APIReconciler.SetConfig")
+	logger.Info("updating settings", "diff", cmp.Diff(existing, settings, protocmp.Transform()))
+
+	_, err = r.apiClient.UpdateSettings(ctx, connect.NewRequest(&pomerium.UpdateSettingsRequest{
+		Settings: settings,
+	}))
+	if err != nil {
+		return false, err
+	}
+	// XXX: extract certificates, record dependencies
+	//getEntity(cfg)
+
+	return true, nil
 }
 
 // Delete should delete pomerium routes corresponding to this ingress name
@@ -296,7 +332,10 @@ func (r *APIReconciler) Delete(ctx context.Context, name types.NamespacedName, i
 	anyDeletes = anyDeletes || policyDeleted
 
 	// Remove keypairs corresponding to any newly-unreferenced TLS secrets.
-	unreferencedSecrets := r.secretsMap.removeIngress(name)
+	unreferencedSecrets := r.secretsMap.removeEntity(entity{
+		Kind:           ingress.Kind,
+		NamespacedName: name,
+	})
 	anyKeyPairDeletes, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
 	if err != nil {
 		return anyDeletes, err
@@ -649,31 +688,52 @@ func setAnnotation(object client.Object, key, value string) {
 	object.SetAnnotations(m)
 }
 
-type secretsMap struct {
-	// XXX: need to account for global settings + Gateway Listener secrets
-	// maybe better to call these 'deps' and 'reverseDeps'?
-	// Mapping from Ingress to names to TLS secret names. This is to track
-	// when an Ingress is modified in a way that removes a TLS secret.
-	ingressToSecrets map[types.NamespacedName]map[types.NamespacedName]struct{}
+type entity struct {
+	Kind string
+	types.NamespacedName
+}
 
-	// Reverse mapping from TLS secret names to Ingress names. This is to track
-	// when a TLS secret is no longer in use by any Ingress.
-	secretToIngresses map[types.NamespacedName]map[types.NamespacedName]struct{}
+// XXX: refactor to use this consistently?
+func getEntity(obj client.Object) entity {
+	return entity{
+		Kind: obj.GetObjectKind().GroupVersionKind().Kind,
+		NamespacedName: types.NamespacedName{
+			Name:      obj.GetName(),
+			Namespace: obj.GetNamespace(),
+		},
+	}
+}
+
+type secretsMap struct {
+	mu sync.Mutex
+
+	// Mapping from entity to names to TLS secret names. This is to track
+	// when an entity is modified in a way that removes a TLS secret.
+	deps map[entity]map[types.NamespacedName]struct{}
+
+	// Reverse mapping from TLS secret names to the entities that reference
+	// them. This is to track when a TLS secret is no longer in use.
+	reverseDeps map[types.NamespacedName]map[entity]struct{}
 }
 
 func newSecretsMap() *secretsMap {
 	return &secretsMap{
-		ingressToSecrets:  make(map[types.NamespacedName]map[types.NamespacedName]struct{}),
-		secretToIngresses: make(map[types.NamespacedName]map[types.NamespacedName]struct{}),
+		deps:        make(map[entity]map[types.NamespacedName]struct{}),
+		reverseDeps: make(map[types.NamespacedName]map[entity]struct{}),
 	}
 }
 
 func (m *secretsMap) reset() {
-	clear(m.ingressToSecrets)
-	clear(m.secretToIngresses)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	clear(m.deps)
+	clear(m.reverseDeps)
 }
 
 func (m *secretsMap) updateIngress(ic *model.IngressConfig) []types.NamespacedName {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	currentSecrets := make(map[types.NamespacedName]struct{})
 	for n, s := range ic.Secrets {
 		if s.Type == corev1.SecretTypeTLS {
@@ -681,38 +741,46 @@ func (m *secretsMap) updateIngress(ic *model.IngressConfig) []types.NamespacedNa
 		}
 	}
 
-	n := ic.GetIngressNamespacedName()
-	previousSecrets := m.ingressToSecrets[n]
-	m.ingressToSecrets[n] = currentSecrets
+	n := entity{
+		Kind:           ic.Kind,
+		NamespacedName: ic.GetIngressNamespacedName(),
+	}
+	previousSecrets := m.deps[n]
+	m.deps[n] = currentSecrets
 
 	for s := range currentSecrets {
-		ensureMapEntry(m.secretToIngresses, s)
-		m.secretToIngresses[s][n] = struct{}{}
+		ensureMapEntry(m.reverseDeps, s)
+		m.reverseDeps[s][n] = struct{}{}
 
 		delete(previousSecrets, s)
 	}
 
 	var unreferencedSecrets []types.NamespacedName
 	for s := range previousSecrets {
-		delete(m.secretToIngresses[s], n)
-		if len(m.secretToIngresses[s]) == 0 {
+		delete(m.reverseDeps[s], n)
+		if len(m.reverseDeps[s]) == 0 {
 			unreferencedSecrets = append(unreferencedSecrets, s)
 		}
 	}
 	return unreferencedSecrets
 }
 
-func (m *secretsMap) removeIngress(n types.NamespacedName) []types.NamespacedName {
+// removeEntity updates the secrets map to remove all current dependencies of
+// the given entity.
+func (m *secretsMap) removeEntity(n entity) []types.NamespacedName {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	// XXX: consolidate the logic shared between here and updateIngress()?
-	previousSecrets := m.ingressToSecrets[n]
-	m.ingressToSecrets[n] = make(map[types.NamespacedName]struct{})
+	previousSecrets := m.deps[n]
+	m.deps[n] = make(map[types.NamespacedName]struct{})
 
 	var unreferencedSecrets []types.NamespacedName
 	for s := range previousSecrets {
 		logger := log.FromContext(context.TODO()).WithName("secretsMap.removeIngress")
 		logger.Info("previous secrets", "secrets", previousSecrets)
-		delete(m.secretToIngresses[s], n)
-		if len(m.secretToIngresses[s]) == 0 {
+		delete(m.reverseDeps[s], n)
+		if len(m.reverseDeps[s]) == 0 {
 			logger.Info("found unreferenced secret", "name", n)
 			unreferencedSecrets = append(unreferencedSecrets, s)
 		}
@@ -721,11 +789,13 @@ func (m *secretsMap) removeIngress(n types.NamespacedName) []types.NamespacedNam
 
 }
 
-func (m *secretsMap) add(ingress, secret types.NamespacedName) {
-	ensureMapEntry(m.ingressToSecrets, ingress)
-	m.ingressToSecrets[ingress][secret] = struct{}{}
-	ensureMapEntry(m.secretToIngresses, secret)
-	m.secretToIngresses[secret][ingress] = struct{}{}
+func (m *secretsMap) add(entity entity, secret types.NamespacedName) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	ensureMapEntry(m.deps, entity)
+	m.deps[entity][secret] = struct{}{}
+	ensureMapEntry(m.reverseDeps, secret)
+	m.reverseDeps[secret][entity] = struct{}{}
 }
 
 /*func (m *secretsMap) remove(ingress, secret types.NamespacedName) {
@@ -733,8 +803,8 @@ func (m *secretsMap) add(ingress, secret types.NamespacedName) {
 	delete(m.secretToIngresses[secret], ingress)
 }*/
 
-func ensureMapEntry(m map[types.NamespacedName]map[types.NamespacedName]struct{}, k types.NamespacedName) {
+func ensureMapEntry[A, B comparable](m map[A]map[B]struct{}, k A) {
 	if _, exists := m[k]; !exists {
-		m[k] = make(map[types.NamespacedName]struct{})
+		m[k] = make(map[B]struct{})
 	}
 }
