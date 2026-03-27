@@ -8,6 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// KeyForObject returns the Key corresponding to obj.
 func KeyForObject(obj client.Object) Key {
 	return Key{
 		Kind:           obj.GetObjectKind().GroupVersionKind().Kind,
@@ -34,6 +35,7 @@ type TLSSecretsMap struct {
 	reverseDeps map[types.NamespacedName]map[Key]struct{}
 }
 
+// NewTLSSecretsMap returns a new TLSSecretsMap.
 func NewTLSSecretsMap() *TLSSecretsMap {
 	return &TLSSecretsMap{
 		deps:        make(map[Key]map[types.NamespacedName]struct{}),
@@ -41,6 +43,7 @@ func NewTLSSecretsMap() *TLSSecretsMap {
 	}
 }
 
+// Reset clears all of the dependencies.
 func (m *TLSSecretsMap) Reset() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -119,6 +122,7 @@ func (m *TLSSecretsMap) removeReverseDeps(
 	return unreferencedSecrets
 }
 
+// Add records a dependency from entity to secret.
 func (m *TLSSecretsMap) Add(entity Key, secret types.NamespacedName) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
