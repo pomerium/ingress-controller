@@ -1,25 +1,86 @@
 namespace: pomerium
 resources:
   - ../default
-  - ./statefulset
   - ./service
 patches:
   - patch: |-
+      - op: replace
+        path: /kind
+        value: StatefulSet
       - op: add
         path: /spec/template/spec/containers/0/args/-
-        value: '--services=authenticate,authorize,proxy'
+        value: '--databroker-cluster-node-id=$(POD_NAME)'
       - op: add
         path: /spec/template/spec/containers/0/args/-
-        value: '--databroker-service-urls=https://pomerium-databroker-0.pomerium-databroker:5443'
+        value: '--databroker-raft-bind-address=:5999'
       - op: add
         path: /spec/template/spec/containers/0/args/-
-        value: '--databroker-service-urls=https://pomerium-databroker-1.pomerium-databroker:5443'
+        value: '--databroker-auto-tls=*.pomerium-headless'
       - op: add
-        path: /spec/template/spec/containers/0/args/-
-        value: '--databroker-service-urls=https://pomerium-databroker-2.pomerium-databroker:5443'
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
       - op: add
-        path: /spec/template/spec/containers/0/args/-
-        value: '--databroker-auto-tls=*.pomerium-databroker'
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: DATABROKER_CLUSTER_NODES
+          value: |-
+            [
+              { "id": "pomerium-0", "grpc_address": "https://pomerium-0.pomerium-headless:5443", "raft_address": "pomerium-0.pomerium-headless:5999" },
+              { "id": "pomerium-1", "grpc_address": "https://pomerium-1.pomerium-headless:5443", "raft_address": "pomerium-1.pomerium-headless:5999" },
+              { "id": "pomerium-2", "grpc_address": "https://pomerium-2.pomerium-headless:5443", "raft_address": "pomerium-2.pomerium-headless:5999" }
+            ]
+      - op: add
+        path: /spec/template/spec/containers/0/ports/-
+        value:
+          name: grpc
+          containerPort: 5443
+          protocol: TCP
+      - op: add
+        path: /spec/template/spec/containers/0/ports/-
+        value:
+          name: raft
+          containerPort: 5999
+          protocol: TCP
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts/-
+        value:
+          name: storage
+          mountPath: /var/pomerium/databroker
+      - op: add
+        path: /spec/replicas
+        value: 3
+      - op: add
+        path: /spec/updateStrategy
+        value:
+          type: RollingUpdate
+          rollingUpdate:
+            maxUnavailable: 1
+      - op: add
+        path: /spec/podManagementPolicy
+        value: Parallel
+      - op: add
+        path: /spec/persistentVolumeClaimRetentionPolicy
+        value:
+          whenDeleted: Delete
+          whenScaled: Delete
+      - op: add
+        path: /spec/serviceName
+        value: pomerium-headless
+      - op: add
+        path: /spec/volumeClaimTemplates
+        value:
+          - metadata:
+              name: storage
+            spec:
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 1Gi
     target:
       group: apps
       version: v1
