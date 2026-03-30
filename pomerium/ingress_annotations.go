@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"google.golang.org/protobuf/proto"
-	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -299,7 +298,7 @@ func applySecretAnnotations(
 				return nil
 			},
 		},
-		model.MCPServerUpstreamOAuth2Secret: {
+		/*model.MCPServerUpstreamOAuth2Secret: {
 			corev1.SecretTypeOpaque,
 			func(data map[string][]byte) error {
 				clientID, hasClientID := data[model.MCPServerUpstreamOAuth2ClientIDKey]
@@ -339,7 +338,7 @@ func applySecretAnnotations(
 
 				return nil
 			},
-		},
+		},*/
 		model.IdentityProviderSecret: {
 			corev1.SecretTypeOpaque,
 			func(data map[string][]byte) error {
@@ -430,14 +429,14 @@ func applyMCPServerAnnotations(r *pomerium.Route, kvs map[string]string) error {
 			}
 			maxBytes := uint32(val)
 			serverConfig.MaxRequestBytes = &maxBytes
-		case model.MCPServerUpstreamOAuth2AuthorizationURLParams:
-			if serverConfig.UpstreamOauth2 == nil {
-				serverConfig.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
-			}
-			err := yaml.Unmarshal([]byte(v), &serverConfig.UpstreamOauth2.AuthorizationUrlParams)
-			if err != nil {
-				return fmt.Errorf("invalid mcp_server_upstream_oauth2_authorization_url_params: %w", err)
-			}
+		/*case model.MCPServerUpstreamOAuth2AuthorizationURLParams:
+		if serverConfig.UpstreamOauth2 == nil {
+			serverConfig.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
+		}
+		err := yaml.Unmarshal([]byte(v), &serverConfig.UpstreamOauth2.AuthorizationUrlParams)
+		if err != nil {
+			return fmt.Errorf("invalid mcp_server_upstream_oauth2_authorization_url_params: %w", err)
+		}*/
 		case model.MCPServerUpstreamOAuth2AuthURL:
 			if serverConfig.UpstreamOauth2 == nil {
 				serverConfig.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
@@ -464,8 +463,8 @@ func applyMCPServerAnnotations(r *pomerium.Route, kvs map[string]string) error {
 			}
 		case model.MCPServerPath:
 			serverConfig.Path = &v
-		case model.MCPServerAuthorizationServerURL:
-			serverConfig.AuthorizationServerUrl = &v
+		/*case model.MCPServerAuthorizationServerURL:
+		serverConfig.AuthorizationServerUrl = &v*/
 		case model.MCPServerUpstreamOAuth2AuthStyle:
 			if serverConfig.UpstreamOauth2 == nil {
 				serverConfig.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
@@ -537,9 +536,10 @@ func applyUpstreamAnnotations(r *pomerium.Route, kvs map[string]string) error {
 			if r.UpstreamTunnel == nil {
 				r.UpstreamTunnel = &pomerium.UpstreamTunnel{}
 			}
-			r.UpstreamTunnel.SshPolicy = &pomerium.PPLPolicy{
+			_ = v
+			/*r.UpstreamTunnel.SshPolicy = &pomerium.PPLPolicy{
 				Raw: []byte(v),
-			}
+			}*/
 		default:
 			return fmt.Errorf("unknown upstream tunnel annotation %s", k)
 		}
