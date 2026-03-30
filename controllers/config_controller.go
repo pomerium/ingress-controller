@@ -73,6 +73,10 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 		return fmt.Errorf("unable to create controller manager: %w", err)
 	}
 
+	if ar, ok := c.Reconciler.(*pomerium.APIReconciler); ok {
+		ar.SetK8sClient(mgr.GetClient())
+	}
+
 	if err = ingress.NewIngressController(mgr, c.Reconciler, c.getIngressOpts(mgr)...); err != nil {
 		return fmt.Errorf("create ingress controller: %w", err)
 	}

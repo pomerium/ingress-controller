@@ -9,11 +9,19 @@ rules:
     resources:
       - services
       - endpoints
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
       - secrets
     verbs:
       - get
       - list
       - watch
+      - patch
   - apiGroups:
       - ""
     resources:

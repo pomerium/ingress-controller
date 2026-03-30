@@ -25,6 +25,9 @@ func NewIngressController(
 	opts ...Option,
 ) error {
 	registry := model.NewRegistry()
+	/*if ar, ok := pcr.(*pomerium.APIReconciler); ok {
+		ar.SetK8sClient(mgr.GetClient())
+	}*/
 	ic := &ingressController{
 		annotationPrefix:  DefaultAnnotationPrefix,
 		controllerName:    DefaultClassControllerName,

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -19,7 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/gosimple/slug"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/sdk-go"
 	"github.com/pomerium/sdk-go/proto/pomerium"
@@ -34,7 +35,10 @@ func NewUnifiedAPIReconciler(
 	client := sdk.NewClient(
 		sdk.WithURL(url),
 		sdk.WithAPIToken(token))
-	return &APIReconciler{apiClient: client}
+	return &APIReconciler{
+		apiClient:  client,
+		secretsMap: model.NewTLSSecretsMap(),
+	}
 }
 
 var (
@@ -47,24 +51,77 @@ var (
 type APIReconciler struct {
 	apiClient sdk.Client
 	k8sClient client.Client
+
+	secretsMap *model.TLSSecretsMap
 }
 
 const (
 	apiRouteIDAnnotationPrefix = "api.pomerium.io/route-id-"
 	apiPolicyIDAnnotation      = "api.pomerium.io/policy-id"
+	apiKeypairIDAnnotation     = "api.pomerium.io/keypair-id"
 	apiFinalizer               = "api.pomerium.io/finalizer"
 )
 
 var originatorID = "ingress-controller"
 
+// XXX: this is quick hack for prototyping
+func (r *APIReconciler) SetK8sClient(client client.Client) {
+	r.k8sClient = client
+}
+
 // XXX: the bool return value from this method is maybe unused in practice? can we remove it?
 func (r *APIReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
-	return r.Set(ctx, []*model.IngressConfig{ic})
+	var anyChanges bool
+
+	// Sync any referenced TLS secrets to API keypairs.
+	var tlsSecrets []*corev1.Secret
+	for _, s := range ic.Secrets {
+		if s.Type == corev1.SecretTypeTLS {
+			tlsSecrets = append(tlsSecrets, s)
+		}
+	}
+	changed, err := r.upsertKeyPairs(ctx, tlsSecrets)
+	if err != nil {
+		return anyChanges, err
+	}
+	anyChanges = anyChanges || changed
+
+	changed, err = r.upsertOneIngress(ctx, ic)
+	if err != nil {
+		return anyChanges, err
+	}
+	anyChanges = anyChanges || changed
+
+	// Remove keypairs corresponding to any newly-unreferenced TLS secrets.
+	unreferencedSecrets := r.secretsMap.UpdateIngress(ic)
+	anyDeletes, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
+	if err != nil {
+		return anyChanges, err
+	}
+	anyChanges = anyChanges || anyDeletes
+
+	return anyChanges, nil
 }
 
 func (r *APIReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bool, error) {
-	secrets := make(map[types.NamespacedName]*corev1.Secret)
-	var anyChanges bool
+	// XXX: should probably re-scan all secrets here, looking for any deleted ones?
+	tlsSecrets := make(map[types.NamespacedName]*corev1.Secret)
+	for _, ic := range ics {
+		// Collect all the referenced TLS secrets. These need to be synced
+		// before the routes, as a route may reference a keypair by ID.
+		for n, s := range ic.Secrets {
+			if s.Type == corev1.SecretTypeTLS {
+				r.secretsMap.Add(model.KeyForObject(ic), n) // XXX: consider just updateIngress() instead?
+				tlsSecrets[n] = s
+			}
+		}
+	}
+
+	anyChanges, err := r.upsertKeyPairs(ctx, slices.Collect(maps.Values(tlsSecrets)))
+	if err != nil {
+		return anyChanges, err
+	}
+
 	var errs []error
 	for _, ic := range ics {
 		changed, err := r.upsertOneIngress(ctx, ic)
@@ -72,18 +129,14 @@ func (r *APIReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bo
 			errs = append(errs, err)
 		}
 		anyChanges = anyChanges || changed
-
-		// Collect all of the referenced secrets into one map.
-		maps.Copy(secrets, ic.Secrets)
 	}
-
-	certs := extractCerts(secrets)
-	r.upsertCerts(ctx, certs)
 
 	return anyChanges, errors.Join(errs...)
 }
 
 func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressConfig) (bool, error) {
+	logger := log.FromContext(ctx).WithName("APIReconciler.upsertOneIngress")
+
 	routes, err := ingressToRoutes(ctx, ic)
 	if err != nil {
 		return false, fmt.Errorf("couldn't convert ingress to routes: %w", err)
@@ -91,18 +144,49 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 
 	var anyChanges bool
 
+	originalIngress := ic.Ingress.DeepCopy()
+	defer func() {
+		if !anyChanges {
+			return
+		}
+		err := r.k8sClient.Patch(ctx, ic.Ingress, client.MergeFrom(originalIngress))
+		if err != nil {
+			logger.Error(err, "patch", "ingress", ic.Name)
+		}
+	}()
+
 	anyChanges = anyChanges || controllerutil.AddFinalizer(ic.Ingress, apiFinalizer)
 
-	changed, err := r.syncPolicy(ctx, ic)
+	changed, updatedPolicyID, err := r.syncPolicy(ctx, ic)
 	if err != nil {
 		return anyChanges, err
 	}
 	anyChanges = anyChanges || changed
 
 	var policyIDs []string
-	if policyID := ic.Annotations[apiPolicyIDAnnotation]; policyID != "" {
-		policyIDs = []string{policyID}
+	if updatedPolicyID != "" {
+		policyIDs = []string{updatedPolicyID}
 	}
+
+	kv, err := removeKeyPrefix(ic.Ingress.Annotations, ic.AnnotationPrefix)
+	keyPairIDForAnnotation := func(annotation string) *string {
+		secretName, ok := kv.TLS[annotation]
+		if !ok {
+			return nil
+		}
+		secret := ic.Secrets[types.NamespacedName{Namespace: ic.Namespace, Name: secretName}]
+		if secret == nil {
+			logger.Info("missing secret (internal error)", "annotation", annotation, "secretName", secretName)
+		}
+		keyPairID := secret.Annotations[apiKeypairIDAnnotation]
+		if keyPairID == "" {
+			logger.Info("missing keypair ID annotation (internal error)", "annotation", annotation, "secretName", secretName)
+		}
+		return &keyPairID
+	}
+	tlsCustomCAKeyPairID := keyPairIDForAnnotation(model.TLSCustomCASecret)
+	tlsClientKeyPairID := keyPairIDForAnnotation(model.TLSClientSecret)
+	tlsDownstreamClientCAKeyPairID := keyPairIDForAnnotation(model.TLSDownstreamClientCASecret)
 
 	unusedRouteIDAnnotations := allRouteIDAnnotations(ic.Annotations)
 
@@ -110,16 +194,24 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 		k := routeIDAnnotationForIndex(i)
 		delete(unusedRouteIDAnnotations, k)
 
-		// Swap out any inline policies for the policy ID reference.
+		// Swap out any inline policies for the policy ID reference, and swap
+		// out any TLS secrets for keypair ID references.
 		route.Policies = nil
 		route.PolicyIds = policyIDs
+		route.TlsCustomCa = ""
+		route.TlsCustomCaKeyPairId = tlsCustomCAKeyPairID
+		route.TlsClientCert = ""
+		route.TlsClientKey = ""
+		route.TlsClientKeyPairId = tlsClientKeyPairID
+		route.TlsDownstreamClientCa = ""
+		route.TlsDownstreamClientCaKeyPairId = tlsDownstreamClientCAKeyPairID
 
 		changed, err := r.upsertOneRoute(ctx, ic.Annotations[k], route)
 		if err != nil {
 			return anyChanges, err
 		}
 		if ic.Annotations[k] == "" {
-			ic.Annotations[k] = *route.Id
+			setAnnotation(ic, k, *route.Id)
 		}
 		anyChanges = anyChanges || changed
 	}
@@ -129,32 +221,158 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 	// the case when an existing Rule is deleted from an Ingress.)
 	anyDeletes, err := r.deleteRoutes(ctx, ic.Ingress, unusedRouteIDAnnotations)
 	if err != nil {
-		return anyChanges, nil
+		return anyChanges, err
 	}
 	anyChanges = anyChanges || anyDeletes
+
+	// If there was a linked policy that is no no longer needed, delete it.
+	// (This cannot be done until all of the linked routes are updated to no
+	// longer reference the existing policy ID.)
+	if ic.Annotations[apiPolicyIDAnnotation] != "" && updatedPolicyID == "" {
+		deleted, err := r.deletePolicy(ctx, ic.Ingress)
+		if err != nil {
+			return anyChanges, err
+		}
+		anyChanges = anyChanges || deleted
+	}
 
 	return anyChanges, nil
 }
 
-func (r *APIReconciler) upsertCerts(
+func (r *APIReconciler) upsertKeyPairs(
 	ctx context.Context,
-	certs []*pb.Settings_Certificate,
+	secrets []*corev1.Secret,
 ) (bool, error) {
-	// XXX: TODO
-	return false, nil
+	logger := log.FromContext(ctx).WithName("APIReconciler.upsertKeyPairs")
+	logger.Info("syncing...", "count", len(secrets))
+
+	var anyChanges bool
+	for _, secret := range secrets {
+		changed, err := r.upsertOneKeyPair(ctx, secret)
+		if err != nil {
+			return anyChanges, err
+		}
+		anyChanges = anyChanges || changed
+	}
+	return anyChanges, nil
+}
+
+func (r *APIReconciler) upsertOneKeyPair(
+	ctx context.Context,
+	secret *corev1.Secret,
+) (bool, error) {
+	logger := log.FromContext(ctx).WithName("APIReconciler.upsertOneKeyPair")
+
+	cert, hasTLSCert := secret.Data[corev1.TLSCertKey]
+	if !hasTLSCert {
+		cert = secret.Data[model.CAKey]
+	}
+
+	name := slug.Make(fmt.Sprintf("%s %s", secret.Namespace, secret.Name))
+	keyPair := &pomerium.KeyPair{
+		Name:         &name,
+		Certificate:  cert,
+		Key:          secret.Data[corev1.TLSPrivateKeyKey],
+		OriginatorId: &originatorID,
+	}
+
+	existingKeyPairID := secret.Annotations[apiKeypairIDAnnotation]
+	if existingKeyPairID == "" {
+		logger.Info("creating new keypair...", "name", name)
+
+		// No linked keypair, so we need to create one.
+		updatedKeyPairID, err := r.createKeyPair(ctx, keyPair)
+		if err != nil {
+			return false, fmt.Errorf("couldn't create key pair: %w", err)
+		}
+
+		originalSecret := secret.DeepCopy()
+		setAnnotation(secret, apiKeypairIDAnnotation, updatedKeyPairID)
+		controllerutil.AddFinalizer(secret, apiFinalizer)
+		err = r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret))
+		return err == nil, err
+	}
+
+	logger.Info("found existing keypair...", "name", name)
+
+	keyPair.Id = &existingKeyPairID
+	return r.upsertKeyPair(ctx, keyPair)
 }
 
 // SetConfig updates just the shared config settings
 func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (changes bool, err error) {
-	// XXX: TODO
-	return false, nil
+	// Remove keypairs corresponding to any newly-unreferenced TLS secrets.
+	unreferencedSecrets := r.secretsMap.UpdateConfig(cfg)
+	anyDeletes, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
+	if err != nil {
+		return changes, err
+	}
+	changes = changes || anyDeletes
+
+	// Upsert current TLS certificates (server certs + CA certs).
+	allCertSecrets := make([]*corev1.Secret, 0, len(cfg.CASecrets)+len(cfg.Certs))
+	allCertSecrets = append(allCertSecrets, cfg.CASecrets...)
+	allCertSecrets = append(allCertSecrets, slices.Collect(maps.Values(cfg.Certs))...)
+	changedKeyPair, err := r.upsertKeyPairs(ctx, allCertSecrets)
+	if err != nil {
+		return changes, err
+	}
+	changes = changes || changedKeyPair
+
+	pbConfig := new(pb.Config)
+	if err = ApplyConfig(ctx, pbConfig, cfg); err != nil {
+		return false, fmt.Errorf("couldn't convert settings: %w", err)
+	}
+	settings, err := convertProto[*pomerium.Settings](pbConfig.Settings)
+	if err != nil {
+		return false, err
+	}
+
+	resp, err := r.apiClient.GetSettings(ctx, connect.NewRequest(&pomerium.GetSettingsRequest{}))
+	if err != nil {
+		return false, err
+	}
+
+	// XXX: mask any derived values?
+	existing := resp.Msg.Settings
+
+	updated := proto.CloneOf(existing)
+	proto.Merge(updated, settings)
+	if proto.Equal(existing, updated) {
+		// No changes needed.
+		return changes, nil
+	}
+
+	logger := log.FromContext(ctx).WithName("APIReconciler.SetConfig")
+	logger.Info("NOT updating settings", "diff", cmp.Diff(existing, updated, protocmp.Transform()))
+
+	/*_, err = r.apiClient.UpdateSettings(ctx, connect.NewRequest(&pomerium.UpdateSettingsRequest{
+		Settings: updated,
+	}))
+	if err != nil {
+		return false, err
+	}*/
+	// XXX: extract certificates, record dependencies
+	//getEntity(cfg)
+
+	return true, nil
 }
 
-// Delete should delete pomerium routes corresponding to this ingress name
-func (r *APIReconciler) Delete(ctx context.Context, _ types.NamespacedName, ingress *networkingv1.Ingress) (bool, error) {
+// Delete removes pomerium routes corresponding to this ingress.
+func (r *APIReconciler) Delete(ctx context.Context, name types.NamespacedName, ingress *networkingv1.Ingress) (bool, error) {
 	if ingress == nil {
 		return false, nil
 	}
+
+	originalIngress := ingress.DeepCopy()
+	defer func() {
+		// XXX: track "dirty" state?
+		err := r.k8sClient.Patch(ctx, ingress, client.MergeFrom(originalIngress))
+		if err != nil {
+			logger := log.FromContext(ctx).WithName("APIReconciler.upsertOneIngress")
+			logger.Error(err, "patch", "ingress", ingress.Name)
+		}
+	}()
 
 	routeAnnotations := allRouteIDAnnotations(ingress.Annotations)
 	anyDeletes, err := r.deleteRoutes(ctx, ingress, routeAnnotations)
@@ -167,6 +385,17 @@ func (r *APIReconciler) Delete(ctx context.Context, _ types.NamespacedName, ingr
 		return anyDeletes, err
 	}
 	anyDeletes = anyDeletes || policyDeleted
+
+	// Remove keypairs corresponding to any newly-unreferenced TLS secrets.
+	unreferencedSecrets := r.secretsMap.RemoveEntity(model.Key{
+		Kind:           ingress.Kind,
+		NamespacedName: name,
+	})
+	anyKeyPairDeletes, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
+	if err != nil {
+		return anyDeletes, err
+	}
+	anyDeletes = anyDeletes || anyKeyPairDeletes
 
 	controllerutil.RemoveFinalizer(ingress, apiFinalizer)
 
@@ -190,7 +419,7 @@ func (r *APIReconciler) SetGatewayConfig(
 				changes = true
 			}
 			if gr.Annotations[k] == "" {
-				gr.Annotations[k] = *route.Id
+				setAnnotation(gr, k, *route.Id)
 			}
 		}
 	}
@@ -213,16 +442,6 @@ func extractCerts(secrets map[types.NamespacedName]*corev1.Secret) []*pb.Setting
 	}
 	return certs
 }
-
-func deriveCertID(cert *pb.Settings_Certificate) {
-	// XXX: error handling
-	cryptutil.ParsePEMCertificate(cert.CertBytes)
-
-}
-
-//type ConnectMethod[Req, Resp proto.Message] func(context.Context, *connect.Request[Req]) (*connect.Response[Resp], error)
-
-//type entityUpserter[]
 
 func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb.Route) (bool, error) {
 	apiRoute, err := convertProto[*pomerium.Route](route)
@@ -296,47 +515,45 @@ func (r *APIReconciler) deleteRoutes(
 	return anyDeletes, nil
 }
 
-func (r *APIReconciler) syncPolicy(ctx context.Context, ic *model.IngressConfig) (bool, error) {
-	policyID := ic.Annotations[apiPolicyIDAnnotation]
-	policy, err := ingressToPolicy(ic)
+type policyCleanupFn func(context.Context) (bool, error)
+
+func (r *APIReconciler) syncPolicy(
+	ctx context.Context, ic *model.IngressConfig,
+) (changed bool, updatedPolicyID string, err error) {
+	existingPolicyID := ic.Annotations[apiPolicyIDAnnotation]
+	policy, err := ingressToPolicy(ic) // XXX: consider refactoring out the removeKeyPrefix() call
 	if err != nil {
-		return false, fmt.Errorf("couldn't extract ingress policy: %w", err)
+		return false, "", fmt.Errorf("couldn't extract ingress policy: %w", err)
 	}
 
 	if policy == nil {
-		// If the Ingress has a linked policy but now no longer has any policy
-		// annotations, delete the linked policy.
-		if policyID != "" {
-			return r.deletePolicy(ctx, ic.Ingress)
-		}
-
 		// No policy needed.
-		return false, nil
+		return false, "", nil
 	}
 
 	apiPolicy, err := convertProto[*pomerium.Policy](policy)
 	if err != nil {
-		return false, fmt.Errorf("internal error: %w", err)
+		return false, "", fmt.Errorf("internal error: %w", err)
 	}
 	apiPolicy.OriginatorId = &originatorID
 
-	if policyID == "" {
+	if existingPolicyID == "" {
 		// No linked policy, so we need to create one.
-		policyID, err = r.createPolicy(ctx, apiPolicy)
+		updatedPolicyID, err = r.createPolicy(ctx, apiPolicy)
 		if err != nil {
-			return false, fmt.Errorf("couldn't create ingress policy: %w", err)
+			return false, "", fmt.Errorf("couldn't create ingress policy: %w", err)
 		}
-		ic.Annotations[apiPolicyIDAnnotation] = policyID
-		return true, nil
+		setAnnotation(ic, apiPolicyIDAnnotation, updatedPolicyID)
+		return true, updatedPolicyID, nil
 	}
 
 	// Sync any changes to linked policy.
-	apiPolicy.Id = &policyID
-	changed, err := r.upsertPolicy(ctx, apiPolicy)
+	apiPolicy.Id = &existingPolicyID
+	changed, err = r.upsertPolicy(ctx, apiPolicy)
 	if err != nil {
-		return false, fmt.Errorf("couldn't update ingress policy: %w", err)
+		return false, "", fmt.Errorf("couldn't update ingress policy: %w", err)
 	}
-	return changed, nil
+	return changed, *apiPolicy.Id, nil
 }
 
 func (r *APIReconciler) createPolicy(ctx context.Context, policy *pomerium.Policy) (newID string, err error) {
@@ -407,39 +624,88 @@ func (r *APIReconciler) deletePolicy(
 	return true, nil
 }
 
-func (r *APIReconciler) upsertOneCert(ctx context.Context, cert *pb.Settings_Certificate) (bool, error) {
-	apiCert, err := convertProto[*pomerium.Settings_Certificate](cert)
-	if err != nil {
-		return false, err
-	}
-
-	resp, err := r.apiClient.GetKeyPair(ctx, connect.NewRequest(&pomerium.GetKeyPairRequest{
-		Id: cert.GetId(),
+func (r *APIReconciler) createKeyPair(ctx context.Context, keyPair *pomerium.KeyPair) (newID string, err error) {
+	resp, err := r.apiClient.CreateKeyPair(ctx, connect.NewRequest(&pomerium.CreateKeyPairRequest{
+		KeyPair: keyPair,
 	}))
-	notFound := connect.CodeOf(err) == connect.CodeNotFound
-	if err != nil && !notFound {
+	if err != nil {
+		return "", err
+	}
+	return resp.Msg.GetKeyPair().GetId(), nil
+}
+
+func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.KeyPair) (changed bool, err error) {
+	resp, err := r.apiClient.GetKeyPair(ctx, connect.NewRequest(&pomerium.GetKeyPairRequest{
+		Id: keyPair.GetId(),
+	}))
+	if err != nil {
+		if connect.CodeOf(err) != connect.CodeNotFound {
+			// If the existing key pair was deleted, recreate it.
+			_, err := r.createKeyPair(ctx, keyPair)
+			return err == nil, err
+		}
 		return false, err
 	}
 
-	if notFound {
-		// If the route does not currently exist, create it.
-		_, err := r.apiClient.CreateKeyPair(ctx, connect.NewRequest(&pomerium.CreateKeyPairRequest{
-			//Route: apiCert,
-		}))
-		return err == nil, err
-	}
+	// Zero out fields that should be ignored when looking for changes
+	existing := resp.Msg.KeyPair
+	existing.NamespaceId = nil
+	existing.CreatedAt = nil
+	existing.ModifiedAt = nil
+	existing.Status = pomerium.KeyPairStatus_KEY_PAIR_STATUS_UNKNOWN
+	existing.Origin = pomerium.KeyPairOrigin_KEY_PAIR_ORIGIN_UNKNOWN
+	existing.CertificateInfo = nil
 
-	// XXX: is it possible for resp.Msg to be nil at this point?
-	// XXX: do we need to ignore certain fields in this comparison?
-	if proto.Equal(resp.Msg, apiCert) {
+	if proto.Equal(existing, keyPair) {
 		// No changes needed.
 		return false, nil
 	}
 
+	// XXX: debugging
+	logger := log.FromContext(ctx).WithName("APIReconciler.upsertPolicy")
+	logger.Info("updating existing policy", "id", keyPair.GetId(), "diff", cmp.Diff(existing, keyPair, protocmp.Transform()))
+
 	_, err = r.apiClient.UpdateKeyPair(ctx, connect.NewRequest(&pomerium.UpdateKeyPairRequest{
-		//Route: apiCert,
+		KeyPair: keyPair,
 	}))
 	return err == nil, err
+}
+
+// deletePolicy deletes the policy for the ingress and clears its policy ID
+// annotation. Returns true if any changes were made, or an error if the delete
+// operation failed.
+func (r *APIReconciler) deleteKeyPairs(
+	ctx context.Context, secretNames ...types.NamespacedName,
+) (bool, error) {
+	var anyDeletes bool
+	for _, n := range secretNames {
+		secret := new(corev1.Secret)
+		err := r.k8sClient.Get(ctx, n, secret)
+		if err != nil {
+			// XXX: may want to swallow this error if apierrors.IsNotFound(err) is true
+			//      this probably results in a dangling KeyPair in the API, but we likely
+			//      cannot recover from this situation
+			return anyDeletes, err
+		}
+		keyPairID := secret.Annotations[apiKeypairIDAnnotation] // XXX: standardize capitalization
+		if keyPairID == "" {
+			continue
+		}
+		_, err = r.apiClient.DeleteKeyPair(ctx, connect.NewRequest(&pomerium.DeleteKeyPairRequest{
+			Id: keyPairID,
+		}))
+		if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
+			return anyDeletes, err
+		}
+		originalSecret := secret.DeepCopy()
+		delete(secret.Annotations, apiKeypairIDAnnotation)
+		controllerutil.RemoveFinalizer(secret, apiFinalizer)
+		if err := r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret)); err != nil {
+			return anyDeletes, err
+		}
+		anyDeletes = true
+	}
+	return anyDeletes, nil
 }
 
 func routeIDAnnotationForIndex(i int) string {
@@ -466,4 +732,13 @@ func convertProto[Dst, Src proto.Message](msg Src) (Dst, error) {
 	newMsg = newMsg.ProtoReflect().Type().New().Interface().(Dst)
 	err = proto.Unmarshal(b, newMsg)
 	return newMsg, err
+}
+
+func setAnnotation(object client.Object, key, value string) {
+	m := object.GetAnnotations()
+	if m == nil {
+		m = make(map[string]string)
+	}
+	m[key] = value
+	object.SetAnnotations(m)
 }
