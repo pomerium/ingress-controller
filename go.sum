@@ -772,8 +772,8 @@ github.com/pomerium/datasource v0.18.2-0.20260323191748-64aefe7b0777 h1:cHDFzYxo
 github.com/pomerium/datasource v0.18.2-0.20260323191748-64aefe7b0777/go.mod h1:44JiWJv2Ox4PvoH5Hco7o2o6xaAOagWv8YeOP5LPaYE=
 github.com/pomerium/envoy-custom v1.37.0-rc3 h1:IymnBJgKYsiTxv4iYYpOceN/7hDuVnlPwUELRQGoEKc=
 github.com/pomerium/envoy-custom v1.37.0-rc3/go.mod h1:R70sMIoym9epTfWd3Zghf9/2nLw44nhT6xZBFTPaGRg=
-github.com/pomerium/pomerium v0.32.1-0.20260324145129-71ab2784c501 h1:GuUPXQNsiopg0zuv3f9ahFremEOypRlYFT8BH4Rl4sY=
-github.com/pomerium/pomerium v0.32.1-0.20260324145129-71ab2784c501/go.mod h1:K5+Cq6MsVL2klVVVR4l9MoTFgXCw85HpTsa+NS6C5bE=
+github.com/pomerium/pomerium v0.32.1-0.20260330170309-8929eac20e25 h1:9vsfvMrnA94IrlPgBYdqd3wPablgARuxlONlrLmBTPQ=
+github.com/pomerium/pomerium v0.32.1-0.20260330170309-8929eac20e25/go.mod h1:uiqyRCq7G9uxoropQC/ut8c2aQzqziMcUniNv1ahneY=
 github.com/pomerium/protoutil v0.0.0-20260320182559-344554199ec4 h1:RHHibl6nTworBf9VOicD8+nEnfXTdfU6sik/yC8qrNE=
 github.com/pomerium/protoutil v0.0.0-20260320182559-344554199ec4/go.mod h1:m5tdX94ef0vCL5fgAJP6vW2GZWkU1+KfLlERBzlVeDs=
 github.com/pomerium/webauthn v0.0.0-20260323191702-04e03510044d h1:3w3v7enh57Ch1XhwEPfiTMpj84AwEh9syWehMlHpRQ8=
@@ -1052,8 +1052,8 @@ golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93 h1:fQsdNF2N+/YewlRZiricy4P1i
 golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93/go.mod h1:EPRbTFwzwjXj9NpYyyrvenVh9Y+GFeEvMNh7Xuz7xgU=
 golang.org/x/image v0.0.0-20190227222117-0694c2d4d067/go.mod h1:kZ7UVZpmo3dzQBMxlp+ypCbDeSB+sBbTgSJuh5dn5js=
 golang.org/x/image v0.0.0-20190802002840-cff245a6509b/go.mod h1:FeLwcggjj3mMvU+oOTbSwawSJRM1uh48EjtB4UJZlP0=
-golang.org/x/image v0.36.0 h1:Iknbfm1afbgtwPTmHnS2gTM/6PPZfH+z2EFuOkSbqwc=
-golang.org/x/image v0.36.0/go.mod h1:YsWD2TyyGKiIX1kZlu9QfKIsQ4nAAK9bdgdrIsE7xy4=
+golang.org/x/image v0.38.0 h1:5l+q+Y9JDC7mBOMjo4/aPhMDcxEptsX+Tt3GgRQRPuE=
+golang.org/x/image v0.38.0/go.mod h1:/3f6vaXC+6CEanU4KJxbcUZyEePbyKbaLoDOe4ehFYY=
 golang.org/x/lint v0.0.0-20181026193005-c67002cb31c3/go.mod h1:UVdnD1Gm6xHRNCYTkRU2/jEulfH38KcIWyp/GAMgvoE=
 golang.org/x/lint v0.0.0-20190227174305-5b3e6a55c961/go.mod h1:wehouNa3lNwaWXcvxsM5YxQ5yQlVC4a0KAMCusXpPoU=
 golang.org/x/lint v0.0.0-20190301231843-5614ed5bae6f/go.mod h1:UVdnD1Gm6xHRNCYTkRU2/jEulfH38KcIWyp/GAMgvoE=
