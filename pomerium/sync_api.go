@@ -10,17 +10,18 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/google/go-cmp/cmp"
+	"github.com/gosimple/slug"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/gosimple/slug"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/sdk-go"
 	"github.com/pomerium/sdk-go/proto/pomerium"
@@ -69,7 +70,6 @@ func (r *APIReconciler) SetK8sClient(client client.Client) {
 	r.k8sClient = client
 }
 
-// XXX: the bool return value from this method is maybe unused in practice? can we remove it?
 func (r *APIReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
 	var anyChanges bool
 
@@ -157,7 +157,9 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 
 	anyChanges = anyChanges || controllerutil.AddFinalizer(ic.Ingress, apiFinalizer)
 
-	changed, updatedPolicyID, err := r.syncPolicy(ctx, ic)
+	kv, err := removeKeyPrefix(ic.Ingress.Annotations, ic.AnnotationPrefix)
+
+	changed, updatedPolicyID, err := r.syncPolicy(ctx, ic.Ingress, kv)
 	if err != nil {
 		return anyChanges, err
 	}
@@ -168,7 +170,6 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 		policyIDs = []string{updatedPolicyID}
 	}
 
-	kv, err := removeKeyPrefix(ic.Ingress.Annotations, ic.AnnotationPrefix)
 	keyPairIDForAnnotation := func(annotation string) *string {
 		secretName, ok := kv.TLS[annotation]
 		if !ok {
@@ -554,10 +555,11 @@ func (r *APIReconciler) deleteRoutes(
 type policyCleanupFn func(context.Context) (bool, error)
 
 func (r *APIReconciler) syncPolicy(
-	ctx context.Context, ic *model.IngressConfig,
+	ctx context.Context, ingress *networkingv1.Ingress, kv *keys,
 ) (changed bool, updatedPolicyID string, err error) {
-	existingPolicyID := ic.Annotations[apiPolicyIDAnnotation]
-	policy, err := ingressToPolicy(ic) // XXX: consider refactoring out the removeKeyPrefix() call
+	existingPolicyID := ingress.Annotations[apiPolicyIDAnnotation]
+	name := slug.Make(fmt.Sprintf("%s %s policy", ingress.Namespace, ingress.Name))
+	policy, err := keysToPolicy(kv, name)
 	if err != nil {
 		return false, "", fmt.Errorf("couldn't extract ingress policy: %w", err)
 	}
@@ -579,7 +581,7 @@ func (r *APIReconciler) syncPolicy(
 		if err != nil {
 			return false, "", fmt.Errorf("couldn't create ingress policy: %w", err)
 		}
-		setAnnotation(ic, apiPolicyIDAnnotation, updatedPolicyID)
+		setAnnotation(ingress, apiPolicyIDAnnotation, updatedPolicyID)
 		return true, updatedPolicyID, nil
 	}
 
@@ -710,14 +712,18 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.Key
 func (r *APIReconciler) deleteKeyPairs(
 	ctx context.Context, secretNames ...types.NamespacedName,
 ) (bool, error) {
+	logger := log.FromContext(ctx).WithName("APIReconciler.deleteKeyPairs")
 	var anyDeletes bool
 	for _, n := range secretNames {
 		secret := new(corev1.Secret)
 		err := r.k8sClient.Get(ctx, n, secret)
 		if err != nil {
-			// XXX: may want to swallow this error if apierrors.IsNotFound(err) is true
-			//      this probably results in a dangling KeyPair in the API, but we likely
-			//      cannot recover from this situation
+			if apierrors.IsNotFound(err) {
+				// If we can't retrieve this Secret, we won't know the ID of the
+				// keypair to delete. There's not much we can do in this case.
+				logger.Info("could not delete keypair (secret not found)", "secret", n)
+				continue
+			}
 			return anyDeletes, err
 		}
 		keyPairID := secret.Annotations[apiKeypairIDAnnotation] // XXX: standardize capitalization
