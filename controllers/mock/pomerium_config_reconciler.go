@@ -21,6 +21,7 @@ import (
 type MockConfigReconciler struct {
 	ctrl     *gomock.Controller
 	recorder *MockConfigReconcilerMockRecorder
+	isgomock struct{}
 }
 
 // MockConfigReconcilerMockRecorder is the mock recorder for MockConfigReconciler.
@@ -41,16 +42,16 @@ func (m *MockConfigReconciler) EXPECT() *MockConfigReconcilerMockRecorder {
 }
 
 // SetConfig mocks base method.
-func (m *MockConfigReconciler) SetConfig(arg0 context.Context, arg1 *model.Config) (bool, error) {
+func (m *MockConfigReconciler) SetConfig(ctx context.Context, cfg *model.Config) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetConfig", arg0, arg1)
+	ret := m.ctrl.Call(m, "SetConfig", ctx, cfg)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SetConfig indicates an expected call of SetConfig.
-func (mr *MockConfigReconcilerMockRecorder) SetConfig(arg0, arg1 any) *gomock.Call {
+func (mr *MockConfigReconcilerMockRecorder) SetConfig(ctx, cfg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetConfig", reflect.TypeOf((*MockConfigReconciler)(nil).SetConfig), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetConfig", reflect.TypeOf((*MockConfigReconciler)(nil).SetConfig), ctx, cfg)
 }
