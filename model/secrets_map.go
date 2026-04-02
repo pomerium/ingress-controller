@@ -76,6 +76,19 @@ func (m *TLSSecretsMap) UpdateConfig(cfg *Config) []types.NamespacedName {
 	return m.UpdateEntity(KeyForObject(cfg), currentSecrets)
 }
 
+// dummy key for tracking certificate secrets referenced by any Gateway API entity
+var gatewayConfigKey = Key{Kind: "GatewayConfig"}
+
+// UpdateConfig updates the TLS secret dependencies for cfg and returns the
+// names of any newly-unreferenced secrets.
+func (m *TLSSecretsMap) UpdateGatewayConfig(cfg *GatewayConfig) []types.NamespacedName {
+	currentSecrets := make(map[types.NamespacedName]struct{})
+	for _, s := range cfg.Certificates {
+		currentSecrets[namespacedNameForObject(s)] = struct{}{}
+	}
+	return m.UpdateEntity(gatewayConfigKey, currentSecrets)
+}
+
 // UpdateEntity updates the TLS secret dependencies for n and returns the
 // names of any newly-unreferenced secrets.
 func (m *TLSSecretsMap) UpdateEntity(

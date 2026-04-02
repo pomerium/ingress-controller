@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
@@ -328,27 +327,15 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 	pbConfig.Settings.Certificates = nil
 	pbConfig.Settings.CertificateAuthority = nil
 
-	logger := log.FromContext(ctx).WithName("APIReconciler.SetConfig")
-	/*j, err := protojson.Marshal(pbConfig.Settings)
-	if err != nil {
-		logger.Error(err, "cannot marshal settings to JSON")
-	}
-	logger.Info("before converting settings:", "settings-json", string(j))*/
-
 	settings, err := convertProto[*pomerium.Settings](pbConfig.Settings)
 	if err != nil {
-		logger.Error(err, "convertProto (Settings)")
 		return false, err
 	}
 
 	resp, err := r.apiClient.GetSettings(ctx, connect.NewRequest(&pomerium.GetSettingsRequest{}))
 	if err != nil {
-		logger.Error(err, "apiClient.GetSettings")
 		return false, err
 	}
-
-	settingsJSON, _ := protojson.Marshal(resp.Msg.Settings)
-	logger.Info("apiClient.GetSettings", "existing settings", string(settingsJSON))
 
 	// Mask any settings that cannot be set via the Pomerium CRD
 	existing := resp.Msg.Settings
@@ -371,7 +358,8 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 		return changes, nil
 	}
 
-	logger.Info("updating settings", "diff", cmp.Diff(existing, settings, protocmp.Transform()))
+	logger := log.FromContext(ctx).WithName("APIReconciler.SetConfig")
+	logger.V(1).Info("needs settings update", "diff", cmp.Diff(existing, settings, protocmp.Transform()))
 
 	_, err = r.apiClient.UpdateSettings(ctx, connect.NewRequest(&pomerium.UpdateSettingsRequest{
 		Settings: settings,
@@ -429,6 +417,19 @@ func (r *APIReconciler) SetGatewayConfig(
 	ctx context.Context,
 	gatewayConfig *model.GatewayConfig,
 ) (changes bool, err error) {
+	unreferencedSecrets := r.secretsMap.UpdateGatewayConfig(gatewayConfig)
+	anyDeletes, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
+	if err != nil {
+		return changes, err
+	}
+	changes = changes || anyDeletes
+
+	changedKeyPair, err := r.upsertKeyPairs(ctx, gatewayConfig.Certificates)
+	if err != nil {
+		return changes, err
+	}
+	changes = changes || changedKeyPair
+
 	for i := range gatewayConfig.Routes {
 		gr := &gatewayConfig.Routes[i]
 		routes := gateway.TranslateRoutes(ctx, gatewayConfig, gr)
@@ -445,8 +446,6 @@ func (r *APIReconciler) SetGatewayConfig(
 			}
 		}
 	}
-
-	// XXX: apply settings + certs
 
 	return changes, nil
 }
