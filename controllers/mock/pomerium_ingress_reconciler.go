@@ -15,6 +15,7 @@ import (
 
 	model "github.com/pomerium/ingress-controller/model"
 	gomock "go.uber.org/mock/gomock"
+	v1 "k8s.io/api/networking/v1"
 	types "k8s.io/apimachinery/pkg/types"
 )
 
@@ -22,6 +23,7 @@ import (
 type MockIngressReconciler struct {
 	ctrl     *gomock.Controller
 	recorder *MockIngressReconcilerMockRecorder
+	isgomock struct{}
 }
 
 // MockIngressReconcilerMockRecorder is the mock recorder for MockIngressReconciler.
@@ -42,46 +44,46 @@ func (m *MockIngressReconciler) EXPECT() *MockIngressReconcilerMockRecorder {
 }
 
 // Delete mocks base method.
-func (m *MockIngressReconciler) Delete(arg0 context.Context, arg1 types.NamespacedName) (bool, error) {
+func (m *MockIngressReconciler) Delete(ctx context.Context, namespacedName types.NamespacedName, ingress *v1.Ingress) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Delete", arg0, arg1)
+	ret := m.ctrl.Call(m, "Delete", ctx, namespacedName, ingress)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Delete indicates an expected call of Delete.
-func (mr *MockIngressReconcilerMockRecorder) Delete(arg0, arg1 any) *gomock.Call {
+func (mr *MockIngressReconcilerMockRecorder) Delete(ctx, namespacedName, ingress any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockIngressReconciler)(nil).Delete), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockIngressReconciler)(nil).Delete), ctx, namespacedName, ingress)
 }
 
 // Set mocks base method.
-func (m *MockIngressReconciler) Set(arg0 context.Context, arg1 []*model.IngressConfig) (bool, error) {
+func (m *MockIngressReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Set", arg0, arg1)
+	ret := m.ctrl.Call(m, "Set", ctx, ics)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Set indicates an expected call of Set.
-func (mr *MockIngressReconcilerMockRecorder) Set(arg0, arg1 any) *gomock.Call {
+func (mr *MockIngressReconcilerMockRecorder) Set(ctx, ics any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockIngressReconciler)(nil).Set), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockIngressReconciler)(nil).Set), ctx, ics)
 }
 
 // Upsert mocks base method.
-func (m *MockIngressReconciler) Upsert(arg0 context.Context, arg1 *model.IngressConfig) (bool, error) {
+func (m *MockIngressReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Upsert", arg0, arg1)
+	ret := m.ctrl.Call(m, "Upsert", ctx, ic)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Upsert indicates an expected call of Upsert.
-func (mr *MockIngressReconcilerMockRecorder) Upsert(arg0, arg1 any) *gomock.Call {
+func (mr *MockIngressReconcilerMockRecorder) Upsert(ctx, ic any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Upsert", reflect.TypeOf((*MockIngressReconciler)(nil).Upsert), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Upsert", reflect.TypeOf((*MockIngressReconciler)(nil).Upsert), ctx, ic)
 }

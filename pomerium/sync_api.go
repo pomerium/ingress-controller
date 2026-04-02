@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
@@ -323,39 +324,60 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 	if err = ApplyConfig(ctx, pbConfig, cfg); err != nil {
 		return false, fmt.Errorf("couldn't convert settings: %w", err)
 	}
+	// Remove any inline certificates (certificates are already synced above).
+	pbConfig.Settings.Certificates = nil
+	pbConfig.Settings.CertificateAuthority = nil
+
+	logger := log.FromContext(ctx).WithName("APIReconciler.SetConfig")
+	/*j, err := protojson.Marshal(pbConfig.Settings)
+	if err != nil {
+		logger.Error(err, "cannot marshal settings to JSON")
+	}
+	logger.Info("before converting settings:", "settings-json", string(j))*/
+
 	settings, err := convertProto[*pomerium.Settings](pbConfig.Settings)
 	if err != nil {
+		logger.Error(err, "convertProto (Settings)")
 		return false, err
 	}
 
 	resp, err := r.apiClient.GetSettings(ctx, connect.NewRequest(&pomerium.GetSettingsRequest{}))
 	if err != nil {
+		logger.Error(err, "apiClient.GetSettings")
 		return false, err
 	}
 
-	// XXX: mask any derived values?
-	existing := resp.Msg.Settings
+	settingsJSON, _ := protojson.Marshal(resp.Msg.Settings)
+	logger.Info("apiClient.GetSettings", "existing settings", string(settingsJSON))
 
-	updated := proto.CloneOf(existing)
-	proto.Merge(updated, settings)
-	if proto.Equal(existing, updated) {
+	// Mask any settings that cannot be set via the Pomerium CRD
+	existing := resp.Msg.Settings
+	existing.Address = nil
+	existing.Autocert = nil
+	existing.ClusterId = nil
+	existing.GrpcAddress = nil
+	existing.GrpcInsecure = nil
+	existing.Id = nil
+	existing.InsecureServer = nil
+	existing.NamespaceId = nil
+	existing.SharedSecret = nil
+
+	// Mask timestamp metadata.
+	existing.CreatedAt = nil
+	existing.ModifiedAt = nil
+
+	if proto.Equal(existing, settings) {
 		// No changes needed.
 		return changes, nil
 	}
 
-	logger := log.FromContext(ctx).WithName("APIReconciler.SetConfig")
-	logger.Info("NOT updating settings", "diff", cmp.Diff(existing, updated, protocmp.Transform()))
+	logger.Info("updating settings", "diff", cmp.Diff(existing, settings, protocmp.Transform()))
 
-	/*_, err = r.apiClient.UpdateSettings(ctx, connect.NewRequest(&pomerium.UpdateSettingsRequest{
-		Settings: updated,
+	_, err = r.apiClient.UpdateSettings(ctx, connect.NewRequest(&pomerium.UpdateSettingsRequest{
+		Settings: settings,
 	}))
-	if err != nil {
-		return false, err
-	}*/
-	// XXX: extract certificates, record dependencies
-	//getEntity(cfg)
-
-	return true, nil
+	changes = changes || (err == nil)
+	return changes, err
 }
 
 // Delete removes pomerium routes corresponding to this ingress.
