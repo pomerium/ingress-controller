@@ -465,12 +465,15 @@ func extractCerts(secrets map[types.NamespacedName]*corev1.Secret) []*pb.Setting
 }
 
 func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb.Route) (bool, error) {
+	logger := log.FromContext(ctx).WithName("APIReconciler.upsertOneRoute")
+
 	apiRoute, err := convertProto[*pomerium.Route](route)
 	if err != nil {
 		return false, err
 	}
-	var existing *pomerium.Route
+	apiRoute.OriginatorId = &originatorID
 
+	var existing *pomerium.Route
 	if id != "" {
 		resp, err := r.apiClient.GetRoute(ctx, connect.NewRequest(&pomerium.GetRouteRequest{
 			Id: id,
@@ -502,12 +505,24 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb
 		return true, nil
 	}
 
-	// XXX: is it possible for resp.Msg to be nil at this point?
-	// XXX: do we need to ignore certain fields in this comparison?
+	// Zero out fields that should be ignored when looking for changes.
+	existing.NamespaceId = nil
+	existing.CreatedAt = nil
+	existing.ModifiedAt = nil
+	existing.AssignedPolicies = nil
+	existing.EnforcedPolicies = nil
+
+	// XXX: figure out what to do with stat_name -- it doesn't seem to be preserved by Zero
+
 	if proto.Equal(existing, apiRoute) {
 		// No changes needed.
 		return false, nil
 	}
+
+	// XXX: demote to V(1)
+	logger.Info("updating existing route",
+		"id", apiRoute.GetId(),
+		"diff", cmp.Diff(existing, apiRoute, protocmp.Transform()))
 
 	_, err = r.apiClient.UpdateRoute(ctx, connect.NewRequest(&pomerium.UpdateRouteRequest{
 		Route: apiRoute,
@@ -602,22 +617,19 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *pomerium.Polic
 
 	// Zero out fields that should be ignored when looking for changes
 	existing := resp.Msg.Policy
-	existing.AssignedRoutes = nil
-	existing.CreatedAt = nil
 	existing.NamespaceId = nil
+	existing.CreatedAt = nil
 	existing.ModifiedAt = nil
-	if !existing.GetEnforced() {
-		existing.Enforced = nil
-	}
+	existing.AssignedRoutes = nil
+	existing.Enforced = falseToNil(existing.Enforced)
 
 	if proto.Equal(existing, policy) {
 		// No changes needed.
 		return false, nil
 	}
 
-	// XXX: debugging
 	logger := log.FromContext(ctx).WithName("APIReconciler.upsertPolicy")
-	logger.Info("updating existing policy", "id", policy.GetId(), "diff", cmp.Diff(existing, policy, protocmp.Transform()))
+	logger.V(1).Info("updating existing policy", "id", policy.GetId(), "diff", cmp.Diff(existing, policy, protocmp.Transform()))
 
 	_, err = r.apiClient.UpdatePolicy(ctx, connect.NewRequest(&pomerium.UpdatePolicyRequest{
 		Policy: policy,
@@ -668,14 +680,14 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.Key
 		return false, err
 	}
 
-	// Zero out fields that should be ignored when looking for changes
+	// Zero out fields that should be ignored when looking for changes.
 	existing := resp.Msg.KeyPair
 	existing.NamespaceId = nil
 	existing.CreatedAt = nil
 	existing.ModifiedAt = nil
-	existing.Status = pomerium.KeyPairStatus_KEY_PAIR_STATUS_UNKNOWN
-	existing.Origin = pomerium.KeyPairOrigin_KEY_PAIR_ORIGIN_UNKNOWN
 	existing.CertificateInfo = nil
+	existing.Origin = pomerium.KeyPairOrigin_KEY_PAIR_ORIGIN_UNKNOWN
+	existing.Status = pomerium.KeyPairStatus_KEY_PAIR_STATUS_UNKNOWN
 
 	if proto.Equal(existing, keyPair) {
 		// No changes needed.
@@ -762,4 +774,11 @@ func setAnnotation(object client.Object, key, value string) {
 	}
 	m[key] = value
 	object.SetAnnotations(m)
+}
+
+func falseToNil(x *bool) *bool {
+	if x != nil && !*x {
+		return nil
+	}
+	return x
 }
