@@ -59,7 +59,7 @@ type APIReconciler struct {
 const (
 	apiRouteIDAnnotationPrefix = "api.pomerium.io/route-id-"
 	apiPolicyIDAnnotation      = "api.pomerium.io/policy-id"
-	apiKeypairIDAnnotation     = "api.pomerium.io/keypair-id"
+	apiKeyPairIDAnnotation     = "api.pomerium.io/keypair-id"
 	apiFinalizer               = "api.pomerium.io/finalizer"
 )
 
@@ -179,7 +179,7 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 		if secret == nil {
 			logger.Info("missing secret (internal error)", "annotation", annotation, "secretName", secretName)
 		}
-		keyPairID := secret.Annotations[apiKeypairIDAnnotation]
+		keyPairID := secret.Annotations[apiKeyPairIDAnnotation]
 		if keyPairID == "" {
 			logger.Info("missing keypair ID annotation (internal error)", "annotation", annotation, "secretName", secretName)
 		}
@@ -277,7 +277,7 @@ func (r *APIReconciler) upsertOneKeyPair(
 		OriginatorId: &originatorID,
 	}
 
-	existingKeyPairID := secret.Annotations[apiKeypairIDAnnotation]
+	existingKeyPairID := secret.Annotations[apiKeyPairIDAnnotation]
 	if existingKeyPairID == "" {
 		logger.Info("creating new keypair...", "name", name)
 
@@ -288,7 +288,7 @@ func (r *APIReconciler) upsertOneKeyPair(
 		}
 
 		originalSecret := secret.DeepCopy()
-		setAnnotation(secret, apiKeypairIDAnnotation, updatedKeyPairID)
+		setAnnotation(secret, apiKeyPairIDAnnotation, updatedKeyPairID)
 		controllerutil.AddFinalizer(secret, apiFinalizer)
 		err = r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret))
 		return err == nil, err
@@ -674,7 +674,7 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.Key
 		Id: keyPair.GetId(),
 	}))
 	if err != nil {
-		if connect.CodeOf(err) != connect.CodeNotFound {
+		if connect.CodeOf(err) == connect.CodeNotFound {
 			// If the existing key pair was deleted, recreate it.
 			_, err := r.createKeyPair(ctx, keyPair)
 			return err == nil, err
@@ -696,9 +696,10 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.Key
 		return false, nil
 	}
 
-	// XXX: debugging
 	logger := log.FromContext(ctx).WithName("APIReconciler.upsertPolicy")
-	logger.Info("updating existing policy", "id", keyPair.GetId(), "diff", cmp.Diff(existing, keyPair, protocmp.Transform()))
+	logger.V(1).Info("updating existing keypair",
+		"id", keyPair.GetId(),
+		"diff", cmp.Diff(existing, keyPair, protocmp.Transform()))
 
 	_, err = r.apiClient.UpdateKeyPair(ctx, connect.NewRequest(&pomerium.UpdateKeyPairRequest{
 		KeyPair: keyPair,
@@ -726,7 +727,7 @@ func (r *APIReconciler) deleteKeyPairs(
 			}
 			return anyDeletes, err
 		}
-		keyPairID := secret.Annotations[apiKeypairIDAnnotation] // XXX: standardize capitalization
+		keyPairID := secret.Annotations[apiKeyPairIDAnnotation]
 		if keyPairID == "" {
 			continue
 		}
@@ -737,7 +738,7 @@ func (r *APIReconciler) deleteKeyPairs(
 			return anyDeletes, err
 		}
 		originalSecret := secret.DeepCopy()
-		delete(secret.Annotations, apiKeypairIDAnnotation)
+		delete(secret.Annotations, apiKeyPairIDAnnotation)
 		controllerutil.RemoveFinalizer(secret, apiFinalizer)
 		if err := r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret)); err != nil {
 			return anyDeletes, err
