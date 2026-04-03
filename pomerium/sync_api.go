@@ -151,6 +151,7 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 		}
 		err := r.k8sClient.Patch(ctx, ic.Ingress, client.MergeFrom(originalIngress))
 		if err != nil {
+			// XXX: review error handling for other Patch() calls, make sure we log consistently
 			logger.Error(err, "patch", "ingress", ic.Name)
 		}
 	}()
@@ -171,8 +172,8 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 	}
 
 	keyPairIDForAnnotation := func(annotation string) *string {
-		secretName, ok := kv.TLS[annotation]
-		if !ok {
+		secretName, hasAnnotation := kv.TLS[annotation]
+		if !hasAnnotation {
 			return nil
 		}
 		secret := ic.Secrets[types.NamespacedName{Namespace: ic.Namespace, Name: secretName}]
@@ -451,20 +452,6 @@ func (r *APIReconciler) SetGatewayConfig(
 	return changes, nil
 }
 
-func extractCerts(secrets map[types.NamespacedName]*corev1.Secret) []*pb.Settings_Certificate {
-	var certs []*pb.Settings_Certificate
-	for _, secret := range secrets {
-		if secret.Type != corev1.SecretTypeTLS {
-			continue
-		}
-		certs = append(certs, &pb.Settings_Certificate{
-			CertBytes: secret.Data[corev1.TLSCertKey],
-			KeyBytes:  secret.Data[corev1.TLSPrivateKeyKey],
-		})
-	}
-	return certs
-}
-
 func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb.Route) (bool, error) {
 	logger := log.FromContext(ctx).WithName("APIReconciler.upsertOneRoute")
 
@@ -520,8 +507,7 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb
 		return false, nil
 	}
 
-	// XXX: demote to V(1)
-	logger.Info("updating existing route",
+	logger.V(1).Info("updating existing route",
 		"id", apiRoute.GetId(),
 		"diff", cmp.Diff(existing, apiRoute, protocmp.Transform()))
 
@@ -763,7 +749,7 @@ func allRouteIDAnnotations(annotations map[string]string) map[string]struct{} {
 }
 
 func convertProto[Dst, Src proto.Message](msg Src) (Dst, error) {
-	// XXX: figure out a way to use the connect client without this extra marshaling
+	// TODO: figure out a way to avoid this extra marshal/unmarshal step
 	var newMsg Dst
 	b, err := proto.Marshal(msg)
 	if err != nil {
