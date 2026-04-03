@@ -178,7 +178,8 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 		}
 		secret := ic.Secrets[types.NamespacedName{Namespace: ic.Namespace, Name: secretName}]
 		if secret == nil {
-			logger.Info("missing secret (internal error)", "annotation", annotation, "secretName", secretName)
+			// XXX: promote this to an error?
+			logger.Info("secret not fetched (internal error)", "annotation", annotation, "secretName", secretName)
 		}
 		keyPairID := secret.Annotations[apiKeyPairIDAnnotation]
 		if keyPairID == "" {
