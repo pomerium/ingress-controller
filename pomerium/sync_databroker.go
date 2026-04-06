@@ -171,6 +171,10 @@ func (r *DataBrokerReconciler) SetGatewayConfig(
 
 	for i := range config.Routes {
 		r := &config.Routes[i]
+		if r.DeletionTimestamp != nil {
+			// Ignore any deleted HTTPRoutes.
+			continue
+		}
 		next.Routes = append(next.Routes, gateway.TranslateRoutes(ctx, config, r)...)
 	}
 	next.Settings = new(pb.Settings)

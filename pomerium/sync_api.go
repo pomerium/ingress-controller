@@ -435,18 +435,35 @@ func (r *APIReconciler) SetGatewayConfig(
 
 	for i := range gatewayConfig.Routes {
 		gr := &gatewayConfig.Routes[i]
-		routes := gateway.TranslateRoutes(ctx, gatewayConfig, gr)
-		for i, route := range routes {
-			k := routeIDAnnotationForIndex(i)
-			routeChanged, err := r.upsertOneRoute(ctx, gr.Annotations[k], route)
+		originalRoute := gr.HTTPRoute.DeepCopy()
+
+		if gr.DeletionTimestamp == nil {
+			routes := gateway.TranslateRoutes(ctx, gatewayConfig, gr)
+			for i, route := range routes {
+				k := routeIDAnnotationForIndex(i)
+				routeChanged, err := r.upsertOneRoute(ctx, gr.Annotations[k], route)
+				if err != nil {
+					return changes, err
+				}
+				changes = changes || routeChanged
+				if gr.Annotations[k] == "" {
+					setAnnotation(gr, k, *route.Id)
+				}
+			}
+			controllerutil.AddFinalizer(gr, apiFinalizer)
+		} else {
+			// This HTTPRoute was deleted, so delete any synced Pomerium routes.
+			anyDeletes, err := r.deleteRoutes(ctx, gr, allRouteIDAnnotations(gr.Annotations))
 			if err != nil {
 				return changes, err
-			} else if routeChanged {
-				changes = true
 			}
-			if gr.Annotations[k] == "" {
-				setAnnotation(gr, k, *route.Id)
-			}
+			changes = changes || anyDeletes
+
+			controllerutil.RemoveFinalizer(gr, apiFinalizer)
+		}
+
+		if err := r.k8sClient.Patch(ctx, gr.HTTPRoute, client.MergeFrom(originalRoute)); err != nil {
+			return changes, err
 		}
 	}
 
@@ -473,7 +490,7 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb
 			existing = resp.Msg.Route
 		}
 
-		apiRoute.Id = &id // XXX: new(id) ?
+		apiRoute.Id = new(id)
 	} else {
 		// The ID must be assigned during route creation. (We can't use the
 		// derived ID from the conversion logic.)
@@ -518,28 +535,26 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb
 	return err == nil, err
 }
 
-// deleteRoutes deletes routes corresponding to the annotation keys in
-// routeAnnotations and removes the corresponding annotations from ingress.
-// Returns true if any routes were deleted, and an error if some delete
-// operation failed.
+// deleteRoutes deletes routes corresponding to the keys in annotationKeys and
+// removes the corresponding annotations from obj. Returns true if any routes
+// were deleted, and an error if some delete operation failed.
 func (r *APIReconciler) deleteRoutes(
-	ctx context.Context, ingress *networkingv1.Ingress, routeAnnotations map[string]struct{},
+	ctx context.Context, obj client.Object, annotationKeys map[string]struct{},
 ) (bool, error) {
 	var anyDeletes bool
-	for k := range routeAnnotations {
+	annotations := obj.GetAnnotations()
+	for k := range annotationKeys {
 		_, err := r.apiClient.DeleteRoute(ctx, connect.NewRequest(&pomerium.DeleteRouteRequest{
-			Id: ingress.Annotations[k],
+			Id: annotations[k],
 		}))
 		if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
 			return anyDeletes, err
 		}
-		delete(ingress.Annotations, k)
+		delete(annotations, k)
 		anyDeletes = true
 	}
 	return anyDeletes, nil
 }
-
-type policyCleanupFn func(context.Context) (bool, error)
 
 func (r *APIReconciler) syncPolicy(
 	ctx context.Context, ingress *networkingv1.Ingress, kv *keys,

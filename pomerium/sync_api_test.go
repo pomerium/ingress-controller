@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/pomerium/sdk-go/proto/pomerium"
 
@@ -59,7 +60,7 @@ func setupReconciler(t *testing.T) (
 }
 
 func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
-	// Test the basics route and keypair lifecycle via the IngressReconciler methods.
+	// Test the basic route and keypair lifecycle via the IngressReconciler methods.
 	//   1. Create an Ingress without a TLS secret.
 	//   2. Modify the Ingress to adjust the route details and add a TLS secret.
 	//   3. Delete the Ingress.
@@ -593,6 +594,101 @@ func TestAPIReconciler_upsertOneIngress_multipleRoutes(t *testing.T) {
 	})
 }
 
+func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
+	// Test the basic route lifecycle via the SetGatewayConfig method.
+	apiClient, k8sClient, r := setupReconciler(t)
+	ctx := t.Context()
+
+	gc := &model.GatewayConfig{
+		Routes: []model.GatewayHTTPRouteConfig{{
+			HTTPRoute: &gateway_v1.HTTPRoute{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "route-a",
+					Namespace: "test",
+				},
+				Spec: gateway_v1.HTTPRouteSpec{
+					CommonRouteSpec: gateway_v1.CommonRouteSpec{},
+					Hostnames:       []gateway_v1.Hostname{},
+					Rules: []gateway_v1.HTTPRouteRule{{
+						BackendRefs: []gateway_v1.HTTPBackendRef{{
+							BackendRef: gateway_v1.BackendRef{
+								BackendObjectReference: gateway_v1.BackendObjectReference{
+									Name: "example-svc",
+									Port: new(gateway_v1.PortNumber(8000)),
+								},
+							},
+						}},
+					}},
+				},
+			},
+			Hostnames:        []gateway_v1.Hostname{"a.localhost.pomerium.io"},
+			ValidBackendRefs: noopBackendRefChecker{},
+			Services: map[types.NamespacedName]*corev1.Service{
+				{Name: "example-svc", Namespace: "test"}: {},
+			},
+		}},
+	}
+
+	// Specifics around metadata updates will be tested in other test cases.
+	// XXX: TODO
+	k8sClient.EXPECT().Patch(ctx, gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+	// An initial call to Set() should create a Pomerium route from the Ingress.
+	route := &pomerium.Route{
+		OriginatorId: new("ingress-controller"),
+		// XXX: generate a name (and StatName?) like we do for Ingress-defined routes
+		//Name:         new("test-a-localhost-pomerium-io"),
+		//StatName: new("test-a-localhost-pomerium-io"),
+		From:                 "https://a.localhost.pomerium.io",
+		To:                   []string{"http://example-svc.test.svc.cluster.local:8000"},
+		LoadBalancingWeights: []uint32{1},
+		PreserveHostHeader:   true,
+	}
+	apiClient.EXPECT().CreateRoute(ctx, RequestEq(&pomerium.CreateRouteRequest{
+		Route: route,
+	})).Return(createRouteResponseWithID("new-route-id-1"), nil)
+
+	changed, err := r.SetGatewayConfig(ctx, gc)
+	assert.True(t, changed)
+	require.NoError(t, err)
+
+	// Modifying the HTTPRoute should update the Pomerium route.
+	gc.Routes[0].Spec.Rules[0].BackendRefs[0].BackendObjectReference.Port = new(gateway_v1.PortNumber(1234))
+
+	apiClient.EXPECT().GetRoute(ctx, RequestEq(&pomerium.GetRouteRequest{
+		Id: "new-route-id-1",
+	})).Return(connect.NewResponse(&pomerium.GetRouteResponse{
+		Route: route,
+	}), nil)
+	apiClient.EXPECT().UpdateRoute(ctx, RequestEq(&pomerium.UpdateRouteRequest{
+		Route: &pomerium.Route{
+			OriginatorId: new("ingress-controller"),
+			Id:           new("new-route-id-1"),
+			//Name:                 new("test-a-localhost-pomerium-io"),
+			//StatName:             new("test-a-localhost-pomerium-io"),
+			From:                 "https://a.localhost.pomerium.io",
+			To:                   []string{"http://example-svc.test.svc.cluster.local:1234"},
+			LoadBalancingWeights: []uint32{1},
+			PreserveHostHeader:   true,
+		},
+	})).Return(connect.NewResponse(&pomerium.UpdateRouteResponse{}), nil)
+
+	changed, err = r.SetGatewayConfig(ctx, gc)
+	assert.True(t, changed)
+	require.NoError(t, err)
+
+	// Deleting the HTTPRoute should delete the Pomerium route.
+	gc.Routes[0].DeletionTimestamp = new(metav1.Now())
+
+	apiClient.EXPECT().DeleteRoute(ctx, RequestEq(&pomerium.DeleteRouteRequest{
+		Id: "new-route-id-1",
+	})).Return(connect.NewResponse(&pomerium.DeleteRouteResponse{}), nil)
+
+	changed, err = r.SetGatewayConfig(ctx, gc)
+	assert.True(t, changed)
+	require.NoError(t, err)
+}
+
 func TestAPIReconciler_SetConfig(t *testing.T) {
 	cfg := &model.Config{
 		Pomerium: icsv1.Pomerium{
@@ -1018,4 +1114,11 @@ func (m requestMatcher[T, P]) Matches(x interface{}) bool {
 
 func (m requestMatcher[T, P]) String() string {
 	return fmt.Sprintf("request with msg %[1]v (%[1]T)", m.expected)
+}
+
+// Implementation of BackendRefChecker that simply allows all BackendRefs.
+type noopBackendRefChecker struct{}
+
+func (noopBackendRefChecker) Valid(obj client.Object, r *gateway_v1.BackendRef) bool {
+	return true
 }
