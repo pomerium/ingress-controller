@@ -596,7 +596,7 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *pomerium.Polic
 		Id: policy.GetId(),
 	}))
 	if err != nil {
-		if connect.CodeOf(err) != connect.CodeNotFound {
+		if connect.CodeOf(err) == connect.CodeNotFound {
 			// If the existing policy was deleted, recreate it.
 			_, err := r.createPolicy(ctx, policy)
 			return err == nil, err
@@ -631,12 +631,12 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *pomerium.Polic
 // operation failed.
 func (r *APIReconciler) deletePolicy(
 	ctx context.Context, ingress *networkingv1.Ingress,
-) (bool, error) {
+) (deleted bool, err error) {
 	policyID := ingress.Annotations[apiPolicyIDAnnotation]
 	if policyID == "" {
 		return false, nil
 	}
-	_, err := r.apiClient.DeletePolicy(ctx, connect.NewRequest(&pomerium.DeletePolicyRequest{
+	_, err = r.apiClient.DeletePolicy(ctx, connect.NewRequest(&pomerium.DeletePolicyRequest{
 		Id: policyID,
 	}))
 	if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
@@ -694,9 +694,9 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.Key
 	return err == nil, err
 }
 
-// deletePolicy deletes the policy for the ingress and clears its policy ID
-// annotation. Returns true if any changes were made, or an error if the delete
-// operation failed.
+// deleteKeyPairs deletes the keypairs corresponding to the given Secret names,
+// clearing the keypair ID annotation for each. Returns true if any deletes were
+// successful, or an error if some delete operation failed.
 func (r *APIReconciler) deleteKeyPairs(
 	ctx context.Context, secretNames ...types.NamespacedName,
 ) (bool, error) {

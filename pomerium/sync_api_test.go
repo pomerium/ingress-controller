@@ -3,8 +3,6 @@ package pomerium
 import (
 	"context"
 	"fmt"
-	"maps"
-	"slices"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -12,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -179,7 +178,7 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 		Id: "new-route-id-1",
 	})).Return(connect.NewResponse(&pomerium.DeleteRouteResponse{}), nil)
 
-	changed, err = r.Delete(t.Context(), ic.GetIngressNamespacedName(), ic.Ingress)
+	changed, err = r.Delete(ctx, ic.GetIngressNamespacedName(), ic.Ingress)
 	assert.True(t, changed)
 	require.NoError(t, err)
 }
@@ -199,7 +198,7 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 		},
 	}
 
-	t.Run("policy", func(t *testing.T) {
+	t.Run("create policy", func(t *testing.T) {
 		// Verify that policy annotations translate to a standalone Policy entity.
 		ppl := `allow:
   or:
@@ -218,15 +217,16 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 		}
 
 		apiClient, k8sClient, r := setupReconciler(t)
+		ctx := t.Context()
 
-		apiClient.EXPECT().CreatePolicy(gomock.Any(), RequestEq(&pomerium.CreatePolicyRequest{
+		apiClient.EXPECT().CreatePolicy(ctx, RequestEq(&pomerium.CreatePolicyRequest{
 			Policy: &pomerium.Policy{
 				OriginatorId: new("ingress-controller"),
 				Name:         new("test-my-ingress-policy"),
 				SourcePpl:    new(`[{"allow":{"or":[{"groups":{"has":"engineering"}}]}}]`),
 			},
 		})).Return(createPolicyResponseWithID("new-policy-id"), nil)
-		apiClient.EXPECT().CreateRoute(gomock.Any(), RequestEq(&pomerium.CreateRouteRequest{
+		apiClient.EXPECT().CreateRoute(ctx, RequestEq(&pomerium.CreateRouteRequest{
 			Route: &pomerium.Route{
 				OriginatorId: new("ingress-controller"),
 				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
@@ -239,9 +239,9 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 			},
 		})).Return(createRouteResponseWithID("new-route-id"), nil)
 
-		k8sClient.EXPECT().Patch(gomock.Any(), ingress, gomock.Any()).Return(nil)
+		k8sClient.EXPECT().Patch(ctx, ingress, gomock.Any()).Return(nil)
 
-		changed, err := r.upsertOneIngress(t.Context(), ic)
+		changed, err := r.upsertOneIngress(ctx, ic)
 		assert.True(t, changed)
 		require.NoError(t, err)
 		assert.Equal(t, "new-policy-id", ic.Annotations["api.pomerium.io/policy-id"])
@@ -249,7 +249,135 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 		assert.Contains(t, ic.Finalizers, apiFinalizer)
 	})
 
-	t.Run("tls_secrets", func(t *testing.T) {
+	t.Run("update policy", func(t *testing.T) {
+		// Verify that a changed policy will be updated via the API.
+		ppl := `allow:
+  or:
+    - groups:
+        has: "admins"`
+		ingress := ingressTemplate.DeepCopy()
+		ingress.Annotations = map[string]string{
+			"a/policy": ppl,
+			// this route + policy have already been synced via the API
+			"api.pomerium.io/policy-id":  "existing-policy-id",
+			"api.pomerium.io/route-id-0": "existing-route-id",
+		}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress:          ingress,
+			Services: map[types.NamespacedName]*corev1.Service{
+				{Name: "example-svc", Namespace: "test"}: {},
+			},
+		}
+
+		apiClient, k8sClient, r := setupReconciler(t)
+		ctx := t.Context()
+
+		// This GetPolicy() response indicates the policy has changed.
+		apiClient.EXPECT().GetPolicy(ctx, RequestEq(&pomerium.GetPolicyRequest{
+			Id: "existing-policy-id",
+		})).Return(connect.NewResponse(&pomerium.GetPolicyResponse{
+			Policy: &pomerium.Policy{
+				Id:           new("existing-policy-id"),
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-my-ingress-policy"),
+				SourcePpl:    new(`[{"allow":{"or":[{"groups":{"has":"engineering"}}]}}]`),
+			},
+		}), nil)
+		// This should result in an UpdatePolicy() call to sync the policy.
+		apiClient.EXPECT().UpdatePolicy(ctx, RequestEq(&pomerium.UpdatePolicyRequest{
+			Policy: &pomerium.Policy{
+				Id:           new("existing-policy-id"),
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-my-ingress-policy"),
+				SourcePpl:    new(`[{"allow":{"or":[{"groups":{"has":"admins"}}]}}]`),
+			},
+		})).Return(connect.NewResponse(&pomerium.UpdatePolicyResponse{}), nil)
+
+		// This GetRoute() response indicates the route has not changed, so no
+		// UpdateRoute() call is needed.
+		apiClient.EXPECT().GetRoute(ctx, RequestEq(&pomerium.GetRouteRequest{
+			Id: "existing-route-id",
+		})).Return(connect.NewResponse(&pomerium.GetRouteResponse{
+			Route: &pomerium.Route{
+				Id:           new("existing-route-id"),
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
+				StatName:     new("test-my-ingress-a-localhost-pomerium-io"),
+				From:         "https://a.localhost.pomerium.io",
+				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
+				Prefix:       "/",
+				PolicyIds:    []string{"existing-policy-id"},
+			},
+		}), nil)
+
+		k8sClient.EXPECT().Patch(ctx, ingress, gomock.Any()).Return(nil)
+
+		changed, err := r.upsertOneIngress(ctx, ic)
+		assert.True(t, changed)
+		require.NoError(t, err)
+	})
+
+	t.Run("delete policy", func(t *testing.T) {
+		// If a previous policy is no longer needed, it should be deleted.
+		ingress := ingressTemplate.DeepCopy()
+		ingress.Annotations = map[string]string{
+			"api.pomerium.io/route-id-0": "existing-route-id",
+			// Note: no policy rule annotations here, only a previous policy ID
+			"api.pomerium.io/policy-id": "existing-policy-id",
+		}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress:          ingress,
+			Services: map[types.NamespacedName]*corev1.Service{
+				{Name: "example-svc", Namespace: "test"}: {},
+			},
+		}
+
+		apiClient, k8sClient, r := setupReconciler(t)
+		ctx := t.Context()
+
+		apiClient.EXPECT().GetRoute(ctx, RequestEq(&pomerium.GetRouteRequest{
+			Id: "existing-route-id",
+		})).Return(connect.NewResponse(&pomerium.GetRouteResponse{
+			Route: &pomerium.Route{
+				Id:           new("existing-route-id"),
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
+				StatName:     new("test-my-ingress-a-localhost-pomerium-io"),
+				From:         "https://a.localhost.pomerium.io",
+				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
+				Prefix:       "/",
+
+				PolicyIds: []string{"existing-policy-id"},
+			},
+		}), nil)
+		apiClient.EXPECT().UpdateRoute(ctx, RequestEq(&pomerium.UpdateRouteRequest{
+			Route: &pomerium.Route{
+				Id:           new("existing-route-id"),
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
+				StatName:     new("test-my-ingress-a-localhost-pomerium-io"),
+				From:         "https://a.localhost.pomerium.io",
+				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
+				Prefix:       "/",
+
+				PolicyIds: nil,
+			},
+		})).Return(connect.NewResponse(&pomerium.UpdateRouteResponse{}), nil)
+		apiClient.EXPECT().DeletePolicy(ctx, RequestEq(&pomerium.DeletePolicyRequest{
+			Id: "existing-policy-id",
+		})).Return(connect.NewResponse(&pomerium.DeletePolicyResponse{}), nil)
+
+		k8sClient.EXPECT().Patch(ctx, ingress, gomock.Any()).Return(nil)
+
+		changed, err := r.upsertOneIngress(ctx, ic)
+		assert.True(t, changed)
+		require.NoError(t, err)
+		assert.NotContains(t, ic.Annotations, "api.pomerium.io/policy-id")
+	})
+
+	t.Run("TLS secrets", func(t *testing.T) {
 		// Verify that the custom TLS annotations translate to keypair ID references.
 		ingress := ingressTemplate.DeepCopy()
 		ingress.Annotations = map[string]string{
@@ -316,9 +444,9 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 			},
 		})).Return(createRouteResponseWithID("new-route-id"), nil)
 
-		k8sClient.EXPECT().Patch(gomock.Any(), ingress, gomock.Any()).Return(nil)
+		k8sClient.EXPECT().Patch(ctx, ingress, gomock.Any()).Return(nil)
 
-		changed, err := r.upsertOneIngress(t.Context(), ic)
+		changed, err := r.upsertOneIngress(ctx, ic)
 		assert.True(t, changed)
 		require.NoError(t, err)
 		assert.Equal(t, "new-route-id", ic.Annotations["api.pomerium.io/route-id-0"])
@@ -654,13 +782,15 @@ func TestAPIReconciler_upsertOneKeyPair(t *testing.T) {
 			apiKeyPairIDAnnotation: "existing-keypair-id",
 		}
 
+		ctx := t.Context()
+
 		// If there is an existing keypair ID annotation present, but it cannot
 		// be retrieved, APIReconciler should create it as a new keypair.
-		apiClient.EXPECT().GetKeyPair(gomock.Any(), RequestEq(&pomerium.GetKeyPairRequest{
+		apiClient.EXPECT().GetKeyPair(ctx, RequestEq(&pomerium.GetKeyPairRequest{
 			Id: "existing-keypair-id",
 		})).Return(nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("not found")))
 
-		apiClient.EXPECT().CreateKeyPair(gomock.Any(), RequestEq(&pomerium.CreateKeyPairRequest{
+		apiClient.EXPECT().CreateKeyPair(ctx, RequestEq(&pomerium.CreateKeyPairRequest{
 			KeyPair: &pomerium.KeyPair{
 				Id:           proto.String("existing-keypair-id"),
 				OriginatorId: proto.String("ingress-controller"),
@@ -677,139 +807,131 @@ func TestAPIReconciler_upsertOneKeyPair(t *testing.T) {
 			},
 		}, nil)
 
-		changed, err := r.upsertOneKeyPair(t.Context(), secret)
+		changed, err := r.upsertOneKeyPair(ctx, secret)
 		assert.True(t, changed)
 		assert.NoError(t, err)
 	})
 }
 
-/*
-func TestAPIReconciler_deleteRoutes(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	apiClient := controllers_mock.NewMockSDKClient(ctrl)
-
-	r := APIReconciler{
-		apiClient:  apiClient,
-		secretsMap: model.NewTLSSecretsMap(),
+func TestAPIReconciler_upsertPolicy(t *testing.T) {
+	policy := &pomerium.Policy{
+		Id: new("existing-policy-id"),
 	}
 
-	t.Run("delete routes", func(t *testing.T) {
-		ingress := &networkingv1.Ingress{}
-		ingress.Annotations = map[string]string{
-			"api.pomerium.io/route-id-0": "route-id-0",
-			"api.pomerium.io/route-id-1": "route-id-1",
-		}
+	t.Run("not found error", func(t *testing.T) {
+		apiClient, _, r := setupReconciler(t)
+		ctx := t.Context()
 
-		routeAnnotations := map[string]struct{}{
-			"api.pomerium.io/route-id-0": {},
-			"api.pomerium.io/route-id-1": {},
-		}
+		// When trying to update a policy, if the policy does not currently
+		// exist, it should be recreated using a CreatePolicy() request.
+		apiClient.EXPECT().GetPolicy(ctx, RequestEq(&pomerium.GetPolicyRequest{
+			Id: "existing-policy-id",
+		})).Return(nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("not found")))
 
-		apiClient.EXPECT().DeleteRoute(gomock.Any(), RequestEq(&pomerium.DeleteRouteRequest{
-			Id: "route-id-0",
-		})).Return(&connect.Response[pomerium.DeleteRouteResponse]{}, nil)
+		apiClient.EXPECT().CreatePolicy(ctx, RequestEq(&pomerium.CreatePolicyRequest{
+			Policy: policy,
+		})).Return(createPolicyResponseWithID("existing-policy-id"), nil)
 
-		apiClient.EXPECT().DeleteRoute(gomock.Any(), RequestEq(&pomerium.DeleteRouteRequest{
-			Id: "route-id-1",
-		})).Return(&connect.Response[pomerium.DeleteRouteResponse]{}, nil)
-
-		anyDeletes, err := r.deleteRoutes(t.Context(), ingress, routeAnnotations)
-		assert.True(t, anyDeletes)
+		changed, err := r.upsertPolicy(ctx, policy)
+		assert.True(t, changed)
 		assert.NoError(t, err)
-		assert.Empty(t, ingress.Annotations)
 	})
 
-	t.Run("delete routes ignores not found", func(t *testing.T) {
-		ingress := &networkingv1.Ingress{}
-		ingress.Annotations = map[string]string{
-			"api.pomerium.io/route-id-0": "route-id-0",
-		}
+	t.Run("other error", func(t *testing.T) {
+		apiClient, _, r := setupReconciler(t)
+		ctx := t.Context()
 
-		routeAnnotations := map[string]struct{}{
-			"api.pomerium.io/route-id-0": {},
-		}
+		apiError := connect.NewError(connect.CodeUnavailable, fmt.Errorf("unavailable"))
 
-		apiClient.EXPECT().DeleteRoute(gomock.Any(), gomock.Any()).
-			Return(nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("not found")))
+		apiClient.EXPECT().GetPolicy(ctx, RequestEq(&pomerium.GetPolicyRequest{
+			Id: "existing-policy-id",
+		})).Return(nil, apiError)
 
-		anyDeletes, err := r.deleteRoutes(t.Context(), ingress, routeAnnotations)
-		assert.True(t, anyDeletes)
+		changed, err := r.upsertPolicy(ctx, policy)
+		assert.False(t, changed)
+		assert.Equal(t, apiError, err)
+	})
+
+	t.Run("no changes needed", func(t *testing.T) {
+		apiClient, _, r := setupReconciler(t)
+		ctx := t.Context()
+
+		// When determining if a policy needs to be updated, certain fields
+		// should be ignored.
+		apiClient.EXPECT().GetPolicy(ctx, RequestEq(&pomerium.GetPolicyRequest{
+			Id: "existing-policy-id",
+		})).Return(connect.NewResponse(&pomerium.GetPolicyResponse{
+			Policy: &pomerium.Policy{
+				Id: new("existing-policy-id"),
+
+				NamespaceId: new("some-namespace-id"),
+				CreatedAt:   timestamppb.Now(),
+				ModifiedAt:  timestamppb.Now(),
+				AssignedRoutes: []*pomerium.EntityInfo{{
+					Id:   new("some-route-id"),
+					Name: new("some-route-name"),
+				}},
+				Enforced: new(false),
+			},
+		}), nil)
+
+		// No UpdatePolicy() call expected.
+
+		changed, err := r.upsertPolicy(t.Context(), policy)
+		assert.False(t, changed)
 		assert.NoError(t, err)
 	})
 }
 
 func TestAPIReconciler_deletePolicy(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	apiClient := controllers_mock.NewMockSDKClient(ctrl)
+	t.Run("not found error", func(t *testing.T) {
+		apiClient, _, r := setupReconciler(t)
+		ctx := t.Context()
 
-	r := APIReconciler{
-		apiClient:  apiClient,
-		secretsMap: model.NewTLSSecretsMap(),
-	}
-
-	t.Run("delete policy", func(t *testing.T) {
-		ingress := &networkingv1.Ingress{}
-		ingress.Annotations = map[string]string{
-			apiPolicyIDAnnotation: "policy-id-123",
+		ingress := &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"api.pomerium.io/policy-id": "existing-policy-id",
+				},
+			},
 		}
 
-		apiClient.EXPECT().DeletePolicy(gomock.Any(), RequestEq(&pomerium.DeletePolicyRequest{
-			Id: "policy-id-123",
-		})).Return(&connect.Response[pomerium.DeletePolicyResponse]{}, nil)
+		// If a DeletePolicy() call results in a Not Found error, APIReconciler
+		// should not propagate this error (there was no need to delete the policy
+		// in the first place).
+		apiClient.EXPECT().DeletePolicy(ctx, RequestEq(&pomerium.DeletePolicyRequest{
+			Id: "existing-policy-id",
+		})).Return(nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("not found")))
 
 		deleted, err := r.deletePolicy(t.Context(), ingress)
 		assert.True(t, deleted)
 		assert.NoError(t, err)
-		assert.Empty(t, ingress.Annotations[apiPolicyIDAnnotation])
+		assert.NotContains(t, ingress.Annotations, "api.pomerium.io/policy-id")
 	})
 
-	t.Run("delete policy no-op when no annotation", func(t *testing.T) {
-		ingress := &networkingv1.Ingress{}
+	t.Run("other error", func(t *testing.T) {
+		apiClient, _, r := setupReconciler(t)
+		ctx := t.Context()
 
-		// No DeletePolicy call expected.
+		ingress := &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"api.pomerium.io/policy-id": "existing-policy-id",
+				},
+			},
+		}
+
+		apiError := connect.NewError(connect.CodeUnavailable, fmt.Errorf("unavailable"))
+
+		apiClient.EXPECT().DeletePolicy(ctx, RequestEq(&pomerium.DeletePolicyRequest{
+			Id: "existing-policy-id",
+		})).Return(nil, apiError)
 
 		deleted, err := r.deletePolicy(t.Context(), ingress)
 		assert.False(t, deleted)
-		assert.NoError(t, err)
+		assert.Equal(t, apiError, err)
+		assert.Equal(t, "existing-policy-id", ingress.Annotations["api.pomerium.io/policy-id"])
 	})
-
-	t.Run("delete policy ignores not found", func(t *testing.T) {
-		ingress := &networkingv1.Ingress{}
-		ingress.Annotations = map[string]string{
-			apiPolicyIDAnnotation: "policy-id-123",
-		}
-
-		apiClient.EXPECT().DeletePolicy(gomock.Any(), gomock.Any()).
-			Return(nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("not found")))
-
-		deleted, err := r.deletePolicy(t.Context(), ingress)
-		assert.True(t, deleted)
-		assert.NoError(t, err)
-	})
-}*/
-
-// XXX: We don't actually need to test this directly, do we?
-func TestAllRouteIDAnnotations(t *testing.T) {
-	annotations := map[string]string{
-		"api.pomerium.io/route-id-0": "route-0",
-		"api.pomerium.io/route-id-1": "route-1",
-		"api.pomerium.io/route-id-2": "route-2",
-		"api.pomerium.io/policy-id":  "policy-id",
-		"other-annotation":           "value",
-	}
-
-	result := allRouteIDAnnotations(annotations)
-	assert.ElementsMatch(t, []string{
-		"api.pomerium.io/route-id-0",
-		"api.pomerium.io/route-id-1",
-		"api.pomerium.io/route-id-2",
-	}, slices.Collect(maps.Keys(result)))
-}
-
-func TestRouteIDAnnotationForIndex(t *testing.T) {
-	assert.Equal(t, "api.pomerium.io/route-id-0", routeIDAnnotationForIndex(0))
-	assert.Equal(t, "api.pomerium.io/route-id-1", routeIDAnnotationForIndex(1))
-	assert.Equal(t, "api.pomerium.io/route-id-99", routeIDAnnotationForIndex(99))
 }
 
 func createKeyPairResponseWithID(id string) *connect.Response[pomerium.CreateKeyPairResponse] {
