@@ -209,6 +209,9 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 		route.TlsDownstreamClientCa = ""
 		route.TlsDownstreamClientCaKeyPairId = tlsDownstreamClientCAKeyPairID
 
+		// Clear the route StatName as it can't currently be set in Pomerium Zero.
+		route.StatName = nil
+
 		changed, err := r.upsertOneRoute(ctx, ic.Annotations[k], route)
 		if err != nil {
 			return anyChanges, err
@@ -511,14 +514,13 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb
 		return true, nil
 	}
 
-	// Zero out fields that should be ignored when looking for changes.
+	// Clear the fields that should be ignored when looking for changes.
 	existing.NamespaceId = nil
 	existing.CreatedAt = nil
 	existing.ModifiedAt = nil
 	existing.AssignedPolicies = nil
 	existing.EnforcedPolicies = nil
-
-	// XXX: figure out what to do with stat_name -- it doesn't seem to be preserved by Zero
+	existing.StatName = nil
 
 	if proto.Equal(existing, apiRoute) {
 		// No changes needed.

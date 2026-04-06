@@ -98,7 +98,6 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 	route := &pomerium.Route{
 		OriginatorId: new("ingress-controller"),
 		Name:         new("test-a-localhost-pomerium-io"),
-		StatName:     new("test-a-localhost-pomerium-io"),
 		From:         "https://a.localhost.pomerium.io",
 		To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
 		Prefix:       "/",
@@ -150,7 +149,6 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 			OriginatorId:      new("ingress-controller"),
 			Id:                new("new-route-id-1"),
 			Name:              new("test-a-localhost-pomerium-io"),
-			StatName:          new("test-a-localhost-pomerium-io"),
 			From:              "https://a.localhost.pomerium.io",
 			To:                []string{"http://example-svc.test.svc.cluster.local:8080"},
 			Prefix:            "/",
@@ -231,7 +229,6 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 			Route: &pomerium.Route{
 				OriginatorId: new("ingress-controller"),
 				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
-				StatName:     new("test-my-ingress-a-localhost-pomerium-io"),
 				From:         "https://a.localhost.pomerium.io",
 				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
 				Prefix:       "/",
@@ -304,7 +301,7 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 				Id:           new("existing-route-id"),
 				OriginatorId: new("ingress-controller"),
 				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
-				StatName:     new("test-my-ingress-a-localhost-pomerium-io"),
+				StatName:     new("stat-name-should-be-ignored"),
 				From:         "https://a.localhost.pomerium.io",
 				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
 				Prefix:       "/",
@@ -345,7 +342,7 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 				Id:           new("existing-route-id"),
 				OriginatorId: new("ingress-controller"),
 				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
-				StatName:     new("test-my-ingress-a-localhost-pomerium-io"),
+				StatName:     new("route-stat-name"),
 				From:         "https://a.localhost.pomerium.io",
 				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
 				Prefix:       "/",
@@ -358,7 +355,6 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 				Id:           new("existing-route-id"),
 				OriginatorId: new("ingress-controller"),
 				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
-				StatName:     new("test-my-ingress-a-localhost-pomerium-io"),
 				From:         "https://a.localhost.pomerium.io",
 				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
 				Prefix:       "/",
@@ -434,7 +430,6 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 			Route: &pomerium.Route{
 				OriginatorId: new("ingress-controller"),
 				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
-				StatName:     new("test-my-ingress-a-localhost-pomerium-io"),
 				From:         "https://a.localhost.pomerium.io",
 				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
 				Prefix:       "/",
@@ -498,7 +493,6 @@ func TestAPIReconciler_upsertOneIngress_multipleRoutes(t *testing.T) {
 			Route: &pomerium.Route{
 				OriginatorId: new("ingress-controller"),
 				Name:         new("test-a-localhost-pomerium-io"),
-				StatName:     new("test-a-localhost-pomerium-io"),
 				From:         "https://a.localhost.pomerium.io",
 				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
 				Prefix:       "/",
@@ -508,7 +502,6 @@ func TestAPIReconciler_upsertOneIngress_multipleRoutes(t *testing.T) {
 			Route: &pomerium.Route{
 				OriginatorId: new("ingress-controller"),
 				Name:         new("test-b-localhost-pomerium-io"),
-				StatName:     new("test-b-localhost-pomerium-io"),
 				From:         "https://b.localhost.pomerium.io",
 				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
 				Prefix:       "/",
@@ -552,7 +545,7 @@ func TestAPIReconciler_upsertOneIngress_multipleRoutes(t *testing.T) {
 				Id:           new("route-id-A"),
 				OriginatorId: new("ingress-controller"),
 				Name:         new("test-a-localhost-pomerium-io"),
-				StatName:     new("test-a-localhost-pomerium-io"),
+				StatName:     new("route-a-stat-name"),
 				From:         "https://a.localhost.pomerium.io",
 				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
 				Prefix:       "/",
@@ -565,7 +558,7 @@ func TestAPIReconciler_upsertOneIngress_multipleRoutes(t *testing.T) {
 				Id:           new("route-id-B"),
 				OriginatorId: new("ingress-controller"),
 				Name:         new("test-b-localhost-pomerium-io"),
-				StatName:     new("test-b-localhost-pomerium-io"),
+				StatName:     new("route-b-stat-name"),
 				From:         "https://b.localhost.pomerium.io",
 				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
 				Prefix:       "/",
@@ -636,9 +629,8 @@ func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 	// An initial call to Set() should create a Pomerium route from the Ingress.
 	route := &pomerium.Route{
 		OriginatorId: new("ingress-controller"),
-		// XXX: generate a name (and StatName?) like we do for Ingress-defined routes
+		// XXX: generate a name like we do for Ingress-defined routes
 		//Name:         new("test-a-localhost-pomerium-io"),
-		//StatName: new("test-a-localhost-pomerium-io"),
 		From:                 "https://a.localhost.pomerium.io",
 		To:                   []string{"http://example-svc.test.svc.cluster.local:8000"},
 		LoadBalancingWeights: []uint32{1},
@@ -665,7 +657,6 @@ func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 			OriginatorId: new("ingress-controller"),
 			Id:           new("new-route-id-1"),
 			//Name:                 new("test-a-localhost-pomerium-io"),
-			//StatName:             new("test-a-localhost-pomerium-io"),
 			From:                 "https://a.localhost.pomerium.io",
 			To:                   []string{"http://example-svc.test.svc.cluster.local:1234"},
 			LoadBalancingWeights: []uint32{1},
