@@ -380,7 +380,7 @@ func (s *allCmdParam) runBootstrapConfigController(ctx context.Context, reconcil
 	if host, err := os.Hostname(); err == nil {
 		name = fmt.Sprintf("%s pod/%s", name, host)
 	}
-	// XXX: I think maybe we don't need the boostrap config controller when syncing via the API?
+	// TODO: do we need to disable the boostrap config controller when syncing via the API?
 	if err := settings.NewSettingsController(mgr, reconciler, s.settings, name, false, health_ctrl.SettingsBootstrapReconciler); err != nil {
 		return fmt.Errorf("settings controller: %w", err)
 	}

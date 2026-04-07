@@ -65,7 +65,6 @@ const (
 
 var originatorID = "ingress-controller"
 
-// XXX: this is quick hack for prototyping
 func (r *APIReconciler) SetK8sClient(client client.Client) {
 	r.k8sClient = client
 }
@@ -104,14 +103,13 @@ func (r *APIReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bo
 }
 
 func (r *APIReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bool, error) {
-	// XXX: should probably re-scan all secrets here, looking for any deleted ones?
 	tlsSecrets := make(map[types.NamespacedName]*corev1.Secret)
 	for _, ic := range ics {
 		// Collect all the referenced TLS secrets. These need to be synced
-		// before the routes, as a route may reference a keypair by ID.
+		// before the routes, so that a route can reference a keypair ID.
 		for n, s := range ic.Secrets {
 			if s.Type == corev1.SecretTypeTLS {
-				r.secretsMap.Add(model.KeyForObject(ic), n) // XXX: consider just updateIngress() instead?
+				r.secretsMap.Add(model.KeyForObject(ic), n)
 				tlsSecrets[n] = s
 			}
 		}
@@ -121,6 +119,9 @@ func (r *APIReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bo
 	if err != nil {
 		return anyChanges, err
 	}
+
+	// TODO: should we do an initial scan here for any Secrets that were deleted
+	// but still have our finalizer attached?
 
 	var errs []error
 	for _, ic := range ics {
@@ -151,8 +152,7 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 		}
 		err := r.k8sClient.Patch(ctx, ic.Ingress, client.MergeFrom(originalIngress))
 		if err != nil {
-			// XXX: review error handling for other Patch() calls, make sure we log consistently
-			logger.Error(err, "patch", "ingress", ic.Name)
+			logger.Error(err, "couldn't patch ingress", "ingress", ic.Name)
 		}
 	}()
 
@@ -171,6 +171,7 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 		policyIDs = []string{updatedPolicyID}
 	}
 
+	var keypairErrs []error
 	keyPairIDForAnnotation := func(annotation string) *string {
 		secretName, hasAnnotation := kv.TLS[annotation]
 		if !hasAnnotation {
@@ -178,18 +179,26 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 		}
 		secret := ic.Secrets[types.NamespacedName{Namespace: ic.Namespace, Name: secretName}]
 		if secret == nil {
-			// XXX: promote this to an error?
-			logger.Info("secret not fetched (internal error)", "annotation", annotation, "secretName", secretName)
+			keypairErrs = append(keypairErrs,
+				fmt.Errorf("internal error - secret %q referenced by ingress %q not fetched",
+					secretName, ic.GetIngressNamespacedName()))
+			return nil
 		}
 		keyPairID := secret.Annotations[apiKeyPairIDAnnotation]
 		if keyPairID == "" {
-			logger.Info("missing keypair ID annotation (internal error)", "annotation", annotation, "secretName", secretName)
+			keypairErrs = append(keypairErrs,
+				fmt.Errorf("internal error - secret %q referenced by ingress %q missing keypair ID",
+					secretName, ic.GetIngressNamespacedName()))
+			return nil
 		}
 		return &keyPairID
 	}
 	tlsCustomCAKeyPairID := keyPairIDForAnnotation(model.TLSCustomCASecret)
 	tlsClientKeyPairID := keyPairIDForAnnotation(model.TLSClientSecret)
 	tlsDownstreamClientCAKeyPairID := keyPairIDForAnnotation(model.TLSDownstreamClientCASecret)
+	if len(keypairErrs) > 0 {
+		return anyChanges, errors.Join(keypairErrs...)
+	}
 
 	unusedRouteIDAnnotations := allRouteIDAnnotations(ic.Annotations)
 
@@ -296,7 +305,11 @@ func (r *APIReconciler) upsertOneKeyPair(
 		setAnnotation(secret, apiKeyPairIDAnnotation, updatedKeyPairID)
 		controllerutil.AddFinalizer(secret, apiFinalizer)
 		err = r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret))
-		return err == nil, err
+		if err != nil {
+			logger := log.FromContext(ctx).WithName("APIReconciler.upsertOneKeyPair")
+			logger.Error(err, "couldn't patch secret", "name", secret.Name)
+		}
+		return true, err
 	}
 
 	logger.Info("found existing keypair...", "name", name)
@@ -382,11 +395,10 @@ func (r *APIReconciler) Delete(ctx context.Context, name types.NamespacedName, i
 
 	originalIngress := ingress.DeepCopy()
 	defer func() {
-		// XXX: track "dirty" state?
 		err := r.k8sClient.Patch(ctx, ingress, client.MergeFrom(originalIngress))
 		if err != nil {
-			logger := log.FromContext(ctx).WithName("APIReconciler.upsertOneIngress")
-			logger.Error(err, "patch", "ingress", ingress.Name)
+			logger := log.FromContext(ctx).WithName("APIReconciler.Delete")
+			logger.Error(err, "couldn't patch ingress", "name", ingress.Name)
 		}
 	}()
 
@@ -479,6 +491,8 @@ func (r *APIReconciler) SetGatewayConfig(
 		}
 
 		if err := r.k8sClient.Patch(ctx, gr.HTTPRoute, client.MergeFrom(originalRoute)); err != nil {
+			logger := log.FromContext(ctx).WithName("APIReconciler.SetGatewayConfig")
+			logger.Error(err, "couldn't patch httproute", "name", gr.Name)
 			return changes, err
 		}
 	}
@@ -536,6 +550,8 @@ func (r *APIReconciler) syncGatewayPolicies(
 		policyIDs[policy.GetSourcePpl()] = policy.GetId()
 
 		if err := r.k8sClient.Patch(ctx, obj, client.MergeFrom(originalObj)); err != nil {
+			logger := log.FromContext(ctx).WithName("APIReconciler.syncGatewayPolicies")
+			logger.Error(err, "couldn't patch policyfilter", "name", obj.Name)
 			return changes, nil, err
 		}
 	}
@@ -566,6 +582,8 @@ func (r *APIReconciler) removeDeletedGatewayPolicies(
 		originalObj := obj.DeepCopy()
 		controllerutil.RemoveFinalizer(obj, apiFinalizer)
 		if err := r.k8sClient.Patch(ctx, obj, client.MergeFrom(originalObj)); err != nil {
+			logger := log.FromContext(ctx).WithName("APIReconciler.removeDeletedGatewayPolicies")
+			logger.Error(err, "couldn't patch policyfilter", "name", obj.Name)
 			return changes, err
 		}
 	}
@@ -824,7 +842,7 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.Key
 		return false, nil
 	}
 
-	logger := log.FromContext(ctx).WithName("APIReconciler.upsertPolicy")
+	logger := log.FromContext(ctx).WithName("APIReconciler.upsertKeyPair")
 	logger.V(1).Info("updating existing keypair",
 		"id", keyPair.GetId(),
 		"diff", cmp.Diff(existing, keyPair, protocmp.Transform()))
@@ -869,6 +887,7 @@ func (r *APIReconciler) deleteKeyPairs(
 		delete(secret.Annotations, apiKeyPairIDAnnotation)
 		controllerutil.RemoveFinalizer(secret, apiFinalizer)
 		if err := r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret)); err != nil {
+			logger.Error(err, "couldn't patch secret", "name", secret.Name)
 			return anyDeletes, err
 		}
 		anyDeletes = true
