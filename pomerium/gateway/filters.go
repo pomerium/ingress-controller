@@ -99,8 +99,7 @@ func applyExtensionFilter(
 		return fmt.Errorf("filter not found (%v)", k)
 	}
 
-	f.ApplyToRoute(route)
-	return nil
+	return f.ApplyToRoute(route)
 }
 
 // PolicyFilter applies a Pomerium policy defined by the PolicyFilter CRD.
@@ -123,15 +122,16 @@ func NewPolicyFilter(obj *icgv1alpha1.PolicyFilter) (*PolicyFilter, error) {
 }
 
 // ApplyToRoute applies this policy filter to a Pomerium route proto.
-func (f *PolicyFilter) ApplyToRoute(r *pb.Route) {
-	if f.obj.DeletionTimestamp != nil {
-		return
+func (f *PolicyFilter) ApplyToRoute(r *pb.Route) error {
+	if dt := f.obj.DeletionTimestamp; dt != nil {
+		return fmt.Errorf("filter was deleted")
 	}
 
 	r.Policies = append(r.Policies, &pb.Policy{
 		Rego:      f.rego,
 		SourcePpl: f.ppl,
 	})
+	return nil
 }
 
 func (f *PolicyFilter) GetObject() *icgv1alpha1.PolicyFilter {

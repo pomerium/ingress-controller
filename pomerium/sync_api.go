@@ -517,6 +517,7 @@ func (r *APIReconciler) syncGatewayPolicies(
 			return changes, nil, err
 		}
 		policy.OriginatorId = &originatorID
+		policy.Rego = nil
 		policyName := slug.Make(fmt.Sprintf("%s %s", obj.Namespace, obj.Name))
 		policy.Name = &policyName
 		if id := obj.Annotations[apiPolicyIDAnnotation]; id != "" {

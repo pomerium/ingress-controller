@@ -20,9 +20,11 @@ import (
 
 	"github.com/pomerium/sdk-go/proto/pomerium"
 
+	icgv1alpha1 "github.com/pomerium/ingress-controller/apis/gateway/v1alpha1"
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	controllers_mock "github.com/pomerium/ingress-controller/controllers/mock"
 	"github.com/pomerium/ingress-controller/model"
+	"github.com/pomerium/ingress-controller/pomerium/gateway"
 )
 
 var exampleIngressRuleValue = networkingv1.IngressRuleValue{
@@ -588,43 +590,80 @@ func TestAPIReconciler_upsertOneIngress_multipleRoutes(t *testing.T) {
 }
 
 func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
-	// Test the basic route lifecycle via the SetGatewayConfig method.
+	// Test the basic route & policy lifecycle via the SetGatewayConfig method.
 	apiClient, k8sClient, r := setupReconciler(t)
 	ctx := t.Context()
 
+	examplePPL := `allow:
+  or:
+    - email:
+        is: "me@example.com"`
+	policyFilterObject := &icgv1alpha1.PolicyFilter{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "example-policy",
+			Namespace: "test",
+		},
+		Spec: icgv1alpha1.PolicyFilterSpec{
+			PPL: examplePPL,
+		},
+	}
+	examplePolicyFilter, err := gateway.NewPolicyFilter(policyFilterObject)
+	require.NoError(t, err)
+
+	httpRouteObject := &gateway_v1.HTTPRoute{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "route-a",
+			Namespace: "test",
+		},
+		Spec: gateway_v1.HTTPRouteSpec{
+			CommonRouteSpec: gateway_v1.CommonRouteSpec{},
+			Hostnames:       []gateway_v1.Hostname{},
+			Rules: []gateway_v1.HTTPRouteRule{{
+				Filters: []gateway_v1.HTTPRouteFilter{{
+					Type: "ExtensionRef",
+					ExtensionRef: &gateway_v1.LocalObjectReference{
+						Group: "gateway.pomerium.io",
+						Kind:  "PolicyFilter",
+						Name:  "example-policy",
+					},
+				}},
+				BackendRefs: []gateway_v1.HTTPBackendRef{{
+					BackendRef: gateway_v1.BackendRef{
+						BackendObjectReference: gateway_v1.BackendObjectReference{
+							Name: "example-svc",
+							Port: new(gateway_v1.PortNumber(8000)),
+						},
+					},
+				}},
+			}},
+		},
+	}
+
 	gc := &model.GatewayConfig{
 		Routes: []model.GatewayHTTPRouteConfig{{
-			HTTPRoute: &gateway_v1.HTTPRoute{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "route-a",
-					Namespace: "test",
-				},
-				Spec: gateway_v1.HTTPRouteSpec{
-					CommonRouteSpec: gateway_v1.CommonRouteSpec{},
-					Hostnames:       []gateway_v1.Hostname{},
-					Rules: []gateway_v1.HTTPRouteRule{{
-						BackendRefs: []gateway_v1.HTTPBackendRef{{
-							BackendRef: gateway_v1.BackendRef{
-								BackendObjectReference: gateway_v1.BackendObjectReference{
-									Name: "example-svc",
-									Port: new(gateway_v1.PortNumber(8000)),
-								},
-							},
-						}},
-					}},
-				},
-			},
+			HTTPRoute:        httpRouteObject,
 			Hostnames:        []gateway_v1.Hostname{"a.localhost.pomerium.io"},
 			ValidBackendRefs: noopBackendRefChecker{},
 			Services: map[types.NamespacedName]*corev1.Service{
 				{Name: "example-svc", Namespace: "test"}: {},
 			},
 		}},
+		ExtensionFilters: map[model.ExtensionFilterKey]model.ExtensionFilter{
+			{Kind: "PolicyFilter", Name: "example-policy", Namespace: "test"}: examplePolicyFilter,
+		},
 	}
 
 	k8sClient.EXPECT().Patch(ctx, gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
-	// An initial call to SetGatewayConfig() should create a new Pomerium route.
+	// An initial call to SetGatewayConfig() should create a new Pomerium route
+	// and policy.
+	apiClient.EXPECT().CreatePolicy(ctx, RequestEq(&pomerium.CreatePolicyRequest{
+		Policy: &pomerium.Policy{
+			OriginatorId: new("ingress-controller"),
+			Name:         new("test-example-policy"),
+			SourcePpl:    &examplePPL,
+		},
+	})).Return(createPolicyResponseWithID("example-policy-id"), nil)
 	route := &pomerium.Route{
 		OriginatorId:         new("ingress-controller"),
 		Name:                 new("test-route-a-a-localhost-pomerium-io"),
@@ -632,6 +671,7 @@ func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 		To:                   []string{"http://example-svc.test.svc.cluster.local:8000"},
 		LoadBalancingWeights: []uint32{1},
 		PreserveHostHeader:   true,
+		PolicyIds:            []string{"example-policy-id"},
 	}
 	apiClient.EXPECT().CreateRoute(ctx, RequestEq(&pomerium.CreateRouteRequest{
 		Route: route,
@@ -644,11 +684,21 @@ func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 	// Modifying the HTTPRoute should update the Pomerium route.
 	gc.Routes[0].Spec.Rules[0].BackendRefs[0].BackendObjectReference.Port = new(gateway_v1.PortNumber(1234))
 
+	apiClient.EXPECT().GetPolicy(ctx, RequestEq(&pomerium.GetPolicyRequest{
+		Id: "example-policy-id",
+	})).Return(connect.NewResponse(&pomerium.GetPolicyResponse{
+		Policy: &pomerium.Policy{
+			Id:           new("example-policy-id"),
+			OriginatorId: new("ingress-controller"),
+			Name:         new("test-example-policy"),
+			SourcePpl:    &examplePPL,
+		},
+	}), nil)
 	apiClient.EXPECT().GetRoute(ctx, RequestEq(&pomerium.GetRouteRequest{
 		Id: "new-route-id-1",
 	})).Return(connect.NewResponse(&pomerium.GetRouteResponse{
 		Route: route,
-	}), nil)
+	}), nil).Times(2)
 	apiClient.EXPECT().UpdateRoute(ctx, RequestEq(&pomerium.UpdateRouteRequest{
 		Route: &pomerium.Route{
 			OriginatorId:         new("ingress-controller"),
@@ -658,8 +708,36 @@ func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 			To:                   []string{"http://example-svc.test.svc.cluster.local:1234"},
 			LoadBalancingWeights: []uint32{1},
 			PreserveHostHeader:   true,
+			PolicyIds:            []string{"example-policy-id"},
 		},
 	})).Return(connect.NewResponse(&pomerium.UpdateRouteResponse{}), nil)
+
+	changed, err = r.SetGatewayConfig(ctx, gc)
+	assert.True(t, changed)
+	require.NoError(t, err)
+
+	// Deleting the PolicyFilter should delete the Pomerium policy.
+	// This leaves a dangling filter reference from the route, making the
+	// route invalid.
+	policyFilterObject.DeletionTimestamp = new(metav1.Now())
+
+	apiClient.EXPECT().UpdateRoute(ctx, RequestEq(&pomerium.UpdateRouteRequest{
+		Route: &pomerium.Route{
+			OriginatorId: new("ingress-controller"),
+			Id:           new("new-route-id-1"),
+			Name:         new("test-route-a-a-localhost-pomerium-io"),
+			From:         "https://a.localhost.pomerium.io",
+			Response: &pomerium.RouteDirectResponse{
+				Status: 500,
+				Body:   "invalid filter",
+			},
+			PreserveHostHeader: true,
+			// Note: no PolicyIds
+		},
+	})).Return(connect.NewResponse(&pomerium.UpdateRouteResponse{}), nil)
+	apiClient.EXPECT().DeletePolicy(ctx, RequestEq(&pomerium.DeletePolicyRequest{
+		Id: "example-policy-id",
+	})).Return(connect.NewResponse(&pomerium.DeletePolicyResponse{}), nil)
 
 	changed, err = r.SetGatewayConfig(ctx, gc)
 	assert.True(t, changed)
