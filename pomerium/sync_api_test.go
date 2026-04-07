@@ -72,6 +72,7 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-ingress",
 			Namespace: "test",
 		},
 		Spec: networkingv1.IngressSpec{
@@ -99,7 +100,7 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 	// An initial call to Set() should create a Pomerium route from the Ingress.
 	route := &pomerium.Route{
 		OriginatorId: new("ingress-controller"),
-		Name:         new("test-a-localhost-pomerium-io"),
+		Name:         new("test-my-ingress-a-localhost-pomerium-io"),
 		From:         "https://a.localhost.pomerium.io",
 		To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
 		Prefix:       "/",
@@ -150,7 +151,7 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 		Route: &pomerium.Route{
 			OriginatorId:      new("ingress-controller"),
 			Id:                new("new-route-id-1"),
-			Name:              new("test-a-localhost-pomerium-io"),
+			Name:              new("test-my-ingress-a-localhost-pomerium-io"),
 			From:              "https://a.localhost.pomerium.io",
 			To:                []string{"http://example-svc.test.svc.cluster.local:8080"},
 			Prefix:            "/",
@@ -163,6 +164,13 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 	require.NoError(t, err)
 
 	// Deleting the Ingress should delete the route and keypair.
+	k8sClient.EXPECT().Get(ctx, types.NamespacedName{
+		Name: "my-ingress", Namespace: "test",
+	}, gomock.AssignableToTypeOf((*networkingv1.Ingress)(nil))).DoAndReturn(
+		func(_ context.Context, _ types.NamespacedName, dst *networkingv1.Ingress, _ ...client.GetOption) error {
+			*dst = *ic.Ingress
+			return nil
+		})
 	k8sClient.EXPECT().Get(ctx, types.NamespacedName{
 		Name: "pomerium-wildcard-cert", Namespace: "test",
 	}, gomock.AssignableToTypeOf((*corev1.Secret)(nil))).DoAndReturn(
@@ -179,7 +187,7 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 		Id: "new-route-id-1",
 	})).Return(connect.NewResponse(&pomerium.DeleteRouteResponse{}), nil)
 
-	changed, err = r.Delete(ctx, ic.GetIngressNamespacedName(), ic.Ingress)
+	changed, err = r.Delete(ctx, ic.GetIngressNamespacedName())
 	assert.True(t, changed)
 	require.NoError(t, err)
 }

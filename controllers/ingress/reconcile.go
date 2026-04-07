@@ -9,7 +9,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/pomerium/ingress-controller/model"
@@ -33,7 +32,6 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 		return fmt.Errorf("list ingresses: %w", err)
 	}
 
-	originalIngresses := make([]*networkingv1.Ingress, len(ingressList.Items))
 	var ics []*model.IngressConfig
 	for i := range ingressList.Items {
 		ingress := &ingressList.Items[i]
@@ -50,7 +48,6 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 			return fmt.Errorf("fetch ingress %s/%s: %w", ingress.Namespace, ingress.Name, err)
 		}
 		logger.V(1).Info("fetch", "ingress", ingress.Name, "secrets", len(ic.Secrets), "services", len(ic.Services))
-		originalIngresses[i] = ic.Ingress.DeepCopy()
 		ics = append(ics, ic)
 	}
 
@@ -63,10 +60,6 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 			r.IngressNotReconciled(ctx, ingress, fmt.Errorf("update /status: %w", err))
 		} else {
 			r.IngressReconciled(ctx, ingress)
-		}
-		if err := r.Client.Patch(ctx, ingress, client.MergeFrom(originalIngresses[i])); err != nil {
-			// XXX: what to do here?
-			logger.V(1).Info("patch", "ingress", ics[i].Name, "error", err.Error())
 		}
 	}
 
@@ -89,10 +82,6 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 		return r.deleteIngress(ctx, req.NamespacedName, ingress, reasonIngressDeleted)
 	} else if ingress.DeletionTimestamp != nil {
-		// XXX: remove this log call or demote to V(1)
-		logger := log.FromContext(ctx).WithName("deleteIngress")
-		logger.Info("deleting ingress based on deletionTimestamp", "ingress", ingress.Name)
-
 		return r.deleteIngress(ctx, req.NamespacedName, ingress, reasonIngressDeleted)
 	}
 
@@ -118,44 +107,23 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	return res, nil
 }
 
-func (r *ingressController) deleteIngress(ctx context.Context, name types.NamespacedName, ingress *networkingv1.Ingress, reason string) (ctrl.Result, error) {
-	//originalIngress := ingress.DeepCopy()
-
-	changed, err := r.IngressReconciler.Delete(ctx, name, ingress)
+func (r *ingressController) deleteIngress(ctx context.Context, name types.NamespacedName, reason string) (ctrl.Result, error) {
+	changed, err := r.IngressReconciler.Delete(ctx, name)
 	if err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("deleting ingress: %w", err)
 	}
 	if changed {
 		r.IngressDeleted(ctx, name, reason)
-
-		logger := log.FromContext(ctx).WithName("deleteIngress")
-		logger.Info("about to patch ingress after deletion", "ingress", name.Name)
-
-		// XXX: move this back into APIReconciler now that we've exposed the Client there
-		/*if err := r.Client.Patch(ctx, ingress, client.MergeFrom(originalIngress)); err != nil {
-			// XXX: what to do here?
-			logger := log.FromContext(ctx).WithName("deleteIngress")
-			logger.Info("patch", "ingress", name.Name, "error", err.Error())
-		}*/
 	}
 	r.DeleteCascade(model.Key{Kind: r.ingressKind, NamespacedName: name})
 	return ctrl.Result{}, nil
 }
 
 func (r *ingressController) upsertIngress(ctx context.Context, ic *model.IngressConfig) (ctrl.Result, error) {
-	originalIngress := ic.Ingress.DeepCopy()
-
 	_, err := r.IngressReconciler.Upsert(ctx, ic)
 	if err != nil {
 		r.IngressNotReconciled(ctx, ic.Ingress, err)
 		return ctrl.Result{Requeue: true}, fmt.Errorf("upsert: %w", err)
-	}
-
-	// XXX: figure out a better way to do this
-	if err := r.Client.Patch(ctx, ic.Ingress, client.MergeFrom(originalIngress)); err != nil {
-		// XXX: what to do here?
-		logger := log.FromContext(ctx).WithName("upsertIngress")
-		logger.Info("patch", "ingress", ic.Name, "error", err.Error())
 	}
 
 	r.IngressReconciled(ctx, ic.Ingress)

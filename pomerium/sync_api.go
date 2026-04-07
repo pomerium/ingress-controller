@@ -388,9 +388,13 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 }
 
 // Delete removes pomerium routes corresponding to this ingress.
-func (r *APIReconciler) Delete(ctx context.Context, name types.NamespacedName, ingress *networkingv1.Ingress) (bool, error) {
-	if ingress == nil {
+func (r *APIReconciler) Delete(ctx context.Context, name types.NamespacedName) (bool, error) {
+	ingress := new(networkingv1.Ingress)
+	err := r.k8sClient.Get(ctx, name, ingress)
+	if apierrors.IsNotFound(err) {
 		return false, nil
+	} else if err != nil {
+		return false, err
 	}
 
 	originalIngress := ingress.DeepCopy()
