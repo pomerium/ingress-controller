@@ -8,7 +8,9 @@ words:
   - deepcopy
   - envtest
   - filemgr
+  - finalizer
   - hostnames
+  - keypair
   - mockgen
   - oidc
   - otel

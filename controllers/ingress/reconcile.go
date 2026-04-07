@@ -80,9 +80,9 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if !apierrors.IsNotFound(err) {
 			return ctrl.Result{Requeue: true}, fmt.Errorf("get ingress: %w", err)
 		}
-		return r.deleteIngress(ctx, req.NamespacedName, ingress, reasonIngressDeleted)
+		return r.deleteIngress(ctx, req.NamespacedName, reasonIngressDeleted)
 	} else if ingress.DeletionTimestamp != nil {
-		return r.deleteIngress(ctx, req.NamespacedName, ingress, reasonIngressDeleted)
+		return r.deleteIngress(ctx, req.NamespacedName, reasonIngressDeleted)
 	}
 
 	managing, err := r.isManaging(ctx, ingress)
@@ -91,7 +91,7 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	if !managing.managed {
-		return r.deleteIngress(ctx, req.NamespacedName, ingress, managing.reasonIfNot)
+		return r.deleteIngress(ctx, req.NamespacedName, managing.reasonIfNot)
 	}
 
 	ic, err := r.fetchIngress(ctx, ingress)

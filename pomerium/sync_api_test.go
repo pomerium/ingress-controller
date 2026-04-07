@@ -497,7 +497,7 @@ func TestAPIReconciler_upsertOneIngress_multipleRoutes(t *testing.T) {
 			Services:         services,
 		}
 
-		// If there are no existing route ID anotations, APIReconciler should
+		// If there are no existing route ID annotations, APIReconciler should
 		// create new routes.
 		apiClient.EXPECT().CreateRoute(ctx, RequestEq(&pomerium.CreateRouteRequest{
 			Route: &pomerium.Route{
