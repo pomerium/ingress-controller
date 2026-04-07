@@ -38,7 +38,7 @@ const (
 	updateStatusFromService    = "update-status-from-service"
 	globalSettings             = "pomerium-config"
 	syncAPIURL                 = "sync-api-url"
-	syncAPIToken               = "sync-api-token"
+	syncAPIToken               = "sync-api-token" //nolint:gosec
 )
 
 func (s *ingressControllerOpts) setupFlags(flags *pflag.FlagSet) {

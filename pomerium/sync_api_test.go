@@ -1193,6 +1193,6 @@ func (m requestMatcher[T, P]) String() string {
 // Implementation of BackendRefChecker that simply allows all BackendRefs.
 type noopBackendRefChecker struct{}
 
-func (noopBackendRefChecker) Valid(obj client.Object, r *gateway_v1.BackendRef) bool {
+func (noopBackendRefChecker) Valid(_ client.Object, _ *gateway_v1.BackendRef) bool {
 	return true
 }

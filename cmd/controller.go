@@ -148,7 +148,7 @@ func (s *controllerCmd) buildController(ctx context.Context) (*controllers.Contr
 	client := databroker.NewDataBrokerServiceClient(conn)
 	var reconciler pomerium.Reconciler
 	if s.SyncAPIURL != "" {
-		reconciler = pomerium.NewUnifiedAPIReconciler(s.SyncAPIURL, s.SyncAPIToken)
+		reconciler = pomerium.NewAPIReconciler(s.SyncAPIURL, s.SyncAPIToken)
 	} else {
 		reconciler = pomerium.NewDataBrokerReconciler(client, s.debug)
 	}

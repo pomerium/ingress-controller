@@ -134,6 +134,7 @@ func (f *PolicyFilter) ApplyToRoute(r *pb.Route) error {
 	return nil
 }
 
+// GetObject returns the underlying PolicyFilter resource.
 func (f *PolicyFilter) GetObject() *icgv1alpha1.PolicyFilter {
 	return f.obj
 }

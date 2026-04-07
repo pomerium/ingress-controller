@@ -30,7 +30,9 @@ import (
 	"github.com/pomerium/ingress-controller/pomerium/gateway"
 )
 
-func NewUnifiedAPIReconciler(
+// NewAPIReconciler initializes a reconciler that syncs using the unified API,
+// for the given API url and API token.
+func NewAPIReconciler(
 	url, token string,
 ) Reconciler {
 	client := sdk.NewClient(
@@ -59,16 +61,18 @@ type APIReconciler struct {
 const (
 	apiRouteIDAnnotationPrefix = "api.pomerium.io/route-id-"
 	apiPolicyIDAnnotation      = "api.pomerium.io/policy-id"
-	apiKeyPairIDAnnotation     = "api.pomerium.io/keypair-id"
+	apiKeyPairIDAnnotation     = "api.pomerium.io/keypair-id" //nolint:gosec
 	apiFinalizer               = "api.pomerium.io/finalizer"
 )
 
 var originatorID = "ingress-controller"
 
+// SetK8sClient sets the Kubernetes API client (used for metadata updates).
 func (r *APIReconciler) SetK8sClient(client client.Client) {
 	r.k8sClient = client
 }
 
+// Upsert should update or create the pomerium routes corresponding to this ingress
 func (r *APIReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
 	var anyChanges bool
 
@@ -102,6 +106,7 @@ func (r *APIReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bo
 	return anyChanges, nil
 }
 
+// Set configuration to match provided ingresses and shared config settings
 func (r *APIReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bool, error) {
 	tlsSecrets := make(map[types.NamespacedName]*corev1.Secret)
 	for _, ic := range ics {
@@ -159,6 +164,9 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 	anyChanges = anyChanges || controllerutil.AddFinalizer(ic.Ingress, apiFinalizer)
 
 	kv, err := removeKeyPrefix(ic.Ingress.Annotations, ic.AnnotationPrefix)
+	if err != nil {
+		return anyChanges, err
+	}
 
 	changed, updatedPolicyID, err := r.syncIngressPolicy(ctx, ic.Ingress, kv)
 	if err != nil {
@@ -529,7 +537,9 @@ func (r *APIReconciler) syncGatewayPolicies(
 		originalObj := obj.DeepCopy()
 
 		var route pb.Route
-		pf.ApplyToRoute(&route)
+		if err := pf.ApplyToRoute(&route); err != nil {
+			return changes, nil, fmt.Errorf("internal error - couldn't extract policy: %w", err)
+		}
 		policy, err := convertProto[*pomerium.Policy](route.Policies[0])
 		if err != nil {
 			return changes, nil, err
@@ -728,16 +738,6 @@ func (r *APIReconciler) syncIngressPolicy(
 	updatedPolicyID = apiPolicy.GetId()
 	setAnnotation(ingress, apiPolicyIDAnnotation, updatedPolicyID)
 	return changed, updatedPolicyID, nil
-}
-
-func (r *APIReconciler) createPolicy(ctx context.Context, policy *pomerium.Policy) (newID string, err error) {
-	resp, err := r.apiClient.CreatePolicy(ctx, connect.NewRequest(&pomerium.CreatePolicyRequest{
-		Policy: policy,
-	}))
-	if err != nil {
-		return "", err
-	}
-	return resp.Msg.GetPolicy().GetId(), nil
 }
 
 // upsertPolicy will create or update a Pomerium policy. If a new ID is
