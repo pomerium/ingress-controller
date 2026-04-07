@@ -202,10 +202,10 @@ func TestAnnotations(t *testing.T) {
 		TlsDownstreamClientCa: base64.StdEncoding.EncodeToString([]byte("my_downstream_client_ca_secret+cert")),
 		TlsServerName:         "my.server.name",
 		TlsSkipVerify:         true,
-		UpstreamTunnel:        &pb.UpstreamTunnel{
-			/*SshPolicy: &pb.PPLPolicy{
+		UpstreamTunnel: &pb.UpstreamTunnel{
+			SshPolicy: &pb.PPLPolicy{
 				Raw: []byte(testPPL2),
-			},*/
+			},
 		},
 	}, protocmp.Transform(), cmpopts.IgnoreMapEntries(func(k string, _ any) bool {
 		return k == "rego"
@@ -269,8 +269,6 @@ func TestYaml(t *testing.T) {
 
 func TestMCPAnnotations(t *testing.T) {
 	t.Run("MCP Server with OAuth2", func(t *testing.T) {
-		t.Skip("XXX - using previous version of pomerium/pomerium")
-
 		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
 		ic := &model.IngressConfig{
 			AnnotationPrefix: "a",
@@ -311,10 +309,10 @@ func TestMCPAnnotations(t *testing.T) {
 		assert.Equal(t, "/api/mcp", server.GetPath())
 
 		require.NotNil(t, server.UpstreamOauth2)
-		/*assert.Equal(t, map[string]string{
+		assert.Equal(t, map[string]string{
 			"a": "b",
 			"x": "y",
-		}, server.UpstreamOauth2.AuthorizationUrlParams)*/
+		}, server.UpstreamOauth2.AuthorizationUrlParams)
 		assert.Equal(t, "test-client-id", server.UpstreamOauth2.ClientId)
 		assert.Equal(t, "test-client-secret", server.UpstreamOauth2.ClientSecret)
 		require.NotNil(t, server.UpstreamOauth2.Oauth2Endpoint)
@@ -429,8 +427,6 @@ func TestMCPAnnotations(t *testing.T) {
 	})
 
 	t.Run("MCP Server OAuth2 secret with only client ID", func(t *testing.T) {
-		t.Skip("XXX - using previous version of pomerium/pomerium")
-
 		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
 		ic := &model.IngressConfig{
 			AnnotationPrefix: "a",
@@ -462,8 +458,6 @@ func TestMCPAnnotations(t *testing.T) {
 	})
 
 	t.Run("MCP Server OAuth2 secret with only client secret", func(t *testing.T) {
-		t.Skip("XXX - using previous version of pomerium/pomerium")
-
 		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
 		ic := &model.IngressConfig{
 			AnnotationPrefix: "a",
@@ -495,8 +489,6 @@ func TestMCPAnnotations(t *testing.T) {
 	})
 
 	t.Run("MCP Server OAuth2 secret with no valid keys should fail", func(t *testing.T) {
-		t.Skip("XXX - using previous version of pomerium/pomerium")
-
 		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
 		ic := &model.IngressConfig{
 			AnnotationPrefix: "a",
@@ -652,7 +644,6 @@ func TestMCPAnnotations(t *testing.T) {
 	})
 
 	t.Run("MCP Server with authorization_server_url", func(t *testing.T) {
-		t.Skip("XXX - using previous version of pomerium/pomerium")
 		r := &pb.Route{To: []string{"http://mcp-server.example.com"}}
 		ic := &model.IngressConfig{
 			AnnotationPrefix: "a",
@@ -671,8 +662,8 @@ func TestMCPAnnotations(t *testing.T) {
 		require.NotNil(t, r.Mcp)
 		server := r.Mcp.GetServer()
 		require.NotNil(t, server)
-		//require.NotNil(t, server.AuthorizationServerUrl)
-		//assert.Equal(t, "https://auth.example.com", *server.AuthorizationServerUrl)
+		require.NotNil(t, server.AuthorizationServerUrl)
+		assert.Equal(t, "https://auth.example.com", *server.AuthorizationServerUrl)
 	})
 
 	t.Run("MCP Server with upstream oauth2 auth style in_params", func(t *testing.T) {
