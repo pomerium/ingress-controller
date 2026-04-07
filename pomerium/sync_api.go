@@ -160,7 +160,7 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 
 	kv, err := removeKeyPrefix(ic.Ingress.Annotations, ic.AnnotationPrefix)
 
-	changed, updatedPolicyID, err := r.syncPolicy(ctx, ic.Ingress, kv)
+	changed, updatedPolicyID, err := r.syncIngressPolicy(ctx, ic.Ingress, kv)
 	if err != nil {
 		return anyChanges, err
 	}
@@ -423,6 +423,7 @@ func (r *APIReconciler) SetGatewayConfig(
 	ctx context.Context,
 	gatewayConfig *model.GatewayConfig,
 ) (changes bool, err error) {
+	// Sync keypairs.
 	unreferencedSecrets := r.secretsMap.UpdateGatewayConfig(gatewayConfig)
 	anyDeletes, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
 	if err != nil {
@@ -436,6 +437,13 @@ func (r *APIReconciler) SetGatewayConfig(
 	}
 	changes = changes || changedKeyPair
 
+	// Extract and sync any policies.
+	changedPolicy, policyIDs, err := r.syncGatewayPolicies(ctx, gatewayConfig)
+	if err != nil {
+		return changes, err
+	}
+	changes = changes || changedPolicy
+
 	for i := range gatewayConfig.Routes {
 		gr := &gatewayConfig.Routes[i]
 		originalRoute := gr.HTTPRoute.DeepCopy()
@@ -443,6 +451,11 @@ func (r *APIReconciler) SetGatewayConfig(
 		if gr.DeletionTimestamp == nil {
 			routes := gateway.TranslateRoutes(ctx, gatewayConfig, gr)
 			for i, route := range routes {
+				// Replace any inline policy with a policy ID reference.
+				if err := replaceInlinePolicies(route, policyIDs); err != nil {
+					return changes, err
+				}
+
 				k := routeIDAnnotationForIndex(i)
 				routeChanged, err := r.upsertOneRoute(ctx, gr.Annotations[k], route)
 				if err != nil {
@@ -470,7 +483,109 @@ func (r *APIReconciler) SetGatewayConfig(
 		}
 	}
 
+	removed, err := r.removeDeletedGatewayPolicies(ctx, gatewayConfig)
+	if err != nil {
+		return changes, err
+	}
+	changes = changes || removed
+
 	return changes, nil
+}
+
+func (r *APIReconciler) syncGatewayPolicies(
+	ctx context.Context, gatewayConfig *model.GatewayConfig,
+) (changes bool, policyIDs map[string]string, err error) {
+	policyIDs = map[string]string{}
+	for _, ef := range gatewayConfig.ExtensionFilters {
+		pf, isPolicyFilter := ef.(*gateway.PolicyFilter)
+		if !isPolicyFilter {
+			continue
+		}
+
+		obj := pf.GetObject()
+		if obj.DeletionTimestamp != nil {
+			// Note: if this policy was assigned to any routes we cannot delete
+			// it yet.
+			continue
+		}
+		originalObj := obj.DeepCopy()
+
+		var route pb.Route
+		pf.ApplyToRoute(&route)
+		policy, err := convertProto[*pomerium.Policy](route.Policies[0])
+		if err != nil {
+			return changes, nil, err
+		}
+		policy.OriginatorId = &originatorID
+		policyName := slug.Make(fmt.Sprintf("%s %s", obj.Namespace, obj.Name))
+		policy.Name = &policyName
+		if id := obj.Annotations[apiPolicyIDAnnotation]; id != "" {
+			policy.Id = &id
+		}
+
+		changedPolicy, err := r.upsertPolicy(ctx, policy)
+		if err != nil {
+			return changes, nil, err
+		} else if changedPolicy {
+			changes = true
+			setAnnotation(obj, apiPolicyIDAnnotation, policy.GetId())
+			controllerutil.AddFinalizer(obj, apiFinalizer)
+		}
+
+		policyIDs[policy.GetSourcePpl()] = policy.GetId()
+
+		if err := r.k8sClient.Patch(ctx, obj, client.MergeFrom(originalObj)); err != nil {
+			return changes, nil, err
+		}
+	}
+
+	return changes, policyIDs, nil
+}
+
+func (r *APIReconciler) removeDeletedGatewayPolicies(
+	ctx context.Context, gatewayConfig *model.GatewayConfig,
+) (changes bool, err error) {
+	for _, ef := range gatewayConfig.ExtensionFilters {
+		pf, isPolicyFilter := ef.(*gateway.PolicyFilter)
+		if !isPolicyFilter {
+			continue
+		}
+
+		obj := pf.GetObject()
+		if obj.DeletionTimestamp == nil {
+			continue
+		}
+
+		deleted, err := r.deletePolicy(ctx, obj)
+		if err != nil {
+			return changes, err
+		}
+		changes = changes || deleted
+
+		originalObj := obj.DeepCopy()
+		controllerutil.RemoveFinalizer(obj, apiFinalizer)
+		if err := r.k8sClient.Patch(ctx, obj, client.MergeFrom(originalObj)); err != nil {
+			return changes, err
+		}
+	}
+	return changes, nil
+}
+
+// replaceInlinePolicies translates from inline route policies to policy IDs
+// from the policyIDs map (keyed by source PPL).
+func replaceInlinePolicies(route *pb.Route, policyIDs map[string]string) error {
+	for i, p := range route.Policies {
+		if p.SourcePpl == nil {
+			return fmt.Errorf("internal error - source PPL missing from policy %d of route %q", i, route.GetName())
+		}
+		id, ok := policyIDs[*p.SourcePpl]
+		if !ok {
+			return fmt.Errorf("internal error - policy ID not found for policy %d of route %q", i, route.GetName())
+		}
+		route.PolicyIds = append(route.PolicyIds, id)
+	}
+	route.Policies = nil
+	return nil
 }
 
 func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb.Route) (bool, error) {
@@ -558,7 +673,7 @@ func (r *APIReconciler) deleteRoutes(
 	return anyDeletes, nil
 }
 
-func (r *APIReconciler) syncPolicy(
+func (r *APIReconciler) syncIngressPolicy(
 	ctx context.Context, ingress *networkingv1.Ingress, kv *keys,
 ) (changed bool, updatedPolicyID string, err error) {
 	existingPolicyID := ingress.Annotations[apiPolicyIDAnnotation]
@@ -578,24 +693,18 @@ func (r *APIReconciler) syncPolicy(
 		return false, "", fmt.Errorf("internal error: %w", err)
 	}
 	apiPolicy.OriginatorId = &originatorID
-
-	if existingPolicyID == "" {
-		// No linked policy, so we need to create one.
-		updatedPolicyID, err = r.createPolicy(ctx, apiPolicy)
-		if err != nil {
-			return false, "", fmt.Errorf("couldn't create ingress policy: %w", err)
-		}
-		setAnnotation(ingress, apiPolicyIDAnnotation, updatedPolicyID)
-		return true, updatedPolicyID, nil
+	if existingPolicyID != "" {
+		apiPolicy.Id = &existingPolicyID
 	}
 
-	// Sync any changes to linked policy.
-	apiPolicy.Id = &existingPolicyID
+	// Create or update the Pomerium policy as needed.
 	changed, err = r.upsertPolicy(ctx, apiPolicy)
 	if err != nil {
 		return false, "", fmt.Errorf("couldn't update ingress policy: %w", err)
 	}
-	return changed, *apiPolicy.Id, nil
+	updatedPolicyID = apiPolicy.GetId()
+	setAnnotation(ingress, apiPolicyIDAnnotation, updatedPolicyID)
+	return changed, updatedPolicyID, nil
 }
 
 func (r *APIReconciler) createPolicy(ctx context.Context, policy *pomerium.Policy) (newID string, err error) {
@@ -608,21 +717,34 @@ func (r *APIReconciler) createPolicy(ctx context.Context, policy *pomerium.Polic
 	return resp.Msg.GetPolicy().GetId(), nil
 }
 
+// upsertPolicy will create or update a Pomerium policy. If a new ID is
+// assigned, policy.Id will be updated.
 func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *pomerium.Policy) (changed bool, err error) {
-	resp, err := r.apiClient.GetPolicy(ctx, connect.NewRequest(&pomerium.GetPolicyRequest{
-		Id: policy.GetId(),
-	}))
-	if err != nil {
-		if connect.CodeOf(err) == connect.CodeNotFound {
-			// If the existing policy was deleted, recreate it.
-			_, err := r.createPolicy(ctx, policy)
-			return err == nil, err
+	var existing *pomerium.Policy
+	if id := policy.GetId(); id != "" {
+		resp, err := r.apiClient.GetPolicy(ctx, connect.NewRequest(&pomerium.GetPolicyRequest{
+			Id: id,
+		}))
+		if err == nil {
+			existing = resp.Msg.Policy
+		} else if connect.CodeOf(err) != connect.CodeNotFound {
+			return false, err
 		}
-		return false, err
 	}
 
-	// Zero out fields that should be ignored when looking for changes
-	existing := resp.Msg.Policy
+	// If there is no existing policy, create one.
+	if existing == nil {
+		resp, err := r.apiClient.CreatePolicy(ctx, connect.NewRequest(&pomerium.CreatePolicyRequest{
+			Policy: policy,
+		}))
+		if err != nil {
+			return false, err
+		}
+		policy.Id = resp.Msg.Policy.Id
+		return true, nil
+	}
+
+	// Zero out fields that should be ignored when looking for changes.
 	existing.NamespaceId = nil
 	existing.CreatedAt = nil
 	existing.ModifiedAt = nil
@@ -647,9 +769,10 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *pomerium.Polic
 // annotation. Returns true if any changes were made, or an error if the delete
 // operation failed.
 func (r *APIReconciler) deletePolicy(
-	ctx context.Context, ingress *networkingv1.Ingress,
+	ctx context.Context, obj client.Object,
 ) (deleted bool, err error) {
-	policyID := ingress.Annotations[apiPolicyIDAnnotation]
+	annotations := obj.GetAnnotations()
+	policyID := annotations[apiPolicyIDAnnotation]
 	if policyID == "" {
 		return false, nil
 	}
@@ -659,7 +782,7 @@ func (r *APIReconciler) deletePolicy(
 	if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
 		return false, err
 	}
-	delete(ingress.Annotations, apiPolicyIDAnnotation)
+	delete(annotations, apiPolicyIDAnnotation)
 	return true, nil
 }
 

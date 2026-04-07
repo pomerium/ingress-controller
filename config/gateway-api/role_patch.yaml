@@ -58,6 +58,7 @@
       - get
       - list
       - watch
+      - patch
 - op: add
   path: /rules/-
   value:

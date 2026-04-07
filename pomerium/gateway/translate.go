@@ -4,15 +4,18 @@ package gateway
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 
+	"github.com/gosimple/slug"
 	"google.golang.org/protobuf/proto"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/pomerium/config"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
+
+	"github.com/pomerium/ingress-controller/model"
 )
 
 // TranslateRoutes converts from Gateway-defined routes to Pomerium route configuration protos.
@@ -30,14 +33,21 @@ func TranslateRoutes(
 	trs := templateRoutes(ctx, gatewayConfig, routeConfig)
 
 	prs := make([]*pb.Route, 0, len(routeConfig.Hostnames)*len(trs))
+	namespaceAndName := slug.Make(fmt.Sprintf("%s %s", routeConfig.Namespace, routeConfig.Name))
 	for _, h := range routeConfig.Hostnames {
 		from := (&url.URL{
 			Scheme: "https",
 			Host:   string(h),
 		}).String()
-		for _, tr := range trs {
+		namePrefix := namespaceAndName + "-" + slug.Make(string(h))
+		for i, tr := range trs {
 			r := proto.Clone(tr).(*pb.Route)
 			r.From = from
+			if len(trs) == 1 {
+				r.Name = new(namePrefix)
+			} else {
+				r.Name = new(fmt.Sprintf("%s-%d", namePrefix, i))
+			}
 
 			// Skip any routes that fail to validate.
 			coreRoute, err := config.NewPolicyFromProto(r)

@@ -107,12 +107,14 @@ func applyExtensionFilter(
 type PolicyFilter struct {
 	ppl  *string
 	rego []string
+
+	obj *icgv1alpha1.PolicyFilter
 }
 
 // NewPolicyFilter parses a PolicyFilter CRD object, returning an error if the object is not valid.
 func NewPolicyFilter(obj *icgv1alpha1.PolicyFilter) (*PolicyFilter, error) {
 	var err error
-	filter := new(PolicyFilter)
+	filter := &PolicyFilter{obj: obj}
 	filter.ppl, filter.rego, err = policy.Parse(obj.Spec.PPL)
 	if err != nil {
 		return nil, err
@@ -122,8 +124,16 @@ func NewPolicyFilter(obj *icgv1alpha1.PolicyFilter) (*PolicyFilter, error) {
 
 // ApplyToRoute applies this policy filter to a Pomerium route proto.
 func (f *PolicyFilter) ApplyToRoute(r *pb.Route) {
+	if f.obj.DeletionTimestamp != nil {
+		return
+	}
+
 	r.Policies = append(r.Policies, &pb.Policy{
 		Rego:      f.rego,
 		SourcePpl: f.ppl,
 	})
+}
+
+func (f *PolicyFilter) GetObject() *icgv1alpha1.PolicyFilter {
+	return f.obj
 }

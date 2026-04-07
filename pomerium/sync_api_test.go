@@ -622,15 +622,12 @@ func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 		}},
 	}
 
-	// Specifics around metadata updates will be tested in other test cases.
-	// XXX: TODO
 	k8sClient.EXPECT().Patch(ctx, gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
-	// An initial call to Set() should create a Pomerium route from the Ingress.
+	// An initial call to SetGatewayConfig() should create a new Pomerium route.
 	route := &pomerium.Route{
-		OriginatorId: new("ingress-controller"),
-		// XXX: generate a name like we do for Ingress-defined routes
-		//Name:         new("test-a-localhost-pomerium-io"),
+		OriginatorId:         new("ingress-controller"),
+		Name:                 new("test-route-a-a-localhost-pomerium-io"),
 		From:                 "https://a.localhost.pomerium.io",
 		To:                   []string{"http://example-svc.test.svc.cluster.local:8000"},
 		LoadBalancingWeights: []uint32{1},
@@ -654,9 +651,9 @@ func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 	}), nil)
 	apiClient.EXPECT().UpdateRoute(ctx, RequestEq(&pomerium.UpdateRouteRequest{
 		Route: &pomerium.Route{
-			OriginatorId: new("ingress-controller"),
-			Id:           new("new-route-id-1"),
-			//Name:                 new("test-a-localhost-pomerium-io"),
+			OriginatorId:         new("ingress-controller"),
+			Id:                   new("new-route-id-1"),
+			Name:                 new("test-route-a-a-localhost-pomerium-io"),
 			From:                 "https://a.localhost.pomerium.io",
 			To:                   []string{"http://example-svc.test.svc.cluster.local:1234"},
 			LoadBalancingWeights: []uint32{1},
