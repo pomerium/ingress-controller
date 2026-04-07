@@ -15,7 +15,6 @@ import (
 
 	model "github.com/pomerium/ingress-controller/model"
 	gomock "go.uber.org/mock/gomock"
-	v1 "k8s.io/api/networking/v1"
 	types "k8s.io/apimachinery/pkg/types"
 )
 
@@ -44,18 +43,18 @@ func (m *MockIngressReconciler) EXPECT() *MockIngressReconcilerMockRecorder {
 }
 
 // Delete mocks base method.
-func (m *MockIngressReconciler) Delete(ctx context.Context, namespacedName types.NamespacedName, ingress *v1.Ingress) (bool, error) {
+func (m *MockIngressReconciler) Delete(ctx context.Context, namespacedName types.NamespacedName) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Delete", ctx, namespacedName, ingress)
+	ret := m.ctrl.Call(m, "Delete", ctx, namespacedName)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Delete indicates an expected call of Delete.
-func (mr *MockIngressReconcilerMockRecorder) Delete(ctx, namespacedName, ingress any) *gomock.Call {
+func (mr *MockIngressReconcilerMockRecorder) Delete(ctx, namespacedName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockIngressReconciler)(nil).Delete), ctx, namespacedName, ingress)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockIngressReconciler)(nil).Delete), ctx, namespacedName)
 }
 
 // Set mocks base method.

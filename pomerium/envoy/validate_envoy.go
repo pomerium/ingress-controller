@@ -23,7 +23,7 @@ const (
 )
 
 func init() {
-	files.SetFiles(rawBinary, rawChecksum, rawVersion)
+	files.SetFiles(rawBinary, rawLockfile)
 }
 
 // Validate validates the bootstrap envoy config.
