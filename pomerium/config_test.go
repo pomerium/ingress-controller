@@ -126,7 +126,7 @@ func TestApplyConfig_MCPAllowedASMetadataDomains(t *testing.T) {
 		dst := new(pb.Config)
 		err := pomerium.ApplyConfig(ctx, dst, src)
 		assert.NoError(t, err, "should have no error in %s", tc.name)
-		//assert.Equal(t, tc.expect, dst.Settings.McpAllowedAsMetadataDomains,
-		//	"should match in %s", tc.name)
+		assert.Equal(t, tc.expect, dst.Settings.McpAllowedAsMetadataDomains,
+			"should match in %s", tc.name)
 	}
 }

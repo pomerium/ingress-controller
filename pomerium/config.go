@@ -166,7 +166,7 @@ func applySetOtherOptions(_ context.Context, p *pb.Config, c *model.Config) erro
 	p.Settings.SetResponseHeaders = c.Spec.SetResponseHeaders
 	p.Settings.ProgrammaticRedirectDomainWhitelist = c.Spec.ProgrammaticRedirectDomains
 	p.Settings.McpAllowedClientIdDomains = c.Spec.MCPAllowedClientIDDomains
-	//p.Settings.McpAllowedAsMetadataDomains = c.Spec.MCPAllowedASMetadataDomains
+	p.Settings.McpAllowedAsMetadataDomains = c.Spec.MCPAllowedASMetadataDomains
 	p.Settings.UseProxyProtocol = c.Spec.UseProxyProtocol
 	if c.Spec.CodecType != nil {
 		switch *c.Spec.CodecType {
