@@ -458,6 +458,63 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 		assert.Equal(t, "new-route-id", ic.Annotations["api.pomerium.io/route-id-0"])
 		assert.Contains(t, ic.Finalizers, apiFinalizer)
 	})
+
+	t.Run("not found error on update", func(t *testing.T) {
+		ingress := ingressTemplate.DeepCopy()
+		ingress.Annotations = map[string]string{
+			"api.pomerium.io/route-id-0": "existing-route-id",
+		}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a", Ingress: ingress,
+			Services: map[types.NamespacedName]*corev1.Service{
+				{Name: "example-svc", Namespace: "test"}: {},
+			},
+		}
+
+		apiClient, k8sClient, r := setupReconciler(t)
+		ctx := t.Context()
+
+		// If the GetRoute() call returns a Not Found error, the route should be
+		// recreated using CreateRoute().
+		apiClient.EXPECT().GetRoute(ctx, RequestEq(&pomerium.GetRouteRequest{
+			Id: "existing-route-id",
+		})).Return(nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("not found")))
+		apiClient.EXPECT().CreateRoute(ctx, gomock.Any()).
+			Return(createRouteResponseWithID("recreated-route-id"), nil)
+
+		k8sClient.EXPECT().Patch(ctx, ingress, gomock.Any()).Return(nil)
+
+		changed, err := r.upsertOneIngress(ctx, ic)
+		assert.True(t, changed)
+		assert.NoError(t, err)
+	})
+
+	t.Run("other error on update", func(t *testing.T) {
+		ingress := ingressTemplate.DeepCopy()
+		ingress.Annotations = map[string]string{
+			"api.pomerium.io/route-id-0": "existing-route-id",
+		}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a", Ingress: ingress,
+			Services: map[types.NamespacedName]*corev1.Service{
+				{Name: "example-svc", Namespace: "test"}: {},
+			},
+		}
+
+		apiClient, k8sClient, r := setupReconciler(t)
+		ctx := t.Context()
+
+		// If the GetRoute() call returns some error other than Not Found, it
+		// should propagate back in the return parameter.
+		apiClient.EXPECT().GetRoute(ctx, RequestEq(&pomerium.GetRouteRequest{
+			Id: "existing-route-id",
+		})).Return(nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("unavailable")))
+		k8sClient.EXPECT().Patch(ctx, ingress, gomock.Any()).Return(nil)
+
+		_, err := r.upsertOneIngress(ctx, ic)
+		require.Error(t, err)
+		assert.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+	})
 }
 
 func TestAPIReconciler_upsertOneIngress_multipleRoutes(t *testing.T) {

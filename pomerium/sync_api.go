@@ -635,7 +635,7 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb
 		resp, err := r.apiClient.GetRoute(ctx, connect.NewRequest(&pomerium.GetRouteRequest{
 			Id: id,
 		}))
-		if err != nil && connect.CodeOf(err) == connect.CodeNotFound {
+		if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
 			return false, err
 		} else if err == nil {
 			existing = resp.Msg.Route
