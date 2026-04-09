@@ -266,9 +266,6 @@ func (r *APIReconciler) upsertKeyPairs(
 	ctx context.Context,
 	secrets []*corev1.Secret,
 ) (bool, error) {
-	logger := log.FromContext(ctx).WithName("APIReconciler.upsertKeyPairs")
-	logger.Info("syncing...", "count", len(secrets))
-
 	var anyChanges bool
 	for _, secret := range secrets {
 		changed, err := r.upsertOneKeyPair(ctx, secret)
@@ -301,8 +298,6 @@ func (r *APIReconciler) upsertOneKeyPair(
 
 	existingKeyPairID := secret.Annotations[apiKeyPairIDAnnotation]
 	if existingKeyPairID == "" {
-		logger.Info("creating new keypair...", "name", name)
-
 		// No linked keypair, so we need to create one.
 		updatedKeyPairID, err := r.createKeyPair(ctx, keyPair)
 		if err != nil {
@@ -314,13 +309,10 @@ func (r *APIReconciler) upsertOneKeyPair(
 		controllerutil.AddFinalizer(secret, apiFinalizer)
 		err = r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret))
 		if err != nil {
-			logger := log.FromContext(ctx).WithName("APIReconciler.upsertOneKeyPair")
 			logger.Error(err, "couldn't patch secret", "name", secret.Name)
 		}
 		return true, err
 	}
-
-	logger.Info("found existing keypair...", "name", name)
 
 	keyPair.Id = &existingKeyPairID
 	return r.upsertKeyPair(ctx, keyPair)
@@ -386,7 +378,7 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 	}
 
 	logger := log.FromContext(ctx).WithName("APIReconciler.SetConfig")
-	logger.V(1).Info("needs settings update", "diff", cmp.Diff(existing, settings, protocmp.Transform()))
+	logger.V(1).Info("updating settings", "diff", cmp.Diff(existing, settings, protocmp.Transform()))
 
 	_, err = r.apiClient.UpdateSettings(ctx, connect.NewRequest(&pomerium.UpdateSettingsRequest{
 		Settings: settings,
