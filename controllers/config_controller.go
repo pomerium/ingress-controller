@@ -73,7 +73,7 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 		return fmt.Errorf("unable to create controller manager: %w", err)
 	}
 
-	if ar, ok := c.Reconciler.(*pomerium.APIReconciler); ok {
+	if ar, ok := c.Reconciler.(interface{ SetK8sClient(client client.Client) }); ok {
 		ar.SetK8sClient(mgr.GetClient())
 	}
 
