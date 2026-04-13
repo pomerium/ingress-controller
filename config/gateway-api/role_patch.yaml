@@ -17,12 +17,23 @@
     resources:
       - gatewayclasses
       - gateways
-      - httproutes
       - referencegrants
     verbs:
       - get
       - list
       - watch
+- op: add
+  path: /rules/-
+  value:
+    apiGroups:
+      - gateway.networking.k8s.io
+    resources:
+      - httproutes
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
 - op: add
   path: /rules/-
   value:
@@ -47,6 +58,7 @@
       - get
       - list
       - watch
+      - patch
 - op: add
   path: /rules/-
   value:

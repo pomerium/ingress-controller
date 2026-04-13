@@ -11,6 +11,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 	runtime_ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -36,9 +37,7 @@ var (
 // Controller runs Pomerium configuration reconciliation controllers
 // for Ingress and Pomerium Settings CRD objects, if specified
 type Controller struct {
-	pomerium.IngressReconciler
-	pomerium.GatewayReconciler
-	pomerium.ConfigReconciler
+	pomerium.Reconciler
 	databroker.DataBrokerServiceClient
 	MgrOpts runtime_ctrl.Options
 	// IngressCtrlOpts are the ingress controller options
@@ -75,11 +74,15 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 		return fmt.Errorf("unable to create controller manager: %w", err)
 	}
 
-	if err = ingress.NewIngressController(mgr, c.IngressReconciler, c.getIngressOpts(mgr)...); err != nil {
+	if ar, ok := c.Reconciler.(interface{ SetK8sClient(client client.Client) }); ok {
+		ar.SetK8sClient(mgr.GetClient())
+	}
+
+	if err = ingress.NewIngressController(mgr, c.Reconciler, c.getIngressOpts(mgr)...); err != nil {
 		return fmt.Errorf("create ingress controller: %w", err)
 	}
 	if c.GlobalSettings != nil {
-		if err = settings.NewSettingsController(mgr, c.ConfigReconciler, *c.GlobalSettings, "pomerium-crd", true, health_ctrl.SettingsReconciler); err != nil {
+		if err = settings.NewSettingsController(mgr, c.Reconciler, *c.GlobalSettings, "pomerium-crd", true, health_ctrl.SettingsReconciler); err != nil {
 			return fmt.Errorf("create settings controller: %w", err)
 		}
 	} else {
@@ -87,7 +90,7 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 	}
 
 	if c.GatewayControllerConfig != nil {
-		err := gateway.NewControllers(ctx, mgr, c.GatewayReconciler, *c.GatewayControllerConfig)
+		err := gateway.NewControllers(ctx, mgr, c.Reconciler, *c.GatewayControllerConfig)
 		if err != nil {
 			return err
 		}

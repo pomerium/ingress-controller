@@ -77,7 +77,7 @@ config/crd/bases/gateway.pomerium.io_policyfilters.yaml: apis/gateway/v1alpha1/f
 .PHONY: test
 test: envoy generated pomerium-ui
 	@echo "==> $@, k8s=$(ENVTEST_K8S_VERSION)"
-	@KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path --arch=$(KUBEENV_GOARCH))" go test $(GOTAGS) ./...
+	@KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path --arch=$(KUBEENV_GOARCH))" GOLANG_PROTOBUF_REGISTRATION_CONFLICT=warn go test $(GOTAGS) ./...
 
 .PHONY: lint
 lint: envoy pomerium-ui

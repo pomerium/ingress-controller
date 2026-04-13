@@ -3,25 +3,17 @@ package pomerium
 import (
 	"fmt"
 
-	"github.com/gosimple/slug"
 	"gopkg.in/yaml.v3"
 
 	"github.com/pomerium/pomerium/config"
 	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
-
-	"github.com/pomerium/ingress-controller/model"
 )
 
-// ingressToPolicy translates Ingress annotations to a Policy proto compatible
+// keysToPolicy translates Ingress annotations to a Policy proto compatible
 // with the unified API.
-func ingressToPolicy(ic *model.IngressConfig) (*pomerium.Policy, error) {
-	kv, err := removeKeyPrefix(ic.Ingress.Annotations, ic.AnnotationPrefix)
-	if err != nil {
-		return nil, err
-	}
-
+func keysToPolicy(kv *keys, name string) (*pomerium.Policy, error) {
 	p := new(pomerium.Policy)
 	if err := unmarshalPolicyAnnotations(p, kv.Policy); err != nil {
 		return nil, fmt.Errorf("couldn't unmarshal policy annotations: %w", err)
@@ -54,7 +46,6 @@ func ingressToPolicy(ic *model.IngressConfig) (*pomerium.Policy, error) {
 	pplString := string(pplBytes)
 
 	// TODO: consider deriving a name based on policy criteria?
-	name := slug.Make(fmt.Sprintf("%s %s policy", ic.Namespace, ic.Name))
 	return &pomerium.Policy{
 		Name:      &name,
 		SourcePpl: &pplString,

@@ -25,6 +25,37 @@ import (
 	"github.com/pomerium/ingress-controller/pomerium/gateway"
 )
 
+// NewDataBrokerReconciler returns a set of reconcilers that use the databroker API.
+func NewDataBrokerReconciler(
+	client databroker.DataBrokerServiceClient,
+	dumpConfigDiff bool,
+) Reconciler {
+	return struct {
+		IngressReconciler
+		ConfigReconciler
+		GatewayReconciler
+	}{
+		IngressReconciler: &DataBrokerReconciler{
+			ConfigID:                IngressControllerConfigID,
+			DataBrokerServiceClient: client,
+			DebugDumpConfigDiff:     dumpConfigDiff,
+			RemoveUnreferencedCerts: true,
+		},
+		ConfigReconciler: &DataBrokerReconciler{
+			ConfigID:                SharedSettingsConfigID,
+			DataBrokerServiceClient: client,
+			DebugDumpConfigDiff:     dumpConfigDiff,
+			RemoveUnreferencedCerts: false,
+		},
+		GatewayReconciler: &DataBrokerReconciler{
+			ConfigID:                GatewayControllerConfigID,
+			DataBrokerServiceClient: client,
+			DebugDumpConfigDiff:     dumpConfigDiff,
+			RemoveUnreferencedCerts: false,
+		},
+	}
+}
+
 const (
 	// IngressControllerConfigID is for Ingress-defined configuration
 	IngressControllerConfigID = "ingress-controller"
@@ -139,6 +170,10 @@ func (r *DataBrokerReconciler) SetGatewayConfig(
 
 	for i := range config.Routes {
 		r := &config.Routes[i]
+		if r.DeletionTimestamp != nil {
+			// Ignore any deleted HTTPRoutes.
+			continue
+		}
 		next.Routes = append(next.Routes, gateway.TranslateRoutes(ctx, config, r)...)
 	}
 	next.Settings = new(pb.Settings)

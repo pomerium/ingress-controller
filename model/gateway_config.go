@@ -40,7 +40,7 @@ type BackendRefChecker interface {
 
 // ExtensionFilter represents a custom Pomerium route filter.
 type ExtensionFilter interface {
-	ApplyToRoute(*pb.Route)
+	ApplyToRoute(*pb.Route) error
 }
 
 // ExtensionFilterKey is a look-up key for available custom filters.

@@ -66,6 +66,8 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 	return err
 }
 
+const reasonIngressDeleted = "Ingress resource was deleted"
+
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -78,7 +80,9 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if !apierrors.IsNotFound(err) {
 			return ctrl.Result{Requeue: true}, fmt.Errorf("get ingress: %w", err)
 		}
-		return r.deleteIngress(ctx, req.NamespacedName, "Ingress resource was deleted")
+		return r.deleteIngress(ctx, req.NamespacedName, reasonIngressDeleted)
+	} else if ingress.DeletionTimestamp != nil {
+		return r.deleteIngress(ctx, req.NamespacedName, reasonIngressDeleted)
 	}
 
 	managing, err := r.isManaging(ctx, ingress)

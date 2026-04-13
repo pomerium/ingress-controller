@@ -30,3 +30,10 @@ type ConfigReconciler interface {
 	// SetConfig updates just the shared config settings
 	SetConfig(ctx context.Context, cfg *model.Config) (changes bool, err error)
 }
+
+// Reconciler is the combination of all the individual reconcilers.
+type Reconciler interface {
+	IngressReconciler
+	GatewayReconciler
+	ConfigReconciler
+}

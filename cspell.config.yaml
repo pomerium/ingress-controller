@@ -8,7 +8,10 @@ words:
   - deepcopy
   - envtest
   - filemgr
+  - finalizer
   - hostnames
+  - keypair
+  - keypairs
   - mockgen
   - oidc
   - otel
@@ -19,6 +22,7 @@ words:
   - readyz
   - rego
   - sharedkey
+  - sdkclient
   - sslcert
   - sslkey
   - sslrootcert

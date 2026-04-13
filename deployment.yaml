@@ -836,11 +836,19 @@ rules:
   resources:
   - services
   - endpoints
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - secrets
   verbs:
   - get
   - list
   - watch
+  - patch
 - apiGroups:
   - ""
   resources:
@@ -858,6 +866,7 @@ rules:
   - get
   - list
   - watch
+  - patch
 - apiGroups:
   - networking.k8s.io
   resources:
@@ -1010,6 +1019,8 @@ spec:
           value: /tmp
         - name: XDG_CACHE_HOME
           value: /tmp
+        - name: GOLANG_PROTOBUF_REGISTRATION_CONFLICT
+          value: warn
         - name: POMERIUM_NAMESPACE
           valueFrom:
             fieldRef:
