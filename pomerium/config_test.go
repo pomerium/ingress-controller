@@ -15,6 +15,29 @@ import (
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
+func TestApplyConfig(t *testing.T) {
+	t.Parallel()
+
+	t.Run("AllowUpgrades", func(t *testing.T) {
+		t.Parallel()
+		var dst pb.Config
+
+		assert.NoError(t, pomerium.ApplyConfig(t.Context(), &dst, &model.Config{}))
+		assert.Nil(t, dst.Settings.GetAllowUpgrades(),
+			"should default to nil")
+
+		assert.NoError(t, pomerium.ApplyConfig(t.Context(), &dst, &model.Config{
+			Pomerium: v1.Pomerium{
+				Spec: v1.PomeriumSpec{
+					AllowUpgrades: new([]string{"a", "b", "c"}),
+				},
+			},
+		}))
+		assert.Equal(t, []string{"a", "b", "c"}, dst.Settings.GetAllowUpgrades().GetValues(),
+			"should set allow upgrades")
+	})
+}
+
 func TestApplyConfig_DownstreamMTLS(t *testing.T) {
 	ctx := context.Background()
 

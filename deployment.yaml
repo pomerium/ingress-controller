@@ -189,6 +189,11 @@ spec:
                 items:
                   type: string
                 type: array
+              allowUpgrades:
+                description: AllowUpgrades sets the allowed upgrade types.
+                items:
+                  type: string
+                type: array
               authenticate:
                 description: |-
                   Authenticate sets authenticate service parameters.
@@ -1039,7 +1044,7 @@ spec:
         - containerPort: 8443
           name: https
           protocol: TCP
-        - containerPort: 443
+        - containerPort: 8443
           name: quic
           protocol: UDP
         - containerPort: 8080

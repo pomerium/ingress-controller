@@ -220,6 +220,13 @@ func applySetOtherOptions(_ context.Context, p *pb.Config, c *model.Config) erro
 	} else {
 		p.Settings.IdpAccessTokenAllowedAudiences = nil
 	}
+	if c.Spec.AllowUpgrades != nil {
+		p.Settings.AllowUpgrades = &pb.Settings_StringList{
+			Values: *c.Spec.AllowUpgrades,
+		}
+	} else {
+		p.Settings.AllowUpgrades = nil
+	}
 	return nil
 }
 

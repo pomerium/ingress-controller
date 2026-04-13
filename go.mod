@@ -17,7 +17,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.15.1
-	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260408220849-44a41ccf234e
+	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260410163945-d552e7adbde5
 	github.com/pomerium/sdk-go v0.0.10-0.20260407162330-4596c91f544d
 	github.com/rs/zerolog v1.35.0
 	github.com/sergi/go-diff v1.4.0
@@ -238,10 +238,10 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/pomerium/datasource v0.18.2-0.20260403153337-6848bcb40f78 // indirect
+	github.com/pomerium/datasource v0.18.2-0.20260409015902-b23fbd70ad17 // indirect
 	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260331001551-046de5d7c5da // indirect
-	github.com/pomerium/protoutil v0.0.0-20260401155329-67023c4cc3f6 // indirect
-	github.com/pomerium/webauthn v0.0.0-20260401155550-82e6e51faa21 // indirect
+	github.com/pomerium/protoutil v0.0.0-20260409020752-3f215632cd09 // indirect
+	github.com/pomerium/webauthn v0.0.0-20260409020403-cfa144dc7bba // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
@@ -308,15 +308,15 @@ require (
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	gocloud.dev v0.45.0 // indirect
-	golang.org/x/crypto v0.49.0 // indirect
+	golang.org/x/crypto v0.50.0 // indirect
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93 // indirect
 	golang.org/x/mod v0.34.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/term v0.41.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/term v0.42.0 // indirect
+	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	golang.org/x/tools v0.42.0 // indirect
+	golang.org/x/tools v0.43.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/api v0.273.1 // indirect

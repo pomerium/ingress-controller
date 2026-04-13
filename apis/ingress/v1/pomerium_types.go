@@ -376,6 +376,9 @@ type PomeriumSpec struct {
 
 	// SSH sets the ssh settings.
 	SSH *SSH `json:"ssh,omitempty"`
+
+	// AllowUpgrades sets the allowed upgrade types.
+	AllowUpgrades *[]string `json:"allowUpgrades,omitempty"`
 }
 
 // OTEL configures OpenTelemetry.
