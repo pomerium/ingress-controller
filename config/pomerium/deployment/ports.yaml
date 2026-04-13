@@ -11,7 +11,7 @@ spec:
             - containerPort: 8443
               name: https
               protocol: TCP
-            - containerPort: 443
+            - containerPort: 8443
               name: quic
               protocol: UDP
             - name: http
