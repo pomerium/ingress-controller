@@ -37,6 +37,17 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>allowUpgrades</code>&#160;&#160;
+                    <strong>[]string</strong>&#160;
+                </p>
+                <p>
+                    AllowUpgrades sets the allowed upgrade types.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
                 <code>authenticate</code>&#160;&#160;
                     <strong>object</strong>&#160;
                     (<a href="#authenticate">authenticate</a>)

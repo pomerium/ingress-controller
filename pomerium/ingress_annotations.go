@@ -23,6 +23,7 @@ var (
 		"allow_any_authenticated_user",
 		"allow_public_unauthenticated_access",
 		"allow_spdy",
+		"allow_upgrades",
 		"allow_websockets",
 		"bearer_token_format",
 		"circuit_breaker_thresholds",
