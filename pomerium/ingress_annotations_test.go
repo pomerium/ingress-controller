@@ -43,6 +43,7 @@ func TestAnnotations(t *testing.T) {
 					"a/allow_any_authenticated_user":            "false",
 					"a/allow_public_unauthenticated_access":     "false",
 					"a/allow_spdy":                              "true",
+					"a/allow_upgrades":                          `["x","y","z"]`,
 					"a/allow_websockets":                        "true",
 					"a/allowed_domains":                         `["a"]`,
 					"a/allowed_idp_claims":                      `key: ["val1", "val2"]`,
@@ -139,6 +140,7 @@ func TestAnnotations(t *testing.T) {
 		AllowAnyAuthenticatedUser:        false,
 		AllowPublicUnauthenticatedAccess: false,
 		AllowSpdy:                        true,
+		AllowUpgrades:                    &pb.Route_StringList{Values: []string{"x", "y", "z"}},
 		AllowWebsockets:                  true,
 		BearerTokenFormat:                pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN.Enum(),
 		CircuitBreakerThresholds: &pb.CircuitBreakerThresholds{
