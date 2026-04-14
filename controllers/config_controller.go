@@ -52,6 +52,11 @@ type Controller struct {
 
 // Run runs controller using lease
 func (c *Controller) Run(ctx context.Context) error {
+	if c.MgrOpts.LeaderElection {
+		// If we're using k8s leader election, we don't need to acquire a
+		// databroker lease.
+		return c.RunLeased(ctx)
+	}
 	leaser := databroker.NewLeaser("ingress-controller", leaseDuration, c)
 	return leaser.Run(ctx)
 }

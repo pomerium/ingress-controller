@@ -1,73 +1,17 @@
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   name: pomerium-controller
 rules:
   - apiGroups:
-      - ""
+      - "coordination.k8s.io"
     resources:
-      - services
-      - endpoints
+      - leases
     verbs:
       - get
       - list
       - watch
-  - apiGroups:
-      - ""
-    resources:
-      - secrets
-    verbs:
-      - get
-      - list
-      - watch
-      - patch
-  - apiGroups:
-      - ""
-    resources:
-      - services/status
-      - secrets/status
-      - endpoints/status
-    verbs:
-      - get
-  - apiGroups:
-      - networking.k8s.io
-    resources:
-      - ingresses
-      - ingressclasses
-    verbs:
-      - get
-      - list
-      - watch
-      - patch
-  - apiGroups:
-      - networking.k8s.io
-    resources:
-      - ingresses/status
-    verbs:
-      - get
-      - patch
-      - update
-  - apiGroups:
-      - ingress.pomerium.io
-    resources:
-      - pomerium
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - ingress.pomerium.io
-    resources:
-      - pomerium/status
-    verbs:
-      - get
-      - update
-      - patch
-  - apiGroups:
-      - ""
-    resources:
-      - events
-    verbs:
       - create
+      - update
       - patch

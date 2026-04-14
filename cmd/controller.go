@@ -97,9 +97,15 @@ func (s *controllerCmd) exec(*cobra.Command, []string) error {
 		return fmt.Errorf("build controller: %w", err)
 	}
 
+	// We don't need the databroker lease check if using k8s leader election.
+	var readyChecks []healthz.HealthChecker
+	if !c.MgrOpts.LeaderElection {
+		readyChecks = append(readyChecks, healthz.NamedCheck("acquire-databroker-lease", c.ReadyzCheck))
+	}
+
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		return runHealthz(ctx, s.probeAddr, healthz.NamedCheck("acquire-databroker-lease", c.ReadyzCheck))
+		return runHealthz(ctx, s.probeAddr, readyChecks...)
 	})
 	eg.Go(func() error { return c.Run(ctx) })
 
@@ -147,8 +153,12 @@ func (s *controllerCmd) buildController(ctx context.Context) (*controllers.Contr
 	}
 	client := databroker.NewDataBrokerServiceClient(conn)
 	var reconciler pomerium.Reconciler
+	var leaderElection bool
+	var leaderElectionID string
 	if s.SyncAPIURL != "" {
 		reconciler = pomerium.NewAPIReconciler(s.SyncAPIURL, s.SyncAPIToken)
+		leaderElection = true
+		leaderElectionID = "pomerium-ingress-controller"
 	} else {
 		reconciler = pomerium.NewDataBrokerReconciler(client, s.debug)
 	}
@@ -157,9 +167,10 @@ func (s *controllerCmd) buildController(ctx context.Context) (*controllers.Contr
 		Reconciler:              reconciler,
 		DataBrokerServiceClient: client,
 		MgrOpts: ctrl.Options{
-			Scheme:         scheme,
-			Metrics:        metricsserver.Options{BindAddress: s.metricsAddr},
-			LeaderElection: false,
+			Scheme:           scheme,
+			Metrics:          metricsserver.Options{BindAddress: s.metricsAddr},
+			LeaderElection:   leaderElection,
+			LeaderElectionID: leaderElectionID,
 			Controller: config.Controller{
 				SkipNameValidation: ptr.To(true),
 			},

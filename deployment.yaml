@@ -825,6 +825,26 @@ metadata:
   namespace: pomerium
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: pomerium-controller
+  namespace: pomerium
+rules:
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
@@ -913,6 +933,22 @@ rules:
   verbs:
   - create
   - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+  name: pomerium-controller
+  namespace: pomerium
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pomerium-controller
+subjects:
+- kind: ServiceAccount
+  name: pomerium-controller
+  namespace: pomerium
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
