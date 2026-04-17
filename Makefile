@@ -23,7 +23,8 @@ GOTAGS = -tags embed_pomerium
 GOLDFLAGS = -X github.com/pomerium/pomerium/internal/version.Version=$(shell go list -f '{{.Module.Version}}' github.com/pomerium/pomerium) \
 	-X github.com/pomerium/pomerium/internal/version.BuildMeta=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ") \
 	-X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium-ingress-controller \
-	-X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io
+	-X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io \
+	-X google.golang.org/protobuf/reflect/protoregistry.conflictPolicy=ignore
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
@@ -77,7 +78,7 @@ config/crd/bases/gateway.pomerium.io_policyfilters.yaml: apis/gateway/v1alpha1/f
 .PHONY: test
 test: envoy generated pomerium-ui
 	@echo "==> $@, k8s=$(ENVTEST_K8S_VERSION)"
-	@KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path --arch=$(KUBEENV_GOARCH))" GOLANG_PROTOBUF_REGISTRATION_CONFLICT=warn go test $(GOTAGS) ./...
+	@KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path --arch=$(KUBEENV_GOARCH))" go test $(GOTAGS) --ldflags="$(GOLDFLAGS)" ./...
 
 .PHONY: lint
 lint: envoy pomerium-ui
@@ -133,7 +134,7 @@ internal/ui/dist/index.js: internal/ui/package.json
 .PHONY: run
 run: generated
 	@echo "==> $@"
-	@go run $(GOTAGS) ./main.go all-in-one --pomerium-config global --update-status-from-service=pomerium/pomerium-proxy
+	@go run $(GOTAGS) --ldflags="$(GOLDFLAGS)" ./main.go all-in-one --pomerium-config global --update-status-from-service=pomerium/pomerium-proxy
 
 .PHONY: docker-build
 docker-build: build test ## Build docker image with the manager.
@@ -239,7 +240,7 @@ dev-gen-secrets:
 dev-build:
 	@echo "==> $@"
 	@make -e GOOS=linux envoy
-	@GOOS=linux GOARCH=arm64 go build $(GOTAGS) -o bin/manager-linux-arm64 main.go
+	@GOOS=linux GOARCH=arm64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-arm64 main.go
 
 .PHONY: dev-clean
 dev-clean:
