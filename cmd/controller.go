@@ -99,7 +99,7 @@ func (s *controllerCmd) exec(*cobra.Command, []string) error {
 
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		return runHealthz(ctx, s.probeAddr, healthz.NamedCheck("acquire databroker lease", c.ReadyzCheck))
+		return runHealthz(ctx, s.probeAddr, healthz.NamedCheck("acquire-databroker-lease", c.ReadyzCheck))
 	})
 	eg.Go(func() error { return c.Run(ctx) })
 

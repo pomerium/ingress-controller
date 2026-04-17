@@ -20,6 +20,8 @@ import (
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 	gateway_v1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
+	"github.com/pomerium/pomerium/pkg/endpoints"
+
 	icgv1alpha1 "github.com/pomerium/ingress-controller/apis/gateway/v1alpha1"
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 )
@@ -91,6 +93,7 @@ func runHealthz(ctx context.Context, addr string, readyChecks ...healthz.HealthC
 
 	mux := http.NewServeMux()
 	healthz.InstallHandler(mux)
+	healthz.InstallPathHandler(mux, endpoints.PathStartupz)
 	healthz.InstallReadyzHandler(mux, readyChecks...)
 
 	srv := http.Server{
