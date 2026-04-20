@@ -1013,18 +1013,3 @@ func falseToNil(x *bool) *bool {
 	}
 	return x
 }
-
-type hasName interface {
-	GetName() string
-}
-
-func filterFor(entity hasName) (*structpb.Struct, error) {
-	f, err := structpb.NewStruct(map[string]any{
-		"originatorId": originatorID,
-		"name":         entity.GetName(),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("internal error: %w", err)
-	}
-	return f, nil
-}
