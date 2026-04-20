@@ -84,7 +84,7 @@ func (r *APIReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bo
 			tlsSecrets = append(tlsSecrets, s)
 		}
 	}
-	changed, err := r.upsertKeyPairs(ctx, tlsSecrets)
+	changed, err := r.syncSecrets(ctx, tlsSecrets)
 	if err != nil {
 		return anyChanges, err
 	}
@@ -121,7 +121,7 @@ func (r *APIReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bo
 		}
 	}
 
-	anyChanges, err := r.upsertKeyPairs(ctx, slices.Collect(maps.Values(tlsSecrets)))
+	anyChanges, err := r.syncSecrets(ctx, slices.Collect(maps.Values(tlsSecrets)))
 	if err != nil {
 		return anyChanges, err
 	}
@@ -263,13 +263,13 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 	return anyChanges, nil
 }
 
-func (r *APIReconciler) upsertKeyPairs(
+func (r *APIReconciler) syncSecrets(
 	ctx context.Context,
 	secrets []*corev1.Secret,
 ) (bool, error) {
 	var anyChanges bool
 	for _, secret := range secrets {
-		changed, err := r.upsertOneKeyPair(ctx, secret)
+		changed, err := r.syncOneSecret(ctx, secret)
 		if err != nil {
 			return anyChanges, err
 		}
@@ -278,7 +278,7 @@ func (r *APIReconciler) upsertKeyPairs(
 	return anyChanges, nil
 }
 
-func (r *APIReconciler) upsertOneKeyPair(
+func (r *APIReconciler) syncOneSecret(
 	ctx context.Context,
 	secret *corev1.Secret,
 ) (bool, error) {
@@ -302,10 +302,11 @@ func (r *APIReconciler) upsertOneKeyPair(
 	changed, err := r.upsertKeyPair(ctx, keyPair)
 	if err != nil {
 		return false, nil
+	} else if changed {
+		setAnnotation(secret, apiKeyPairIDAnnotation, keyPair.GetId())
+		controllerutil.AddFinalizer(secret, apiFinalizer)
+		err = r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret))
 	}
-	setAnnotation(secret, apiKeyPairIDAnnotation, keyPair.GetId())
-	controllerutil.AddFinalizer(secret, apiFinalizer)
-	err = r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret))
 	return changed, err
 }
 
@@ -323,7 +324,7 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 	allCertSecrets := make([]*corev1.Secret, 0, len(cfg.CASecrets)+len(cfg.Certs))
 	allCertSecrets = append(allCertSecrets, cfg.CASecrets...)
 	allCertSecrets = append(allCertSecrets, slices.Collect(maps.Values(cfg.Certs))...)
-	changedKeyPair, err := r.upsertKeyPairs(ctx, allCertSecrets)
+	changedKeyPair, err := r.syncSecrets(ctx, allCertSecrets)
 	if err != nil {
 		return changes, err
 	}
@@ -438,7 +439,7 @@ func (r *APIReconciler) SetGatewayConfig(
 	}
 	changes = changes || anyDeletes
 
-	changedKeyPair, err := r.upsertKeyPairs(ctx, gatewayConfig.Certificates)
+	changedKeyPair, err := r.syncSecrets(ctx, gatewayConfig.Certificates)
 	if err != nil {
 		return changes, err
 	}
@@ -884,6 +885,7 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.Key
 			return false, err
 		}
 		keyPair.Id = existing.Id
+		changed = true
 	}
 
 	// Zero out fields that should be ignored when looking for changes.
@@ -896,7 +898,7 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.Key
 
 	if proto.Equal(existing, keyPair) {
 		// No changes needed.
-		return false, nil
+		return changed, nil
 	}
 
 	logger := log.FromContext(ctx).WithName("APIReconciler.upsertKeyPair")
@@ -907,7 +909,10 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.Key
 	_, err = r.apiClient.UpdateKeyPair(ctx, connect.NewRequest(&pomerium.UpdateKeyPairRequest{
 		KeyPair: keyPair,
 	}))
-	return err == nil, err
+	if err != nil {
+		return changed, err
+	}
+	return true, nil
 }
 
 func (r *APIReconciler) findKeyPairByName(

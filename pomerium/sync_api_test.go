@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -902,7 +903,7 @@ func TestAPIReconciler_SetConfig(t *testing.T) {
 	})
 }
 
-func TestAPIReconciler_upsertOneKeyPair(t *testing.T) {
+func TestAPIReconciler_syncOneSecret(t *testing.T) {
 	secretTemplate := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "secret-1",
@@ -943,7 +944,7 @@ func TestAPIReconciler_upsertOneKeyPair(t *testing.T) {
 		// newly-assigned ID in the keypair ID annotation (verified below).
 		k8sClient.EXPECT().Patch(ctx, secret, gomock.Any()).Return(nil)
 
-		changed, err := r.upsertOneKeyPair(ctx, secret)
+		changed, err := r.syncOneSecret(ctx, secret)
 		assert.True(t, changed)
 		require.NoError(t, err)
 		assert.Equal(t, "new-keypair-id", secret.Annotations[apiKeyPairIDAnnotation])
@@ -989,13 +990,13 @@ func TestAPIReconciler_upsertOneKeyPair(t *testing.T) {
 
 		k8sClient.EXPECT().Patch(ctx, secret, gomock.Any()).Return(nil)
 
-		changed, err := r.upsertOneKeyPair(ctx, secret)
+		changed, err := r.syncOneSecret(ctx, secret)
 		assert.True(t, changed)
 		assert.NoError(t, err)
 	})
 
 	t.Run("existing keypair unchanged", func(t *testing.T) {
-		apiClient, k8sClient, r := setupReconciler(t)
+		apiClient, _, r := setupReconciler(t)
 		ctx := t.Context()
 
 		secret := secretTemplate.DeepCopy()
@@ -1026,11 +1027,55 @@ func TestAPIReconciler_upsertOneKeyPair(t *testing.T) {
 			},
 		}, nil)
 
-		k8sClient.EXPECT().Patch(ctx, secret, gomock.Any()).Return(nil)
-
-		changed, err := r.upsertOneKeyPair(ctx, secret)
+		changed, err := r.syncOneSecret(ctx, secret)
 		assert.False(t, changed)
 		assert.NoError(t, err)
+	})
+
+	t.Run("missing ID annotation", func(t *testing.T) {
+		apiClient, k8sClient, r := setupReconciler(t)
+		ctx := t.Context()
+
+		secret := secretTemplate.DeepCopy()
+
+		// If there is a keypair but we failed to save the ID annotation, we
+		// should still be able to look up thte keypair by name.
+		apiClient.EXPECT().CreateKeyPair(ctx, RequestEq(&pomerium.CreateKeyPairRequest{
+			KeyPair: &pomerium.KeyPair{
+				OriginatorId: proto.String("ingress-controller"),
+				Name:         proto.String("test-secret-1"),
+				Certificate:  []byte("cert-data"),
+				Key:          []byte("key-data"),
+			},
+		})).Return(nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("already exists")))
+
+		apiClient.EXPECT().ListKeyPairs(ctx, RequestEq(&pomerium.ListKeyPairsRequest{
+			Filter: filterByName(t, "test-secret-1"),
+		})).Return(connect.NewResponse(&pomerium.ListKeyPairsResponse{
+			KeyPairs: []*pomerium.KeyPair{{
+				OriginatorId: proto.String("ingress-controller"),
+				Id:           proto.String("missing-keypair-id"),
+				Name:         proto.String("test-secret-1"),
+				Certificate:  []byte("cert-data"),
+				Key:          []byte("key-data"),
+
+				// these fields should be ignored
+				CertificateInfo: []*pomerium.CertificateInfo{{
+					Version: 1234,
+					Serial:  "ABCD",
+				}},
+				Status: pomerium.KeyPairStatus_KEY_PAIR_STATUS_READY,
+				Origin: pomerium.KeyPairOrigin_KEY_PAIR_ORIGIN_USER,
+			}},
+		}), nil)
+
+		k8sClient.EXPECT().Patch(ctx, secret, gomock.Any()).Return(nil)
+
+		changed, err := r.syncOneSecret(ctx, secret)
+		assert.True(t, changed)
+		assert.NoError(t, err)
+		assert.Equal(t, "missing-keypair-id", secret.Annotations["api.pomerium.io/keypair-id"])
+		assert.Contains(t, secret.Finalizers, apiFinalizer)
 	})
 
 	t.Run("existing keypair not found", func(t *testing.T) {
@@ -1067,7 +1112,7 @@ func TestAPIReconciler_upsertOneKeyPair(t *testing.T) {
 
 		k8sClient.EXPECT().Patch(ctx, secret, gomock.Any()).Return(nil)
 
-		changed, err := r.upsertOneKeyPair(ctx, secret)
+		changed, err := r.syncOneSecret(ctx, secret)
 		assert.True(t, changed)
 		assert.NoError(t, err)
 	})
@@ -1258,4 +1303,13 @@ type noopBackendRefChecker struct{}
 
 func (noopBackendRefChecker) Valid(_ client.Object, _ *gateway_v1.BackendRef) bool {
 	return true
+}
+
+func filterByName(t *testing.T, name string) *structpb.Struct {
+	f, err := structpb.NewStruct(map[string]any{
+		"originatorId": "ingress-controller",
+		"name":         name,
+	})
+	require.NoError(t, err)
+	return f
 }
