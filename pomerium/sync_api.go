@@ -14,6 +14,7 @@ import (
 	"github.com/gosimple/slug"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -281,8 +282,6 @@ func (r *APIReconciler) upsertOneKeyPair(
 	ctx context.Context,
 	secret *corev1.Secret,
 ) (bool, error) {
-	logger := log.FromContext(ctx).WithName("APIReconciler.upsertOneKeyPair")
-
 	cert, hasTLSCert := secret.Data[corev1.TLSCertKey]
 	if !hasTLSCert {
 		cert = secret.Data[model.CAKey]
@@ -295,27 +294,19 @@ func (r *APIReconciler) upsertOneKeyPair(
 		Key:          secret.Data[corev1.TLSPrivateKeyKey],
 		OriginatorId: &originatorID,
 	}
-
-	existingKeyPairID := secret.Annotations[apiKeyPairIDAnnotation]
-	if existingKeyPairID == "" {
-		// No linked keypair, so we need to create one.
-		updatedKeyPairID, err := r.createKeyPair(ctx, keyPair)
-		if err != nil {
-			return false, fmt.Errorf("couldn't create key pair: %w", err)
-		}
-
-		originalSecret := secret.DeepCopy()
-		setAnnotation(secret, apiKeyPairIDAnnotation, updatedKeyPairID)
-		controllerutil.AddFinalizer(secret, apiFinalizer)
-		err = r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret))
-		if err != nil {
-			logger.Error(err, "couldn't patch secret", "name", secret.Name)
-		}
-		return true, err
+	if id := secret.Annotations[apiKeyPairIDAnnotation]; id != "" {
+		keyPair.Id = &id
 	}
 
-	keyPair.Id = &existingKeyPairID
-	return r.upsertKeyPair(ctx, keyPair)
+	originalSecret := secret.DeepCopy()
+	changed, err := r.upsertKeyPair(ctx, keyPair)
+	if err != nil {
+		return false, nil
+	}
+	setAnnotation(secret, apiKeyPairIDAnnotation, keyPair.GetId())
+	controllerutil.AddFinalizer(secret, apiFinalizer)
+	err = r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret))
+	return changed, err
 }
 
 // SetConfig updates just the shared config settings
@@ -647,11 +638,20 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb
 		resp, err := r.apiClient.CreateRoute(ctx, connect.NewRequest(&pomerium.CreateRouteRequest{
 			Route: apiRoute,
 		}))
+		if err == nil {
+			route.Id = resp.Msg.Route.Id
+			return true, nil
+		} else if connect.CodeOf(err) != connect.CodeAlreadyExists {
+			return false, err
+		}
+
+		// If we already created a route, but failed to save the ID annotation,
+		// attempt to look up the route by name.
+		existing, err = r.findRouteByName(ctx, route.GetName())
 		if err != nil {
 			return false, err
 		}
-		route.Id = resp.Msg.Route.Id
-		return true, nil
+		route.Id = existing.Id
 	}
 
 	// Clear the fields that should be ignored when looking for changes.
@@ -675,6 +675,27 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb
 		Route: apiRoute,
 	}))
 	return err == nil, err
+}
+
+func (r *APIReconciler) findRouteByName(
+	ctx context.Context, name string,
+) (existing *pomerium.Route, err error) {
+	filter, err := structpb.NewStruct(map[string]any{
+		"originatorId": originatorID,
+		"name":         name,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("internal error - couldn't create ListRoutes filter: %w", err)
+	}
+	resp, err := r.apiClient.ListRoutes(ctx, connect.NewRequest(&pomerium.ListRoutesRequest{
+		Filter: filter,
+	}))
+	if err != nil {
+		return nil, err
+	} else if len(resp.Msg.Routes) == 0 {
+		return nil, fmt.Errorf("could not find route by name")
+	}
+	return resp.Msg.Routes[0], nil
 }
 
 // deleteRoutes deletes routes corresponding to the keys in annotationKeys and
@@ -752,11 +773,20 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *pomerium.Polic
 		resp, err := r.apiClient.CreatePolicy(ctx, connect.NewRequest(&pomerium.CreatePolicyRequest{
 			Policy: policy,
 		}))
+		if err == nil {
+			policy.Id = resp.Msg.Policy.Id
+			return true, nil
+		} else if connect.CodeOf(err) != connect.CodeAlreadyExists {
+			return false, err
+		}
+
+		// If we already created a policy, but failed to save the ID annotation,
+		// attempt to look up the policy by name.
+		existing, err = r.findPolicyByName(ctx, policy.GetName())
 		if err != nil {
 			return false, err
 		}
-		policy.Id = resp.Msg.Policy.Id
-		return true, nil
+		policy.Id = existing.Id
 	}
 
 	// Zero out fields that should be ignored when looking for changes.
@@ -780,9 +810,30 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *pomerium.Polic
 	return err == nil, err
 }
 
-// deletePolicy deletes the policy for the ingress and clears its policy ID
-// annotation. Returns true if any changes were made, or an error if the delete
-// operation failed.
+func (r *APIReconciler) findPolicyByName(
+	ctx context.Context, name string,
+) (existing *pomerium.Policy, err error) {
+	filter, err := structpb.NewStruct(map[string]any{
+		"originatorId": originatorID,
+		"name":         name,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("internal error - couldn't create ListPolicies filter: %w", err)
+	}
+	resp, err := r.apiClient.ListPolicies(ctx, connect.NewRequest(&pomerium.ListPoliciesRequest{
+		Filter: filter,
+	}))
+	if err != nil {
+		return nil, err
+	} else if len(resp.Msg.Policies) == 0 {
+		return nil, fmt.Errorf("could not find policy by name")
+	}
+	return resp.Msg.Policies[0], nil
+}
+
+// deletePolicy deletes the policy for obj and clears its policy ID annotation.
+// Returns true if any changes were made, or an error if the delete operation
+// failed.
 func (r *APIReconciler) deletePolicy(
 	ctx context.Context, obj client.Object,
 ) (deleted bool, err error) {
@@ -801,31 +852,41 @@ func (r *APIReconciler) deletePolicy(
 	return true, nil
 }
 
-func (r *APIReconciler) createKeyPair(ctx context.Context, keyPair *pomerium.KeyPair) (newID string, err error) {
-	resp, err := r.apiClient.CreateKeyPair(ctx, connect.NewRequest(&pomerium.CreateKeyPairRequest{
-		KeyPair: keyPair,
-	}))
-	if err != nil {
-		return "", err
-	}
-	return resp.Msg.GetKeyPair().GetId(), nil
-}
-
 func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.KeyPair) (changed bool, err error) {
-	resp, err := r.apiClient.GetKeyPair(ctx, connect.NewRequest(&pomerium.GetKeyPairRequest{
-		Id: keyPair.GetId(),
-	}))
-	if err != nil {
-		if connect.CodeOf(err) == connect.CodeNotFound {
-			// If the existing key pair was deleted, recreate it.
-			_, err := r.createKeyPair(ctx, keyPair)
-			return err == nil, err
+	var existing *pomerium.KeyPair
+	if id := keyPair.GetId(); id != "" {
+		resp, err := r.apiClient.GetKeyPair(ctx, connect.NewRequest(&pomerium.GetKeyPairRequest{
+			Id: id,
+		}))
+		if err == nil {
+			existing = resp.Msg.KeyPair
+		} else if connect.CodeOf(err) != connect.CodeNotFound {
+			return false, err
 		}
-		return false, err
+	}
+
+	// If there is no existing keypair, create one.
+	if existing == nil {
+		resp, err := r.apiClient.CreateKeyPair(ctx, connect.NewRequest(&pomerium.CreateKeyPairRequest{
+			KeyPair: keyPair,
+		}))
+		if err == nil {
+			keyPair.Id = resp.Msg.KeyPair.Id
+			return true, nil
+		} else if connect.CodeOf(err) != connect.CodeAlreadyExists {
+			return false, err
+		}
+
+		// If we already created a keypair, but failed to save the ID annotation,
+		// attempt to look up the keypair by name.
+		existing, err = r.findKeyPairByName(ctx, keyPair.GetName())
+		if err != nil {
+			return false, err
+		}
+		keyPair.Id = existing.Id
 	}
 
 	// Zero out fields that should be ignored when looking for changes.
-	existing := resp.Msg.KeyPair
 	existing.NamespaceId = nil
 	existing.CreatedAt = nil
 	existing.ModifiedAt = nil
@@ -847,6 +908,27 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.Key
 		KeyPair: keyPair,
 	}))
 	return err == nil, err
+}
+
+func (r *APIReconciler) findKeyPairByName(
+	ctx context.Context, name string,
+) (existing *pomerium.KeyPair, err error) {
+	filter, err := structpb.NewStruct(map[string]any{
+		"originatorId": originatorID,
+		"name":         name,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("internal error - couldn't create ListKeyPairs filter: %w", err)
+	}
+	resp, err := r.apiClient.ListKeyPairs(ctx, connect.NewRequest(&pomerium.ListKeyPairsRequest{
+		Filter: filter,
+	}))
+	if err != nil {
+		return nil, err
+	} else if len(resp.Msg.KeyPairs) == 0 {
+		return nil, fmt.Errorf("could not find keypair by name")
+	}
+	return resp.Msg.KeyPairs[0], nil
 }
 
 // deleteKeyPairs deletes the keypairs corresponding to the given Secret names,
@@ -883,7 +965,6 @@ func (r *APIReconciler) deleteKeyPairs(
 		delete(secret.Annotations, apiKeyPairIDAnnotation)
 		controllerutil.RemoveFinalizer(secret, apiFinalizer)
 		if err := r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret)); err != nil {
-			logger.Error(err, "couldn't patch secret", "name", secret.Name)
 			return anyDeletes, err
 		}
 		anyDeletes = true
@@ -931,4 +1012,19 @@ func falseToNil(x *bool) *bool {
 		return nil
 	}
 	return x
+}
+
+type hasName interface {
+	GetName() string
+}
+
+func filterFor(entity hasName) (*structpb.Struct, error) {
+	f, err := structpb.NewStruct(map[string]any{
+		"originatorId": originatorID,
+		"name":         entity.GetName(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("internal error: %w", err)
+	}
+	return f, nil
 }

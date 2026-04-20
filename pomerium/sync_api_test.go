@@ -951,7 +951,7 @@ func TestAPIReconciler_upsertOneKeyPair(t *testing.T) {
 	})
 
 	t.Run("update existing keypair", func(t *testing.T) {
-		apiClient, _, r := setupReconciler(t)
+		apiClient, k8sClient, r := setupReconciler(t)
 		ctx := t.Context()
 
 		secret := secretTemplate.DeepCopy()
@@ -987,13 +987,15 @@ func TestAPIReconciler_upsertOneKeyPair(t *testing.T) {
 			Msg: &pomerium.UpdateKeyPairResponse{},
 		}, nil)
 
+		k8sClient.EXPECT().Patch(ctx, secret, gomock.Any()).Return(nil)
+
 		changed, err := r.upsertOneKeyPair(ctx, secret)
 		assert.True(t, changed)
 		assert.NoError(t, err)
 	})
 
 	t.Run("existing keypair unchanged", func(t *testing.T) {
-		apiClient, _, r := setupReconciler(t)
+		apiClient, k8sClient, r := setupReconciler(t)
 		ctx := t.Context()
 
 		secret := secretTemplate.DeepCopy()
@@ -1024,13 +1026,15 @@ func TestAPIReconciler_upsertOneKeyPair(t *testing.T) {
 			},
 		}, nil)
 
+		k8sClient.EXPECT().Patch(ctx, secret, gomock.Any()).Return(nil)
+
 		changed, err := r.upsertOneKeyPair(ctx, secret)
 		assert.False(t, changed)
 		assert.NoError(t, err)
 	})
 
 	t.Run("existing keypair not found", func(t *testing.T) {
-		apiClient, _, r := setupReconciler(t)
+		apiClient, k8sClient, r := setupReconciler(t)
 		ctx := t.Context()
 
 		secret := secretTemplate.DeepCopy()
@@ -1060,6 +1064,8 @@ func TestAPIReconciler_upsertOneKeyPair(t *testing.T) {
 				},
 			},
 		}, nil)
+
+		k8sClient.EXPECT().Patch(ctx, secret, gomock.Any()).Return(nil)
 
 		changed, err := r.upsertOneKeyPair(ctx, secret)
 		assert.True(t, changed)
