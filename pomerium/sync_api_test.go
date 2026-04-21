@@ -193,6 +193,56 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestAPIReconciler_Delete(t *testing.T) {
+	apiClient, k8sClient, r := setupReconciler(t)
+
+	ingress := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-ingress",
+			Namespace: "test",
+			Annotations: map[string]string{
+				"api.pomerium.io/route-id-0": "existing-route-id",
+			},
+		},
+		Spec: networkingv1.IngressSpec{
+			IngressClassName: new("pomerium"),
+			Rules: []networkingv1.IngressRule{{
+				Host:             "a.localhost.pomerium.io",
+				IngressRuleValue: exampleIngressRuleValue,
+			}},
+		},
+	}
+	ic := &model.IngressConfig{
+		AnnotationPrefix: "a",
+		Ingress:          ingress,
+		Services: map[types.NamespacedName]*corev1.Service{
+			{Name: "example-svc", Namespace: "test"}: {},
+		},
+	}
+
+	ctx := t.Context()
+
+	k8sClient.EXPECT().Get(ctx, types.NamespacedName{
+		Name: "my-ingress", Namespace: "test",
+	}, gomock.AssignableToTypeOf((*networkingv1.Ingress)(nil))).DoAndReturn(
+		func(_ context.Context, _ types.NamespacedName, dst *networkingv1.Ingress, _ ...client.GetOption) error {
+			*dst = *ic.Ingress
+			return nil
+		})
+
+	apiClient.EXPECT().DeleteRoute(ctx, RequestEq(&pomerium.DeleteRouteRequest{
+		Id: "existing-route-id",
+	})).Return(connect.NewResponse(&pomerium.DeleteRouteResponse{}), nil)
+
+	// If the metadata patch operation fails, this error should be surfaced.
+	patchErr := fmt.Errorf("failed to patch")
+	k8sClient.EXPECT().Patch(ctx, ingress, gomock.Any()).Return(patchErr)
+
+	changed, err := r.Delete(ctx, types.NamespacedName{Name: "my-ingress", Namespace: "test"})
+	assert.True(t, changed)
+	assert.ErrorIs(t, err, patchErr)
+}
+
 func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 	ingressTemplate := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -560,6 +610,37 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 		assert.True(t, changed)
 		assert.NoError(t, err)
 		assert.Equal(t, "missing-route-id", ic.Annotations["api.pomerium.io/route-id-0"])
+	})
+
+	t.Run("patch error", func(t *testing.T) {
+		ingress := ingressTemplate.DeepCopy()
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a", Ingress: ingress,
+			Services: map[types.NamespacedName]*corev1.Service{
+				{Name: "example-svc", Namespace: "test"}: {},
+			},
+		}
+
+		apiClient, k8sClient, r := setupReconciler(t)
+		ctx := t.Context()
+
+		apiClient.EXPECT().CreateRoute(ctx, RequestEq(&pomerium.CreateRouteRequest{
+			Route: &pomerium.Route{
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
+				From:         "https://a.localhost.pomerium.io",
+				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
+				Prefix:       "/",
+			},
+		})).Return(createRouteResponseWithID("new-route-id"), nil)
+
+		// If the metadata patch operation fails, this error should be surfaced.
+		patchErr := fmt.Errorf("failed to patch")
+		k8sClient.EXPECT().Patch(ctx, ingress, gomock.Any()).Return(patchErr)
+
+		changed, err := r.upsertOneIngress(ctx, ic)
+		assert.True(t, changed)
+		assert.ErrorIs(t, err, patchErr)
 	})
 }
 

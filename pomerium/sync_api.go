@@ -142,39 +142,36 @@ func (r *APIReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bo
 	return anyChanges, errors.Join(errs...)
 }
 
-func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressConfig) (bool, error) {
-	logger := log.FromContext(ctx).WithName("APIReconciler.upsertOneIngress")
-
+func (r *APIReconciler) upsertOneIngress(
+	ctx context.Context, ic *model.IngressConfig,
+) (changed bool, err error) {
 	routes, err := ingressToRoutes(ctx, ic)
 	if err != nil {
 		return false, fmt.Errorf("couldn't convert ingress to routes: %w", err)
 	}
 
-	var anyChanges bool
-
 	originalIngress := ic.Ingress.DeepCopy()
 	defer func() {
-		if !anyChanges {
+		if !changed {
 			return
 		}
-		err := r.k8sClient.Patch(ctx, ic.Ingress, client.MergeFrom(originalIngress))
-		if err != nil {
-			logger.Error(err, "couldn't patch ingress", "ingress", ic.Name)
-		}
+		// Merge any error from Patch() with the named return parameter 'err' to
+		// ensure that it will propagate to the caller.
+		err = errors.Join(err, r.k8sClient.Patch(ctx, ic.Ingress, client.MergeFrom(originalIngress)))
 	}()
 
-	anyChanges = anyChanges || controllerutil.AddFinalizer(ic.Ingress, apiFinalizer)
+	changed = changed || controllerutil.AddFinalizer(ic.Ingress, apiFinalizer)
 
 	kv, err := removeKeyPrefix(ic.Ingress.Annotations, ic.AnnotationPrefix)
 	if err != nil {
-		return anyChanges, err
+		return changed, err
 	}
 
-	changed, updatedPolicyID, err := r.syncIngressPolicy(ctx, ic.Ingress, kv)
+	changedPolicy, updatedPolicyID, err := r.syncIngressPolicy(ctx, ic.Ingress, kv)
 	if err != nil {
-		return anyChanges, err
+		return changed, err
 	}
-	anyChanges = anyChanges || changed
+	changed = changed || changedPolicy
 
 	var policyIDs []string
 	if updatedPolicyID != "" {
@@ -207,7 +204,7 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 	tlsClientKeyPairID := keyPairIDForAnnotation(model.TLSClientSecret)
 	tlsDownstreamClientCAKeyPairID := keyPairIDForAnnotation(model.TLSDownstreamClientCASecret)
 	if len(keypairErrs) > 0 {
-		return anyChanges, errors.Join(keypairErrs...)
+		return changed, errors.Join(keypairErrs...)
 	}
 
 	unusedRouteIDAnnotations := allRouteIDAnnotations(ic.Annotations)
@@ -231,14 +228,14 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 		// Clear the route StatName as it can't currently be set in Pomerium Zero.
 		route.StatName = nil
 
-		changed, err := r.upsertOneRoute(ctx, ic.Annotations[k], route)
+		changedRoute, err := r.upsertOneRoute(ctx, ic.Annotations[k], route)
 		if err != nil {
-			return anyChanges, err
+			return changed, err
 		}
 		if ic.Annotations[k] == "" {
 			setAnnotation(ic, k, *route.Id)
 		}
-		anyChanges = anyChanges || changed
+		changed = changed || changedRoute
 	}
 
 	// If the Ingress object has any other route ID annotations, these indicate
@@ -246,9 +243,9 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 	// the case when an existing Rule is deleted from an Ingress.)
 	anyDeletes, err := r.deleteRoutes(ctx, ic.Ingress, unusedRouteIDAnnotations)
 	if err != nil {
-		return anyChanges, err
+		return changed, err
 	}
-	anyChanges = anyChanges || anyDeletes
+	changed = changed || anyDeletes
 
 	// If there was a linked policy that is no no longer needed, delete it.
 	// (This cannot be done until all of the linked routes are updated to no
@@ -256,12 +253,12 @@ func (r *APIReconciler) upsertOneIngress(ctx context.Context, ic *model.IngressC
 	if ic.Annotations[apiPolicyIDAnnotation] != "" && updatedPolicyID == "" {
 		deleted, err := r.deletePolicy(ctx, ic.Ingress)
 		if err != nil {
-			return anyChanges, err
+			return changed, err
 		}
-		anyChanges = anyChanges || deleted
+		changed = changed || deleted
 	}
 
-	return anyChanges, nil
+	return changed, nil
 }
 
 func (r *APIReconciler) syncSecrets(
@@ -385,9 +382,9 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 }
 
 // Delete removes pomerium routes corresponding to this ingress.
-func (r *APIReconciler) Delete(ctx context.Context, name types.NamespacedName) (bool, error) {
+func (r *APIReconciler) Delete(ctx context.Context, name types.NamespacedName) (changed bool, err error) {
 	ingress := new(networkingv1.Ingress)
-	err := r.k8sClient.Get(ctx, name, ingress)
+	err = r.k8sClient.Get(ctx, name, ingress)
 	if apierrors.IsNotFound(err) {
 		return false, nil
 	} else if err != nil {
@@ -396,39 +393,41 @@ func (r *APIReconciler) Delete(ctx context.Context, name types.NamespacedName) (
 
 	originalIngress := ingress.DeepCopy()
 	defer func() {
-		err := r.k8sClient.Patch(ctx, ingress, client.MergeFrom(originalIngress))
-		if err != nil {
-			logger := log.FromContext(ctx).WithName("APIReconciler.Delete")
-			logger.Error(err, "couldn't patch ingress", "name", ingress.Name)
+		if !changed {
+			return
 		}
+		// Merge any error from Patch() with the named return parameter 'err' to
+		// ensure that it will propagate to the caller.
+		err = errors.Join(err, r.k8sClient.Patch(ctx, ingress, client.MergeFrom(originalIngress)))
 	}()
 
 	routeAnnotations := allRouteIDAnnotations(ingress.Annotations)
-	anyDeletes, err := r.deleteRoutes(ctx, ingress, routeAnnotations)
+	anyRouteDeleted, err := r.deleteRoutes(ctx, ingress, routeAnnotations)
+	changed = changed || anyRouteDeleted
 	if err != nil {
-		return anyDeletes, err
+		return changed, err
 	}
 
 	policyDeleted, err := r.deletePolicy(ctx, ingress)
 	if err != nil {
-		return anyDeletes, err
+		return changed, err
 	}
-	anyDeletes = anyDeletes || policyDeleted
+	changed = changed || policyDeleted
 
 	// Remove keypairs corresponding to any newly-unreferenced TLS secrets.
 	unreferencedSecrets := r.secretsMap.RemoveEntity(model.Key{
 		Kind:           ingress.Kind,
 		NamespacedName: name,
 	})
-	anyKeyPairDeletes, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
+	anyKeyPairDeleted, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
 	if err != nil {
-		return anyDeletes, err
+		return changed, err
 	}
-	anyDeletes = anyDeletes || anyKeyPairDeletes
+	changed = changed || anyKeyPairDeleted
 
-	controllerutil.RemoveFinalizer(ingress, apiFinalizer)
+	changed = changed || controllerutil.RemoveFinalizer(ingress, apiFinalizer)
 
-	return anyDeletes, nil
+	return changed, nil
 }
 
 // SetGatewayConfig applies Gateway-defined configuration.
@@ -492,8 +491,6 @@ func (r *APIReconciler) SetGatewayConfig(
 		}
 
 		if err := r.k8sClient.Patch(ctx, gr.HTTPRoute, client.MergeFrom(originalRoute)); err != nil {
-			logger := log.FromContext(ctx).WithName("APIReconciler.SetGatewayConfig")
-			logger.Error(err, "couldn't patch httproute", "name", gr.Name)
 			return changes, err
 		}
 	}
@@ -553,8 +550,6 @@ func (r *APIReconciler) syncGatewayPolicies(
 		policyIDs[policy.GetSourcePpl()] = policy.GetId()
 
 		if err := r.k8sClient.Patch(ctx, obj, client.MergeFrom(originalObj)); err != nil {
-			logger := log.FromContext(ctx).WithName("APIReconciler.syncGatewayPolicies")
-			logger.Error(err, "couldn't patch policyfilter", "name", obj.Name)
 			return changes, nil, err
 		}
 	}
@@ -585,8 +580,6 @@ func (r *APIReconciler) removeDeletedGatewayPolicies(
 		originalObj := obj.DeepCopy()
 		controllerutil.RemoveFinalizer(obj, apiFinalizer)
 		if err := r.k8sClient.Patch(ctx, obj, client.MergeFrom(originalObj)); err != nil {
-			logger := log.FromContext(ctx).WithName("APIReconciler.removeDeletedGatewayPolicies")
-			logger.Error(err, "couldn't patch policyfilter", "name", obj.Name)
 			return changes, err
 		}
 	}
