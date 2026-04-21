@@ -29,6 +29,7 @@ import (
 
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/pomerium/gateway"
+	"github.com/pomerium/ingress-controller/util"
 )
 
 // NewAPIReconciler initializes a reconciler that syncs using the unified API,
@@ -278,6 +279,10 @@ func (r *APIReconciler) syncSecrets(
 	return anyChanges, nil
 }
 
+func keyPairName(n types.NamespacedName) string {
+	return slug.Make(fmt.Sprintf("%s %s", n.Namespace, n.Name))
+}
+
 func (r *APIReconciler) syncOneSecret(
 	ctx context.Context,
 	secret *corev1.Secret,
@@ -287,7 +292,7 @@ func (r *APIReconciler) syncOneSecret(
 		cert = secret.Data[model.CAKey]
 	}
 
-	name := slug.Make(fmt.Sprintf("%s %s", secret.Namespace, secret.Name))
+	name := keyPairName(util.GetNamespacedName(secret))
 	keyPair := &pomerium.KeyPair{
 		Name:         &name,
 		Certificate:  cert,
@@ -652,6 +657,7 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb
 		if err != nil {
 			return false, err
 		}
+		apiRoute.Id = existing.Id
 		route.Id = existing.Id
 	}
 
@@ -788,6 +794,7 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *pomerium.Polic
 			return false, err
 		}
 		policy.Id = existing.Id
+		changed = true
 	}
 
 	// Zero out fields that should be ignored when looking for changes.
@@ -799,7 +806,7 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *pomerium.Polic
 
 	if proto.Equal(existing, policy) {
 		// No changes needed.
-		return false, nil
+		return changed, nil
 	}
 
 	logger := log.FromContext(ctx).WithName("APIReconciler.upsertPolicy")
@@ -808,7 +815,10 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *pomerium.Polic
 	_, err = r.apiClient.UpdatePolicy(ctx, connect.NewRequest(&pomerium.UpdatePolicyRequest{
 		Policy: policy,
 	}))
-	return err == nil, err
+	if err != nil {
+		return changed, err
+	}
+	return true, nil
 }
 
 func (r *APIReconciler) findPolicyByName(
@@ -942,35 +952,41 @@ func (r *APIReconciler) findKeyPairByName(
 func (r *APIReconciler) deleteKeyPairs(
 	ctx context.Context, secretNames ...types.NamespacedName,
 ) (bool, error) {
-	logger := log.FromContext(ctx).WithName("APIReconciler.deleteKeyPairs")
 	var anyDeletes bool
 	for _, n := range secretNames {
+		var keyPairID string
+
 		secret := new(corev1.Secret)
 		err := r.k8sClient.Get(ctx, n, secret)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				// If we can't retrieve this Secret, we won't know the ID of the
-				// keypair to delete. There's not much we can do in this case.
-				logger.Info("could not delete keypair (secret not found)", "secret", n)
-				continue
+		if err == nil {
+			keyPairID = secret.Annotations[apiKeyPairIDAnnotation]
+		} else if apierrors.IsNotFound(err) {
+			secret = nil
+
+			// Try to look up the keypair by name.
+			keypair, err := r.findKeyPairByName(ctx, keyPairName(n))
+			if err != nil {
+				return anyDeletes, err
 			}
+			keyPairID = keypair.GetId()
+		} else {
 			return anyDeletes, err
 		}
-		keyPairID := secret.Annotations[apiKeyPairIDAnnotation]
-		if keyPairID == "" {
-			continue
-		}
+
 		_, err = r.apiClient.DeleteKeyPair(ctx, connect.NewRequest(&pomerium.DeleteKeyPairRequest{
 			Id: keyPairID,
 		}))
 		if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
 			return anyDeletes, err
 		}
-		originalSecret := secret.DeepCopy()
-		delete(secret.Annotations, apiKeyPairIDAnnotation)
-		controllerutil.RemoveFinalizer(secret, apiFinalizer)
-		if err := r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret)); err != nil {
-			return anyDeletes, err
+
+		if secret != nil {
+			originalSecret := secret.DeepCopy()
+			delete(secret.Annotations, apiKeyPairIDAnnotation)
+			controllerutil.RemoveFinalizer(secret, apiFinalizer)
+			if err := r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret)); err != nil {
+				return anyDeletes, err
+			}
 		}
 		anyDeletes = true
 	}

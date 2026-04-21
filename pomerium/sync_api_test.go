@@ -77,7 +77,7 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 			Namespace: "test",
 		},
 		Spec: networkingv1.IngressSpec{
-			IngressClassName: proto.String("pomerium"),
+			IngressClassName: new("pomerium"),
 			Rules: []networkingv1.IngressRule{{
 				Host:             "a.localhost.pomerium.io",
 				IngressRuleValue: exampleIngressRuleValue,
@@ -200,7 +200,7 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 			Namespace: "test",
 		},
 		Spec: networkingv1.IngressSpec{
-			IngressClassName: proto.String("pomerium"),
+			IngressClassName: new("pomerium"),
 			Rules: []networkingv1.IngressRule{{
 				Host:             "a.localhost.pomerium.io",
 				IngressRuleValue: exampleIngressRuleValue,
@@ -516,6 +516,51 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 		require.Error(t, err)
 		assert.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
 	})
+
+	t.Run("already exists", func(t *testing.T) {
+		ingress := ingressTemplate.DeepCopy()
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a", Ingress: ingress,
+			Services: map[types.NamespacedName]*corev1.Service{
+				{Name: "example-svc", Namespace: "test"}: {},
+			},
+		}
+
+		apiClient, k8sClient, r := setupReconciler(t)
+		ctx := t.Context()
+
+		// If we try to create a route but it already exists, we should attempt
+		// to look up the existing route by name.
+		apiClient.EXPECT().CreateRoute(ctx, RequestEq(&pomerium.CreateRouteRequest{
+			Route: &pomerium.Route{
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
+				From:         "https://a.localhost.pomerium.io",
+				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
+				Prefix:       "/",
+			},
+		})).Return(nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("already exists")))
+
+		apiClient.EXPECT().ListRoutes(ctx, RequestEq(&pomerium.ListRoutesRequest{
+			Filter: filterByName(t, "test-my-ingress-a-localhost-pomerium-io"),
+		})).Return(connect.NewResponse(&pomerium.ListRoutesResponse{
+			Routes: []*pomerium.Route{{
+				Id:           new("missing-route-id"),
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
+				From:         "https://a.localhost.pomerium.io",
+				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
+				Prefix:       "/",
+			}},
+		}), nil)
+
+		k8sClient.EXPECT().Patch(ctx, ingress, gomock.Any()).Return(nil)
+
+		changed, err := r.upsertOneIngress(ctx, ic)
+		assert.True(t, changed)
+		assert.NoError(t, err)
+		assert.Equal(t, "missing-route-id", ic.Annotations["api.pomerium.io/route-id-0"])
+	})
 }
 
 func TestAPIReconciler_upsertOneIngress_multipleRoutes(t *testing.T) {
@@ -527,7 +572,7 @@ func TestAPIReconciler_upsertOneIngress_multipleRoutes(t *testing.T) {
 			Namespace: "test",
 		},
 		Spec: networkingv1.IngressSpec{
-			IngressClassName: proto.String("pomerium"),
+			IngressClassName: new("pomerium"),
 			Rules: []networkingv1.IngressRule{
 				{
 					Host:             "a.localhost.pomerium.io",
@@ -830,10 +875,10 @@ func TestAPIReconciler_SetConfig(t *testing.T) {
 				},
 				IdentityProvider: &icsv1.IdentityProvider{
 					Provider: "oidc",
-					URL:      proto.String("https://idp.example.com"),
+					URL:      new("https://idp.example.com"),
 					Secret:   "test/idp-client-secret",
 				},
-				PassIdentityHeaders: proto.Bool(true),
+				PassIdentityHeaders: new(true),
 			},
 		},
 		IdpSecret: &corev1.Secret{
@@ -853,7 +898,7 @@ func TestAPIReconciler_SetConfig(t *testing.T) {
 			Return(&connect.Response[pomerium.GetSettingsResponse]{
 				Msg: &pomerium.GetSettingsResponse{
 					Settings: &pomerium.Settings{
-						Id: proto.String("settings-id-123"),
+						Id: new("settings-id-123"),
 					},
 				},
 			}, nil)
@@ -861,12 +906,12 @@ func TestAPIReconciler_SetConfig(t *testing.T) {
 		// ...and then call UpdateSettings() once it knows there are changes to sync.
 		apiClient.EXPECT().UpdateSettings(ctx, RequestEq(&pomerium.UpdateSettingsRequest{
 			Settings: &pomerium.Settings{
-				AuthenticateServiceUrl: proto.String("https://authenticate.localhost.pomerium.io"),
-				IdpClientId:            proto.String("CLIENT_ID"),
-				IdpClientSecret:        proto.String("CLIENT_SECRET"),
-				IdpProvider:            proto.String("oidc"),
-				IdpProviderUrl:         proto.String("https://idp.example.com"),
-				PassIdentityHeaders:    proto.Bool(true),
+				AuthenticateServiceUrl: new("https://authenticate.localhost.pomerium.io"),
+				IdpClientId:            new("CLIENT_ID"),
+				IdpClientSecret:        new("CLIENT_SECRET"),
+				IdpProvider:            new("oidc"),
+				IdpProviderUrl:         new("https://idp.example.com"),
+				PassIdentityHeaders:    new(true),
 			},
 		})).Return(&connect.Response[pomerium.UpdateSettingsResponse]{
 			Msg: &pomerium.UpdateSettingsResponse{},
@@ -886,14 +931,14 @@ func TestAPIReconciler_SetConfig(t *testing.T) {
 			Return(&connect.Response[pomerium.GetSettingsResponse]{
 				Msg: &pomerium.GetSettingsResponse{
 					Settings: &pomerium.Settings{
-						Id: proto.String("settings-id-123"),
+						Id: new("settings-id-123"),
 
-						AuthenticateServiceUrl: proto.String("https://authenticate.localhost.pomerium.io"),
-						IdpClientId:            proto.String("CLIENT_ID"),
-						IdpClientSecret:        proto.String("CLIENT_SECRET"),
-						IdpProvider:            proto.String("oidc"),
-						IdpProviderUrl:         proto.String("https://idp.example.com"),
-						PassIdentityHeaders:    proto.Bool(true)},
+						AuthenticateServiceUrl: new("https://authenticate.localhost.pomerium.io"),
+						IdpClientId:            new("CLIENT_ID"),
+						IdpClientSecret:        new("CLIENT_SECRET"),
+						IdpProvider:            new("oidc"),
+						IdpProviderUrl:         new("https://idp.example.com"),
+						PassIdentityHeaders:    new(true)},
 				},
 			}, nil)
 
@@ -926,15 +971,15 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 		// create a new keypair.
 		apiClient.EXPECT().CreateKeyPair(ctx, RequestEq(&pomerium.CreateKeyPairRequest{
 			KeyPair: &pomerium.KeyPair{
-				OriginatorId: proto.String("ingress-controller"),
-				Name:         proto.String("test-secret-1"),
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-secret-1"),
 				Certificate:  []byte("cert-data"),
 				Key:          []byte("key-data"),
 			},
 		})).Return(&connect.Response[pomerium.CreateKeyPairResponse]{
 			Msg: &pomerium.CreateKeyPairResponse{
 				KeyPair: &pomerium.KeyPair{
-					Id: proto.String("new-keypair-id"),
+					Id: new("new-keypair-id"),
 					// rest of the data omitted (not currently read)
 				},
 			},
@@ -966,9 +1011,9 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 		})).Return(&connect.Response[pomerium.GetKeyPairResponse]{
 			Msg: &pomerium.GetKeyPairResponse{
 				KeyPair: &pomerium.KeyPair{
-					OriginatorId: proto.String("ingress-controller"),
-					Id:           proto.String("existing-keypair-id"),
-					Name:         proto.String("test-secret-1"),
+					OriginatorId: new("ingress-controller"),
+					Id:           new("existing-keypair-id"),
+					Name:         new("test-secret-1"),
 					Certificate:  []byte("different-cert-data"),
 					Key:          []byte("different-key-data"),
 				},
@@ -978,9 +1023,9 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 		// ...and then UpdateKeyPair() to sync changes.
 		apiClient.EXPECT().UpdateKeyPair(ctx, RequestEq(&pomerium.UpdateKeyPairRequest{
 			KeyPair: &pomerium.KeyPair{
-				OriginatorId: proto.String("ingress-controller"),
-				Id:           proto.String("existing-keypair-id"),
-				Name:         proto.String("test-secret-1"),
+				OriginatorId: new("ingress-controller"),
+				Id:           new("existing-keypair-id"),
+				Name:         new("test-secret-1"),
 				Certificate:  []byte("cert-data"),
 				Key:          []byte("key-data"),
 			},
@@ -1010,9 +1055,9 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 		})).Return(&connect.Response[pomerium.GetKeyPairResponse]{
 			Msg: &pomerium.GetKeyPairResponse{
 				KeyPair: &pomerium.KeyPair{
-					OriginatorId: proto.String("ingress-controller"),
-					Id:           proto.String("existing-keypair-id"),
-					Name:         proto.String("test-secret-1"),
+					OriginatorId: new("ingress-controller"),
+					Id:           new("existing-keypair-id"),
+					Name:         new("test-secret-1"),
 					Certificate:  []byte("cert-data"),
 					Key:          []byte("key-data"),
 
@@ -1032,7 +1077,7 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("missing ID annotation", func(t *testing.T) {
+	t.Run("already exists", func(t *testing.T) {
 		apiClient, k8sClient, r := setupReconciler(t)
 		ctx := t.Context()
 
@@ -1042,8 +1087,8 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 		// should still be able to look up thte keypair by name.
 		apiClient.EXPECT().CreateKeyPair(ctx, RequestEq(&pomerium.CreateKeyPairRequest{
 			KeyPair: &pomerium.KeyPair{
-				OriginatorId: proto.String("ingress-controller"),
-				Name:         proto.String("test-secret-1"),
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-secret-1"),
 				Certificate:  []byte("cert-data"),
 				Key:          []byte("key-data"),
 			},
@@ -1053,9 +1098,9 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 			Filter: filterByName(t, "test-secret-1"),
 		})).Return(connect.NewResponse(&pomerium.ListKeyPairsResponse{
 			KeyPairs: []*pomerium.KeyPair{{
-				OriginatorId: proto.String("ingress-controller"),
-				Id:           proto.String("missing-keypair-id"),
-				Name:         proto.String("test-secret-1"),
+				OriginatorId: new("ingress-controller"),
+				Id:           new("missing-keypair-id"),
+				Name:         new("test-secret-1"),
 				Certificate:  []byte("cert-data"),
 				Key:          []byte("key-data"),
 
@@ -1095,16 +1140,16 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 
 		apiClient.EXPECT().CreateKeyPair(ctx, RequestEq(&pomerium.CreateKeyPairRequest{
 			KeyPair: &pomerium.KeyPair{
-				Id:           proto.String("existing-keypair-id"),
-				OriginatorId: proto.String("ingress-controller"),
-				Name:         proto.String("test-secret-1"),
+				Id:           new("existing-keypair-id"),
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-secret-1"),
 				Certificate:  []byte("cert-data"),
 				Key:          []byte("key-data"),
 			},
 		})).Return(&connect.Response[pomerium.CreateKeyPairResponse]{
 			Msg: &pomerium.CreateKeyPairResponse{
 				KeyPair: &pomerium.KeyPair{
-					Id: proto.String("existing-keypair-id"),
+					Id: new("existing-keypair-id"),
 					// rest of the data omitted (not currently read)
 				},
 			},
@@ -1185,6 +1230,40 @@ func TestAPIReconciler_upsertPolicy(t *testing.T) {
 		changed, err := r.upsertPolicy(ctx, policy)
 		assert.False(t, changed)
 		assert.NoError(t, err)
+	})
+
+	t.Run("already exists", func(t *testing.T) {
+		policy := &pomerium.Policy{
+			OriginatorId: new("originator-id"),
+			Name:         new("policy-name"),
+		}
+
+		apiClient, _, r := setupReconciler(t)
+		ctx := t.Context()
+
+		// If we try to create a policy but it already exists, we should attempt
+		// to look up the existing policy by name.
+		apiClient.EXPECT().CreatePolicy(ctx, RequestEq(&pomerium.CreatePolicyRequest{
+			Policy: &pomerium.Policy{
+				OriginatorId: new("originator-id"),
+				Name:         new("policy-name"),
+			},
+		})).Return(nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("already exists")))
+
+		apiClient.EXPECT().ListPolicies(ctx, RequestEq(&pomerium.ListPoliciesRequest{
+			Filter: filterByName(t, "policy-name"),
+		})).Return(connect.NewResponse(&pomerium.ListPoliciesResponse{
+			Policies: []*pomerium.Policy{{
+				OriginatorId: new("originator-id"),
+				Id:           new("missing-policy-id"),
+				Name:         new("policy-name"),
+			}},
+		}), nil)
+
+		changed, err := r.upsertPolicy(ctx, policy)
+		assert.True(t, changed)
+		assert.NoError(t, err)
+		assert.Equal(t, "missing-policy-id", policy.GetId())
 	})
 }
 
