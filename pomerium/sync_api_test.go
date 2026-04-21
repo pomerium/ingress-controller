@@ -1084,7 +1084,7 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 		secret := secretTemplate.DeepCopy()
 
 		// If there is a keypair but we failed to save the ID annotation, we
-		// should still be able to look up thte keypair by name.
+		// should still be able to look up the keypair by name.
 		apiClient.EXPECT().CreateKeyPair(ctx, RequestEq(&pomerium.CreateKeyPairRequest{
 			KeyPair: &pomerium.KeyPair{
 				OriginatorId: new("ingress-controller"),
