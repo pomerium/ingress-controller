@@ -58,9 +58,9 @@ func setupReconciler(t *testing.T) (
 
 	r := &APIReconciler{
 		apiClient:  apiClient,
-		k8sClient:  k8sClient,
 		secretsMap: model.NewTLSSecretsMap(),
 	}
+	r.SetK8sClient(k8sClient)
 	return apiClient, k8sClient, r
 }
 
@@ -1100,7 +1100,7 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 		},
 	}
 
-	t.Run("create new keypair", func(t *testing.T) {
+	t.Run("create new cert keypair", func(t *testing.T) {
 		apiClient, k8sClient, r := setupReconciler(t)
 		ctx := t.Context()
 
@@ -1115,17 +1115,38 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 				Certificate:  []byte("cert-data"),
 				Key:          []byte("key-data"),
 			},
-		})).Return(&connect.Response[pomerium.CreateKeyPairResponse]{
-			Msg: &pomerium.CreateKeyPairResponse{
-				KeyPair: &pomerium.KeyPair{
-					Id: new("new-keypair-id"),
-					// rest of the data omitted (not currently read)
-				},
-			},
-		}, nil)
+		})).Return(createKeyPairResponseWithID("new-keypair-id"), nil)
 
 		// APIReconciler should make a Patch() request to record the
 		// newly-assigned ID in the keypair ID annotation (verified below).
+		k8sClient.EXPECT().Patch(ctx, secret, gomock.Any()).Return(nil)
+
+		changed, err := r.syncOneSecret(ctx, secret)
+		assert.True(t, changed)
+		require.NoError(t, err)
+		assert.Equal(t, "new-keypair-id", secret.Annotations[apiKeyPairIDAnnotation])
+		assert.Contains(t, secret.Finalizers, apiFinalizer)
+	})
+
+	t.Run("create new CA keypair", func(t *testing.T) {
+		apiClient, k8sClient, r := setupReconciler(t)
+		ctx := t.Context()
+
+		// APIReconciler should also be able to sync a CA certificate, which
+		// has a different representation in the Secret data.
+		secret := secretTemplate.DeepCopy()
+		secret.Data = map[string][]byte{
+			"ca.crt": []byte("ca-cert-data"),
+		}
+
+		apiClient.EXPECT().CreateKeyPair(ctx, RequestEq(&pomerium.CreateKeyPairRequest{
+			KeyPair: &pomerium.KeyPair{
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-secret-1"),
+				Certificate:  []byte("ca-cert-data"),
+			},
+		})).Return(createKeyPairResponseWithID("new-keypair-id"), nil)
+
 		k8sClient.EXPECT().Patch(ctx, secret, gomock.Any()).Return(nil)
 
 		changed, err := r.syncOneSecret(ctx, secret)
@@ -1177,6 +1198,47 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 		changed, err := r.syncOneSecret(ctx, secret)
 		assert.True(t, changed)
 		assert.NoError(t, err)
+	})
+
+	t.Run("update error", func(t *testing.T) {
+		apiClient, _, r := setupReconciler(t)
+		ctx := t.Context()
+
+		secret := secretTemplate.DeepCopy()
+		secret.Annotations = map[string]string{
+			apiKeyPairIDAnnotation: "existing-keypair-id",
+		}
+
+		// APIReconciler should first call GetKeyPair() to determine if it needs to sync any changes...
+		apiClient.EXPECT().GetKeyPair(ctx, RequestEq(&pomerium.GetKeyPairRequest{
+			Id: "existing-keypair-id",
+		})).Return(&connect.Response[pomerium.GetKeyPairResponse]{
+			Msg: &pomerium.GetKeyPairResponse{
+				KeyPair: &pomerium.KeyPair{
+					OriginatorId: new("ingress-controller"),
+					Id:           new("existing-keypair-id"),
+					Name:         new("test-secret-1"),
+					Certificate:  []byte("different-cert-data"),
+					Key:          []byte("different-key-data"),
+				},
+			},
+		}, nil)
+
+		// ...and then UpdateKeyPair() to sync changes. If this returns an error, it
+		// should be surfaced.
+		apiClient.EXPECT().UpdateKeyPair(ctx, RequestEq(&pomerium.UpdateKeyPairRequest{
+			KeyPair: &pomerium.KeyPair{
+				OriginatorId: new("ingress-controller"),
+				Id:           new("existing-keypair-id"),
+				Name:         new("test-secret-1"),
+				Certificate:  []byte("cert-data"),
+				Key:          []byte("key-data"),
+			},
+		})).Return(nil, connect.NewError(connect.CodeDeadlineExceeded, context.DeadlineExceeded))
+
+		changed, err := r.syncOneSecret(ctx, secret)
+		assert.False(t, changed)
+		assert.ErrorIs(t, err, context.DeadlineExceeded)
 	})
 
 	t.Run("existing keypair unchanged", func(t *testing.T) {
@@ -1299,6 +1361,37 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 		changed, err := r.syncOneSecret(ctx, secret)
 		assert.True(t, changed)
 		assert.NoError(t, err)
+	})
+
+	t.Run("patch error", func(t *testing.T) {
+		apiClient, k8sClient, r := setupReconciler(t)
+		ctx := t.Context()
+
+		secret := secretTemplate.DeepCopy()
+
+		apiClient.EXPECT().CreateKeyPair(ctx, RequestEq(&pomerium.CreateKeyPairRequest{
+			KeyPair: &pomerium.KeyPair{
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-secret-1"),
+				Certificate:  []byte("cert-data"),
+				Key:          []byte("key-data"),
+			},
+		})).Return(&connect.Response[pomerium.CreateKeyPairResponse]{
+			Msg: &pomerium.CreateKeyPairResponse{
+				KeyPair: &pomerium.KeyPair{
+					Id: new("new-keypair-id"),
+					// rest of the data omitted (not currently read)
+				},
+			},
+		}, nil)
+
+		// If the metadata patch operation fails, this error should be surfaced.
+		patchErr := fmt.Errorf("failed to patch")
+		k8sClient.EXPECT().Patch(ctx, secret, gomock.Any()).Return(patchErr)
+
+		changed, err := r.syncOneSecret(ctx, secret)
+		assert.True(t, changed)
+		require.ErrorIs(t, err, patchErr)
 	})
 }
 
