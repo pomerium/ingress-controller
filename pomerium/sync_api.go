@@ -212,6 +212,7 @@ func (r *APIReconciler) upsertOneIngress(
 	for i, route := range routes {
 		k := routeIDAnnotationForIndex(i)
 		delete(unusedRouteIDAnnotations, k)
+		route.Id = emptyToNil(ic.Annotations[k])
 
 		// Swap out any inline policies for the policy ID reference, and swap
 		// out any TLS secrets for keypair ID references.
@@ -228,11 +229,11 @@ func (r *APIReconciler) upsertOneIngress(
 		// Clear the route StatName as it can't currently be set in Pomerium Zero.
 		route.StatName = nil
 
-		changedRoute, err := r.upsertOneRoute(ctx, ic.Annotations[k], route)
+		changedRoute, err := r.upsertOneRoute(ctx, route)
 		if err != nil {
 			return changed, err
 		}
-		if ic.Annotations[k] == "" {
+		if ic.Annotations[k] != *route.Id {
 			setAnnotation(ic, k, *route.Id)
 		}
 		changed = changed || changedRoute
@@ -303,7 +304,7 @@ func (r *APIReconciler) syncOneSecret(
 	originalSecret := secret.DeepCopy()
 	changed, err := r.upsertKeyPair(ctx, keyPair)
 	if err != nil {
-		return false, nil
+		return false, err
 	} else if changed {
 		setAnnotation(secret, apiKeyPairIDAnnotation, keyPair.GetId())
 		controllerutil.AddFinalizer(secret, apiFinalizer)
@@ -469,12 +470,13 @@ func (r *APIReconciler) SetGatewayConfig(
 				}
 
 				k := routeIDAnnotationForIndex(i)
-				routeChanged, err := r.upsertOneRoute(ctx, gr.Annotations[k], route)
+				route.Id = emptyToNil(gr.Annotations[k])
+				routeChanged, err := r.upsertOneRoute(ctx, route)
 				if err != nil {
 					return changes, err
 				}
 				changes = changes || routeChanged
-				if gr.Annotations[k] == "" {
+				if gr.Annotations[k] != *route.Id {
 					setAnnotation(gr, k, *route.Id)
 				}
 			}
@@ -603,7 +605,7 @@ func replaceInlinePolicies(route *pb.Route, policyIDs map[string]string) error {
 	return nil
 }
 
-func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb.Route) (bool, error) {
+func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *pb.Route) (bool, error) {
 	logger := log.FromContext(ctx).WithName("APIReconciler.upsertOneRoute")
 
 	apiRoute, err := convertProto[*pomerium.Route](route)
@@ -613,7 +615,7 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb
 	apiRoute.OriginatorId = &originatorID
 
 	var existing *pomerium.Route
-	if id != "" {
+	if id := route.GetId(); id != "" {
 		resp, err := r.apiClient.GetRoute(ctx, connect.NewRequest(&pomerium.GetRouteRequest{
 			Id: id,
 		}))
@@ -622,12 +624,6 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, id string, route *pb
 		} else if err == nil {
 			existing = resp.Msg.Route
 		}
-
-		apiRoute.Id = new(id)
-	} else {
-		// The ID must be assigned during route creation. (We can't use the
-		// derived ID from the conversion logic.)
-		apiRoute.Id = nil
 	}
 
 	if existing == nil {
@@ -934,7 +930,7 @@ func (r *APIReconciler) findKeyPairByName(
 	if err != nil {
 		return nil, err
 	} else if len(resp.Msg.KeyPairs) == 0 {
-		return nil, fmt.Errorf("could not find keypair by name")
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("could not find keypair by name"))
 	}
 	return resp.Msg.KeyPairs[0], nil
 }
@@ -951,26 +947,33 @@ func (r *APIReconciler) deleteKeyPairs(
 
 		secret := new(corev1.Secret)
 		err := r.k8sClient.Get(ctx, n, secret)
-		if err == nil {
-			keyPairID = secret.Annotations[apiKeyPairIDAnnotation]
-		} else if apierrors.IsNotFound(err) {
-			secret = nil
-
-			// Try to look up the keypair by name.
-			keypair, err := r.findKeyPairByName(ctx, keyPairName(n))
-			if err != nil {
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				secret = nil
+			} else {
 				return anyDeletes, err
 			}
-			keyPairID = keypair.GetId()
 		} else {
-			return anyDeletes, err
+			keyPairID = secret.Annotations[apiKeyPairIDAnnotation]
 		}
 
-		_, err = r.apiClient.DeleteKeyPair(ctx, connect.NewRequest(&pomerium.DeleteKeyPairRequest{
-			Id: keyPairID,
-		}))
-		if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
-			return anyDeletes, err
+		// If we don't have a keypair ID, try to look up the keypair by name.
+		if keyPairID == "" {
+			keypair, err := r.findKeyPairByName(ctx, keyPairName(n))
+			if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
+				return anyDeletes, err
+			} else if err == nil {
+				keyPairID = keypair.GetId()
+			}
+		}
+
+		if keyPairID != "" {
+			_, err = r.apiClient.DeleteKeyPair(ctx, connect.NewRequest(&pomerium.DeleteKeyPairRequest{
+				Id: keyPairID,
+			}))
+			if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
+				return anyDeletes, err
+			}
 		}
 
 		if secret != nil {
@@ -1026,4 +1029,11 @@ func falseToNil(x *bool) *bool {
 		return nil
 	}
 	return x
+}
+
+func emptyToNil(x string) *string {
+	if x == "" {
+		return nil
+	}
+	return new(x)
 }

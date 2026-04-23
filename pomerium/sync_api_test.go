@@ -14,7 +14,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -538,6 +540,7 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 		changed, err := r.upsertOneIngress(ctx, ic)
 		assert.True(t, changed)
 		assert.NoError(t, err)
+		assert.Equal(t, "recreated-route-id", ic.Annotations["api.pomerium.io/route-id-0"])
 	})
 
 	t.Run("other error on update", func(t *testing.T) {
@@ -947,6 +950,61 @@ func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestAPIReconciler_SetGatewayConfig_routeRecreated(t *testing.T) {
+	httpRouteObject := &gateway_v1.HTTPRoute{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "route-a",
+			Namespace: "test",
+			Annotations: map[string]string{
+				"api.pomerium.io/route-id-0": "existing-route-id",
+			},
+		},
+		Spec: gateway_v1.HTTPRouteSpec{
+			CommonRouteSpec: gateway_v1.CommonRouteSpec{},
+			Hostnames:       []gateway_v1.Hostname{},
+			Rules: []gateway_v1.HTTPRouteRule{{
+				BackendRefs: []gateway_v1.HTTPBackendRef{{
+					BackendRef: gateway_v1.BackendRef{
+						BackendObjectReference: gateway_v1.BackendObjectReference{
+							Name: "example-svc",
+							Port: new(gateway_v1.PortNumber(8000)),
+						},
+					},
+				}},
+			}},
+		},
+	}
+
+	gc := &model.GatewayConfig{
+		Routes: []model.GatewayHTTPRouteConfig{{
+			HTTPRoute:        httpRouteObject,
+			Hostnames:        []gateway_v1.Hostname{"a.localhost.pomerium.io"},
+			ValidBackendRefs: noopBackendRefChecker{},
+			Services: map[types.NamespacedName]*corev1.Service{
+				{Name: "example-svc", Namespace: "test"}: {},
+			},
+		}},
+	}
+
+	apiClient, k8sClient, r := setupReconciler(t)
+	ctx := t.Context()
+
+	// If the GetRoute() call returns a Not Found error, the route should be
+	// recreated using CreateRoute().
+	apiClient.EXPECT().GetRoute(ctx, RequestEq(&pomerium.GetRouteRequest{
+		Id: "existing-route-id",
+	})).Return(nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("not found")))
+	apiClient.EXPECT().CreateRoute(ctx, gomock.Any()).
+		Return(createRouteResponseWithID("recreated-route-id"), nil)
+
+	k8sClient.EXPECT().Patch(ctx, httpRouteObject, gomock.Any()).Return(nil)
+
+	changed, err := r.SetGatewayConfig(ctx, gc)
+	assert.True(t, changed)
+	require.NoError(t, err)
+	assert.Equal(t, "recreated-route-id", httpRouteObject.Annotations["api.pomerium.io/route-id-0"])
+}
+
 func TestAPIReconciler_SetConfig(t *testing.T) {
 	cfg := &model.Config{
 		Pomerium: icsv1.Pomerium{
@@ -1240,6 +1298,49 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 
 		changed, err := r.syncOneSecret(ctx, secret)
 		assert.True(t, changed)
+		assert.NoError(t, err)
+	})
+}
+
+func TestAPIReconciler_deleteKeyPairs(t *testing.T) {
+	t.Run("secret missing", func(t *testing.T) {
+		apiClient, k8sClient, r := setupReconciler(t)
+		ctx := t.Context()
+		n := types.NamespacedName{Namespace: "test", Name: "my-secret"}
+
+		// If a Secret was already deleted, we should look for a corresponding
+		// keypair by name.
+		k8sClient.EXPECT().Get(ctx, n, gomock.AssignableToTypeOf((*corev1.Secret)(nil))).
+			Return(apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, n.Name))
+		apiClient.EXPECT().ListKeyPairs(ctx, connect.NewRequest(&pomerium.ListKeyPairsRequest{
+			Filter: filterByName(t, "test-my-secret"),
+		})).Return(connect.NewResponse(&pomerium.ListKeyPairsResponse{
+			KeyPairs: []*pomerium.KeyPair{{
+				Id: new("my-keypair-id"),
+			}},
+		}), nil)
+		apiClient.EXPECT().DeleteKeyPair(ctx, connect.NewRequest(&pomerium.DeleteKeyPairRequest{
+			Id: "my-keypair-id",
+		}))
+
+		_, err := r.deleteKeyPairs(ctx, n)
+		assert.NoError(t, err)
+	})
+
+	t.Run("secret and keypair missing", func(t *testing.T) {
+		apiClient, k8sClient, r := setupReconciler(t)
+		ctx := t.Context()
+		n := types.NamespacedName{Namespace: "test", Name: "my-secret"}
+
+		// If a Secret was already deleted, and no matching keypair exists,
+		// there should be no error returned.
+		k8sClient.EXPECT().Get(ctx, n, gomock.AssignableToTypeOf((*corev1.Secret)(nil))).
+			Return(apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, n.Name))
+		apiClient.EXPECT().ListKeyPairs(ctx, connect.NewRequest(&pomerium.ListKeyPairsRequest{
+			Filter: filterByName(t, "test-my-secret"),
+		})).Return(connect.NewResponse(&pomerium.ListKeyPairsResponse{KeyPairs: nil}), nil)
+
+		_, err := r.deleteKeyPairs(ctx, n)
 		assert.NoError(t, err)
 	})
 }
