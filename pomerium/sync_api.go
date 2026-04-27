@@ -23,6 +23,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/sdk-go"
 	"github.com/pomerium/sdk-go/proto/pomerium"
@@ -341,7 +343,11 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 	pbConfig.Settings.Certificates = nil
 	pbConfig.Settings.CertificateAuthority = nil
 
-	settings, err := convertProto[*pomerium.Settings](pbConfig.Settings)
+	// Apply all Core defaults.
+	mergedSettings := config.NewDefaultOptions()
+	mergedSettings.ApplySettings(ctx, cryptutil.NewCertificatesIndex(), pbConfig.Settings)
+
+	settings, err := convertProto[*pomerium.Settings](mergedSettings.ToProto().GetSettings())
 	if err != nil {
 		return false, err
 	}
@@ -350,18 +356,10 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 	if err != nil {
 		return false, err
 	}
-
-	// Mask any settings that cannot be set via the Pomerium CRD
 	existing := resp.Msg.Settings
-	existing.Address = nil
-	existing.Autocert = nil
-	existing.ClusterId = nil
-	existing.GrpcAddress = nil
-	existing.GrpcInsecure = nil
-	existing.Id = nil
-	existing.InsecureServer = nil
-	existing.NamespaceId = nil
-	existing.SharedSecret = nil
+
+	// Preserve any settings that cannot be set via the Pomerium CRD.
+	settings.AutoApplyChangesets = existing.AutoApplyChangesets
 
 	// Mask timestamp metadata.
 	existing.CreatedAt = nil

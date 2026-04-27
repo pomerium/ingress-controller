@@ -273,7 +273,6 @@ func applyCerts(_ context.Context, p *pb.Config, c *model.Config) error {
 
 func applyAuthenticate(_ context.Context, p *pb.Config, c *model.Config) error {
 	if c.Spec.Authenticate == nil {
-		p.Settings.AuthenticateServiceUrl = proto.String("https://authenticate.pomerium.app")
 		return nil
 	}
 
