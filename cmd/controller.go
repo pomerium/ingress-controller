@@ -34,6 +34,9 @@ type controllerCmd struct {
 	tlsInsecureSkipVerify      bool
 	tlsOverrideCertificateName string
 
+	leaderElectionID        string
+	leaderElectionNamespace string
+
 	sharedSecret string
 
 	debug bool
@@ -62,6 +65,8 @@ const (
 	databrokerTLSCA            = "databroker-tls-ca"
 	tlsInsecureSkipVerify      = "databroker-tls-insecure-skip-verify"
 	tlsOverrideCertificateName = "databroker-tls-override-certificate-name"
+	leaderElectionID           = "leader-election-id"
+	leaderElectionNamespace    = "leader-election-namespace"
 )
 
 func (s *controllerCmd) setupFlags() error {
@@ -76,6 +81,8 @@ func (s *controllerCmd) setupFlags() error {
 		"disable remote hosts TLS certificate chain and hostname check for the databroker connection")
 	flags.StringVar(&s.tlsOverrideCertificateName, tlsOverrideCertificateName, "",
 		"override the certificate name used for the databroker connection")
+	flags.StringVar(&s.leaderElectionID, leaderElectionID, "pomerium-ingress-controller", "leader election lease name")
+	flags.StringVar(&s.leaderElectionNamespace, leaderElectionNamespace, "", "leader election lease namespace")
 
 	flags.StringVar(&s.sharedSecret, sharedSecret, "",
 		"base64-encoded shared secret for signing JWTs")
@@ -97,15 +104,9 @@ func (s *controllerCmd) exec(*cobra.Command, []string) error {
 		return fmt.Errorf("build controller: %w", err)
 	}
 
-	// We don't need the databroker lease check if using k8s leader election.
-	var readyChecks []healthz.HealthChecker
-	if !c.MgrOpts.LeaderElection {
-		readyChecks = append(readyChecks, healthz.NamedCheck("acquire-databroker-lease", c.ReadyzCheck))
-	}
-
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		return runHealthz(ctx, s.probeAddr, readyChecks...)
+		return runHealthz(ctx, s.probeAddr, healthz.NamedCheck("acquire-lease", c.ReadyzCheck))
 	})
 	eg.Go(func() error { return c.Run(ctx) })
 
@@ -147,42 +148,40 @@ func (s *controllerCmd) buildController(ctx context.Context) (*controllers.Contr
 		return nil, fmt.Errorf("get scheme: %w", err)
 	}
 
-	conn, err := s.getDataBrokerConnection(ctx)
+	globalSettings, err := s.getGlobalSettings()
 	if err != nil {
-		return nil, fmt.Errorf("databroker connection: %w", err)
-	}
-	client := databroker.NewDataBrokerServiceClient(conn)
-	var reconciler pomerium.Reconciler
-	var leaderElection bool
-	var leaderElectionID string
-	if s.SyncAPIURL != "" {
-		reconciler = pomerium.NewAPIReconciler(s.SyncAPIURL, s.SyncAPIToken)
-		leaderElection = true
-		leaderElectionID = "pomerium-ingress-controller"
-	} else {
-		reconciler = pomerium.NewDataBrokerReconciler(client, s.debug)
+		return nil, err
 	}
 
 	c := &controllers.Controller{
-		Reconciler:              reconciler,
-		DataBrokerServiceClient: client,
 		MgrOpts: ctrl.Options{
-			Scheme:           scheme,
-			Metrics:          metricsserver.Options{BindAddress: s.metricsAddr},
-			LeaderElection:   leaderElection,
-			LeaderElectionID: leaderElectionID,
+			Scheme:  scheme,
+			Metrics: metricsserver.Options{BindAddress: s.metricsAddr},
 			Controller: config.Controller{
 				SkipNameValidation: ptr.To(true),
 			},
 		},
 		IngressCtrlOpts:         opts,
 		GatewayControllerConfig: gatewayConfig,
+		GlobalSettings:          globalSettings,
 	}
 
-	c.GlobalSettings, err = s.getGlobalSettings()
+	if s.SyncAPIURL != "" {
+		c.Reconciler = pomerium.NewAPIReconciler(s.SyncAPIURL, s.SyncAPIToken)
+		c.MgrOpts.LeaderElection = true
+		c.MgrOpts.LeaderElectionID = s.leaderElectionID
+		c.MgrOpts.LeaderElectionNamespace = s.leaderElectionNamespace
+		return c, nil
+	} else if f := s.Flags(); f.Changed(leaderElectionID) || f.Changed(leaderElectionNamespace) {
+		return nil, fmt.Errorf("kubernetes leader election can be used only with sync API")
+	}
+
+	conn, err := s.getDataBrokerConnection(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("databroker connection: %w", err)
 	}
 
+	c.DataBrokerServiceClient = databroker.NewDataBrokerServiceClient(conn)
+	c.Reconciler = pomerium.NewDataBrokerReconciler(c.DataBrokerServiceClient, s.debug)
 	return c, nil
 }
