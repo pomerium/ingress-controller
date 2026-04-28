@@ -1,0 +1,102 @@
+#
+# StatefulSet variant of the all-in-one pomerium pod, with a PVC mounted at
+# /data so the file-based databroker survives pod restarts.
+#
+# Lives inside `inner/` so the inner kustomization's namePrefix rewrites
+# `serviceAccountName: pomerium-controller` to the renamed SA from
+# ../../pomerium/rbac. The top-level `images:` directive pins the image tag.
+#
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pomerium
+  labels:
+    app.kubernetes.io/component: proxy
+spec:
+  serviceName: pomerium-proxy
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: proxy
+    spec:
+      serviceAccountName: pomerium-controller
+      terminationGracePeriodSeconds: 10
+      nodeSelector:
+        kubernetes.io/os: linux
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      containers:
+        - name: pomerium
+          image: pomerium/ingress-controller
+          imagePullPolicy: IfNotPresent
+          args:
+            - all-in-one
+            - --name=pomerium.io/ingress-controller-mcp
+            - --pomerium-config=global-mcp
+            - --update-status-from-service=$(POMERIUM_NAMESPACE)/pomerium-proxy
+            - --metrics-bind-address=$(POD_IP):9090
+            - --health-probe-bind-address=$(POD_IP):28080
+          env:
+            - name: GOLANG_PROTOBUF_REGISTRATION_CONFLICT
+              value: warn
+            - name: POMERIUM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: TMPDIR
+              value: /tmp
+            - name: XDG_CACHE_HOME
+              value: /tmp
+          ports:
+            - { containerPort: 8443, name: https,   protocol: TCP }
+            - { containerPort: 8443, name: quic,    protocol: UDP }
+            - { containerPort: 8080, name: http,    protocol: TCP }
+            - { containerPort: 9090, name: metrics, protocol: TCP }
+          resources:
+            requests: { cpu: 300m,  memory: 200Mi }
+            limits:   { cpu: 5000m, memory: 1Gi   }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+          startupProbe:
+            httpGet: { path: /startupz, port: 28080 }
+            failureThreshold: 40
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /healthz, port: 28080 }
+            initialDelaySeconds: 15
+            periodSeconds: 60
+            failureThreshold: 10
+          readinessProbe:
+            httpGet: { path: /readyz, port: 28080 }
+            initialDelaySeconds: 15
+            periodSeconds: 60
+            failureThreshold: 5
+          volumeMounts:
+            - { name: tmp,  mountPath: /tmp  }
+            - { name: data, mountPath: /data }
+      volumes:
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: { storage: 1Gi }

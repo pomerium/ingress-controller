@@ -1,0 +1,14 @@
+#
+# Inner overlay: bundles the StatefulSet with the reused RBAC + gen-secrets
+# resources, applying namePrefix so the cluster-scoped resources don't collide
+# with the default install. Because the StatefulSet is in the same kustomize
+# unit as the renamed ServiceAccount, kustomize's name-reference transformer
+# rewrites the StatefulSet's serviceAccountName automatically.
+#
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namePrefix: pomerium-mcp-
+resources:
+  - ../../pomerium/rbac
+  - ../../gen_secrets
+  - statefulset.yaml
