@@ -24,7 +24,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/sdk-go"
 	"github.com/pomerium/sdk-go/proto/pomerium"
@@ -345,7 +344,7 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 
 	// Apply all Core defaults.
 	mergedSettings := config.NewDefaultOptions()
-	mergedSettings.ApplySettings(ctx, cryptutil.NewCertificatesIndex(), pbConfig.Settings)
+	mergedSettings.ApplySettings(ctx, nil, pbConfig.Settings)
 
 	settings, err := convertProto[*pomerium.Settings](mergedSettings.ToProto().GetSettings())
 	if err != nil {
@@ -359,6 +358,7 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 	existing := resp.Msg.Settings
 
 	// Preserve any settings that cannot be set via the Pomerium CRD.
+	settings.Id = existing.Id
 	settings.AutoApplyChangesets = existing.AutoApplyChangesets
 
 	// Mask timestamp metadata.

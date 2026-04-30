@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gateway_v1 "sigs.k8s.io/gateway-api/apis/v1"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/sdk-go/proto/pomerium"
 
 	icgv1alpha1 "github.com/pomerium/ingress-controller/apis/gateway/v1alpha1"
@@ -1028,6 +1029,9 @@ func TestAPIReconciler_SetConfig(t *testing.T) {
 		},
 	}
 
+	defaultSettings, err := convertProto[*pomerium.Settings](config.NewDefaultOptions().ToProto().GetSettings())
+	require.NoError(t, err)
+
 	t.Run("settings changed", func(t *testing.T) {
 		apiClient, _, r := setupReconciler(t)
 		ctx := t.Context()
@@ -1042,16 +1046,20 @@ func TestAPIReconciler_SetConfig(t *testing.T) {
 				},
 			}, nil)
 
+		expectedSettings := proto.CloneOf(defaultSettings)
+		proto.Merge(expectedSettings, &pomerium.Settings{
+			Id:                     new("settings-id-123"),
+			AuthenticateServiceUrl: new("https://authenticate.localhost.pomerium.io"),
+			IdpClientId:            new("CLIENT_ID"),
+			IdpClientSecret:        new("CLIENT_SECRET"),
+			IdpProvider:            new("oidc"),
+			IdpProviderUrl:         new("https://idp.example.com"),
+			PassIdentityHeaders:    new(true),
+		})
+
 		// ...and then call UpdateSettings() once it knows there are changes to sync.
 		apiClient.EXPECT().UpdateSettings(ctx, RequestEq(&pomerium.UpdateSettingsRequest{
-			Settings: &pomerium.Settings{
-				AuthenticateServiceUrl: new("https://authenticate.localhost.pomerium.io"),
-				IdpClientId:            new("CLIENT_ID"),
-				IdpClientSecret:        new("CLIENT_SECRET"),
-				IdpProvider:            new("oidc"),
-				IdpProviderUrl:         new("https://idp.example.com"),
-				PassIdentityHeaders:    new(true),
-			},
+			Settings: expectedSettings,
 		})).Return(&connect.Response[pomerium.UpdateSettingsResponse]{
 			Msg: &pomerium.UpdateSettingsResponse{},
 		}, nil)
@@ -1065,19 +1073,25 @@ func TestAPIReconciler_SetConfig(t *testing.T) {
 		apiClient, _, r := setupReconciler(t)
 		ctx := t.Context()
 
+		existingSettings := proto.CloneOf(defaultSettings)
+		proto.Merge(existingSettings, &pomerium.Settings{
+			Id: new("settings-id-123"),
+
+			AuthenticateServiceUrl: new("https://authenticate.localhost.pomerium.io"),
+			IdpClientId:            new("CLIENT_ID"),
+			IdpClientSecret:        new("CLIENT_SECRET"),
+			IdpProvider:            new("oidc"),
+			IdpProviderUrl:         new("https://idp.example.com"),
+			PassIdentityHeaders:    new(true),
+
+			AutoApplyChangesets: new(true), // this setting should be ignored
+		})
+
 		// If the settings already match, there should be no UpdateSettings() call.
 		apiClient.EXPECT().GetSettings(ctx, connect.NewRequest(&pomerium.GetSettingsRequest{})).
 			Return(&connect.Response[pomerium.GetSettingsResponse]{
 				Msg: &pomerium.GetSettingsResponse{
-					Settings: &pomerium.Settings{
-						Id: new("settings-id-123"),
-
-						AuthenticateServiceUrl: new("https://authenticate.localhost.pomerium.io"),
-						IdpClientId:            new("CLIENT_ID"),
-						IdpClientSecret:        new("CLIENT_SECRET"),
-						IdpProvider:            new("oidc"),
-						IdpProviderUrl:         new("https://idp.example.com"),
-						PassIdentityHeaders:    new(true)},
+					Settings: existingSettings,
 				},
 			}, nil)
 
