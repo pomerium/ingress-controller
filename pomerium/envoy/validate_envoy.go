@@ -6,7 +6,7 @@ package envoy
 
 import (
 	"context"
-	"io/ioutil"
+
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,7 +34,7 @@ func Validate(ctx context.Context, bootstrap *envoy_config_bootstrap_v3.Bootstra
 	}
 
 	cfgName := filepath.Join(os.TempDir(), id+".pb")
-	err = ioutil.WriteFile(cfgName, bs, ownerRW)
+	err = os.WriteFile(cfgName, bs, ownerRW)
 	if err != nil {
 		return nil, err
 	}

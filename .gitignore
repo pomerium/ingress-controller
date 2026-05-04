@@ -25,6 +25,7 @@ testbin/*
 
 dist/
 .vscode/
+.zed/
 
 .DS_Store
 
