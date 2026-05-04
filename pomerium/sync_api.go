@@ -360,6 +360,8 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 	// Preserve any settings that cannot be set via the Pomerium CRD.
 	settings.Id = existing.Id
 	settings.AutoApplyChangesets = existing.AutoApplyChangesets
+	settings.AutocertDir = existing.AutocertDir
+	settings.RuntimeFlags = existing.RuntimeFlags
 
 	// Mask timestamp metadata.
 	existing.CreatedAt = nil
