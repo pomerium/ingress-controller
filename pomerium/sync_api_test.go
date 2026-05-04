@@ -1047,15 +1047,15 @@ func TestAPIReconciler_SetConfig(t *testing.T) {
 			}, nil)
 
 		expectedSettings := proto.CloneOf(defaultSettings)
-		proto.Merge(expectedSettings, &pomerium.Settings{
-			Id:                     new("settings-id-123"),
-			AuthenticateServiceUrl: new("https://authenticate.localhost.pomerium.io"),
-			IdpClientId:            new("CLIENT_ID"),
-			IdpClientSecret:        new("CLIENT_SECRET"),
-			IdpProvider:            new("oidc"),
-			IdpProviderUrl:         new("https://idp.example.com"),
-			PassIdentityHeaders:    new(true),
-		})
+		expectedSettings.Id = new("settings-id-123")
+		expectedSettings.AuthenticateServiceUrl = new("https://authenticate.localhost.pomerium.io")
+		expectedSettings.AutocertDir = nil
+		expectedSettings.IdpClientId = new("CLIENT_ID")
+		expectedSettings.IdpClientSecret = new("CLIENT_SECRET")
+		expectedSettings.IdpProvider = new("oidc")
+		expectedSettings.IdpProviderUrl = new("https://idp.example.com")
+		expectedSettings.PassIdentityHeaders = new(true)
+		expectedSettings.RuntimeFlags = nil
 
 		// ...and then call UpdateSettings() once it knows there are changes to sync.
 		apiClient.EXPECT().UpdateSettings(ctx, RequestEq(&pomerium.UpdateSettingsRequest{
