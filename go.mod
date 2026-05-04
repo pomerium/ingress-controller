@@ -336,4 +336,8 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
+ignore (
+    ./internal/ui
+)
+
 tool github.com/pomerium/pomerium/pkg/envoy/get-envoy
