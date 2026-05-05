@@ -379,6 +379,11 @@ type PomeriumSpec struct {
 
 	// AllowUpgrades sets the allowed upgrade types.
 	AllowUpgrades *[]string `json:"allowUpgrades,omitempty"`
+
+	// CertificateAutoProvision sets the certificate auto provision settings.
+	//
+	// +kubebuilder:validation:Optional
+	CertificateAutoProvision *CertificateAutoProvision `json:"certificateAutoProvision,omitzero"`
 }
 
 // OTEL configures OpenTelemetry.
@@ -535,6 +540,12 @@ type SSH struct {
 	HostKeySecrets *[]string `json:"hostKeySecrets"`
 	// +kubebuilder:validation:Optional
 	UserCAKeySecret *string `json:"userCaKeySecret"`
+}
+
+// CertificateAutoProvision are the settings for automatically provisioning certificates.
+type CertificateAutoProvision struct {
+	// +kubebuilder:validation:Optional
+	ClusterIssuer *string `json:"clusterIssuer"`
 }
 
 // ResourceStatus represents the outcome of the latest attempt to reconcile

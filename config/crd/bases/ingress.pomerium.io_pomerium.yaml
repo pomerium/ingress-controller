@@ -93,6 +93,13 @@ spec:
                 items:
                   type: string
                 type: array
+              certificateAutoProvision:
+                description: CertificateAutoProvision sets the certificate auto provision
+                  settings.
+                properties:
+                  clusterIssuer:
+                    type: string
+                type: object
               certificates:
                 description: Certificates is a list of secrets of type TLS to use
                 format: namespace/name
