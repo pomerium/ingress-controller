@@ -15,10 +15,6 @@ spec:
       port: 443
       targetPort: https
       protocol: TCP
-    - name: quic
-      port: 443
-      targetPort: quic
-      protocol: UDP
     - name: http
       port: 80
       targetPort: http
