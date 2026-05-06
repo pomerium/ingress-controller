@@ -32,6 +32,10 @@ func TestNameIndex(t *testing.T) {
 	slices.Sort(keys)
 	assert.Equal(t, []int{1, 2}, keys)
 
+	names := idx.Get(2)
+	slices.Sort(names)
+	assert.Equal(t, []string{"www.example.com"}, names)
+
 	idx.Remove(1)
 	keys = idx.Lookup("www.example.com")
 	slices.Sort(keys)
@@ -51,7 +55,7 @@ func TestNameIndex(t *testing.T) {
 	slices.Sort(keys)
 	assert.Equal(t, []int{2, 3, 4, 5}, keys)
 
-	names := idx.Names()
+	names = idx.Names()
 	slices.Sort(names)
 	assert.Equal(t, []string{"a.example.com", "b.example.com", "c.example.com", "www.example.com"}, names)
 

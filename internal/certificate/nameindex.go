@@ -12,6 +12,8 @@ type NameIndex[Key comparable] interface {
 	// Add adds all the names to the index for the given key. Multiple
 	// keys can be associated with the same names.
 	Add(key Key, names []string)
+	// Get returns all the names for the given key.
+	Get(key Key) []string
 	// Keys returns all the known keys. Order is non-deterministic.
 	Keys() []Key
 	// Lookup looks up any keys associated with the given name. Wildcard search
@@ -67,6 +69,10 @@ func (idx *nameIndex[Key]) Add(key Key, names []string) {
 
 		keys[key] = struct{}{}
 	}
+}
+
+func (idx *nameIndex[Key]) Get(key Key) []string {
+	return slices.Clone(idx.keys[key])
 }
 
 func (idx *nameIndex[Key]) Keys() []Key {
