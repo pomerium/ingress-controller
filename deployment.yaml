@@ -235,6 +235,15 @@ spec:
                 items:
                   type: string
                 type: array
+              certificateAutoProvision:
+                description: |-
+                  CertificateAutoProvision sets the certificate auto provision settings.
+                  This is a fallback for routes that are not defined via Ingress or
+                  Gateway resources.
+                properties:
+                  clusterIssuer:
+                    type: string
+                type: object
               certificates:
                 description: Certificates is a list of secrets of type TLS to use
                 format: namespace/name
