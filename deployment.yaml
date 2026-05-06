@@ -236,8 +236,10 @@ spec:
                   type: string
                 type: array
               certificateAutoProvision:
-                description: CertificateAutoProvision sets the certificate auto provision
-                  settings.
+                description: |-
+                  CertificateAutoProvision sets the certificate auto provision settings.
+                  This is a fallback for routes that are not defined via Ingress or
+                  Gateway resources.
                 properties:
                   clusterIssuer:
                     type: string

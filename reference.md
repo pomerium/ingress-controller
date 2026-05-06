@@ -98,7 +98,7 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
                     (<a href="#certificateautoprovision">certificateAutoProvision</a>)
                 </p>
                 <p>
-                    CertificateAutoProvision sets the certificate auto provision settings.
+                    CertificateAutoProvision sets the certificate auto provision settings. This is a fallback for routes that are not defined via Ingress or Gateway resources.
                 </p>
             </td>
         </tr>
@@ -389,7 +389,7 @@ Authenticate sets authenticate service parameters. If not specified, a Pomerium-
 
 ### `certificateAutoProvision`
 
-CertificateAutoProvision sets the certificate auto provision settings.
+CertificateAutoProvision sets the certificate auto provision settings. This is a fallback for routes that are not defined via Ingress or Gateway resources.
 
 <table>
     <thead>

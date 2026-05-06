@@ -381,6 +381,8 @@ type PomeriumSpec struct {
 	AllowUpgrades *[]string `json:"allowUpgrades,omitempty"`
 
 	// CertificateAutoProvision sets the certificate auto provision settings.
+	// This is a fallback for routes that are not defined via Ingress or
+	// Gateway resources.
 	//
 	// +kubebuilder:validation:Optional
 	CertificateAutoProvision *CertificateAutoProvision `json:"certificateAutoProvision,omitzero"`
