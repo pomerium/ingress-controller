@@ -93,6 +93,18 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>certificateAutoProvision</code>&#160;&#160;
+                    <strong>object</strong>&#160;
+                    (<a href="#certificateautoprovision">certificateAutoProvision</a>)
+                </p>
+                <p>
+                    CertificateAutoProvision sets the certificate auto provision settings. This is a fallback for routes that are not defined via Ingress or Gateway resources.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
                 <code>certificates</code>&#160;&#160;
                     <strong>[]string</strong>&#160;
                     (namespace/name)
@@ -370,6 +382,27 @@ Authenticate sets authenticate service parameters. If not specified, a Pomerium-
                     AuthenticateURL is a dedicated domain URL the non-authenticated persons would be referred to. <p><ul> <li>You do not need to create a dedicated <code>Ingress</code> for this virtual route, as it is handled by Pomerium internally. </li> <li>You do need create a secret with corresponding TLS certificate for this route and reference it via <a href="#prop-certificates"><code>certificates</code></a>. If you use <code>cert-manager</code> with <code>HTTP01</code> challenge, you may use <code>pomerium</code> <code>ingressClass</code> to solve it.</li> </ul></p>
                 </p>
                 Format: an URI as parsed by Golang net/url.ParseRequestURI.
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+### `certificateAutoProvision`
+
+CertificateAutoProvision sets the certificate auto provision settings. This is a fallback for routes that are not defined via Ingress or Gateway resources.
+
+<table>
+    <thead>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+                <p>
+                <code>clusterIssuer</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                </p>
             </td>
         </tr>
     </tbody>

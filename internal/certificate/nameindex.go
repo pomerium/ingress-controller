@@ -49,7 +49,7 @@ func (idx *nameIndex[Key]) Add(key Key, names []string) {
 	idx.Remove(key)
 
 	// add the key
-	idx.keys[key] = names
+	idx.keys[key] = slices.Clone(names)
 
 	// index each of the names
 	for _, name := range names {
