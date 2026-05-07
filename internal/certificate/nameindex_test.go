@@ -15,20 +15,20 @@ func TestNameIndex(t *testing.T) {
 	idx := certificate.NewNameIndex[int]()
 
 	idx.Add(1, []string{"*.example.com"})
-	keys := idx.Lookup("www.example.com")
+	keys := idx.Lookup("www.example.com", true)
 	slices.Sort(keys)
 	assert.Equal(t, []int{1}, keys)
 
-	keys = idx.Lookup("wWw.ExaMPle.com")
+	keys = idx.Lookup("wWw.ExaMPle.com", true)
 	slices.Sort(keys)
 	assert.Equal(t, []int{1}, keys, "should be case insensitive")
 
-	keys = idx.Lookup("www.example.com.")
+	keys = idx.Lookup("www.example.com.", true)
 	slices.Sort(keys)
 	assert.Equal(t, []int{1}, keys, "should strip trailing dots")
 
 	idx.Add(2, []string{"www.example.com"})
-	keys = idx.Lookup("www.example.com")
+	keys = idx.Lookup("www.example.com", true)
 	slices.Sort(keys)
 	assert.Equal(t, []int{1, 2}, keys)
 
@@ -37,17 +37,17 @@ func TestNameIndex(t *testing.T) {
 	assert.Equal(t, []string{"www.example.com"}, names)
 
 	idx.Remove(1)
-	keys = idx.Lookup("www.example.com")
+	keys = idx.Lookup("www.example.com", true)
 	slices.Sort(keys)
 	assert.Equal(t, []int{2}, keys)
 
 	idx.Add(3, []string{"a.example.com"})
 	idx.Add(4, []string{"b.example.com"})
 	idx.Add(5, []string{"c.example.com"})
-	keys = idx.Lookup("*.example.com")
+	keys = idx.Lookup("*.example.com", true)
 	slices.Sort(keys)
 	assert.Equal(t, []int{2, 3, 4, 5}, keys)
-	keys = idx.Lookup("*.com")
+	keys = idx.Lookup("*.com", true)
 	slices.Sort(keys)
 	assert.Empty(t, keys, "should only support single-level wildcards")
 
@@ -60,10 +60,12 @@ func TestNameIndex(t *testing.T) {
 	assert.Equal(t, []string{"a.example.com", "b.example.com", "c.example.com", "www.example.com"}, names)
 
 	idx.Add(6, []string{"localhost"})
-	keys = idx.Lookup("localhost")
+	keys = idx.Lookup("localhost", true)
 	assert.Equal(t, []int{6}, keys)
-	keys = idx.Lookup("*")
+	keys = idx.Lookup("*", true)
 	assert.Equal(t, []int{6}, keys)
+	keys = idx.Lookup("*", false)
+	assert.Empty(t, keys)
 
 	idx.Remove(2)
 	idx.Remove(3)
@@ -71,6 +73,6 @@ func TestNameIndex(t *testing.T) {
 	idx.Remove(5)
 	idx.Remove(6)
 
-	keys = idx.Lookup("*")
+	keys = idx.Lookup("*", true)
 	assert.Empty(t, keys)
 }
