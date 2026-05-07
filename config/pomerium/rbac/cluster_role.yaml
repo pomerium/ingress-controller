@@ -71,3 +71,14 @@ rules:
     verbs:
       - create
       - patch
+  - apiGroups:
+      - cert-manager.io
+    resources:
+      - certificates
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - watch
+      - update

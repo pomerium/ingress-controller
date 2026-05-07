@@ -51,7 +51,8 @@ func ControllerCommand() (*cobra.Command, error) {
 		Command: cobra.Command{
 			Use:   "controller",
 			Short: "runs just the ingress controller",
-		}}
+		},
+	}
 	cmd.RunE = cmd.exec
 	if err := cmd.setupFlags(); err != nil {
 		return nil, err
