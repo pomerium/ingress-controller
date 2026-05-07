@@ -1,6 +1,7 @@
 package certificate
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/go-set/v3"
@@ -35,8 +36,6 @@ func (m *matcher[Key]) MissingNames() []string {
 
 func (m *matcher[Key]) Update(key Key, certificateNames []string, routeNames []string) {
 	check := func(name string) {
-		name = strings.TrimSuffix(name, ".")
-
 		// first remove the name from missing
 		m.missing.Remove(name)
 
@@ -52,6 +51,9 @@ func (m *matcher[Key]) Update(key Key, certificateNames []string, routeNames []s
 			}
 		}
 	}
+
+	certificateNames = normalizeNames(certificateNames)
+	routeNames = normalizeNames(routeNames)
 
 	prev := set.From(m.certificates.Get(key))
 	next := set.From(certificateNames)
@@ -84,4 +86,12 @@ func (m *matcher[Key]) Update(key Key, certificateNames []string, routeNames []s
 	for name := range next.Difference(prev).Items() {
 		check(name)
 	}
+}
+
+func normalizeNames(names []string) []string {
+	names = slices.Clone(names)
+	for i := range names {
+		names[i] = strings.ToLower(strings.TrimSuffix(names[i], "."))
+	}
+	return names
 }

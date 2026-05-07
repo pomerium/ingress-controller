@@ -119,7 +119,7 @@ func TestMatcher(t *testing.T) {
 		assert.Empty(t, names(m))
 
 		m.Update(2, nil, []string{"wWw.ExAmPlE.com"})
-		assert.Equal(t, []string{"www.example.com"}, names(m))
+		assert.Empty(t, names(m))
 	})
 
 	t.Run("trailing dot", func(t *testing.T) {
@@ -130,6 +130,6 @@ func TestMatcher(t *testing.T) {
 		assert.Empty(t, names(m))
 
 		m.Update(2, nil, []string{"www.example.com"})
-		assert.Equal(t, []string{"www.example.com"}, names(m))
+		assert.Empty(t, names(m))
 	})
 }
