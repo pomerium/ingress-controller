@@ -1,6 +1,10 @@
 package certificate
 
-import "github.com/hashicorp/go-set/v3"
+import (
+	"strings"
+
+	"github.com/hashicorp/go-set/v3"
+)
 
 // A Matcher matches routes with certificate names.
 type Matcher[Key comparable] interface {
@@ -31,14 +35,16 @@ func (m *matcher[Key]) MissingNames() []string {
 
 func (m *matcher[Key]) Update(key Key, certificateNames []string, routeNames []string) {
 	check := func(name string) {
+		name = strings.TrimSuffix(name, ".")
+
 		// first remove the name from missing
 		m.missing.Remove(name)
 
 		// for each route matching the given name
-		for _, route := range m.routes.Lookup(name) {
+		for _, route := range m.routes.Lookup(name, true) {
 			for _, n := range m.routes.Get(route) {
 				// if there's no matching certificate, add the name
-				if len(m.certificates.Lookup(n)) == 0 {
+				if len(m.certificates.Lookup(n, false)) == 0 {
 					m.missing.Insert(n)
 				} else {
 					m.missing.Remove(n)
