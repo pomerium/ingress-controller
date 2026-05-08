@@ -567,8 +567,16 @@ type ResourceStatus struct {
 	Warnings []string `json:"warnings"`
 }
 
+// CertificateAutoProvisionStatus tracks the status of the certificate auto-provision
+// controller.
+type CertificateAutoProvisionStatus struct {
+	DataBrokerLastUpdated metav1.Time `json:"dataBrokerLastUpdated,omitzero"`
+}
+
 // PomeriumStatus represents configuration and Ingress status.
 type PomeriumStatus struct {
+	// Status of certificate auto provisioning.
+	CertificateAutoProvisionStatus *CertificateAutoProvisionStatus `json:"certificateAutoProvisionStatus,omitzero"`
 	// Routes provide per-Ingress status.
 	Routes map[string]ResourceStatus `json:"ingress,omitempty"`
 	// SettingsStatus represent most recent main configuration reconciliation status.

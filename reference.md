@@ -1253,6 +1253,19 @@ PomeriumStatus represents configuration and Ingress status.
         <tr>
             <td>
                 <p>
+                <code>certificateAutoProvisionStatus</code>&#160;&#160;
+                    <strong>object</strong>&#160;
+                    (<a href="#certificateautoprovisionstatus">certificateAutoProvisionStatus</a>)
+                </p>
+                <p>
+                    <strong>Required.</strong>&#160;
+                    Status of certificate auto provisioning.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
                 <code>ingress</code>&#160;&#160;
                     <strong>map[string]</strong>
                     <a href="#ingress">ingress</a>
@@ -1272,6 +1285,30 @@ PomeriumStatus represents configuration and Ingress status.
                 <p>
                     SettingsStatus represent most recent main configuration reconciliation status.
                 </p>
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+### `certificateAutoProvisionStatus`
+
+Status of certificate auto provisioning.
+
+<table>
+    <thead>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+                <p>
+                <code>dataBrokerLastUpdated</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                    (date-time)
+                </p>
+                <p>
+                    <strong>Required.</strong>&#160;
+                </p>
+                Format: a date time string like "2014-12-15T19:30:20.000Z" as defined by date-time in RFC3339.
             </td>
         </tr>
     </tbody>

@@ -91,7 +91,7 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 		if err = settings.NewSettingsController(mgr, c.Reconciler, *c.GlobalSettings, "pomerium-crd", true, health_ctrl.SettingsReconciler); err != nil {
 			return fmt.Errorf("create settings controller: %w", err)
 		}
-		if err = certificate.NewCertificateController(mgr, *c.GlobalSettings); err != nil {
+		if err = certificate.NewCertificateController(mgr, *c.GlobalSettings, c.DataBrokerServiceClient); err != nil {
 			return fmt.Errorf("error creating certificate controller: %w", err)
 		}
 	} else {

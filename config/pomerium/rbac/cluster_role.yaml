@@ -18,6 +18,7 @@ rules:
     resources:
       - secrets
     verbs:
+      - delete
       - get
       - list
       - watch
@@ -77,6 +78,7 @@ rules:
       - certificates
     verbs:
       - create
+      - delete
       - get
       - list
       - patch
