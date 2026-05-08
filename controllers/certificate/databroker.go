@@ -31,8 +31,7 @@ type recordKey struct {
 // routes need certificates provisioned.
 type dataBrokerCollector struct {
 	controller *certificateController
-
-	operation operation
+	operation  Operation
 
 	keyPairServerVersion, keyPairRecordVersion                 uint64
 	routeServerVersion, routeRecordVersion                     uint64
@@ -47,6 +46,7 @@ type dataBrokerCollector struct {
 func newDataBrokerCollector(controller *certificateController) *dataBrokerCollector {
 	c := &dataBrokerCollector{
 		controller: controller,
+		operation:  NewOperation(),
 	}
 	return c
 }
@@ -299,7 +299,7 @@ func syncRecords[T any, TMsg interface {
 		RecordVersion: recordVersion,
 	})
 	if err != nil {
-		return fmt.Errorf("error syncing %s records", recordType)
+		return fmt.Errorf("error syncing %s records: %w", recordType, err)
 	}
 
 	for {
@@ -309,7 +309,7 @@ func syncRecords[T any, TMsg interface {
 		} else if status.Code(err) == codes.Aborted {
 			return fmt.Errorf("aborted sync due to mismatched versions: %w", err)
 		} else if err != nil {
-			return fmt.Errorf("error receiving %s record", recordType)
+			return fmt.Errorf("error receiving %s record: %w", recordType, err)
 		}
 
 		switch res := msg.Response.(type) {

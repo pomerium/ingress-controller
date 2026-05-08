@@ -1258,7 +1258,6 @@ PomeriumStatus represents configuration and Ingress status.
                     (<a href="#certificateautoprovisionstatus">certificateAutoProvisionStatus</a>)
                 </p>
                 <p>
-                    <strong>Required.</strong>&#160;
                     Status of certificate auto provisioning.
                 </p>
             </td>
@@ -1306,7 +1305,6 @@ Status of certificate auto provisioning.
                     (date-time)
                 </p>
                 <p>
-                    <strong>Required.</strong>&#160;
                 </p>
                 Format: a date time string like "2014-12-15T19:30:20.000Z" as defined by date-time in RFC3339.
             </td>

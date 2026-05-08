@@ -18,6 +18,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	core_v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -181,13 +182,14 @@ func (c *certificateController) reconcileSecrets(
 		return cmp.Or(cmp.Compare(x.Name, y.Name), cmp.Compare(x.UID, y.UID))
 	})
 
-	cfg := &configpb.Config{
-		Settings: &configpb.Settings{},
-	}
+	cfg := new(configpb.Config)
 	for _, s := range secrets {
 		certPEM := s.Data["tls.crt"]
 		keyPEM := s.Data["tls.key"]
 		if certPEM != nil && keyPEM != nil {
+			if cfg.Settings == nil {
+				cfg.Settings = new(configpb.Settings)
+			}
 			cfg.Settings.Certificates = append(cfg.Settings.Certificates, &configpb.Settings_Certificate{
 				CertBytes: certPEM,
 				KeyBytes:  keyPEM,
@@ -235,7 +237,7 @@ func (c *certificateController) deleteCertificate(ctx context.Context, cert *cer
 	log.FromContext(ctx).Info("certificate-controller: deleting certificate",
 		"name", cert.Name,
 		"namespace", cert.Namespace)
-	if err := c.kubernetesClient.Delete(ctx, cert); err != nil {
+	if err := c.kubernetesClient.Delete(ctx, cert); err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("error deleting existing certificate (%s/%s): %w", cert.Namespace, cert.Name, err)
 	}
 	// also try and delete the corresponding secret
@@ -252,7 +254,7 @@ func (c *certificateController) deleteSecret(ctx context.Context, s *core_v1.Sec
 	log.FromContext(ctx).Info("certificate-controller: deleting secret",
 		"name", s.Name,
 		"namespace", s.Namespace)
-	if err := c.kubernetesClient.Delete(ctx, s); err != nil {
+	if err := c.kubernetesClient.Delete(ctx, s); err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("error deleting existing secret (%s/%s): %w", s.Namespace, s.Name, err)
 	}
 	return nil

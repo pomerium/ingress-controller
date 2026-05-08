@@ -752,8 +752,6 @@ spec:
                   dataBrokerLastUpdated:
                     format: date-time
                     type: string
-                required:
-                - dataBrokerLastUpdated
                 type: object
               ingress:
                 additionalProperties:
@@ -819,8 +817,6 @@ spec:
                 required:
                 - reconciled
                 type: object
-            required:
-            - certificateAutoProvisionStatus
             type: object
         type: object
     served: true
