@@ -19,7 +19,7 @@ type NameIndex[Key comparable] interface {
 	// Lookup looks up any keys associated with the given name. Wildcard search
 	// is supported (Lookup("*.example.com") -> would match a key for
 	// "www.example.com"). Order is non-deterministic.
-	Lookup(name string) []Key
+	Lookup(name string, allowWildcard bool) []Key
 	// Names returns all the known names. Order is non-deterministic.
 	Names() []string
 	// Remove removes a key from the index and possibly all of its associated
@@ -79,7 +79,7 @@ func (idx *nameIndex[Key]) Keys() []Key {
 	return slices.Collect(maps.Keys(idx.keys))
 }
 
-func (idx *nameIndex[Key]) Lookup(name string) []Key {
+func (idx *nameIndex[Key]) Lookup(name string, allowWildcard bool) []Key {
 	prefix, suffix := idx.splitName(name)
 
 	prefixes, ok := idx.suffixes[suffix]
@@ -89,7 +89,7 @@ func (idx *nameIndex[Key]) Lookup(name string) []Key {
 
 	allKeys := map[Key]struct{}{}
 	// if the prefix is *, we should return all the keys for all the names
-	if prefix == "*" {
+	if prefix == "*" && allowWildcard {
 		for _, keys := range prefixes {
 			for key := range keys {
 				allKeys[key] = struct{}{}

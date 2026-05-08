@@ -99,4 +99,37 @@ func TestMatcher(t *testing.T) {
 		m.Update(1, nil, nil)
 		assert.Equal(t, []string{"www.example.com"}, names(m))
 	})
+
+	t.Run("wildcard route does not match cert", func(t *testing.T) {
+		t.Parallel()
+		m := certificate.NewMatcher[int]()
+
+		m.Update(1, []string{"www.example.com"}, nil)
+		assert.Empty(t, names(m))
+
+		m.Update(2, nil, []string{"*.example.com"})
+		assert.Equal(t, []string{"*.example.com"}, names(m))
+	})
+
+	t.Run("case insensitive", func(t *testing.T) {
+		t.Parallel()
+		m := certificate.NewMatcher[int]()
+
+		m.Update(1, []string{"www.example.com"}, nil)
+		assert.Empty(t, names(m))
+
+		m.Update(2, nil, []string{"wWw.ExAmPlE.com"})
+		assert.Empty(t, names(m))
+	})
+
+	t.Run("trailing dot", func(t *testing.T) {
+		t.Parallel()
+		m := certificate.NewMatcher[int]()
+
+		m.Update(1, []string{"www.example.com."}, nil)
+		assert.Empty(t, names(m))
+
+		m.Update(2, nil, []string{"www.example.com"})
+		assert.Empty(t, names(m))
+	})
 }

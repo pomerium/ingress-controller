@@ -1,6 +1,11 @@
 package certificate
 
-import "github.com/hashicorp/go-set/v3"
+import (
+	"slices"
+	"strings"
+
+	"github.com/hashicorp/go-set/v3"
+)
 
 // A Matcher matches routes with certificate names.
 type Matcher[Key comparable] interface {
@@ -35,10 +40,10 @@ func (m *matcher[Key]) Update(key Key, certificateNames []string, routeNames []s
 		m.missing.Remove(name)
 
 		// for each route matching the given name
-		for _, route := range m.routes.Lookup(name) {
+		for _, route := range m.routes.Lookup(name, true) {
 			for _, n := range m.routes.Get(route) {
 				// if there's no matching certificate, add the name
-				if len(m.certificates.Lookup(n)) == 0 {
+				if len(m.certificates.Lookup(n, false)) == 0 {
 					m.missing.Insert(n)
 				} else {
 					m.missing.Remove(n)
@@ -46,6 +51,9 @@ func (m *matcher[Key]) Update(key Key, certificateNames []string, routeNames []s
 			}
 		}
 	}
+
+	certificateNames = normalizeNames(certificateNames)
+	routeNames = normalizeNames(routeNames)
 
 	prev := set.From(m.certificates.Get(key))
 	next := set.From(certificateNames)
@@ -78,4 +86,12 @@ func (m *matcher[Key]) Update(key Key, certificateNames []string, routeNames []s
 	for name := range next.Difference(prev).Items() {
 		check(name)
 	}
+}
+
+func normalizeNames(names []string) []string {
+	names = slices.Clone(names)
+	for i := range names {
+		names[i] = strings.ToLower(strings.TrimSuffix(names[i], "."))
+	}
+	return names
 }
