@@ -24,9 +24,6 @@ func GetNamesFromConfig(
 	allCertificateNames := set.New[string](0)
 	addCertificatesFromPEM := func(data []byte) {
 		for c := range IterateServerCertificatesFromPEM(data) {
-			if c.Subject.CommonName != "" {
-				allCertificateNames.Insert(c.Subject.CommonName)
-			}
 			for _, n := range c.DNSNames {
 				if n != "" {
 					allCertificateNames.Insert(n)
