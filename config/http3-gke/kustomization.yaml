@@ -1,0 +1,19 @@
+namespace: pomerium
+resources:
+  - ../default
+patches:
+  - patch: |-
+      - op: add
+        path: /spec/ports/-
+        value:
+          name: quic
+          port: 443
+          targetPort: quic
+          protocol: UDP
+      - op: replace
+        path: /spec/loadBalancerClass
+        value: "networking.gke.io/l4-regional-external"
+    target:
+      version: v1
+      kind: Service
+      name: pomerium-proxy

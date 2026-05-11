@@ -1,0 +1,50 @@
+namespace: pomerium
+resources:
+  - ../default
+patches:
+  - patch: |-
+      - op: add
+        path: /spec/ports/-
+        value:
+          name: quic
+          port: 443
+          targetPort: quic
+          protocol: UDP
+      - op: replace
+        path: /spec/loadBalancerClass
+        value: "service.k8s.aws/nlb"
+      - op: add
+        path: /metadata/annotations/service.beta.kubernetes.io~1aws-load-balancer-disable-nlb-sg
+        value: "true"
+      - op: add
+        path: /metadata/annotations/service.beta.kubernetes.io~1aws-load-balancer-enable-tcp-udp-listener
+        value: "true"
+      - op: add
+        path: /metadata/annotations/service.beta.kubernetes.io~1aws-load-balancer-nlb-target-type
+        value: "ip"
+      - op: add
+        path: /metadata/annotations/service.beta.kubernetes.io~1aws-load-balancer-quic-enabled-ports
+        value: "443"
+      - op: add
+        path: /metadata/annotations/service.beta.kubernetes.io~1aws-load-balancer-scheme
+        value: "internet-facing"
+    target:
+      version: v1
+      kind: Service
+      name: pomerium-proxy
+  - patch: |-
+      - op: add
+        path: /metadata/labels/elbv2.k8s.aws~1quic-server-id-inject
+        value: "enabled"
+    target:
+      version: v1
+      kind: Namespace
+      name: pomerium
+  - patch: |-
+      - op: add
+        path: /spec/template/metadata/annotations/service.beta.kubernetes.io~1aws-load-balancer-quic-enabled-containers
+        value: pomerium
+    target:
+      version: apps/v1
+      kind: Deployment
+      name: pomerium
