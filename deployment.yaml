@@ -1040,10 +1040,6 @@ spec:
     port: 443
     protocol: TCP
     targetPort: https
-  - name: quic
-    port: 443
-    protocol: UDP
-    targetPort: quic
   - name: http
     port: 80
     protocol: TCP

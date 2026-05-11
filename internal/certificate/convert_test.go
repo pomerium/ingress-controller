@@ -133,7 +133,6 @@ func TestGetNamesFromConfig(t *testing.T) {
 		"*.yt.be",
 		"*.ytimg.com",
 		"2mdn-cn.net",
-		"WR2",
 		"admob-cn.com",
 		"ai.android",
 		"amazon.co.jp",
