@@ -37,7 +37,19 @@ const (
 	managedByLabelName       = "app.kubernetes.io/managed-by"
 	managedByLabelValue      = "pomerium-certificate-controller"
 	dataBrokerConfigRecordID = "pomerium-certificate-controller-config"
+
+	inClusterNamespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 )
+
+// GetInClusterNamespace returns the namespace of the pod the process is
+// running in, as exposed by the kubernetes service account token volume.
+func GetInClusterNamespace() (string, error) {
+	raw, err := os.ReadFile(inClusterNamespaceFile)
+	if err != nil {
+		return "", fmt.Errorf("error reading in-cluster namespace: %w", err)
+	}
+	return strings.TrimSpace(string(raw)), nil
+}
 
 type certificateController struct {
 	globalSettingsName  types.NamespacedName
@@ -47,26 +59,24 @@ type certificateController struct {
 	namespace           string
 }
 
-// NewCertificateController creates a new certificate controller.
+// NewCertificateController creates a new certificate controller. The
+// namespace is the namespace in which the controller will create and manage
+// cert-manager Certificate and Secret resources.
 func NewCertificateController(
 	mgr controllerruntime.Manager,
 	globalSettingsName types.NamespacedName,
 	dataBrokerClient databrokerpb.DataBrokerServiceClient,
+	namespace string,
 ) error {
 	c := &certificateController{
 		globalSettingsName: globalSettingsName,
 		kubernetesClient:   mgr.GetClient(),
 		dataBrokerClient:   dataBrokerClient,
+		namespace:          namespace,
 	}
 	c.dataBrokerCollector = newDataBrokerCollector(c)
 
-	rawNamespace, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-	if err != nil {
-		return fmt.Errorf("error determining namespace: %w", err)
-	}
-	c.namespace = strings.TrimSpace(string(rawNamespace))
-
-	err = controllerruntime.NewControllerManagedBy(mgr).
+	err := controllerruntime.NewControllerManagedBy(mgr).
 		Named("certificate").
 		Watches(new(core_v1.Secret), &handler.EnqueueRequestForObject{}).
 		Watches(new(pomerium_ingress_v1.Pomerium), &handler.EnqueueRequestForObject{}).

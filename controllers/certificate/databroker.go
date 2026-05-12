@@ -316,10 +316,13 @@ func syncRecords[T any, TMsg interface {
 		case *databrokerpb.SyncResponse_Record:
 			recordVersion = max(recordVersion, res.Record.Version)
 			var m T
-			err := res.Record.Data.UnmarshalTo(TMsg(&m))
-			if err == nil {
-				fn(res.Record, TMsg(&m))
+			// for deleted records just use an empty protobuf
+			if res.Record.GetDeletedAt() == nil {
+				if err := res.Record.Data.UnmarshalTo(TMsg(&m)); err != nil {
+					continue
+				}
 			}
+			fn(res.Record, TMsg(&m))
 		}
 	}
 
@@ -342,7 +345,7 @@ func syncLatestRecords[T any, TMsg interface {
 		Type: recordType,
 	})
 	if err != nil {
-		return 0, 0, fmt.Errorf("error syncing latest %s records", recordType)
+		return 0, 0, fmt.Errorf("error syncing latest %s records: %w", recordType, err)
 	}
 
 	for {
@@ -350,16 +353,16 @@ func syncLatestRecords[T any, TMsg interface {
 		if errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
-			return 0, 0, fmt.Errorf("error receiving latest %s record", recordType)
+			return 0, 0, fmt.Errorf("error receiving latest %s record: %w", recordType, err)
 		}
 
 		switch res := msg.Response.(type) {
 		case *databrokerpb.SyncLatestResponse_Record:
 			var m T
-			err := res.Record.Data.UnmarshalTo(TMsg(&m))
-			if err == nil {
-				fn(res.Record, TMsg(&m))
+			if err := res.Record.GetData().UnmarshalTo(TMsg(&m)); err != nil {
+				continue
 			}
+			fn(res.Record, TMsg(&m))
 		case *databrokerpb.SyncLatestResponse_Versions:
 			serverVersion = res.Versions.GetServerVersion()
 			recordVersion = res.Versions.GetLatestRecordVersion()
