@@ -142,6 +142,16 @@ func setRoutePath(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.Ingress
 		return fmt.Errorf("pathType is required")
 	}
 
+	if ic.IsSSHUpstream() {
+		if *p.PathType != networkingv1.PathTypeImplementationSpecific {
+			return fmt.Errorf("ssh services must have %s path type", networkingv1.PathTypeImplementationSpecific)
+		}
+		if p.Path != "" {
+			return fmt.Errorf("ssh services must not specify path, got %s", r.Path)
+		}
+		return nil
+	}
+
 	if ic.IsTCPUpstream() {
 		if *p.PathType != networkingv1.PathTypeImplementationSpecific {
 			return fmt.Errorf("tcp services must have %s path type", networkingv1.PathTypeImplementationSpecific)
@@ -185,6 +195,10 @@ func setRouteFrom(r *pb.Route, host string, p networkingv1.HTTPIngressPath, ic *
 	u := url.URL{
 		Scheme: "https",
 		Host:   host,
+	}
+
+	if ic.IsSSHUpstream() {
+		u.Scheme = "ssh"
 	}
 
 	if ic.IsTCPUpstream() {
@@ -282,7 +296,9 @@ func getPathServiceHosts(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.
 }
 
 func getUpstreamScheme(ic *model.IngressConfig) string {
-	if ic.IsTCPUpstream() {
+	if ic.IsSSHUpstream() {
+		return "ssh"
+	} else if ic.IsTCPUpstream() {
 		return "tcp"
 	} else if ic.IsUDPUpstream() {
 		return "udp"
