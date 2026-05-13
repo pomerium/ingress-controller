@@ -443,11 +443,14 @@ spec:
                       Provider is the short-hand name of a built-in OpenID Connect (oidc) identity provider to be used for authentication.
                       To use a generic provider, set to <code>oidc</code>.
                     enum:
+                    - apple
                     - auth0
                     - azure
+                    - cognito
                     - github
                     - gitlab
                     - google
+                    - hosted
                     - oidc
                     - okta
                     - onelogin
@@ -511,7 +514,6 @@ spec:
                     type: string
                 required:
                 - provider
-                - secret
                 type: object
               idpAccessTokenAllowedAudiences:
                 description: |-
