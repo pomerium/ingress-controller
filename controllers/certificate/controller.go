@@ -189,7 +189,7 @@ func (c *certificateController) reconcileSecrets(
 	for _, s := range secrets {
 		certPEM := s.Data["tls.crt"]
 		keyPEM := s.Data["tls.key"]
-		if certPEM != nil && keyPEM != nil {
+		if len(certPEM) > 0 && len(keyPEM) > 0 {
 			if cfg.Settings == nil {
 				cfg.Settings = new(configpb.Settings)
 			}
