@@ -126,11 +126,14 @@ func (c *certificateController) reconcileCertificates(
 	certificates []certmanager_v1.Certificate,
 ) error {
 	// delete any certificates with a different cluster issuer
+	var certificatesForIssuer []certmanager_v1.Certificate
 	for _, cert := range certificates {
 		if cert.Spec.IssuerRef.Kind != "ClusterIssuer" || cert.Spec.IssuerRef.Name != clusterIssuer {
 			if err := c.deleteCertificate(ctx, &cert); err != nil {
 				return err
 			}
+		} else {
+			certificatesForIssuer = append(certificatesForIssuer, cert)
 		}
 	}
 
@@ -147,7 +150,7 @@ func (c *certificateController) reconcileCertificates(
 	missingNames := set.From(c.dataBrokerCollector.MissingNames())
 
 	// remove any missing names for which we've already created certificates
-	for _, cert := range certificates {
+	for _, cert := range certificatesForIssuer {
 		used := false
 		for _, name := range cert.Spec.DNSNames {
 			if missingNames.Contains(name) {
