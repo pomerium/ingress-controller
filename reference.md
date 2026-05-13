@@ -405,6 +405,18 @@ CertificateAutoProvision sets the certificate auto provision settings. This is a
                 </p>
             </td>
         </tr>
+        <tr>
+            <td>
+                <p>
+                <code>issuer</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                    (namespace/name)
+                </p>
+                <p>
+                </p>
+                Format: reference to Kubernetes resource with namespace prefix: <code>namespace/name</code> format.
+            </td>
+        </tr>
     </tbody>
 </table>
 

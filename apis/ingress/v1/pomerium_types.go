@@ -547,7 +547,12 @@ type SSH struct {
 // CertificateAutoProvision are the settings for automatically provisioning certificates.
 type CertificateAutoProvision struct {
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MinLength=1
 	ClusterIssuer *string `json:"clusterIssuer"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Format="namespace/name"
+	Issuer *string `json:"issuer"`
 }
 
 // ResourceStatus represents the outcome of the latest attempt to reconcile

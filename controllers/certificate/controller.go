@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	pomerium_ingress_v1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
+	"github.com/pomerium/ingress-controller/util"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -79,20 +80,39 @@ func (c *certificateController) Reconcile(ctx context.Context, _ controllerrunti
 }
 
 func (c *certificateController) reconcile(ctx context.Context) error {
-	namespace, err := GetInClusterNamespace()
-	if err != nil {
-		return err
-	}
-
 	// retrieve the settings, certificates and secrets
 
 	var settings pomerium_ingress_v1.Pomerium
 	if err := c.kubernetesClient.Get(ctx, c.globalSettingsName, &settings); err != nil {
 		return fmt.Errorf("error retrieving pomerium settings: %w", err)
 	}
-	var clusterIssuer string
+
+	var namespace string
+	var issuer certmanager_meta_v1.IssuerReference
 	if settings.Spec.CertificateAutoProvision != nil && settings.Spec.CertificateAutoProvision.ClusterIssuer != nil {
-		clusterIssuer = *settings.Spec.CertificateAutoProvision.ClusterIssuer
+		issuer = certmanager_meta_v1.IssuerReference{
+			Kind: "ClusterIssuer",
+			Name: *settings.Spec.CertificateAutoProvision.ClusterIssuer,
+		}
+	} else if settings.Spec.CertificateAutoProvision != nil && settings.Spec.CertificateAutoProvision.Issuer != nil {
+		name, err := util.ParseNamespacedName(*settings.Spec.CertificateAutoProvision.Issuer)
+		if err != nil {
+			return fmt.Errorf("error parsing certificate auto provision issuer: %w", err)
+		}
+		namespace = name.Namespace
+		issuer = certmanager_meta_v1.IssuerReference{
+			Kind: "Issuer",
+			Name: name.Name,
+		}
+	}
+
+	// if no namespace was defined, use the current pod namespace
+	if namespace == "" {
+		var err error
+		namespace, err = GetInClusterNamespace()
+		if err != nil {
+			return err
+		}
 	}
 
 	var cl certmanager_v1.CertificateList
@@ -114,7 +134,7 @@ func (c *certificateController) reconcile(ctx context.Context) error {
 	}
 
 	return errors.Join(
-		c.reconcileCertificates(ctx, namespace, clusterIssuer, cl.Items),
+		c.reconcileCertificates(ctx, namespace, issuer, cl.Items),
 		c.reconcileSecrets(ctx, sl.Items),
 	)
 }
@@ -122,13 +142,13 @@ func (c *certificateController) reconcile(ctx context.Context) error {
 func (c *certificateController) reconcileCertificates(
 	ctx context.Context,
 	namespace string,
-	clusterIssuer string,
+	issuer certmanager_meta_v1.IssuerReference,
 	certificates []certmanager_v1.Certificate,
 ) error {
 	// delete any certificates with a different cluster issuer
 	var certificatesForIssuer []certmanager_v1.Certificate
 	for _, cert := range certificates {
-		if cert.Spec.IssuerRef.Kind != "ClusterIssuer" || cert.Spec.IssuerRef.Name != clusterIssuer {
+		if cert.Spec.IssuerRef.Kind != issuer.Kind || cert.Spec.IssuerRef.Name != issuer.Name {
 			if err := c.deleteCertificate(ctx, &cert); err != nil {
 				return err
 			}
@@ -138,7 +158,7 @@ func (c *certificateController) reconcileCertificates(
 	}
 
 	// if there's no cluster issuer, stop the collector and don't provision any certificates
-	if clusterIssuer == "" {
+	if issuer.Name == "" {
 		c.dataBrokerCollector.Stop()
 		return nil
 	}
@@ -168,7 +188,7 @@ func (c *certificateController) reconcileCertificates(
 
 	// create any certificates for any missing names
 	for name := range missingNames.Items() {
-		if err := c.createCertificate(ctx, namespace, clusterIssuer, name); err != nil {
+		if err := c.createCertificate(ctx, namespace, issuer, name); err != nil {
 			return err
 		}
 	}
@@ -203,7 +223,12 @@ func (c *certificateController) reconcileSecrets(
 	return c.upsertConfig(ctx, cfg)
 }
 
-func (c *certificateController) createCertificate(ctx context.Context, namespace, clusterIssuer, dnsName string) error {
+func (c *certificateController) createCertificate(
+	ctx context.Context,
+	namespace string,
+	issuer certmanager_meta_v1.IssuerReference,
+	dnsName string,
+) error {
 	k8sName := "pomerium-certificate-" + rand.String(16)
 	cert := &certmanager_v1.Certificate{
 		ObjectMeta: meta_v1.ObjectMeta{
@@ -220,15 +245,14 @@ func (c *certificateController) createCertificate(ctx context.Context, namespace
 					managedByLabelName: managedByLabelValue,
 				},
 			},
-			DNSNames: []string{dnsName},
-			IssuerRef: certmanager_meta_v1.IssuerReference{
-				Kind: "ClusterIssuer",
-				Name: clusterIssuer,
-			},
+			DNSNames:  []string{dnsName},
+			IssuerRef: issuer,
 		},
 	}
 	log.FromContext(ctx).Info("certificate-controller: creating certificate",
-		"cluster-issuer", clusterIssuer,
+		"namespace", namespace,
+		"issuer-kind", issuer.Kind,
+		"issuer-name", issuer.Name,
 		"dns-name", dnsName)
 	if err := c.kubernetesClient.Create(ctx, cert); err != nil {
 		return fmt.Errorf("error creating certificate: %w", err)

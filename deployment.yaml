@@ -242,6 +242,11 @@ spec:
                   Gateway resources.
                 properties:
                   clusterIssuer:
+                    minLength: 1
+                    type: string
+                  issuer:
+                    format: namespace/name
+                    minLength: 1
                     type: string
                 type: object
               certificates:
