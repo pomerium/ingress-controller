@@ -147,7 +147,7 @@ func setRoutePath(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.Ingress
 			return fmt.Errorf("ssh services must have %s path type", networkingv1.PathTypeImplementationSpecific)
 		}
 		if p.Path != "" {
-			return fmt.Errorf("ssh services must not specify path, got %s", r.Path)
+			return fmt.Errorf("ssh services must not specify path, got %s", p.Path)
 		}
 		return nil
 	}
@@ -157,7 +157,7 @@ func setRoutePath(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.Ingress
 			return fmt.Errorf("tcp services must have %s path type", networkingv1.PathTypeImplementationSpecific)
 		}
 		if p.Path != "" {
-			return fmt.Errorf("tcp services must not specify path, got %s", r.Path)
+			return fmt.Errorf("tcp services must not specify path, got %s", p.Path)
 		}
 		return nil
 	}
@@ -167,7 +167,7 @@ func setRoutePath(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.Ingress
 			return fmt.Errorf("udp services must have %s path type", networkingv1.PathTypeImplementationSpecific)
 		}
 		if p.Path != "" {
-			return fmt.Errorf("udp services must not specify path, got %s", r.Path)
+			return fmt.Errorf("udp services must not specify path, got %s", p.Path)
 		}
 		return nil
 	}
