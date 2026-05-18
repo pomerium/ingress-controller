@@ -47,6 +47,8 @@ type Controller struct {
 	GatewayControllerConfig *gateway.ControllerConfig
 	// GlobalSettings if provided, will also reconcile configuration options
 	GlobalSettings *types.NamespacedName
+	// CertificateControllerName is the name of the certificate controller.
+	CertificateControllerName string
 
 	running int32
 }
@@ -91,7 +93,7 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 		if err = settings.NewSettingsController(mgr, c.Reconciler, *c.GlobalSettings, "pomerium-crd", true, health_ctrl.SettingsReconciler); err != nil {
 			return fmt.Errorf("create settings controller: %w", err)
 		}
-		if err = certificate.NewCertificateController(mgr, *c.GlobalSettings, c.DataBrokerServiceClient, "pomerium-certificate"); err != nil {
+		if err = certificate.NewCertificateController(mgr, *c.GlobalSettings, c.DataBrokerServiceClient, c.CertificateControllerName); err != nil {
 			return fmt.Errorf("error creating certificate controller: %w", err)
 		}
 	} else {
