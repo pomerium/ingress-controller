@@ -547,7 +547,12 @@ type SSH struct {
 // CertificateAutoProvision are the settings for automatically provisioning certificates.
 type CertificateAutoProvision struct {
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MinLength=1
 	ClusterIssuer *string `json:"clusterIssuer"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Format="namespace/name"
+	Issuer *string `json:"issuer"`
 }
 
 // ResourceStatus represents the outcome of the latest attempt to reconcile
@@ -567,8 +572,18 @@ type ResourceStatus struct {
 	Warnings []string `json:"warnings"`
 }
 
+// CertificateAutoProvisionStatus tracks the status of the certificate auto-provision
+// controller.
+type CertificateAutoProvisionStatus struct {
+	// +optional
+	DataBrokerLastUpdated metav1.Time `json:"dataBrokerLastUpdated,omitzero"`
+}
+
 // PomeriumStatus represents configuration and Ingress status.
 type PomeriumStatus struct {
+	// Status of certificate auto provisioning.
+	// +optional
+	CertificateAutoProvisionStatus *CertificateAutoProvisionStatus `json:"certificateAutoProvisionStatus,omitzero"`
 	// Routes provide per-Ingress status.
 	Routes map[string]ResourceStatus `json:"ingress,omitempty"`
 	// SettingsStatus represent most recent main configuration reconciliation status.

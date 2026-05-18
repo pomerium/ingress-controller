@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	certmanager_api "github.com/cert-manager/cert-manager/pkg/api"
+	"github.com/cert-manager/cert-manager/pkg/apis/certmanager"
 	"github.com/hashicorp/go-multierror"
 	"github.com/iancoleman/strcase"
 	"github.com/spf13/pflag"
@@ -62,6 +64,7 @@ func getScheme() (*runtime.Scheme, error) {
 		{"gateway_v1", gateway_v1.Install},
 		{"gateway_v1beta1", gateway_v1beta1.Install},
 		{"gateway.pomerium.io", icgv1alpha1.AddToScheme},
+		{certmanager.GroupName, certmanager_api.AddToScheme},
 	} {
 		if err := apply.fn(scheme); err != nil {
 			return nil, fmt.Errorf("%s: %w", apply.name, err)
