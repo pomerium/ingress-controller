@@ -467,6 +467,70 @@ func TestKubernetesToken(t *testing.T) {
 	require.NoError(t, validate(ctx, cfg, "test"))
 }
 
+func TestSSHUpstream(t *testing.T) {
+	irv := networkingv1.IngressRuleValue{
+		HTTP: &networkingv1.HTTPIngressRuleValue{
+			Paths: []networkingv1.HTTPIngressPath{{
+				PathType: new(networkingv1.PathTypeImplementationSpecific),
+				Backend: networkingv1.IngressBackend{
+					Service: &networkingv1.IngressServiceBackend{
+						Name: "example-svc",
+						Port: networkingv1.ServiceBackendPort{
+							Number: 22,
+						},
+					},
+				},
+			}},
+		},
+	}
+	ic := model.IngressConfig{
+		AnnotationPrefix: "p",
+		Ingress: &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ingress",
+				Namespace: "default",
+				Annotations: map[string]string{
+					"p/ssh_upstream": "true",
+				},
+			},
+			Spec: networkingv1.IngressSpec{
+				Rules: []networkingv1.IngressRule{{
+					Host:             "my-ssh-route",
+					IngressRuleValue: irv,
+				}},
+			},
+		},
+		Services: map[types.NamespacedName]*corev1.Service{
+			{Name: "example-svc", Namespace: "default"}: {},
+		},
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		routes, err := ingressToRoutes(t.Context(), &ic)
+		require.NoError(t, err)
+
+		require.Len(t, routes, 1)
+		assert.Equal(t, "ssh://my-ssh-route", routes[0].From)
+		assert.Equal(t, []string{"ssh://example-svc.default.svc.cluster.local:22"}, routes[0].To)
+	})
+	t.Run("bad path type", func(t *testing.T) {
+		ic := ic
+		ic.Ingress = ic.Ingress.DeepCopy()
+		ic.Ingress.Spec.Rules[0].HTTP.Paths[0].PathType = new(networkingv1.PathTypeExact)
+
+		_, err := ingressToRoutes(t.Context(), &ic)
+		assert.ErrorContains(t, err, "ssh services must have ImplementationSpecific path type")
+	})
+	t.Run("non-empty path", func(t *testing.T) {
+		ic := ic
+		ic.Ingress = ic.Ingress.DeepCopy()
+		ic.Ingress.Spec.Rules[0].HTTP.Paths[0].Path = "/some/path"
+
+		_, err := ingressToRoutes(t.Context(), &ic)
+		assert.ErrorContains(t, err, "ssh services must not specify path, got /some/path")
+	})
+}
+
 func TestTCPUpstream(t *testing.T) {
 	typePrefix := networkingv1.PathTypePrefix
 	typeImpSpec := networkingv1.PathTypeImplementationSpecific
