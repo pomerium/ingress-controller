@@ -32,6 +32,8 @@ update-tools() {
 	asdf set golang latest:1.26
 	asdf install golangci-lint latest:2
 	asdf set golangci-lint latest:2
+	asdf install kustomize latest
+	asdf set kustomize latest
 
 	popd
 }
