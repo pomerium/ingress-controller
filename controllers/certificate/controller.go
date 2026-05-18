@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	pomerium_ingress_v1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
+	"github.com/pomerium/ingress-controller/util"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -37,47 +38,31 @@ const (
 	managedByLabelName       = "app.kubernetes.io/managed-by"
 	managedByLabelValue      = "pomerium-certificate-controller"
 	dataBrokerConfigRecordID = "pomerium-certificate-controller-config"
-
-	inClusterNamespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 )
-
-// GetInClusterNamespace returns the namespace of the pod the process is
-// running in, as exposed by the kubernetes service account token volume.
-func GetInClusterNamespace() (string, error) {
-	raw, err := os.ReadFile(inClusterNamespaceFile)
-	if err != nil {
-		return "", fmt.Errorf("error reading in-cluster namespace: %w", err)
-	}
-	return strings.TrimSpace(string(raw)), nil
-}
 
 type certificateController struct {
 	globalSettingsName  types.NamespacedName
 	kubernetesClient    client.Client
 	dataBrokerClient    databrokerpb.DataBrokerServiceClient
 	dataBrokerCollector *dataBrokerCollector
-	namespace           string
 }
 
-// NewCertificateController creates a new certificate controller. The
-// namespace is the namespace in which the controller will create and manage
-// cert-manager Certificate and Secret resources.
+// NewCertificateController creates a new certificate controller.
 func NewCertificateController(
 	mgr controllerruntime.Manager,
 	globalSettingsName types.NamespacedName,
 	dataBrokerClient databrokerpb.DataBrokerServiceClient,
-	namespace string,
+	controllerName string,
 ) error {
 	c := &certificateController{
 		globalSettingsName: globalSettingsName,
 		kubernetesClient:   mgr.GetClient(),
 		dataBrokerClient:   dataBrokerClient,
-		namespace:          namespace,
 	}
 	c.dataBrokerCollector = newDataBrokerCollector(c)
 
 	err := controllerruntime.NewControllerManagedBy(mgr).
-		Named("certificate").
+		Named(controllerName).
 		Watches(new(core_v1.Secret), &handler.EnqueueRequestForObject{}).
 		Watches(new(pomerium_ingress_v1.Pomerium), &handler.EnqueueRequestForObject{}).
 		Watches(new(certmanager_v1.Certificate), &handler.EnqueueRequestForObject{}).
@@ -101,14 +86,38 @@ func (c *certificateController) reconcile(ctx context.Context) error {
 	if err := c.kubernetesClient.Get(ctx, c.globalSettingsName, &settings); err != nil {
 		return fmt.Errorf("error retrieving pomerium settings: %w", err)
 	}
-	var clusterIssuer string
+
+	var namespace string
+	var issuer certmanager_meta_v1.IssuerReference
 	if settings.Spec.CertificateAutoProvision != nil && settings.Spec.CertificateAutoProvision.ClusterIssuer != nil {
-		clusterIssuer = *settings.Spec.CertificateAutoProvision.ClusterIssuer
+		issuer = certmanager_meta_v1.IssuerReference{
+			Kind: "ClusterIssuer",
+			Name: *settings.Spec.CertificateAutoProvision.ClusterIssuer,
+		}
+	} else if settings.Spec.CertificateAutoProvision != nil && settings.Spec.CertificateAutoProvision.Issuer != nil {
+		name, err := util.ParseNamespacedName(*settings.Spec.CertificateAutoProvision.Issuer)
+		if err != nil {
+			return fmt.Errorf("error parsing certificate auto provision issuer: %w", err)
+		}
+		namespace = name.Namespace
+		issuer = certmanager_meta_v1.IssuerReference{
+			Kind: "Issuer",
+			Name: name.Name,
+		}
+	}
+
+	// if no namespace was defined, use the current pod namespace
+	if namespace == "" {
+		var err error
+		namespace, err = GetInClusterNamespace()
+		if err != nil {
+			return err
+		}
 	}
 
 	var cl certmanager_v1.CertificateList
 	if err := c.kubernetesClient.List(ctx, &cl,
-		client.InNamespace(c.namespace),
+		client.InNamespace(namespace),
 		client.MatchingLabels{
 			managedByLabelName: managedByLabelValue,
 		}); err != nil {
@@ -117,7 +126,7 @@ func (c *certificateController) reconcile(ctx context.Context) error {
 
 	var sl core_v1.SecretList
 	if err := c.kubernetesClient.List(ctx, &sl,
-		client.InNamespace(c.namespace),
+		client.InNamespace(namespace),
 		client.MatchingLabels{
 			managedByLabelName: managedByLabelValue,
 		}); err != nil {
@@ -125,27 +134,31 @@ func (c *certificateController) reconcile(ctx context.Context) error {
 	}
 
 	return errors.Join(
-		c.reconcileCertificates(ctx, clusterIssuer, cl.Items),
+		c.reconcileCertificates(ctx, namespace, issuer, cl.Items),
 		c.reconcileSecrets(ctx, sl.Items),
 	)
 }
 
 func (c *certificateController) reconcileCertificates(
 	ctx context.Context,
-	clusterIssuer string,
+	namespace string,
+	issuer certmanager_meta_v1.IssuerReference,
 	certificates []certmanager_v1.Certificate,
 ) error {
 	// delete any certificates with a different cluster issuer
+	var certificatesForIssuer []certmanager_v1.Certificate
 	for _, cert := range certificates {
-		if cert.Spec.IssuerRef.Kind != "ClusterIssuer" || cert.Spec.IssuerRef.Name != clusterIssuer {
+		if cert.Spec.IssuerRef.Kind != issuer.Kind || cert.Spec.IssuerRef.Name != issuer.Name {
 			if err := c.deleteCertificate(ctx, &cert); err != nil {
 				return err
 			}
+		} else {
+			certificatesForIssuer = append(certificatesForIssuer, cert)
 		}
 	}
 
 	// if there's no cluster issuer, stop the collector and don't provision any certificates
-	if clusterIssuer == "" {
+	if issuer.Name == "" {
 		c.dataBrokerCollector.Stop()
 		return nil
 	}
@@ -157,7 +170,7 @@ func (c *certificateController) reconcileCertificates(
 	missingNames := set.From(c.dataBrokerCollector.MissingNames())
 
 	// remove any missing names for which we've already created certificates
-	for _, cert := range certificates {
+	for _, cert := range certificatesForIssuer {
 		used := false
 		for _, name := range cert.Spec.DNSNames {
 			if missingNames.Contains(name) {
@@ -175,7 +188,7 @@ func (c *certificateController) reconcileCertificates(
 
 	// create any certificates for any missing names
 	for name := range missingNames.Items() {
-		if err := c.createCertificate(ctx, clusterIssuer, name); err != nil {
+		if err := c.createCertificate(ctx, namespace, issuer, name); err != nil {
 			return err
 		}
 	}
@@ -196,7 +209,7 @@ func (c *certificateController) reconcileSecrets(
 	for _, s := range secrets {
 		certPEM := s.Data["tls.crt"]
 		keyPEM := s.Data["tls.key"]
-		if certPEM != nil && keyPEM != nil {
+		if len(certPEM) > 0 && len(keyPEM) > 0 {
 			if cfg.Settings == nil {
 				cfg.Settings = new(configpb.Settings)
 			}
@@ -210,12 +223,17 @@ func (c *certificateController) reconcileSecrets(
 	return c.upsertConfig(ctx, cfg)
 }
 
-func (c *certificateController) createCertificate(ctx context.Context, clusterIssuer, dnsName string) error {
+func (c *certificateController) createCertificate(
+	ctx context.Context,
+	namespace string,
+	issuer certmanager_meta_v1.IssuerReference,
+	dnsName string,
+) error {
 	k8sName := "pomerium-certificate-" + rand.String(16)
 	cert := &certmanager_v1.Certificate{
 		ObjectMeta: meta_v1.ObjectMeta{
 			Name:      k8sName,
-			Namespace: c.namespace,
+			Namespace: namespace,
 			Labels: map[string]string{
 				managedByLabelName: managedByLabelValue,
 			},
@@ -227,15 +245,14 @@ func (c *certificateController) createCertificate(ctx context.Context, clusterIs
 					managedByLabelName: managedByLabelValue,
 				},
 			},
-			DNSNames: []string{dnsName},
-			IssuerRef: certmanager_meta_v1.IssuerReference{
-				Kind: "ClusterIssuer",
-				Name: clusterIssuer,
-			},
+			DNSNames:  []string{dnsName},
+			IssuerRef: issuer,
 		},
 	}
 	log.FromContext(ctx).Info("certificate-controller: creating certificate",
-		"cluster-issuer", clusterIssuer,
+		"namespace", namespace,
+		"issuer-kind", issuer.Kind,
+		"issuer-name", issuer.Name,
 		"dns-name", dnsName)
 	if err := c.kubernetesClient.Create(ctx, cert); err != nil {
 		return fmt.Errorf("error creating certificate: %w", err)
@@ -332,4 +349,16 @@ func (c *certificateController) upsertConfig(ctx context.Context, cfg *configpb.
 	}
 
 	return nil
+}
+
+var inClusterNamespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+
+// GetInClusterNamespace returns the namespace of the pod the process is
+// running in, as exposed by the kubernetes service account token volume.
+func GetInClusterNamespace() (string, error) {
+	raw, err := os.ReadFile(inClusterNamespaceFile)
+	if err != nil {
+		return "", fmt.Errorf("error reading in-cluster namespace: %w", err)
+	}
+	return strings.TrimSpace(string(raw)), nil
 }
