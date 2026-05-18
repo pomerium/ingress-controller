@@ -154,25 +154,25 @@ snapshot:
 ##@ Deployment
 
 .PHONY: install
-install: generated kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+install: generated ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	@echo "==> $@"
-	@$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	@kustomize build config/crd | kubectl apply -f -
 
 .PHONY: uninstall
-uninstall: generated kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
+uninstall: generated ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	@echo "==> $@"
-	@$(KUSTOMIZE) build config/crd | kubectl delete -f -
+	@kustomize build config/crd | kubectl delete -f -
 
 .PHONY: deploy
-deploy: generated kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: generated ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	@echo "==> $@"
-	@cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	@$(KUSTOMIZE) build config/default | kubectl apply -f -
+	@cd config/manager && kustomize edit set image controller=${IMG}
+	@kustomize build config/default | kubectl apply -f -
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	@echo "==> $@"
-	@$(KUSTOMIZE) build config/default | kubectl delete -f -
+	@kustomize build config/default | kubectl delete -f -
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
@@ -190,23 +190,10 @@ clean:
 	@chmod -Rf u+w internal/ui || true
 	@rm -rf internal/ui
 
-KUSTOMIZE ?= $(LOCALBIN)/kustomize
-
-
-KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
-.PHONY: kustomize
-kustomize: $(KUSTOMIZE)  ## Download kustomize locally if necessary.
-	@echo "==> $@"
-
-$(KUSTOMIZE): $(LOCALBIN)
-	@echo "==> $@"
-	@rm -rf $(KUSTOMIZE)
-	@curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN)
-
 .PHONY: deployment
-deployment: kustomize
+deployment:
 	@echo "==> $@"
-	@$(KUSTOMIZE) build config/default > deployment.yaml
+	@kustomize build config/default > deployment.yaml
 
 .PHONY: docs
 docs: generated
@@ -225,7 +212,7 @@ dev-install:
 	@echo "deleting pods..."
 	#@kubectl delete --force --selector app.kubernetes.io/name=pomerium pods || true
 	@kubectl delete deployment/pomerium -n pomerium --wait || true
-	@$(KUSTOMIZE) build config/dev/local --load-restrictor LoadRestrictionsNone | kubectl apply --filename -
+	@kustomize build config/dev/local --load-restrictor LoadRestrictionsNone | kubectl apply --filename -
 
 .PHONY: dev-logs
 dev-logs:
@@ -234,7 +221,7 @@ dev-logs:
 .PHONY: dev-gen-secrets
 dev-gen-secrets:
 	@echo "==> $@"
-	@$(KUSTOMIZE) build config/dev/gen_secrets | kubectl apply --filename -
+	@kustomize build config/dev/gen_secrets | kubectl apply --filename -
 
 .PHONY: dev-build
 dev-build:
