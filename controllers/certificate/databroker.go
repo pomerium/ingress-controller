@@ -196,8 +196,8 @@ func (c *dataBrokerCollector) sync(ctx context.Context) error {
 
 		if err := c.controller.kubernetesClient.Status().Patch(ctx, &pomerium_ingress_v1.Pomerium{
 			ObjectMeta: meta_v1.ObjectMeta{
-				Namespace: c.controller.globalSettingsName.Namespace,
-				Name:      c.controller.globalSettingsName.Name,
+				Namespace: c.controller.cfg.globalSettingsName.Namespace,
+				Name:      c.controller.cfg.globalSettingsName.Name,
 			},
 			Status: pomerium_ingress_v1.PomeriumStatus{
 				CertificateAutoProvisionStatus: &pomerium_ingress_v1.CertificateAutoProvisionStatus{
@@ -205,8 +205,8 @@ func (c *dataBrokerCollector) sync(ctx context.Context) error {
 				},
 			},
 		}, client.MergeFrom(&pomerium_ingress_v1.Pomerium{ObjectMeta: meta_v1.ObjectMeta{
-			Namespace: c.controller.globalSettingsName.Namespace,
-			Name:      c.controller.globalSettingsName.Name,
+			Namespace: c.controller.cfg.globalSettingsName.Namespace,
+			Name:      c.controller.cfg.globalSettingsName.Name,
 		}})); err != nil {
 			log.FromContext(ctx).Error(err, "error creating event")
 		}

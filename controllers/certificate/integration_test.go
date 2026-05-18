@@ -130,9 +130,9 @@ func (s *ControllerTestSuite) startController(ctx context.Context, client databr
 	s.NoError(err)
 	s.NoError(certificate.NewCertificateController(
 		mgr,
-		types.NamespacedName{Name: testGlobalSettingsName},
 		client,
-		testNamespace,
+		certificate.WithGlobalSettingsName(types.NamespacedName{Name: testGlobalSettingsName}),
+		certificate.WithNamespace(testNamespace),
 	))
 
 	go func() {

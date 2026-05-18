@@ -20,7 +20,6 @@ import (
 	core_v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,28 +40,28 @@ const (
 )
 
 type certificateController struct {
-	globalSettingsName  types.NamespacedName
-	kubernetesClient    client.Client
-	dataBrokerClient    databrokerpb.DataBrokerServiceClient
+	cfg              *controllerConfig
+	kubernetesClient client.Client
+	dataBrokerClient databrokerpb.DataBrokerServiceClient
+
 	dataBrokerCollector *dataBrokerCollector
 }
 
 // NewCertificateController creates a new certificate controller.
 func NewCertificateController(
 	mgr controllerruntime.Manager,
-	globalSettingsName types.NamespacedName,
 	dataBrokerClient databrokerpb.DataBrokerServiceClient,
-	controllerName string,
+	options ...Option,
 ) error {
 	c := &certificateController{
-		globalSettingsName: globalSettingsName,
-		kubernetesClient:   mgr.GetClient(),
-		dataBrokerClient:   dataBrokerClient,
+		cfg:              getControllerConfig(options...),
+		kubernetesClient: mgr.GetClient(),
+		dataBrokerClient: dataBrokerClient,
 	}
 	c.dataBrokerCollector = newDataBrokerCollector(c)
 
 	err := controllerruntime.NewControllerManagedBy(mgr).
-		Named(controllerName).
+		Named(c.cfg.controllerName).
 		Watches(new(core_v1.Secret), &handler.EnqueueRequestForObject{}).
 		Watches(new(pomerium_ingress_v1.Pomerium), &handler.EnqueueRequestForObject{}).
 		Watches(new(certmanager_v1.Certificate), &handler.EnqueueRequestForObject{}).
@@ -83,7 +82,7 @@ func (c *certificateController) reconcile(ctx context.Context) error {
 	// retrieve the settings, certificates and secrets
 
 	var settings pomerium_ingress_v1.Pomerium
-	if err := c.kubernetesClient.Get(ctx, c.globalSettingsName, &settings); err != nil {
+	if err := c.kubernetesClient.Get(ctx, c.cfg.globalSettingsName, &settings); err != nil {
 		return fmt.Errorf("error retrieving pomerium settings: %w", err)
 	}
 
@@ -104,6 +103,10 @@ func (c *certificateController) reconcile(ctx context.Context) error {
 			Kind: "Issuer",
 			Name: name.Name,
 		}
+	}
+
+	if c.cfg.namespace != nil {
+		namespace = *c.cfg.namespace
 	}
 
 	// if no namespace was defined, use the current pod namespace
