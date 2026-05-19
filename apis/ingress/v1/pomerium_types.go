@@ -24,11 +24,12 @@ import (
 // That authentication integration is achieved using OAuth2, and OpenID Connect (OIDC).
 // Where available, Pomerium also supports pulling additional data (like groups) using directory synchronization.
 // An additional API token is required for directory sync. https://www.pomerium.com/docs/identity-providers/
+// +kubebuilder:validation:XValidation:rule="self.provider != 'hosted' ? has(self.secret) : true",message="secret is required unless provider is 'hosted'",reason="FieldValueRequired",fieldPath=".secret"
 type IdentityProvider struct {
 	// Provider is the short-hand name of a built-in OpenID Connect (oidc) identity provider to be used for authentication.
 	// To use a generic provider, set to <code>oidc</code>.
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Enum=auth0;azure;github;gitlab;google;oidc;okta;onelogin;ping
+	// +kubebuilder:validation:Enum=apple;auth0;azure;cognito;github;gitlab;google;hosted;oidc;okta;onelogin;ping
 	Provider string `json:"provider"`
 	// URL is the base path to an identity provider's OpenID connect discovery document.
 	// See <a href="https://pomerium.com/docs/identity-providers">Identity Providers</a> guides for details.
@@ -39,7 +40,7 @@ type IdentityProvider struct {
 	URL *string `json:"url"`
 	// Secret containing IdP provider specific parameters.
 	// and must contain at least <code>client_id</code> and <code>client_secret</code> values.
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Format="namespace/name"

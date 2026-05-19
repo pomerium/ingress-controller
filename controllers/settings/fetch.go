@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/util"
+	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
 )
 
 // FetchConfig returns
@@ -121,11 +122,16 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 			if s.IdentityProvider == nil {
 				return nil
 			}
-			return applyAll(
-				apply("secret", required(&s.IdentityProvider.Secret), &cfg.IdpSecret),
+			var secrets []func() error
+			if s.IdentityProvider.Provider != hosted.Name {
+				secrets = append(secrets,
+					apply("secret", required(&s.IdentityProvider.Secret), &cfg.IdpSecret))
+			}
+			secrets = append(secrets,
 				apply("request params", optional(s.IdentityProvider.RequestParamsSecret), &cfg.RequestParams),
 				apply("service account", optional(s.IdentityProvider.ServiceAccountFromSecret), &cfg.IdpServiceAccount),
 			)
+			return applyAll(secrets...)
 		},
 		// ssh secrets
 		func() error {
