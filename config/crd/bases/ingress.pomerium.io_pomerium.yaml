@@ -97,12 +97,20 @@ spec:
                 description: |-
                   CertificateAutoProvision sets the certificate auto provision settings.
                   This is a fallback for routes that are not defined via Ingress or
-                  Gateway resources.
+                  Gateway resources. When configured, cert-manager certificate resources
+                  will be created for any routes which have no matching TLS certificate.
                 properties:
                   clusterIssuer:
+                    description: |-
+                      The cert-manager ClusterIssuer that will be used for new certificates.
+                      Certificates will be created in the same namespace as the controller
+                      pod.
                     minLength: 1
                     type: string
                   issuer:
+                    description: |-
+                      The cert-manager Issuer that will be used for new certificates.
+                      Certificates will be created in the same namespace as the Issuer.
                     format: namespace/name
                     minLength: 1
                     type: string
