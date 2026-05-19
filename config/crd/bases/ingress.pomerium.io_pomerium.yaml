@@ -378,6 +378,11 @@ spec:
                 required:
                 - provider
                 type: object
+                x-kubernetes-validations:
+                - fieldPath: .secret
+                  message: secret is required unless provider is 'hosted'
+                  reason: FieldValueRequired
+                  rule: 'self.provider != ''hosted'' ? has(self.secret) : true'
               idpAccessTokenAllowedAudiences:
                 description: |-
                   IDPAccessTokenAllowedAudiences specifies the
