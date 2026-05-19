@@ -30,6 +30,7 @@ var (
 		"cors_allow_preflight",
 		"depends_on",
 		"description",
+		"enable_google_cloud_serverless_authentication",
 		"health_checks",
 		"healthy_panic_threshold",
 		"host_path_regex_rewrite_pattern",
