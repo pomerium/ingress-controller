@@ -16,6 +16,7 @@ import (
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 
+	"github.com/pomerium/ingress-controller/controllers/certificate"
 	"github.com/pomerium/ingress-controller/controllers/gateway"
 	"github.com/pomerium/ingress-controller/controllers/ingress"
 	"github.com/pomerium/ingress-controller/controllers/reporter"
@@ -46,6 +47,8 @@ type Controller struct {
 	GatewayControllerConfig *gateway.ControllerConfig
 	// GlobalSettings if provided, will also reconcile configuration options
 	GlobalSettings *types.NamespacedName
+	// CertificateControllerName is the name of the certificate controller.
+	CertificateControllerName string
 
 	running int32
 }
@@ -89,6 +92,9 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 	if c.GlobalSettings != nil {
 		if err = settings.NewSettingsController(mgr, c.Reconciler, *c.GlobalSettings, "pomerium-crd", true, health_ctrl.SettingsReconciler); err != nil {
 			return fmt.Errorf("create settings controller: %w", err)
+		}
+		if err = certificate.NewCertificateController(mgr, *c.GlobalSettings, c.DataBrokerServiceClient, c.CertificateControllerName); err != nil {
+			return fmt.Errorf("error creating certificate controller: %w", err)
 		}
 	} else {
 		log.FromContext(ctx).V(1).Info("no Pomerium CRD")

@@ -18,6 +18,7 @@ rules:
     resources:
       - secrets
     verbs:
+      - delete
       - get
       - list
       - watch
@@ -71,3 +72,15 @@ rules:
     verbs:
       - create
       - patch
+  - apiGroups:
+      - cert-manager.io
+    resources:
+      - certificates
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - watch
+      - update

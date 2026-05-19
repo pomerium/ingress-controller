@@ -242,6 +242,11 @@ spec:
                   Gateway resources.
                 properties:
                   clusterIssuer:
+                    minLength: 1
+                    type: string
+                  issuer:
+                    format: namespace/name
+                    minLength: 1
                     type: string
                 type: object
               certificates:
@@ -748,6 +753,13 @@ spec:
           status:
             description: PomeriumStatus represents configuration and Ingress status.
             properties:
+              certificateAutoProvisionStatus:
+                description: Status of certificate auto provisioning.
+                properties:
+                  dataBrokerLastUpdated:
+                    format: date-time
+                    type: string
+                type: object
               ingress:
                 additionalProperties:
                   description: |-
@@ -876,6 +888,7 @@ rules:
   resources:
   - secrets
   verbs:
+  - delete
   - get
   - list
   - watch
@@ -929,6 +942,18 @@ rules:
   verbs:
   - create
   - patch
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - watch
+  - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

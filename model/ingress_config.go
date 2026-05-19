@@ -32,9 +32,11 @@ const (
 	PathRegex = "path_regex"
 	// UseServiceProxy will use standard k8s service proxy as upstream, opposed to individual endpoints
 	UseServiceProxy = "service_proxy_upstream"
-	// TCPUpstream indicates this route is a TCP service https://www.pomerium.com/docs/tcp/
+	// SSHUpstream indicates this route is for natively-proxied SSH https://www.pomerium.com/docs/capabilities/native-ssh-access
+	SSHUpstream = "ssh_upstream"
+	// TCPUpstream indicates this route is for TCP tunneled over HTTP https://www.pomerium.com/docs/tcp/
 	TCPUpstream = "tcp_upstream"
-	// UDPUpstream indicates this route is a UDP service https://www.pomerium.com/docs/capabilities/udp/
+	// UDPUpstream indicates this route is for UDP tunneled over HTTP https://www.pomerium.com/docs/capabilities/udp/
 	UDPUpstream = "udp_upstream"
 	// SubtleAllowEmptyHost is a required annotation when creating an ingress containing
 	// rules with an empty (catch-all) host, as it can cause unexpected behavior
@@ -189,12 +191,17 @@ func (ic *IngressConfig) IsSecureUpstream() bool {
 	return ic.IsAnnotationSet(SecureUpstream)
 }
 
-// IsTCPUpstream returns true is this route represents a TCP service https://www.pomerium.com/docs/tcp/
+// IsSSHUpstream returns true if this route is for natively-proxied SSH https://www.pomerium.com/docs/capabilities/native-ssh-access
+func (ic *IngressConfig) IsSSHUpstream() bool {
+	return ic.IsAnnotationSet(SSHUpstream)
+}
+
+// IsTCPUpstream returns true if this route is for TCP tunneled over HTTP https://www.pomerium.com/docs/tcp/
 func (ic *IngressConfig) IsTCPUpstream() bool {
 	return ic.IsAnnotationSet(TCPUpstream)
 }
 
-// IsUDPUpstream returns true is this route represents a UDP service https://www.pomerium.com/docs/capabilities/tcp/
+// IsUDPUpstream returns true if this route is for UDP tunneled over HTTP https://www.pomerium.com/docs/capabilities/tcp/
 func (ic *IngressConfig) IsUDPUpstream() bool {
 	return ic.IsAnnotationSet(UDPUpstream)
 }

@@ -14,7 +14,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	runtime_ctrl "sigs.k8s.io/controller-runtime"
 	controllerconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -54,7 +53,8 @@ type allCmdOptions struct {
 	grpcAddr           string   `validate:"required,hostname_port"`
 	services           []string `validate:"dive,oneof=all authenticate authorize databroker proxy"`
 
-	DataBrokerOptions dataBrokerOptions
+	CertificateControllerOptions certificateControllerOptions
+	DataBrokerOptions            dataBrokerOptions
 }
 
 type allCmdParam struct {
@@ -75,6 +75,8 @@ type allCmdParam struct {
 	// when re-initialization is required. in case it cannot be shut down gracefully, the entire process would exit
 	// to be re-started by the kubernetes
 	configControllerShutdownTimeout time.Duration
+
+	certificateControllerName string
 
 	cfg config.Config
 }
@@ -141,6 +143,7 @@ func (s *allCmd) setupFlags() error {
 	}
 
 	s.ingressControllerOpts.setupFlags(flags)
+	s.CertificateControllerOptions.setupFlags(flags)
 	s.DataBrokerOptions.setupFlags(flags)
 	return viperWalk(flags)
 }
@@ -194,6 +197,7 @@ func (s *allCmdOptions) getParam() (*allCmdParam, error) {
 		configControllerShutdownTimeout: s.configControllerShutdownTimeout,
 		syncAPIURL:                      s.SyncAPIURL,
 		syncAPIToken:                    s.SyncAPIToken,
+		certificateControllerName:       s.CertificateControllerOptions.Name,
 	}
 	if err := p.makeBootstrapConfig(*s); err != nil {
 		return nil, fmt.Errorf("bootstrap: %w", err)
@@ -345,12 +349,13 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 			},
 			LeaderElection: false,
 			Controller: controllerconfig.Controller{
-				SkipNameValidation: ptr.To(true),
+				SkipNameValidation: new(true),
 			},
 		},
-		IngressCtrlOpts:         s.ingressOpts,
-		GlobalSettings:          &s.settings,
-		GatewayControllerConfig: s.gatewayConfig,
+		IngressCtrlOpts:           s.ingressOpts,
+		GlobalSettings:            &s.settings,
+		GatewayControllerConfig:   s.gatewayConfig,
+		CertificateControllerName: s.certificateControllerName,
 	}
 
 	return c, nil

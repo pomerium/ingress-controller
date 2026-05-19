@@ -10,7 +10,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"k8s.io/apiserver/pkg/server/healthz"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -51,7 +50,8 @@ func ControllerCommand() (*cobra.Command, error) {
 		Command: cobra.Command{
 			Use:   "controller",
 			Short: "runs just the ingress controller",
-		}}
+		},
+	}
 	cmd.RunE = cmd.exec
 	if err := cmd.setupFlags(); err != nil {
 		return nil, err
@@ -158,7 +158,7 @@ func (s *controllerCmd) buildController(ctx context.Context) (*controllers.Contr
 			Scheme:  scheme,
 			Metrics: metricsserver.Options{BindAddress: s.metricsAddr},
 			Controller: config.Controller{
-				SkipNameValidation: ptr.To(true),
+				SkipNameValidation: new(true),
 			},
 		},
 		IngressCtrlOpts:         opts,
