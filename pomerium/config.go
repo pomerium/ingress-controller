@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/ingress-controller/util"
 	"github.com/pomerium/pomerium/config"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/identity/oidc/hosted"
 )
 
 type applyOpt struct {
@@ -53,9 +54,11 @@ func ApplyConfig(ctx context.Context, dst *pb.Config, src *model.Config) error {
 		opts = append(opts, []applyOpt{
 			{"idp", applyIDP},
 			{"idp url", applyIDPProviderURL},
-			{"idp secret", applyIDPSecret},
 			{"idp request params", applyIDPRequestParams},
 		}...)
+		if src.Spec.IdentityProvider.Provider != hosted.Name {
+			opts = append(opts, applyOpt{"idp secret", applyIDPSecret})
+		}
 	}
 
 	for _, apply := range opts {

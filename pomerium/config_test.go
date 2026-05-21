@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+	corev1 "k8s.io/api/core/v1"
 
 	v1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/model"
@@ -152,4 +153,68 @@ func TestApplyConfig_MCPAllowedASMetadataDomains(t *testing.T) {
 		assert.Equal(t, tc.expect, dst.Settings.McpAllowedAsMetadataDomains,
 			"should match in %s", tc.name)
 	}
+}
+
+func TestApplyConfig_IdentityProvider(t *testing.T) {
+	t.Run("unset", func(t *testing.T) {
+		src := &model.Config{}
+		dst := new(pb.Config)
+		err := pomerium.ApplyConfig(t.Context(), dst, src)
+		assert.NoError(t, err)
+		assert.Nil(t, dst.GetSettings().IdpProvider)
+	})
+	t.Run("hosted", func(t *testing.T) {
+		src := &model.Config{
+			Pomerium: v1.Pomerium{
+				Spec: v1.PomeriumSpec{
+					IdentityProvider: &v1.IdentityProvider{
+						Provider: "hosted",
+					},
+				},
+			},
+			// no IdpSecret should be required for hosted authenticate
+		}
+		dst := new(pb.Config)
+		err := pomerium.ApplyConfig(t.Context(), dst, src)
+		assert.NoError(t, err)
+		assert.Equal(t, "hosted", dst.GetSettings().GetIdpProvider())
+	})
+	t.Run("google", func(t *testing.T) {
+		src := &model.Config{
+			Pomerium: v1.Pomerium{
+				Spec: v1.PomeriumSpec{
+					IdentityProvider: &v1.IdentityProvider{
+						Provider: "google",
+					},
+				},
+			},
+			IdpSecret: &corev1.Secret{
+				Data: map[string][]byte{
+					"client_id":     []byte("my-client-id"),
+					"client_secret": []byte("my-client-secret"),
+				},
+			},
+		}
+		dst := new(pb.Config)
+		err := pomerium.ApplyConfig(t.Context(), dst, src)
+		assert.NoError(t, err)
+		assert.Equal(t, "google", dst.GetSettings().GetIdpProvider())
+		assert.Equal(t, "my-client-id", dst.GetSettings().GetIdpClientId())
+		assert.Equal(t, "my-client-secret", dst.GetSettings().GetIdpClientSecret())
+	})
+	t.Run("missing secret", func(t *testing.T) {
+		src := &model.Config{
+			Pomerium: v1.Pomerium{
+				Spec: v1.PomeriumSpec{
+					IdentityProvider: &v1.IdentityProvider{
+						Provider: "google",
+					},
+				},
+			},
+			// IdpSecret is required but missing
+		}
+		dst := new(pb.Config)
+		err := pomerium.ApplyConfig(t.Context(), dst, src)
+		assert.ErrorContains(t, err, "idp secret: is required")
+	})
 }

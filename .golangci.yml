@@ -73,7 +73,7 @@ linters:
         path: _test\.go$|^tests/|^integration/|^samples/|templates\.go$|^internal/stress/
       - linters:
           - lll
-        source: "^//go:generate "
+        source: '^//go:generate |// \+kubebuilder:'
       - linters:
           - gosec
         path: internal/identity/google.go

@@ -360,3 +360,39 @@ func TestFetchConfigCertsMissingSecrets(t *testing.T) {
 		assert.True(t, foundFutureCert, "future-cert should be tracked as a dependency so controller will reconcile when it becomes available")
 	})
 }
+
+func TestFetchConfigHostedAuthenticate(t *testing.T) {
+	mc := controllers_mock.NewMockClient(gomock.NewController(t))
+	settingsName := types.NamespacedName{Namespace: "pomerium", Name: "settings"}
+
+	ctx := t.Context()
+
+	mc.EXPECT().Get(ctx, settingsName, gomock.AssignableToTypeOf(new(icsv1.Pomerium))).
+		DoAndReturn(func(_ context.Context, _ types.NamespacedName, dst *icsv1.Pomerium, _ ...client.GetOptions) error {
+			*dst = icsv1.Pomerium{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      settingsName.Name,
+					Namespace: settingsName.Namespace,
+				},
+				Spec: icsv1.PomeriumSpec{
+					IdentityProvider: &icsv1.IdentityProvider{
+						Provider: "hosted",
+						// Secret should not be required for "hosted" provider
+					},
+					Secrets: "pomerium/bootstrap-secrets",
+				},
+			}
+			return nil
+		})
+
+	bootstrapName := types.NamespacedName{Namespace: "pomerium", Name: "bootstrap-secrets"}
+	mc.EXPECT().Get(ctx, bootstrapName, gomock.AssignableToTypeOf(new(corev1.Secret))).
+		DoAndReturn(func(_ context.Context, _ types.NamespacedName, dst *corev1.Secret, _ ...client.GetOptions) error {
+			*dst = corev1.Secret{}
+			return nil
+		})
+
+	cfg, err := settings.FetchConfig(ctx, mc, settingsName)
+	require.NoError(t, err)
+	assert.Equal(t, "hosted", cfg.Spec.IdentityProvider.Provider)
+}
