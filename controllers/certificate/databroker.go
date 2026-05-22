@@ -174,7 +174,7 @@ func (c *dataBrokerCollector) init(ctx context.Context) error {
 				certificateNames, routeNames := certificate.GetNamesFromConfig(
 					nil,
 					removeEmpty(config.GetRoutes()),
-					removeEmpty([]*configpb.Settings{config.Settings}),
+					removeEmpty([]*configpb.Settings{config.GetSettings()}),
 				)
 				c.mu.Lock()
 				c.matcher.Update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
@@ -238,7 +238,11 @@ func (c *dataBrokerCollector) sync(ctx context.Context) error {
 		err := syncRecords(ctx, c.controller.dataBrokerClient,
 			c.keyPairServerVersion, c.keyPairRecordVersion,
 			func(record *databrokerpb.Record, keyPair *configpb.KeyPair) {
-				certificateNames, routeNames := certificate.GetNamesFromConfig([]*configpb.KeyPair{keyPair}, nil, nil)
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					removeEmpty([]*configpb.KeyPair{keyPair}),
+					nil,
+					nil,
+				)
 				update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 			})
 		if err != nil {
@@ -250,7 +254,11 @@ func (c *dataBrokerCollector) sync(ctx context.Context) error {
 		err := syncRecords(ctx, c.controller.dataBrokerClient,
 			c.routeServerVersion, c.routeRecordVersion,
 			func(record *databrokerpb.Record, route *configpb.Route) {
-				certificateNames, routeNames := certificate.GetNamesFromConfig(nil, []*configpb.Route{route}, nil)
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					nil,
+					removeEmpty([]*configpb.Route{route}),
+					nil,
+				)
 				update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 			})
 		if err != nil {
@@ -262,7 +270,11 @@ func (c *dataBrokerCollector) sync(ctx context.Context) error {
 		err := syncRecords(ctx, c.controller.dataBrokerClient,
 			c.settingsServerVersion, c.settingsRecordVersion,
 			func(record *databrokerpb.Record, settings *configpb.Settings) {
-				certificateNames, routeNames := certificate.GetNamesFromConfig(nil, nil, []*configpb.Settings{settings})
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					nil,
+					nil,
+					removeEmpty([]*configpb.Settings{settings}),
+				)
 				update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 			})
 		if err != nil {
@@ -278,7 +290,11 @@ func (c *dataBrokerCollector) sync(ctx context.Context) error {
 				if record.GetId() == dataBrokerConfigRecordID {
 					return
 				}
-				certificateNames, routeNames := certificate.GetNamesFromConfig(nil, config.Routes, []*configpb.Settings{config.Settings})
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					nil,
+					removeEmpty(config.GetRoutes()),
+					removeEmpty([]*configpb.Settings{config.Settings}),
+				)
 				update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 			})
 		if err != nil {
@@ -290,7 +306,11 @@ func (c *dataBrokerCollector) sync(ctx context.Context) error {
 		err := syncRecords(ctx, c.controller.dataBrokerClient,
 			c.versionedConfigServerVersion, c.versionedConfigRecordVersion,
 			func(record *databrokerpb.Record, versionedConfig *configpb.VersionedConfig) {
-				certificateNames, routeNames := certificate.GetNamesFromConfig(nil, versionedConfig.Config.Routes, []*configpb.Settings{versionedConfig.Config.Settings})
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					nil,
+					removeEmpty(versionedConfig.GetConfig().GetRoutes()),
+					removeEmpty([]*configpb.Settings{versionedConfig.GetConfig().GetSettings()}),
+				)
 				update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 			})
 		if err != nil {
