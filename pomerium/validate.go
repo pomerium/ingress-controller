@@ -48,7 +48,7 @@ func validate(ctx context.Context, cfg *pb.Config, id string) error {
 		filemgr.NewManager(),
 		nil,
 		nettest.SupportsIPv6())
-	bootstrap, err := builder.BuildBootstrap(ctx, pCfg, true)
+	bootstrap, err := builder.BuildBootstrap(ctx, pCfg, true, nil)
 	if err != nil {
 		return err
 	}
