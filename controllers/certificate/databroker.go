@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"sync"
 
 	"golang.org/x/sync/errgroup"
@@ -112,7 +113,11 @@ func (c *dataBrokerCollector) init(ctx context.Context) error {
 		var err error
 		c.keyPairServerVersion, c.keyPairRecordVersion, err = syncLatestRecords(ctx, c.controller.dataBrokerClient,
 			func(record *databrokerpb.Record, keyPair *configpb.KeyPair) {
-				certificateNames, routeNames := certificate.GetNamesFromConfig([]*configpb.KeyPair{keyPair}, nil, nil)
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					removeEmpty([]*configpb.KeyPair{keyPair}),
+					nil,
+					nil,
+				)
 				c.mu.Lock()
 				c.matcher.Update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 				c.mu.Unlock()
@@ -126,7 +131,11 @@ func (c *dataBrokerCollector) init(ctx context.Context) error {
 		var err error
 		c.routeServerVersion, c.routeRecordVersion, err = syncLatestRecords(ctx, c.controller.dataBrokerClient,
 			func(record *databrokerpb.Record, route *configpb.Route) {
-				certificateNames, routeNames := certificate.GetNamesFromConfig(nil, []*configpb.Route{route}, nil)
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					nil,
+					removeEmpty([]*configpb.Route{route}),
+					nil,
+				)
 				c.mu.Lock()
 				c.matcher.Update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 				c.mu.Unlock()
@@ -140,7 +149,11 @@ func (c *dataBrokerCollector) init(ctx context.Context) error {
 		var err error
 		c.settingsServerVersion, c.settingsRecordVersion, err = syncLatestRecords(ctx, c.controller.dataBrokerClient,
 			func(record *databrokerpb.Record, settings *configpb.Settings) {
-				certificateNames, routeNames := certificate.GetNamesFromConfig(nil, nil, []*configpb.Settings{settings})
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					nil,
+					nil,
+					removeEmpty([]*configpb.Settings{settings}),
+				)
 				c.mu.Lock()
 				c.matcher.Update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 				c.mu.Unlock()
@@ -158,7 +171,11 @@ func (c *dataBrokerCollector) init(ctx context.Context) error {
 				if record.GetId() == dataBrokerConfigRecordID {
 					return
 				}
-				certificateNames, routeNames := certificate.GetNamesFromConfig(nil, config.Routes, []*configpb.Settings{config.Settings})
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					nil,
+					removeEmpty(config.GetRoutes()),
+					removeEmpty([]*configpb.Settings{config.Settings}),
+				)
 				c.mu.Lock()
 				c.matcher.Update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 				c.mu.Unlock()
@@ -172,7 +189,11 @@ func (c *dataBrokerCollector) init(ctx context.Context) error {
 		var err error
 		c.versionedConfigServerVersion, c.versionedConfigRecordVersion, err = syncLatestRecords(ctx, c.controller.dataBrokerClient,
 			func(record *databrokerpb.Record, versionedConfig *configpb.VersionedConfig) {
-				certificateNames, routeNames := certificate.GetNamesFromConfig(nil, versionedConfig.Config.Routes, []*configpb.Settings{versionedConfig.Config.Settings})
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					nil,
+					removeEmpty(versionedConfig.GetConfig().GetRoutes()),
+					removeEmpty([]*configpb.Settings{versionedConfig.GetConfig().GetSettings()}),
+				)
 				c.mu.Lock()
 				c.matcher.Update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 				c.mu.Unlock()
@@ -370,4 +391,8 @@ func syncLatestRecords[T any, TMsg interface {
 	}
 
 	return serverVersion, recordVersion, err
+}
+
+func removeEmpty[T any, TPtr *T](s []TPtr) []TPtr {
+	return slices.DeleteFunc(s, func(e TPtr) bool { return e == nil })
 }
