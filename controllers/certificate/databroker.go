@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"sync"
 
 	"golang.org/x/sync/errgroup"
@@ -112,7 +113,11 @@ func (c *dataBrokerCollector) init(ctx context.Context) error {
 		var err error
 		c.keyPairServerVersion, c.keyPairRecordVersion, err = syncLatestRecords(ctx, c.controller.dataBrokerClient,
 			func(record *databrokerpb.Record, keyPair *configpb.KeyPair) {
-				certificateNames, routeNames := certificate.GetNamesFromConfig([]*configpb.KeyPair{keyPair}, nil, nil)
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					removeEmpty([]*configpb.KeyPair{keyPair}),
+					nil,
+					nil,
+				)
 				c.mu.Lock()
 				c.matcher.Update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 				c.mu.Unlock()
@@ -126,7 +131,11 @@ func (c *dataBrokerCollector) init(ctx context.Context) error {
 		var err error
 		c.routeServerVersion, c.routeRecordVersion, err = syncLatestRecords(ctx, c.controller.dataBrokerClient,
 			func(record *databrokerpb.Record, route *configpb.Route) {
-				certificateNames, routeNames := certificate.GetNamesFromConfig(nil, []*configpb.Route{route}, nil)
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					nil,
+					removeEmpty([]*configpb.Route{route}),
+					nil,
+				)
 				c.mu.Lock()
 				c.matcher.Update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 				c.mu.Unlock()
@@ -140,7 +149,11 @@ func (c *dataBrokerCollector) init(ctx context.Context) error {
 		var err error
 		c.settingsServerVersion, c.settingsRecordVersion, err = syncLatestRecords(ctx, c.controller.dataBrokerClient,
 			func(record *databrokerpb.Record, settings *configpb.Settings) {
-				certificateNames, routeNames := certificate.GetNamesFromConfig(nil, nil, []*configpb.Settings{settings})
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					nil,
+					nil,
+					removeEmpty([]*configpb.Settings{settings}),
+				)
 				c.mu.Lock()
 				c.matcher.Update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 				c.mu.Unlock()
@@ -158,7 +171,11 @@ func (c *dataBrokerCollector) init(ctx context.Context) error {
 				if record.GetId() == dataBrokerConfigRecordID {
 					return
 				}
-				certificateNames, routeNames := certificate.GetNamesFromConfig(nil, config.Routes, []*configpb.Settings{config.Settings})
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					nil,
+					removeEmpty(config.GetRoutes()),
+					removeEmpty([]*configpb.Settings{config.GetSettings()}),
+				)
 				c.mu.Lock()
 				c.matcher.Update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 				c.mu.Unlock()
@@ -172,7 +189,11 @@ func (c *dataBrokerCollector) init(ctx context.Context) error {
 		var err error
 		c.versionedConfigServerVersion, c.versionedConfigRecordVersion, err = syncLatestRecords(ctx, c.controller.dataBrokerClient,
 			func(record *databrokerpb.Record, versionedConfig *configpb.VersionedConfig) {
-				certificateNames, routeNames := certificate.GetNamesFromConfig(nil, versionedConfig.Config.Routes, []*configpb.Settings{versionedConfig.Config.Settings})
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					nil,
+					removeEmpty(versionedConfig.GetConfig().GetRoutes()),
+					removeEmpty([]*configpb.Settings{versionedConfig.GetConfig().GetSettings()}),
+				)
 				c.mu.Lock()
 				c.matcher.Update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 				c.mu.Unlock()
@@ -196,8 +217,8 @@ func (c *dataBrokerCollector) sync(ctx context.Context) error {
 
 		if err := c.controller.kubernetesClient.Status().Patch(ctx, &pomerium_ingress_v1.Pomerium{
 			ObjectMeta: meta_v1.ObjectMeta{
-				Namespace: c.controller.globalSettingsName.Namespace,
-				Name:      c.controller.globalSettingsName.Name,
+				Namespace: c.controller.cfg.globalSettingsName.Namespace,
+				Name:      c.controller.cfg.globalSettingsName.Name,
 			},
 			Status: pomerium_ingress_v1.PomeriumStatus{
 				CertificateAutoProvisionStatus: &pomerium_ingress_v1.CertificateAutoProvisionStatus{
@@ -205,8 +226,8 @@ func (c *dataBrokerCollector) sync(ctx context.Context) error {
 				},
 			},
 		}, client.MergeFrom(&pomerium_ingress_v1.Pomerium{ObjectMeta: meta_v1.ObjectMeta{
-			Namespace: c.controller.globalSettingsName.Namespace,
-			Name:      c.controller.globalSettingsName.Name,
+			Namespace: c.controller.cfg.globalSettingsName.Namespace,
+			Name:      c.controller.cfg.globalSettingsName.Name,
 		}})); err != nil {
 			log.FromContext(ctx).Error(err, "error creating event")
 		}
@@ -217,7 +238,11 @@ func (c *dataBrokerCollector) sync(ctx context.Context) error {
 		err := syncRecords(ctx, c.controller.dataBrokerClient,
 			c.keyPairServerVersion, c.keyPairRecordVersion,
 			func(record *databrokerpb.Record, keyPair *configpb.KeyPair) {
-				certificateNames, routeNames := certificate.GetNamesFromConfig([]*configpb.KeyPair{keyPair}, nil, nil)
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					removeEmpty([]*configpb.KeyPair{keyPair}),
+					nil,
+					nil,
+				)
 				update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 			})
 		if err != nil {
@@ -229,7 +254,11 @@ func (c *dataBrokerCollector) sync(ctx context.Context) error {
 		err := syncRecords(ctx, c.controller.dataBrokerClient,
 			c.routeServerVersion, c.routeRecordVersion,
 			func(record *databrokerpb.Record, route *configpb.Route) {
-				certificateNames, routeNames := certificate.GetNamesFromConfig(nil, []*configpb.Route{route}, nil)
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					nil,
+					removeEmpty([]*configpb.Route{route}),
+					nil,
+				)
 				update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 			})
 		if err != nil {
@@ -241,7 +270,11 @@ func (c *dataBrokerCollector) sync(ctx context.Context) error {
 		err := syncRecords(ctx, c.controller.dataBrokerClient,
 			c.settingsServerVersion, c.settingsRecordVersion,
 			func(record *databrokerpb.Record, settings *configpb.Settings) {
-				certificateNames, routeNames := certificate.GetNamesFromConfig(nil, nil, []*configpb.Settings{settings})
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					nil,
+					nil,
+					removeEmpty([]*configpb.Settings{settings}),
+				)
 				update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 			})
 		if err != nil {
@@ -257,7 +290,11 @@ func (c *dataBrokerCollector) sync(ctx context.Context) error {
 				if record.GetId() == dataBrokerConfigRecordID {
 					return
 				}
-				certificateNames, routeNames := certificate.GetNamesFromConfig(nil, config.Routes, []*configpb.Settings{config.Settings})
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					nil,
+					removeEmpty(config.GetRoutes()),
+					removeEmpty([]*configpb.Settings{config.Settings}),
+				)
 				update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 			})
 		if err != nil {
@@ -269,7 +306,11 @@ func (c *dataBrokerCollector) sync(ctx context.Context) error {
 		err := syncRecords(ctx, c.controller.dataBrokerClient,
 			c.versionedConfigServerVersion, c.versionedConfigRecordVersion,
 			func(record *databrokerpb.Record, versionedConfig *configpb.VersionedConfig) {
-				certificateNames, routeNames := certificate.GetNamesFromConfig(nil, versionedConfig.Config.Routes, []*configpb.Settings{versionedConfig.Config.Settings})
+				certificateNames, routeNames := certificate.GetNamesFromConfig(
+					nil,
+					removeEmpty(versionedConfig.GetConfig().GetRoutes()),
+					removeEmpty([]*configpb.Settings{versionedConfig.GetConfig().GetSettings()}),
+				)
 				update(recordKey{Type: record.GetType(), ID: record.GetId()}, certificateNames, routeNames)
 			})
 		if err != nil {
@@ -316,10 +357,13 @@ func syncRecords[T any, TMsg interface {
 		case *databrokerpb.SyncResponse_Record:
 			recordVersion = max(recordVersion, res.Record.Version)
 			var m T
-			err := res.Record.Data.UnmarshalTo(TMsg(&m))
-			if err == nil {
-				fn(res.Record, TMsg(&m))
+			// for deleted records just use an empty protobuf
+			if res.Record.GetDeletedAt() == nil {
+				if err := res.Record.Data.UnmarshalTo(TMsg(&m)); err != nil {
+					continue
+				}
 			}
+			fn(res.Record, TMsg(&m))
 		}
 	}
 
@@ -342,7 +386,7 @@ func syncLatestRecords[T any, TMsg interface {
 		Type: recordType,
 	})
 	if err != nil {
-		return 0, 0, fmt.Errorf("error syncing latest %s records", recordType)
+		return 0, 0, fmt.Errorf("error syncing latest %s records: %w", recordType, err)
 	}
 
 	for {
@@ -350,16 +394,16 @@ func syncLatestRecords[T any, TMsg interface {
 		if errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
-			return 0, 0, fmt.Errorf("error receiving latest %s record", recordType)
+			return 0, 0, fmt.Errorf("error receiving latest %s record: %w", recordType, err)
 		}
 
 		switch res := msg.Response.(type) {
 		case *databrokerpb.SyncLatestResponse_Record:
 			var m T
-			err := res.Record.Data.UnmarshalTo(TMsg(&m))
-			if err == nil {
-				fn(res.Record, TMsg(&m))
+			if err := res.Record.GetData().UnmarshalTo(TMsg(&m)); err != nil {
+				continue
 			}
+			fn(res.Record, TMsg(&m))
 		case *databrokerpb.SyncLatestResponse_Versions:
 			serverVersion = res.Versions.GetServerVersion()
 			recordVersion = res.Versions.GetLatestRecordVersion()
@@ -367,4 +411,8 @@ func syncLatestRecords[T any, TMsg interface {
 	}
 
 	return serverVersion, recordVersion, err
+}
+
+func removeEmpty[T any, TPtr *T](s []TPtr) []TPtr {
+	return slices.DeleteFunc(s, func(e TPtr) bool { return e == nil })
 }
