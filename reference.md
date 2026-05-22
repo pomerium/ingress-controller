@@ -839,7 +839,6 @@ IdentityProvider configure single-sign-on authentication and user identity detai
                     (namespace/name)
                 </p>
                 <p>
-                    <strong>Required.</strong>&#160;
                     Secret containing IdP provider specific parameters. and must contain at least <code>client_id</code> and <code>client_secret</code> values.
                 </p>
                 Format: reference to Kubernetes resource with namespace prefix: <code>namespace/name</code> format.
