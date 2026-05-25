@@ -2,6 +2,7 @@ namespace: pomerium
 resources:
   - ../default
   - ./service
+  - ./pdb.yaml
 patches:
   - patch: |-
       - op: replace
@@ -81,6 +82,24 @@ patches:
               resources:
                 requests:
                   storage: 1Gi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 500m
+      - op: add
+        path: /spec/template/spec/securityContext/fsGroup
+        value: 65532
+      - op: add
+        path: /spec/template/spec/securityContext/fsGroupChangePolicy
+        value: OnRootMismatch
+      - op: add
+        path: /spec/template/spec/affinity
+        value:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: pomerium
     target:
       group: apps
       version: v1
