@@ -8,6 +8,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	certmanager_v1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	certmanager_meta_v1 "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
@@ -20,6 +21,7 @@ import (
 	core_v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/rand"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -52,25 +54,14 @@ func NewCertificateController(
 	mgr controllerruntime.Manager,
 	dataBrokerClient databrokerpb.DataBrokerServiceClient,
 	options ...Option,
-) error {
+) {
 	c := &certificateController{
 		cfg:              getControllerConfig(options...),
 		kubernetesClient: mgr.GetClient(),
 		dataBrokerClient: dataBrokerClient,
 	}
 	c.dataBrokerCollector = newDataBrokerCollector(c)
-
-	err := controllerruntime.NewControllerManagedBy(mgr).
-		Named(c.cfg.controllerName).
-		Watches(new(core_v1.Secret), &handler.EnqueueRequestForObject{}).
-		Watches(new(pomerium_ingress_v1.Pomerium), &handler.EnqueueRequestForObject{}).
-		Watches(new(certmanager_v1.Certificate), &handler.EnqueueRequestForObject{}).
-		Complete(c)
-	if err != nil {
-		return fmt.Errorf("error building certificate controller: %w", err)
-	}
-
-	return nil
+	go c.run(mgr)
 }
 
 func (c *certificateController) Reconcile(ctx context.Context, _ controllerruntime.Request) (res controllerruntime.Result, err error) {
@@ -224,6 +215,43 @@ func (c *certificateController) reconcileSecrets(
 	}
 
 	return c.upsertConfig(ctx, cfg)
+}
+
+func (c *certificateController) run(mgr controllerruntime.Manager) {
+	ctx := context.Background()
+
+	// wait for all the CRDs to be available
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for _, gvk := range []schema.GroupVersionKind{
+		schema.FromAPIVersionAndKind("cert-manager.io/v1", "Certificate"),
+		schema.FromAPIVersionAndKind("ingress.pomerium.io/v1", "Pomerium"),
+	} {
+		for i := 0; ; i++ {
+			_, err := mgr.GetCache().GetInformerForKind(ctx, gvk)
+			if err == nil {
+				break
+			}
+			if i == 0 {
+				log.FromContext(ctx).
+					Info("certificate-controller: required CRD does not exist, the certificate controller will not run until it is created",
+						"controller", c.cfg.controllerName,
+						"group-version-kind", gvk.String())
+			}
+			<-ticker.C
+		}
+	}
+
+	err := controllerruntime.NewControllerManagedBy(mgr).
+		Named(c.cfg.controllerName).
+		Watches(new(core_v1.Secret), &handler.EnqueueRequestForObject{}).
+		Watches(new(pomerium_ingress_v1.Pomerium), &handler.EnqueueRequestForObject{}).
+		Watches(new(certmanager_v1.Certificate), &handler.EnqueueRequestForObject{}).
+		Complete(c)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "error building certificate controller")
+	}
 }
 
 func (c *certificateController) createCertificate(

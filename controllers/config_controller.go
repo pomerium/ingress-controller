@@ -93,11 +93,9 @@ func (c *Controller) RunLeased(ctx context.Context) (err error) {
 		if err = settings.NewSettingsController(mgr, c.Reconciler, *c.GlobalSettings, "pomerium-crd", true, health_ctrl.SettingsReconciler); err != nil {
 			return fmt.Errorf("create settings controller: %w", err)
 		}
-		if err = certificate.NewCertificateController(mgr, c.DataBrokerServiceClient,
+		certificate.NewCertificateController(mgr, c.DataBrokerServiceClient,
 			certificate.WithControllerName(c.CertificateControllerName),
-			certificate.WithGlobalSettingsName(*c.GlobalSettings)); err != nil {
-			return fmt.Errorf("error creating certificate controller: %w", err)
-		}
+			certificate.WithGlobalSettingsName(*c.GlobalSettings))
 	} else {
 		log.FromContext(ctx).V(1).Info("no Pomerium CRD")
 	}
