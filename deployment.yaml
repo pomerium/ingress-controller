@@ -755,6 +755,15 @@ spec:
             required:
             - secrets
             type: object
+            x-kubernetes-validations:
+            - fieldPath: .authenticate
+              message: authenticate is required if identityProvider is set
+              reason: FieldValueRequired
+              rule: '!has(self.identityProvider) || has(self.authenticate)'
+            - fieldPath: .identityProvider
+              message: identityProvider is required if authenticate is set
+              reason: FieldValueRequired
+              rule: '!has(self.authenticate) || has(self.identityProvider)'
           status:
             description: PomeriumStatus represents configuration and Ingress status.
             properties:

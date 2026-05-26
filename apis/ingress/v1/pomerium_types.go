@@ -221,6 +221,8 @@ type DownstreamMTLS struct {
 }
 
 // PomeriumSpec defines Pomerium-specific configuration parameters.
+// +kubebuilder:validation:XValidation:rule="!has(self.identityProvider) || has(self.authenticate)",message="authenticate is required if identityProvider is set",reason="FieldValueRequired",fieldPath=".authenticate"
+// +kubebuilder:validation:XValidation:rule="!has(self.authenticate) || has(self.identityProvider)",message="identityProvider is required if authenticate is set",reason="FieldValueRequired",fieldPath=".identityProvider"
 type PomeriumSpec struct {
 	// AccessLogFields sets the <a href="https://www.pomerium.com/docs/reference/access-log-fields">access fields</a> to log.
 	AccessLogFields *[]string `json:"accessLogFields,omitempty"`
