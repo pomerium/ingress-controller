@@ -120,31 +120,34 @@ func (s *ControllerTestSuite) TestValidation() {
 	for i, tc := range []struct {
 		name        string
 		spec        icsv1.PomeriumSpec
-		expectError bool
+		expectError string
 	}{
-		{"empty spec", icsv1.PomeriumSpec{}, true},
+		{"empty spec", icsv1.PomeriumSpec{}, "spec.secrets in body should be at least 1 chars long"},
 		{"ok spec", icsv1.PomeriumSpec{
 			Authenticate:     auth,
 			IdentityProvider: idp,
 			Secrets:          "pomerium/default-secrets",
-		}, false},
+		}, ""},
 		{"secrets required", icsv1.PomeriumSpec{
 			Authenticate:     auth,
 			IdentityProvider: idp,
-		}, true},
+		}, "spec.secrets in body should be at least 1 chars long"},
 		{"invalid auth url", icsv1.PomeriumSpec{
 			Authenticate:     &icsv1.Authenticate{URL: "hostname"},
 			IdentityProvider: idp,
 			Secrets:          "pomerium/default-secrets",
-		}, true},
-		{"auth may be omitted", icsv1.PomeriumSpec{
+		}, "spec.authenticate.url in body must be of type uri"},
+		{"auth and idp may be omitted", icsv1.PomeriumSpec{
+			Secrets: "pomerium/default-secrets",
+		}, ""},
+		{"auth required if idp present", icsv1.PomeriumSpec{
 			IdentityProvider: idp,
 			Secrets:          "pomerium/default-secrets",
-		}, false},
-		{"idp may be optional", icsv1.PomeriumSpec{
+		}, "authenticate is required if identityProvider is set"},
+		{"idp required if auth present", icsv1.PomeriumSpec{
 			Authenticate: auth,
 			Secrets:      "pomerium/default-secrets",
-		}, false},
+		}, "identityProvider is required if authenticate is set"},
 		{"idp secret required", icsv1.PomeriumSpec{
 			Authenticate: auth,
 			Secrets:      "pomerium/default-secrets",
@@ -152,7 +155,7 @@ func (s *ControllerTestSuite) TestValidation() {
 				Secret:   "",
 				Provider: "oidc",
 			},
-		}, true},
+		}, "spec.identityProvider.secret in body should be at least 1 chars long"},
 		{"idp provider required", icsv1.PomeriumSpec{
 			Authenticate: auth,
 			IdentityProvider: &icsv1.IdentityProvider{
@@ -160,7 +163,7 @@ func (s *ControllerTestSuite) TestValidation() {
 				Provider: "",
 			},
 			Secrets: "pomerium/default-secrets",
-		}, true},
+		}, `spec.identityProvider.provider: Unsupported value: ""`},
 		{"idp provider enum", icsv1.PomeriumSpec{
 			Authenticate: auth,
 			IdentityProvider: &icsv1.IdentityProvider{
@@ -168,15 +171,15 @@ func (s *ControllerTestSuite) TestValidation() {
 				Provider: "invalid",
 			},
 			Secrets: "pomerium/default-secrets",
-		}, true},
+		}, `spec.identityProvider.provider: Unsupported value: "invalid"`},
 	} {
 		s.T().Run(tc.name, func(t *testing.T) {
 			err := s.Client.Create(ctx, &icsv1.Pomerium{
 				ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("settings-%d", i), Namespace: "default"},
 				Spec:       tc.spec,
 			})
-			if tc.expectError {
-				assert.Error(t, err)
+			if tc.expectError != "" {
+				assert.ErrorContains(t, err, tc.expectError)
 			} else {
 				assert.NoError(t, err)
 			}
