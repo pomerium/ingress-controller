@@ -18,7 +18,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.16.1
-	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260522192019-ae2f05ab3e95
+	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260526142609-3094c1c57aff
 	github.com/pomerium/sdk-go v0.0.10-0.20260407162330-4596c91f544d
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
@@ -239,7 +239,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/pomerium/datasource v0.18.2-0.20260513141340-e0e123819aa8 // indirect
+	github.com/pomerium/datasource v0.18.2-0.20260522171636-b4b4ac7fe219 // indirect
 	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260519214603-7724aff26b06 // indirect
 	github.com/pomerium/protoutil v0.0.0-20260508203012-e09f8af90da5 // indirect
 	github.com/pomerium/webauthn v0.0.0-20260508203114-e4bd6034c565 // indirect
