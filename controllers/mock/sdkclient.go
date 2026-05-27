@@ -252,6 +252,21 @@ func (mr *MockSDKClientMockRecorder) GetSettings(arg0, arg1 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSettings", reflect.TypeOf((*MockSDKClient)(nil).GetSettings), arg0, arg1)
 }
 
+// ListAvailableLogFields mocks base method.
+func (m *MockSDKClient) ListAvailableLogFields(arg0 context.Context, arg1 *connect.Request[pomerium.ListAvailableLogFieldsRequest]) (*connect.Response[pomerium.ListAvailableLogFieldsResponse], error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListAvailableLogFields", arg0, arg1)
+	ret0, _ := ret[0].(*connect.Response[pomerium.ListAvailableLogFieldsResponse])
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListAvailableLogFields indicates an expected call of ListAvailableLogFields.
+func (mr *MockSDKClientMockRecorder) ListAvailableLogFields(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAvailableLogFields", reflect.TypeOf((*MockSDKClient)(nil).ListAvailableLogFields), arg0, arg1)
+}
+
 // ListKeyPairs mocks base method.
 func (m *MockSDKClient) ListKeyPairs(arg0 context.Context, arg1 *connect.Request[pomerium.ListKeyPairsRequest]) (*connect.Response[pomerium.ListKeyPairsResponse], error) {
 	m.ctrl.T.Helper()
