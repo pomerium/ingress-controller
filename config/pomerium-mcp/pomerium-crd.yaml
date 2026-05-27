@@ -1,0 +1,22 @@
+#
+# Pomerium global config CR for the pomerium-mcp instance.
+# Cluster-scoped and applied separately from the kustomization:
+#
+#   kubectl apply -k config/pomerium-mcp
+#   kubectl apply -f config/pomerium-mcp/pomerium-crd.yaml
+#
+# The StatefulSet's `--pomerium-config=global-mcp` flag binds it to this CR.
+# `storage.file.path` lives on the PVC mounted at /data so the databroker
+# survives pod restarts.
+#
+apiVersion: ingress.pomerium.io/v1
+kind: Pomerium
+metadata:
+  name: global-mcp
+spec:
+  secrets: pomerium-mcp/bootstrap
+  storage:
+    file:
+      path: /data/pomerium.db
+  runtimeFlags:
+    mcp: true

@@ -1,0 +1,35 @@
+#
+# Second Pomerium Ingress Controller instance, fully segregated from the default install:
+#   namespace          pomerium-mcp
+#   IngressClass       pomerium-mcp        (controller: pomerium.io/ingress-controller-mcp)
+#   StatefulSet + PVC  for file-based databroker persistence
+#
+# The Pomerium global config CR (`global-mcp`) is customer-specific and lives
+# in pomerium-crd.yaml as a sibling — applied separately, not via this kustomization.
+#
+# Layout:
+#   ../crd installs the CRD schemas, mirroring config/default.
+#   namespace.yaml + ingressclass.yaml are top-level resources whose names must
+#     stay exact, so they sit outside the inner namePrefix scope.
+#   ../pomerium/service is reused as-is — commonLabels rewrites the selector so
+#     it matches our renamed pods.
+#   ./inner pulls in ../../pomerium/rbac and ../../gen_secrets and applies a
+#     namePrefix so the cluster-scoped ClusterRole/Binding don't collide with
+#     the default install.
+#   The image override is set once here so both the StatefulSet and the
+#     gen-secrets Job pick up the same SHA.
+#
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: pomerium-mcp
+commonLabels:
+  app.kubernetes.io/name: pomerium-mcp
+images:
+  - name: pomerium/ingress-controller
+    newTag: sha-3fddd34
+resources:
+  - ../crd
+  - namespace.yaml
+  - ingressclass.yaml
+  - ../pomerium/service
+  - ./inner
