@@ -23,9 +23,7 @@ import (
 // NewInMemoryDataBroker creates a new in-memory databroker.
 func NewInMemoryDataBroker(tb testing.TB) databrokerpb.DataBrokerServiceClient {
 	key := bytes.Repeat([]byte{0x01}, 32)
-	cfg := &config.Config{
-		Options: config.NewDefaultOptions(),
-	}
+	cfg := config.New(config.NewDefaultOptions())
 	cfg.Options.SharedKey = base64.StdEncoding.EncodeToString(key)
 	srv := databroker.NewServer(noop.NewTracerProvider(), cfg)
 	srv.OnConfigChange(tb.Context(), cfg)
