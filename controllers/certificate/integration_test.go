@@ -128,12 +128,12 @@ func (s *ControllerTestSuite) startController(ctx context.Context, client databr
 		},
 	})
 	s.NoError(err)
-	s.NoError(certificate.NewCertificateController(
+	certificate.NewCertificateController(
 		mgr,
 		client,
 		certificate.WithGlobalSettingsName(types.NamespacedName{Name: testGlobalSettingsName}),
 		certificate.WithNamespace(testNamespace),
-	))
+	)
 
 	go func() {
 		if err := mgr.Start(ctx); err != nil && ctx.Err() == nil {
