@@ -18,6 +18,7 @@ update-pomerium() {
 	require-command go
 
 	go get -u github.com/pomerium/pomerium@main
+	go get -u github.com/pomerium/sdk-go@main
 	go mod tidy
 
 	popd
