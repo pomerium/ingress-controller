@@ -218,7 +218,7 @@ func (s *allCmdParam) run(ctx context.Context) error {
 
 	eg, ctx := errgroup.WithContext(ctx)
 	cfgCtl := util.NewRestartOnChange[*config.Config]()
-	runner, err := pomerium_ctrl.NewPomeriumRunner(s.cfg, cfgCtl.OnConfigUpdated)
+	runner, err := pomerium_ctrl.NewPomeriumRunner(s.cfg, cfgCtl.OnConfigUpdated, s.syncAPIURL)
 	if err != nil {
 		return fmt.Errorf("preparing to run pomerium: %w", err)
 	}
@@ -339,7 +339,10 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 	client := databroker.NewDataBrokerServiceClient(conn)
 	var reconciler pomerium.Reconciler
 	if s.syncAPIURL != "" {
-		reconciler = pomerium.NewAPIReconciler(s.syncAPIURL, s.syncAPIToken)
+		reconciler, err = pomerium.NewAPIReconciler(s.syncAPIURL, s.syncAPIToken)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		reconciler = pomerium.NewDataBrokerReconciler(client, s.dumpConfigDiff)
 	}
@@ -365,9 +368,14 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 	return c, nil
 }
 
+type bootstrapReconciler interface {
+	pomerium.ConfigReconciler
+	pomerium.IngressReconciler
+}
+
 // runBootstrapConfigController runs a controller that only listens to changes in SettingsCRD
 // related to pomerium bootstrap parameters
-func (s *allCmdParam) runBootstrapConfigController(ctx context.Context, reconciler pomerium.ConfigReconciler) error {
+func (s *allCmdParam) runBootstrapConfigController(ctx context.Context, reconciler bootstrapReconciler) error {
 	scheme, err := getScheme()
 	if err != nil {
 		return err
@@ -389,9 +397,15 @@ func (s *allCmdParam) runBootstrapConfigController(ctx context.Context, reconcil
 	if host, err := os.Hostname(); err == nil {
 		name = fmt.Sprintf("%s pod/%s", name, host)
 	}
-	// TODO: do we need to disable the bootstrap config controller when syncing via the API?
 	if err := settings.NewSettingsController(mgr, reconciler, s.settings, name, false, health_ctrl.SettingsBootstrapReconciler); err != nil {
 		return fmt.Errorf("settings controller: %w", err)
+	}
+	if s.syncAPIURL != "" {
+		// When using the sync API in all-in-one mode, also register a bootstrap
+		// ingress controller, in case we need a route to the sync API itself.
+		if err := ingress.NewIngressController(mgr, reconciler); err != nil {
+			return fmt.Errorf("ingress controller: %w", err)
+		}
 	}
 	return mgr.Start(ctx)
 }

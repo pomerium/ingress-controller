@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pomerium/pomerium/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/volatiletech/null/v9"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -17,7 +19,7 @@ import (
 
 	"github.com/pomerium/ingress-controller/internal/filemgr"
 	"github.com/pomerium/ingress-controller/model"
-	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/ingress-controller/pomerium"
 )
 
 // Apply prepares a minimal bootstrap configuration for Pomerium
@@ -209,5 +211,19 @@ func applySecrets(_ context.Context, dst *config.Options, src *model.Config) err
 		*secret.sp = txt
 	}
 
+	return nil
+}
+
+// ApplyAdditional propagates additional core bootstrap settings, needed when
+// running all-in-one mode together with Enterprise API sync.
+func ApplyAdditional(ctx context.Context, dst *config.Options, src *model.Config) error {
+	// XXX: for now just sync everything
+	var pbConfig configpb.Config
+	if err := pomerium.ApplyConfig(ctx, &pbConfig, src); err != nil {
+		return err
+	}
+	// except certificates, these are handled separately
+	pbConfig.Settings.Certificates = nil
+	dst.ApplySettings(ctx, nil, pbConfig.Settings)
 	return nil
 }

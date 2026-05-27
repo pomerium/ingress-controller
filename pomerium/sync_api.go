@@ -2,9 +2,14 @@ package pomerium
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"maps"
+	"net"
+	"net/http"
 	"slices"
 	"strconv"
 	"strings"
@@ -24,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/derivecert"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/sdk-go"
 
@@ -36,14 +42,61 @@ import (
 // for the given API url and API token.
 func NewAPIReconciler(
 	url, token string,
-) Reconciler {
-	client := sdk.NewClient(
+) (Reconciler, error) {
+	opts := []sdk.ClientOption{
 		sdk.WithURL(url),
-		sdk.WithAPIToken(token))
-	return &APIReconciler{
-		apiClient:  client,
-		secretsMap: model.NewTLSSecretsMap(),
+		sdk.WithAPIToken(token),
 	}
+	if key, ok := parseTokenAsKey(token); ok {
+		certPool, err := getCertPoolWithDerivedCA(key)
+		if err != nil {
+			return nil, err
+		}
+		tlsConfig := &tls.Config{
+			RootCAs: certPool,
+			//ServerName: "*", // XXX
+			InsecureSkipVerify: true, // XXX
+		}
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return tls.Dial("tcp", "localhost:8443", tlsConfig)
+		}
+		opts = append(opts, sdk.WithHTTPClient(&http.Client{
+			Transport: transport,
+		}))
+	}
+
+	return &APIReconciler{
+		apiClient:  sdk.NewClient(opts...),
+		secretsMap: model.NewTLSSecretsMap(),
+	}, nil
+}
+
+func parseTokenAsKey(str string) (key []byte, ok bool) {
+	key, err := base64.StdEncoding.DecodeString(str)
+	if err != nil || len(key) != 32 {
+		return nil, false
+	}
+	return key, true
+}
+
+func getCertPoolWithDerivedCA(key []byte) (*x509.CertPool, error) {
+	certPool, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, err
+	}
+	ca, err := derivecert.NewCA(key)
+	if err != nil {
+		return nil, err
+	}
+	caPEM, err := ca.PEM()
+	if err != nil {
+		return nil, err
+	}
+	if !certPool.AppendCertsFromPEM(caPEM.Cert) {
+		return nil, fmt.Errorf("couldn't add derived cert to cert pool")
+	}
+	return certPool, nil
 }
 
 var (
@@ -635,12 +688,18 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *configpb.Rout
 		if err == nil {
 			route.Id = resp.Msg.Route.Id
 			return true, nil
-		} else if connect.CodeOf(err) != connect.CodeAlreadyExists {
+		}
+		// If we already created a route, but failed to save the ID annotation,
+		// we may get either an already_exists error (there is a name uniqueness
+		// constraint in Pomerium Zero), or a failed_precondition error (there is
+		// a route 'From' overlap check in Pomerium Enterprise). Any other error
+		// should be returned as is.
+		errCode := connect.CodeOf(err)
+		if errCode != connect.CodeAlreadyExists && errCode != connect.CodeFailedPrecondition {
 			return false, err
 		}
 
-		// If we already created a route, but failed to save the ID annotation,
-		// attempt to look up the route by name.
+		// Attempt to look up the route by name.
 		existing, err = r.findRouteByName(ctx, route.GetName())
 		if err != nil {
 			return false, err

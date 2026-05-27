@@ -15,12 +15,30 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/pomerium/pomerium/config"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 
 	"github.com/pomerium/ingress-controller/model"
 )
 
-// ingressToRoutes converts Ingress object into Pomerium Route
+// IngressToRoutes converts Ingress object into Pomerium Routes
+func IngressToRoutes(ctx context.Context, ic *model.IngressConfig) ([]config.Policy, error) {
+	pbRoutes, err := ingressToRoutes(ctx, ic)
+	if err != nil {
+		return nil, err
+	}
+	routes := make([]config.Policy, len(pbRoutes))
+	for i := range pbRoutes {
+		r, err := config.NewPolicyFromProto(pbRoutes[i])
+		if err != nil {
+			return nil, err
+		}
+		routes[i] = *r
+	}
+	return routes, nil
+}
+
+// ingressToRoutes converts Ingress object into Pomerium Routes
 func ingressToRoutes(ctx context.Context, ic *model.IngressConfig) (routeList, error) {
 	tmpl := &pb.Route{}
 

@@ -24,6 +24,7 @@ var (
 var (
 	cmpOpts = []cmp.Option{
 		cmpopts.IgnoreUnexported(config.Options{}),
+		cmpopts.IgnoreUnexported(config.Policy{}),
 		cmpopts.EquateEmpty(),
 	}
 )
