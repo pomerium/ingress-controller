@@ -383,7 +383,8 @@ type PomeriumSpec struct {
 
 	// CertificateAutoProvision sets the certificate auto provision settings.
 	// This is a fallback for routes that are not defined via Ingress or
-	// Gateway resources.
+	// Gateway resources. When configured, cert-manager certificate resources
+	// will be created for any routes which have no matching TLS certificate.
 	//
 	// +kubebuilder:validation:Optional
 	CertificateAutoProvision *CertificateAutoProvision `json:"certificateAutoProvision,omitzero"`
@@ -547,9 +548,16 @@ type SSH struct {
 
 // CertificateAutoProvision are the settings for automatically provisioning certificates.
 type CertificateAutoProvision struct {
+	// The cert-manager ClusterIssuer that will be used for new certificates.
+	// Certificates will be created in the same namespace as the controller
+	// pod.
+	//
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinLength=1
 	ClusterIssuer *string `json:"clusterIssuer"`
+	// The cert-manager Issuer that will be used for new certificates.
+	// Certificates will be created in the same namespace as the Issuer.
+	//
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Format="namespace/name"
