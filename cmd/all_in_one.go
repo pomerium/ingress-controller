@@ -243,7 +243,7 @@ func (s *allCmdParam) run(ctx context.Context) error {
 }
 
 func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
-	s.cfg.Options = config.NewDefaultOptions()
+	s.cfg = *config.New(config.NewDefaultOptions())
 
 	s.cfg.Options.Services = strings.Join(opt.services, ",")
 	s.cfg.Options.Addr = opt.serverAddr
