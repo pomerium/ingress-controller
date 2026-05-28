@@ -14,7 +14,7 @@ import (
 	reflect "reflect"
 
 	connect "connectrpc.com/connect"
-	pomerium "github.com/pomerium/sdk-go/proto/pomerium"
+	config "github.com/pomerium/pomerium/pkg/grpc/config"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -43,10 +43,10 @@ func (m *MockSDKClient) EXPECT() *MockSDKClientMockRecorder {
 }
 
 // CreateKeyPair mocks base method.
-func (m *MockSDKClient) CreateKeyPair(arg0 context.Context, arg1 *connect.Request[pomerium.CreateKeyPairRequest]) (*connect.Response[pomerium.CreateKeyPairResponse], error) {
+func (m *MockSDKClient) CreateKeyPair(arg0 context.Context, arg1 *connect.Request[config.CreateKeyPairRequest]) (*connect.Response[config.CreateKeyPairResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateKeyPair", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.CreateKeyPairResponse])
+	ret0, _ := ret[0].(*connect.Response[config.CreateKeyPairResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -58,10 +58,10 @@ func (mr *MockSDKClientMockRecorder) CreateKeyPair(arg0, arg1 any) *gomock.Call 
 }
 
 // CreatePolicy mocks base method.
-func (m *MockSDKClient) CreatePolicy(arg0 context.Context, arg1 *connect.Request[pomerium.CreatePolicyRequest]) (*connect.Response[pomerium.CreatePolicyResponse], error) {
+func (m *MockSDKClient) CreatePolicy(arg0 context.Context, arg1 *connect.Request[config.CreatePolicyRequest]) (*connect.Response[config.CreatePolicyResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreatePolicy", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.CreatePolicyResponse])
+	ret0, _ := ret[0].(*connect.Response[config.CreatePolicyResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -73,10 +73,10 @@ func (mr *MockSDKClientMockRecorder) CreatePolicy(arg0, arg1 any) *gomock.Call {
 }
 
 // CreateRoute mocks base method.
-func (m *MockSDKClient) CreateRoute(arg0 context.Context, arg1 *connect.Request[pomerium.CreateRouteRequest]) (*connect.Response[pomerium.CreateRouteResponse], error) {
+func (m *MockSDKClient) CreateRoute(arg0 context.Context, arg1 *connect.Request[config.CreateRouteRequest]) (*connect.Response[config.CreateRouteResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateRoute", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.CreateRouteResponse])
+	ret0, _ := ret[0].(*connect.Response[config.CreateRouteResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -88,10 +88,10 @@ func (mr *MockSDKClientMockRecorder) CreateRoute(arg0, arg1 any) *gomock.Call {
 }
 
 // CreateServiceAccount mocks base method.
-func (m *MockSDKClient) CreateServiceAccount(arg0 context.Context, arg1 *connect.Request[pomerium.CreateServiceAccountRequest]) (*connect.Response[pomerium.CreateServiceAccountResponse], error) {
+func (m *MockSDKClient) CreateServiceAccount(arg0 context.Context, arg1 *connect.Request[config.CreateServiceAccountRequest]) (*connect.Response[config.CreateServiceAccountResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateServiceAccount", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.CreateServiceAccountResponse])
+	ret0, _ := ret[0].(*connect.Response[config.CreateServiceAccountResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -103,10 +103,10 @@ func (mr *MockSDKClientMockRecorder) CreateServiceAccount(arg0, arg1 any) *gomoc
 }
 
 // DeleteKeyPair mocks base method.
-func (m *MockSDKClient) DeleteKeyPair(arg0 context.Context, arg1 *connect.Request[pomerium.DeleteKeyPairRequest]) (*connect.Response[pomerium.DeleteKeyPairResponse], error) {
+func (m *MockSDKClient) DeleteKeyPair(arg0 context.Context, arg1 *connect.Request[config.DeleteKeyPairRequest]) (*connect.Response[config.DeleteKeyPairResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteKeyPair", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.DeleteKeyPairResponse])
+	ret0, _ := ret[0].(*connect.Response[config.DeleteKeyPairResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -118,10 +118,10 @@ func (mr *MockSDKClientMockRecorder) DeleteKeyPair(arg0, arg1 any) *gomock.Call 
 }
 
 // DeletePolicy mocks base method.
-func (m *MockSDKClient) DeletePolicy(arg0 context.Context, arg1 *connect.Request[pomerium.DeletePolicyRequest]) (*connect.Response[pomerium.DeletePolicyResponse], error) {
+func (m *MockSDKClient) DeletePolicy(arg0 context.Context, arg1 *connect.Request[config.DeletePolicyRequest]) (*connect.Response[config.DeletePolicyResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeletePolicy", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.DeletePolicyResponse])
+	ret0, _ := ret[0].(*connect.Response[config.DeletePolicyResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -133,10 +133,10 @@ func (mr *MockSDKClientMockRecorder) DeletePolicy(arg0, arg1 any) *gomock.Call {
 }
 
 // DeleteRoute mocks base method.
-func (m *MockSDKClient) DeleteRoute(arg0 context.Context, arg1 *connect.Request[pomerium.DeleteRouteRequest]) (*connect.Response[pomerium.DeleteRouteResponse], error) {
+func (m *MockSDKClient) DeleteRoute(arg0 context.Context, arg1 *connect.Request[config.DeleteRouteRequest]) (*connect.Response[config.DeleteRouteResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteRoute", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.DeleteRouteResponse])
+	ret0, _ := ret[0].(*connect.Response[config.DeleteRouteResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -148,10 +148,10 @@ func (mr *MockSDKClientMockRecorder) DeleteRoute(arg0, arg1 any) *gomock.Call {
 }
 
 // DeleteServiceAccount mocks base method.
-func (m *MockSDKClient) DeleteServiceAccount(arg0 context.Context, arg1 *connect.Request[pomerium.DeleteServiceAccountRequest]) (*connect.Response[pomerium.DeleteServiceAccountResponse], error) {
+func (m *MockSDKClient) DeleteServiceAccount(arg0 context.Context, arg1 *connect.Request[config.DeleteServiceAccountRequest]) (*connect.Response[config.DeleteServiceAccountResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteServiceAccount", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.DeleteServiceAccountResponse])
+	ret0, _ := ret[0].(*connect.Response[config.DeleteServiceAccountResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -163,10 +163,10 @@ func (mr *MockSDKClientMockRecorder) DeleteServiceAccount(arg0, arg1 any) *gomoc
 }
 
 // GetKeyPair mocks base method.
-func (m *MockSDKClient) GetKeyPair(arg0 context.Context, arg1 *connect.Request[pomerium.GetKeyPairRequest]) (*connect.Response[pomerium.GetKeyPairResponse], error) {
+func (m *MockSDKClient) GetKeyPair(arg0 context.Context, arg1 *connect.Request[config.GetKeyPairRequest]) (*connect.Response[config.GetKeyPairResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetKeyPair", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.GetKeyPairResponse])
+	ret0, _ := ret[0].(*connect.Response[config.GetKeyPairResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -178,10 +178,10 @@ func (mr *MockSDKClientMockRecorder) GetKeyPair(arg0, arg1 any) *gomock.Call {
 }
 
 // GetPolicy mocks base method.
-func (m *MockSDKClient) GetPolicy(arg0 context.Context, arg1 *connect.Request[pomerium.GetPolicyRequest]) (*connect.Response[pomerium.GetPolicyResponse], error) {
+func (m *MockSDKClient) GetPolicy(arg0 context.Context, arg1 *connect.Request[config.GetPolicyRequest]) (*connect.Response[config.GetPolicyResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPolicy", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.GetPolicyResponse])
+	ret0, _ := ret[0].(*connect.Response[config.GetPolicyResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -193,10 +193,10 @@ func (mr *MockSDKClientMockRecorder) GetPolicy(arg0, arg1 any) *gomock.Call {
 }
 
 // GetRoute mocks base method.
-func (m *MockSDKClient) GetRoute(arg0 context.Context, arg1 *connect.Request[pomerium.GetRouteRequest]) (*connect.Response[pomerium.GetRouteResponse], error) {
+func (m *MockSDKClient) GetRoute(arg0 context.Context, arg1 *connect.Request[config.GetRouteRequest]) (*connect.Response[config.GetRouteResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRoute", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.GetRouteResponse])
+	ret0, _ := ret[0].(*connect.Response[config.GetRouteResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -208,10 +208,10 @@ func (mr *MockSDKClientMockRecorder) GetRoute(arg0, arg1 any) *gomock.Call {
 }
 
 // GetServerInfo mocks base method.
-func (m *MockSDKClient) GetServerInfo(arg0 context.Context, arg1 *connect.Request[pomerium.GetServerInfoRequest]) (*connect.Response[pomerium.GetServerInfoResponse], error) {
+func (m *MockSDKClient) GetServerInfo(arg0 context.Context, arg1 *connect.Request[config.GetServerInfoRequest]) (*connect.Response[config.GetServerInfoResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServerInfo", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.GetServerInfoResponse])
+	ret0, _ := ret[0].(*connect.Response[config.GetServerInfoResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -223,10 +223,10 @@ func (mr *MockSDKClientMockRecorder) GetServerInfo(arg0, arg1 any) *gomock.Call 
 }
 
 // GetServiceAccount mocks base method.
-func (m *MockSDKClient) GetServiceAccount(arg0 context.Context, arg1 *connect.Request[pomerium.GetServiceAccountRequest]) (*connect.Response[pomerium.GetServiceAccountResponse], error) {
+func (m *MockSDKClient) GetServiceAccount(arg0 context.Context, arg1 *connect.Request[config.GetServiceAccountRequest]) (*connect.Response[config.GetServiceAccountResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceAccount", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.GetServiceAccountResponse])
+	ret0, _ := ret[0].(*connect.Response[config.GetServiceAccountResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -238,10 +238,10 @@ func (mr *MockSDKClientMockRecorder) GetServiceAccount(arg0, arg1 any) *gomock.C
 }
 
 // GetSettings mocks base method.
-func (m *MockSDKClient) GetSettings(arg0 context.Context, arg1 *connect.Request[pomerium.GetSettingsRequest]) (*connect.Response[pomerium.GetSettingsResponse], error) {
+func (m *MockSDKClient) GetSettings(arg0 context.Context, arg1 *connect.Request[config.GetSettingsRequest]) (*connect.Response[config.GetSettingsResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSettings", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.GetSettingsResponse])
+	ret0, _ := ret[0].(*connect.Response[config.GetSettingsResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -253,10 +253,10 @@ func (mr *MockSDKClientMockRecorder) GetSettings(arg0, arg1 any) *gomock.Call {
 }
 
 // ListAvailableLogFields mocks base method.
-func (m *MockSDKClient) ListAvailableLogFields(arg0 context.Context, arg1 *connect.Request[pomerium.ListAvailableLogFieldsRequest]) (*connect.Response[pomerium.ListAvailableLogFieldsResponse], error) {
+func (m *MockSDKClient) ListAvailableLogFields(arg0 context.Context, arg1 *connect.Request[config.ListAvailableLogFieldsRequest]) (*connect.Response[config.ListAvailableLogFieldsResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListAvailableLogFields", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.ListAvailableLogFieldsResponse])
+	ret0, _ := ret[0].(*connect.Response[config.ListAvailableLogFieldsResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -268,10 +268,10 @@ func (mr *MockSDKClientMockRecorder) ListAvailableLogFields(arg0, arg1 any) *gom
 }
 
 // ListKeyPairs mocks base method.
-func (m *MockSDKClient) ListKeyPairs(arg0 context.Context, arg1 *connect.Request[pomerium.ListKeyPairsRequest]) (*connect.Response[pomerium.ListKeyPairsResponse], error) {
+func (m *MockSDKClient) ListKeyPairs(arg0 context.Context, arg1 *connect.Request[config.ListKeyPairsRequest]) (*connect.Response[config.ListKeyPairsResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListKeyPairs", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.ListKeyPairsResponse])
+	ret0, _ := ret[0].(*connect.Response[config.ListKeyPairsResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -283,10 +283,10 @@ func (mr *MockSDKClientMockRecorder) ListKeyPairs(arg0, arg1 any) *gomock.Call {
 }
 
 // ListPolicies mocks base method.
-func (m *MockSDKClient) ListPolicies(arg0 context.Context, arg1 *connect.Request[pomerium.ListPoliciesRequest]) (*connect.Response[pomerium.ListPoliciesResponse], error) {
+func (m *MockSDKClient) ListPolicies(arg0 context.Context, arg1 *connect.Request[config.ListPoliciesRequest]) (*connect.Response[config.ListPoliciesResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListPolicies", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.ListPoliciesResponse])
+	ret0, _ := ret[0].(*connect.Response[config.ListPoliciesResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -298,10 +298,10 @@ func (mr *MockSDKClientMockRecorder) ListPolicies(arg0, arg1 any) *gomock.Call {
 }
 
 // ListRoutes mocks base method.
-func (m *MockSDKClient) ListRoutes(arg0 context.Context, arg1 *connect.Request[pomerium.ListRoutesRequest]) (*connect.Response[pomerium.ListRoutesResponse], error) {
+func (m *MockSDKClient) ListRoutes(arg0 context.Context, arg1 *connect.Request[config.ListRoutesRequest]) (*connect.Response[config.ListRoutesResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListRoutes", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.ListRoutesResponse])
+	ret0, _ := ret[0].(*connect.Response[config.ListRoutesResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -313,10 +313,10 @@ func (mr *MockSDKClientMockRecorder) ListRoutes(arg0, arg1 any) *gomock.Call {
 }
 
 // ListServiceAccounts mocks base method.
-func (m *MockSDKClient) ListServiceAccounts(arg0 context.Context, arg1 *connect.Request[pomerium.ListServiceAccountsRequest]) (*connect.Response[pomerium.ListServiceAccountsResponse], error) {
+func (m *MockSDKClient) ListServiceAccounts(arg0 context.Context, arg1 *connect.Request[config.ListServiceAccountsRequest]) (*connect.Response[config.ListServiceAccountsResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListServiceAccounts", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.ListServiceAccountsResponse])
+	ret0, _ := ret[0].(*connect.Response[config.ListServiceAccountsResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -328,10 +328,10 @@ func (mr *MockSDKClientMockRecorder) ListServiceAccounts(arg0, arg1 any) *gomock
 }
 
 // ListSettings mocks base method.
-func (m *MockSDKClient) ListSettings(arg0 context.Context, arg1 *connect.Request[pomerium.ListSettingsRequest]) (*connect.Response[pomerium.ListSettingsResponse], error) {
+func (m *MockSDKClient) ListSettings(arg0 context.Context, arg1 *connect.Request[config.ListSettingsRequest]) (*connect.Response[config.ListSettingsResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListSettings", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.ListSettingsResponse])
+	ret0, _ := ret[0].(*connect.Response[config.ListSettingsResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -343,10 +343,10 @@ func (mr *MockSDKClientMockRecorder) ListSettings(arg0, arg1 any) *gomock.Call {
 }
 
 // UpdateKeyPair mocks base method.
-func (m *MockSDKClient) UpdateKeyPair(arg0 context.Context, arg1 *connect.Request[pomerium.UpdateKeyPairRequest]) (*connect.Response[pomerium.UpdateKeyPairResponse], error) {
+func (m *MockSDKClient) UpdateKeyPair(arg0 context.Context, arg1 *connect.Request[config.UpdateKeyPairRequest]) (*connect.Response[config.UpdateKeyPairResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateKeyPair", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.UpdateKeyPairResponse])
+	ret0, _ := ret[0].(*connect.Response[config.UpdateKeyPairResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -358,10 +358,10 @@ func (mr *MockSDKClientMockRecorder) UpdateKeyPair(arg0, arg1 any) *gomock.Call 
 }
 
 // UpdatePolicy mocks base method.
-func (m *MockSDKClient) UpdatePolicy(arg0 context.Context, arg1 *connect.Request[pomerium.UpdatePolicyRequest]) (*connect.Response[pomerium.UpdatePolicyResponse], error) {
+func (m *MockSDKClient) UpdatePolicy(arg0 context.Context, arg1 *connect.Request[config.UpdatePolicyRequest]) (*connect.Response[config.UpdatePolicyResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdatePolicy", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.UpdatePolicyResponse])
+	ret0, _ := ret[0].(*connect.Response[config.UpdatePolicyResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -373,10 +373,10 @@ func (mr *MockSDKClientMockRecorder) UpdatePolicy(arg0, arg1 any) *gomock.Call {
 }
 
 // UpdateRoute mocks base method.
-func (m *MockSDKClient) UpdateRoute(arg0 context.Context, arg1 *connect.Request[pomerium.UpdateRouteRequest]) (*connect.Response[pomerium.UpdateRouteResponse], error) {
+func (m *MockSDKClient) UpdateRoute(arg0 context.Context, arg1 *connect.Request[config.UpdateRouteRequest]) (*connect.Response[config.UpdateRouteResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateRoute", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.UpdateRouteResponse])
+	ret0, _ := ret[0].(*connect.Response[config.UpdateRouteResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -388,10 +388,10 @@ func (mr *MockSDKClientMockRecorder) UpdateRoute(arg0, arg1 any) *gomock.Call {
 }
 
 // UpdateServiceAccount mocks base method.
-func (m *MockSDKClient) UpdateServiceAccount(arg0 context.Context, arg1 *connect.Request[pomerium.UpdateServiceAccountRequest]) (*connect.Response[pomerium.UpdateServiceAccountResponse], error) {
+func (m *MockSDKClient) UpdateServiceAccount(arg0 context.Context, arg1 *connect.Request[config.UpdateServiceAccountRequest]) (*connect.Response[config.UpdateServiceAccountResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateServiceAccount", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.UpdateServiceAccountResponse])
+	ret0, _ := ret[0].(*connect.Response[config.UpdateServiceAccountResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -403,10 +403,10 @@ func (mr *MockSDKClientMockRecorder) UpdateServiceAccount(arg0, arg1 any) *gomoc
 }
 
 // UpdateSettings mocks base method.
-func (m *MockSDKClient) UpdateSettings(arg0 context.Context, arg1 *connect.Request[pomerium.UpdateSettingsRequest]) (*connect.Response[pomerium.UpdateSettingsResponse], error) {
+func (m *MockSDKClient) UpdateSettings(arg0 context.Context, arg1 *connect.Request[config.UpdateSettingsRequest]) (*connect.Response[config.UpdateSettingsResponse], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateSettings", arg0, arg1)
-	ret0, _ := ret[0].(*connect.Response[pomerium.UpdateSettingsResponse])
+	ret0, _ := ret[0].(*connect.Response[config.UpdateSettingsResponse])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
