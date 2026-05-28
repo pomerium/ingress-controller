@@ -11,7 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 
 	"github.com/pomerium/ingress-controller/internal/policy"
 	"github.com/pomerium/ingress-controller/model"
@@ -170,7 +170,7 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 
 // applyAnnotations applies ingress annotations to a route
 func applyAnnotations(
-	r *pomerium.Route,
+	r *configpb.Route,
 	ic *model.IngressConfig,
 ) error {
 	kv, err := removeKeyPrefix(ic.Ingress.Annotations, ic.AnnotationPrefix)
@@ -193,15 +193,15 @@ func applyAnnotations(
 	if err = applyUpstreamAnnotations(r, kv.UpstreamTunnel); err != nil {
 		return err
 	}
-	p := new(pomerium.Policy)
-	r.Policies = []*pomerium.Policy{p}
+	p := new(configpb.Policy)
+	r.Policies = []*configpb.Policy{p}
 	if err := unmarshalPolicyAnnotations(p, kv.Policy); err != nil {
 		return fmt.Errorf("applying policy annotations: %w", err)
 	}
 	return nil
 }
 
-func unmarshalPolicyAnnotations(p *pomerium.Policy, kvs map[string]string) error {
+func unmarshalPolicyAnnotations(p *configpb.Policy, kvs map[string]string) error {
 	ppl, hasPPL := kvs["policy"]
 	if hasPPL {
 		delete(kvs, "policy")
@@ -225,7 +225,7 @@ func unmarshalPolicyAnnotations(p *pomerium.Policy, kvs map[string]string) error
 }
 
 func applyTLSAnnotations(
-	r *pomerium.Route,
+	r *configpb.Route,
 	kvs map[string]string,
 	secrets map[types.NamespacedName]*corev1.Secret,
 	namespace string,
@@ -260,7 +260,7 @@ func applyTLSAnnotations(
 }
 
 func applySecretAnnotations(
-	r *pomerium.Route,
+	r *configpb.Route,
 	annotations map[string]string,
 	secrets map[types.NamespacedName]*corev1.Secret,
 	namespace string,
@@ -314,23 +314,23 @@ func applySecretAnnotations(
 				}
 
 				if r.Mcp == nil {
-					r.Mcp = &pomerium.MCP{
-						Mode: &pomerium.MCP_Server{
-							Server: &pomerium.MCPServer{},
+					r.Mcp = &configpb.MCP{
+						Mode: &configpb.MCP_Server{
+							Server: &configpb.MCPServer{},
 						},
 					}
 				} else if r.Mcp.GetServer() == nil {
 					if r.Mcp.GetClient() != nil {
 						return fmt.Errorf("route is already configured as MCP client, cannot add OAuth2 secret")
 					}
-					r.Mcp.Mode = &pomerium.MCP_Server{
-						Server: &pomerium.MCPServer{},
+					r.Mcp.Mode = &configpb.MCP_Server{
+						Server: &configpb.MCPServer{},
 					}
 				}
 
 				server := r.Mcp.GetServer()
 				if server.UpstreamOauth2 == nil {
-					server.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
+					server.UpstreamOauth2 = &configpb.UpstreamOAuth2{}
 				}
 
 				if hasClientID {
@@ -387,7 +387,7 @@ func applySecretAnnotations(
 	return nil
 }
 
-func applyMCPAnnotations(r *pomerium.Route, serverKVs, clientKVs map[string]string) error {
+func applyMCPAnnotations(r *configpb.Route, serverKVs, clientKVs map[string]string) error {
 	hasServer := len(serverKVs) > 0
 	hasClient := len(clientKVs) > 0
 
@@ -407,13 +407,13 @@ func applyMCPAnnotations(r *pomerium.Route, serverKVs, clientKVs map[string]stri
 	return nil
 }
 
-func applyMCPServerAnnotations(r *pomerium.Route, kvs map[string]string) error {
+func applyMCPServerAnnotations(r *configpb.Route, kvs map[string]string) error {
 	// Initialize or get existing server config
-	var serverConfig *pomerium.MCPServer
+	var serverConfig *configpb.MCPServer
 	if r.Mcp != nil && r.Mcp.GetServer() != nil {
 		serverConfig = r.Mcp.GetServer()
 	} else {
-		serverConfig = &pomerium.MCPServer{}
+		serverConfig = &configpb.MCPServer{}
 	}
 
 	for k, v := range kvs {
@@ -435,7 +435,7 @@ func applyMCPServerAnnotations(r *pomerium.Route, kvs map[string]string) error {
 			serverConfig.MaxRequestBytes = &maxBytes
 		case model.MCPServerUpstreamOAuth2AuthorizationURLParams:
 			if serverConfig.UpstreamOauth2 == nil {
-				serverConfig.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
+				serverConfig.UpstreamOauth2 = &configpb.UpstreamOAuth2{}
 			}
 			err := yaml.Unmarshal([]byte(v), &serverConfig.UpstreamOauth2.AuthorizationUrlParams)
 			if err != nil {
@@ -443,23 +443,23 @@ func applyMCPServerAnnotations(r *pomerium.Route, kvs map[string]string) error {
 			}
 		case model.MCPServerUpstreamOAuth2AuthURL:
 			if serverConfig.UpstreamOauth2 == nil {
-				serverConfig.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
+				serverConfig.UpstreamOauth2 = &configpb.UpstreamOAuth2{}
 			}
 			if serverConfig.UpstreamOauth2.Oauth2Endpoint == nil {
-				serverConfig.UpstreamOauth2.Oauth2Endpoint = &pomerium.OAuth2Endpoint{}
+				serverConfig.UpstreamOauth2.Oauth2Endpoint = &configpb.OAuth2Endpoint{}
 			}
 			serverConfig.UpstreamOauth2.Oauth2Endpoint.AuthUrl = v
 		case model.MCPServerUpstreamOAuth2TokenURL:
 			if serverConfig.UpstreamOauth2 == nil {
-				serverConfig.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
+				serverConfig.UpstreamOauth2 = &configpb.UpstreamOAuth2{}
 			}
 			if serverConfig.UpstreamOauth2.Oauth2Endpoint == nil {
-				serverConfig.UpstreamOauth2.Oauth2Endpoint = &pomerium.OAuth2Endpoint{}
+				serverConfig.UpstreamOauth2.Oauth2Endpoint = &configpb.OAuth2Endpoint{}
 			}
 			serverConfig.UpstreamOauth2.Oauth2Endpoint.TokenUrl = v
 		case model.MCPServerUpstreamOAuth2Scopes:
 			if serverConfig.UpstreamOauth2 == nil {
-				serverConfig.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
+				serverConfig.UpstreamOauth2 = &configpb.UpstreamOAuth2{}
 			}
 			serverConfig.UpstreamOauth2.Scopes = strings.Split(v, ",")
 			for i, scope := range serverConfig.UpstreamOauth2.Scopes {
@@ -471,16 +471,16 @@ func applyMCPServerAnnotations(r *pomerium.Route, kvs map[string]string) error {
 			serverConfig.AuthorizationServerUrl = &v
 		case model.MCPServerUpstreamOAuth2AuthStyle:
 			if serverConfig.UpstreamOauth2 == nil {
-				serverConfig.UpstreamOauth2 = &pomerium.UpstreamOAuth2{}
+				serverConfig.UpstreamOauth2 = &configpb.UpstreamOAuth2{}
 			}
 			if serverConfig.UpstreamOauth2.Oauth2Endpoint == nil {
-				serverConfig.UpstreamOauth2.Oauth2Endpoint = &pomerium.OAuth2Endpoint{}
+				serverConfig.UpstreamOauth2.Oauth2Endpoint = &configpb.OAuth2Endpoint{}
 			}
 			switch v {
 			case "in_params":
-				serverConfig.UpstreamOauth2.Oauth2Endpoint.AuthStyle = pomerium.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS.Enum()
+				serverConfig.UpstreamOauth2.Oauth2Endpoint.AuthStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_PARAMS.Enum()
 			case "in_header":
-				serverConfig.UpstreamOauth2.Oauth2Endpoint.AuthStyle = pomerium.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_HEADER.Enum()
+				serverConfig.UpstreamOauth2.Oauth2Endpoint.AuthStyle = configpb.OAuth2AuthStyle_OAUTH2_AUTH_STYLE_IN_HEADER.Enum()
 			default:
 				return fmt.Errorf("invalid mcp_server_upstream_oauth2_auth_style %q: must be 'in_params' or 'in_header'", v)
 			}
@@ -491,8 +491,8 @@ func applyMCPServerAnnotations(r *pomerium.Route, kvs map[string]string) error {
 
 	// Only create new MCP structure if it doesn't exist
 	if r.Mcp == nil {
-		r.Mcp = &pomerium.MCP{
-			Mode: &pomerium.MCP_Server{
+		r.Mcp = &configpb.MCP{
+			Mode: &configpb.MCP_Server{
 				Server: serverConfig,
 			},
 		}
@@ -500,14 +500,14 @@ func applyMCPServerAnnotations(r *pomerium.Route, kvs map[string]string) error {
 		if r.Mcp.GetClient() != nil {
 			return fmt.Errorf("route is already configured as MCP client, cannot add server configuration")
 		}
-		r.Mcp.Mode = &pomerium.MCP_Server{
+		r.Mcp.Mode = &configpb.MCP_Server{
 			Server: serverConfig,
 		}
 	}
 	return nil
 }
 
-func applyMCPClientAnnotations(r *pomerium.Route, kvs map[string]string) error {
+func applyMCPClientAnnotations(r *configpb.Route, kvs map[string]string) error {
 	for k, v := range kvs {
 		switch k {
 		case model.MCPClient:
@@ -520,27 +520,27 @@ func applyMCPClientAnnotations(r *pomerium.Route, kvs map[string]string) error {
 		}
 	}
 
-	clientConfig := &pomerium.MCPClient{}
-	r.Mcp = &pomerium.MCP{
-		Mode: &pomerium.MCP_Client{
+	clientConfig := &configpb.MCPClient{}
+	r.Mcp = &configpb.MCP{
+		Mode: &configpb.MCP_Client{
 			Client: clientConfig,
 		},
 	}
 	return nil
 }
 
-func applyUpstreamAnnotations(r *pomerium.Route, kvs map[string]string) error {
+func applyUpstreamAnnotations(r *configpb.Route, kvs map[string]string) error {
 	for k, v := range kvs {
 		switch k {
 		case model.UpstreamTunnel:
 			if r.UpstreamTunnel == nil {
-				r.UpstreamTunnel = &pomerium.UpstreamTunnel{}
+				r.UpstreamTunnel = &configpb.UpstreamTunnel{}
 			}
 		case model.UpstreamTunnelSSHPolicy:
 			if r.UpstreamTunnel == nil {
-				r.UpstreamTunnel = &pomerium.UpstreamTunnel{}
+				r.UpstreamTunnel = &configpb.UpstreamTunnel{}
 			}
-			r.UpstreamTunnel.SshPolicy = &pomerium.PPLPolicy{
+			r.UpstreamTunnel.SshPolicy = &configpb.PPLPolicy{
 				Raw: []byte(v),
 			}
 		default:

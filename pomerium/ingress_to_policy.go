@@ -6,15 +6,15 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/pomerium/pomerium/config"
-	pomerium "github.com/pomerium/pomerium/pkg/grpc/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
 // keysToPolicy translates Ingress annotations to a Policy proto compatible
 // with the unified API.
-func keysToPolicy(kv *keys, name string) (*pomerium.Policy, error) {
-	p := new(pomerium.Policy)
+func keysToPolicy(kv *keys, name string) (*configpb.Policy, error) {
+	p := new(configpb.Policy)
 	if err := unmarshalPolicyAnnotations(p, kv.Policy); err != nil {
 		return nil, fmt.Errorf("couldn't unmarshal policy annotations: %w", err)
 	}
@@ -46,7 +46,7 @@ func keysToPolicy(kv *keys, name string) (*pomerium.Policy, error) {
 	pplString := string(pplBytes)
 
 	// TODO: consider deriving a name based on policy criteria?
-	return &pomerium.Policy{
+	return &configpb.Policy{
 		Name:      &name,
 		SourcePpl: &pplString,
 	}, nil
