@@ -18,8 +18,8 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.16.1
-	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260527215110-5baf231d3876
-	github.com/pomerium/sdk-go v0.0.10-0.20260527161605-7a09c9e25408
+	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260528215745-02ec48e3a9d7
+	github.com/pomerium/sdk-go v0.0.10-0.20260528155818-e620bf0dec3e
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
 	github.com/spf13/cobra v1.10.2
