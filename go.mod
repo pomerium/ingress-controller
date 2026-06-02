@@ -18,10 +18,10 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.16.1
-	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260528014156-b040993da465
-	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260528014156-b040993da465
-	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260528014156-b040993da465
-	github.com/pomerium/sdk-go v0.0.10-0.20260528002201-9836da22ebb5
+	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260602131448-af30c43e5bf3
+	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260602131448-af30c43e5bf3
+	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260602131448-af30c43e5bf3
+	github.com/pomerium/sdk-go v0.0.10-0.20260602161730-b2e6266c8ea3
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
 	github.com/spf13/cobra v1.10.2
@@ -114,7 +114,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/caddyserver/certmagic v0.25.2 // indirect
 	github.com/caddyserver/zerossl v0.1.5 // indirect
-	github.com/ccoveille/go-safecast v1.8.2 // indirect
+	github.com/ccoveille/go-safecast/v2 v2.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.1 // indirect
@@ -244,7 +244,7 @@ require (
 	github.com/pomerium/datasource v0.18.2-0.20260522171636-b4b4ac7fe219 // indirect
 	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260519214603-7724aff26b06 // indirect
 	github.com/pomerium/protoutil v0.0.0-20260508203012-e09f8af90da5 // indirect
-	github.com/pomerium/webauthn v0.0.0-20260508203114-e4bd6034c565 // indirect
+	github.com/pomerium/webauthn v0.0.0-20260528204052-877913fd849b // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
