@@ -23,8 +23,7 @@ GOTAGS = -tags embed_pomerium
 GOLDFLAGS = -X github.com/pomerium/pomerium/internal/version.Version=$(shell go list -f '{{.Module.Version}}' github.com/pomerium/pomerium) \
 	-X github.com/pomerium/pomerium/internal/version.BuildMeta=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ") \
 	-X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium-ingress-controller \
-	-X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io \
-	-X google.golang.org/protobuf/reflect/protoregistry.conflictPolicy=ignore
+	-X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
