@@ -1,6 +1,6 @@
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/base-debian12:debug-nonroot@sha256:e196d041e94013780bfb2d53817090a486c5ea1c67734eb8ffda27d2eaea4848
+FROM gcr.io/distroless/base-debian12:debug-nonroot@sha256:63c73a95669696b25350d1ec8b67af32ec621647b80bd755209ac550cd21bd9b
 ARG TARGETARCH
 COPY bin/manager-linux-$TARGETARCH /manager
 USER 65532:65532
