@@ -2,9 +2,13 @@ package pomerium
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"maps"
+	"net/http"
 	"slices"
 	"strconv"
 	"strings"
@@ -24,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/derivecert"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/sdk-go"
 	"github.com/pomerium/sdk-go/proto/pomerium"
@@ -37,14 +42,56 @@ import (
 // for the given API url and API token.
 func NewAPIReconciler(
 	url, token string,
-) Reconciler {
-	client := sdk.NewClient(
+) (Reconciler, error) {
+	opts := []sdk.ClientOption{
 		sdk.WithURL(url),
-		sdk.WithAPIToken(token))
-	return &APIReconciler{
-		apiClient:  client,
-		secretsMap: model.NewTLSSecretsMap(),
+		sdk.WithAPIToken(token),
 	}
+	if key, ok := parseTokenAsKey(token); ok {
+		certPool, err := getCertPoolWithDerivedCA(key)
+		if err != nil {
+			return nil, err
+		}
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		transport.TLSClientConfig = &tls.Config{
+			RootCAs: certPool,
+		}
+		opts = append(opts, sdk.WithHTTPClient(&http.Client{
+			Transport: transport,
+		}))
+	}
+
+	return &APIReconciler{
+		apiClient:  sdk.NewClient(opts...),
+		secretsMap: model.NewTLSSecretsMap(),
+	}, nil
+}
+
+func parseTokenAsKey(str string) (key []byte, ok bool) {
+	key, err := base64.StdEncoding.DecodeString(str)
+	if err != nil || len(key) != 32 {
+		return nil, false
+	}
+	return key, true
+}
+
+func getCertPoolWithDerivedCA(key []byte) (*x509.CertPool, error) {
+	certPool, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, err
+	}
+	ca, err := derivecert.NewCA(key)
+	if err != nil {
+		return nil, err
+	}
+	caPEM, err := ca.PEM()
+	if err != nil {
+		return nil, err
+	}
+	if !certPool.AppendCertsFromPEM(caPEM.Cert) {
+		return nil, fmt.Errorf("couldn't add derived cert to cert pool")
+	}
+	return certPool, nil
 }
 
 var (
