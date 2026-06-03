@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/pomerium/pomerium/pkg/databrokerutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 
 	"github.com/pomerium/ingress-controller/controllers/certificate"
@@ -30,7 +31,7 @@ const (
 )
 
 var (
-	_ = databroker.LeaserHandler(new(Controller))
+	_ = databrokerutil.LeaserHandler(new(Controller))
 
 	errWaitingForLease = errors.New("waiting for databroker lease")
 )
@@ -60,7 +61,7 @@ func (c *Controller) Run(ctx context.Context) error {
 		// databroker lease.
 		return c.RunLeased(ctx)
 	}
-	leaser := databroker.NewLeaser("ingress-controller", leaseDuration, c)
+	leaser := databrokerutil.NewLeaser("ingress-controller", leaseDuration, c)
 	return leaser.Run(ctx)
 }
 

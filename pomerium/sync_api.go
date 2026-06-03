@@ -24,9 +24,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/pomerium/pomerium/config"
-	pb "github.com/pomerium/pomerium/pkg/grpc/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/sdk-go"
-	"github.com/pomerium/sdk-go/proto/pomerium"
 
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/pomerium/gateway"
@@ -292,7 +291,7 @@ func (r *APIReconciler) syncOneSecret(
 	}
 
 	name := keyPairName(util.GetNamespacedName(secret))
-	keyPair := &pomerium.KeyPair{
+	keyPair := &configpb.KeyPair{
 		Name:         &name,
 		Certificate:  cert,
 		Key:          secret.Data[corev1.TLSPrivateKeyKey],
@@ -334,7 +333,7 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 	}
 	changes = changes || changedKeyPair
 
-	pbConfig := new(pb.Config)
+	pbConfig := new(configpb.Config)
 	if err = ApplyConfig(ctx, pbConfig, cfg); err != nil {
 		return false, fmt.Errorf("couldn't convert settings: %w", err)
 	}
@@ -346,12 +345,12 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 	mergedSettings := config.NewDefaultOptions()
 	mergedSettings.ApplySettings(ctx, nil, pbConfig.Settings)
 
-	settings, err := convertProto[*pomerium.Settings](mergedSettings.ToProto().GetSettings())
+	settings, err := convertProto[*configpb.Settings](mergedSettings.ToProto().GetSettings())
 	if err != nil {
 		return false, err
 	}
 
-	resp, err := r.apiClient.GetSettings(ctx, connect.NewRequest(&pomerium.GetSettingsRequest{}))
+	resp, err := r.apiClient.GetSettings(ctx, connect.NewRequest(&configpb.GetSettingsRequest{}))
 	if err != nil {
 		return false, err
 	}
@@ -375,7 +374,7 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 	logger := log.FromContext(ctx).WithName("APIReconciler.SetConfig")
 	logger.V(1).Info("updating settings", "diff", cmp.Diff(existing, settings, protocmp.Transform()))
 
-	_, err = r.apiClient.UpdateSettings(ctx, connect.NewRequest(&pomerium.UpdateSettingsRequest{
+	_, err = r.apiClient.UpdateSettings(ctx, connect.NewRequest(&configpb.UpdateSettingsRequest{
 		Settings: settings,
 	}))
 	changes = changes || (err == nil)
@@ -524,11 +523,11 @@ func (r *APIReconciler) syncGatewayPolicies(
 		}
 		originalObj := obj.DeepCopy()
 
-		var route pb.Route
+		var route configpb.Route
 		if err := pf.ApplyToRoute(&route); err != nil {
 			return changes, nil, fmt.Errorf("internal error - couldn't extract policy: %w", err)
 		}
-		policy, err := convertProto[*pomerium.Policy](route.Policies[0])
+		policy, err := convertProto[*configpb.Policy](route.Policies[0])
 		if err != nil {
 			return changes, nil, err
 		}
@@ -590,7 +589,7 @@ func (r *APIReconciler) removeDeletedGatewayPolicies(
 
 // replaceInlinePolicies translates from inline route policies to policy IDs
 // from the policyIDs map (keyed by source PPL).
-func replaceInlinePolicies(route *pb.Route, policyIDs map[string]string) error {
+func replaceInlinePolicies(route *configpb.Route, policyIDs map[string]string) error {
 	for i, p := range route.Policies {
 		if p.SourcePpl == nil {
 			return fmt.Errorf("internal error - source PPL missing from policy %d of route %q", i, route.GetName())
@@ -605,18 +604,18 @@ func replaceInlinePolicies(route *pb.Route, policyIDs map[string]string) error {
 	return nil
 }
 
-func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *pb.Route) (bool, error) {
+func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *configpb.Route) (bool, error) {
 	logger := log.FromContext(ctx).WithName("APIReconciler.upsertOneRoute")
 
-	apiRoute, err := convertProto[*pomerium.Route](route)
+	apiRoute, err := convertProto[*configpb.Route](route)
 	if err != nil {
 		return false, err
 	}
 	apiRoute.OriginatorId = &originatorID
 
-	var existing *pomerium.Route
+	var existing *configpb.Route
 	if id := route.GetId(); id != "" {
-		resp, err := r.apiClient.GetRoute(ctx, connect.NewRequest(&pomerium.GetRouteRequest{
+		resp, err := r.apiClient.GetRoute(ctx, connect.NewRequest(&configpb.GetRouteRequest{
 			Id: id,
 		}))
 		if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
@@ -630,7 +629,7 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *pb.Route) (bo
 		apiRoute.OriginatorId = &originatorID
 
 		// If the route does not currently exist, create it.
-		resp, err := r.apiClient.CreateRoute(ctx, connect.NewRequest(&pomerium.CreateRouteRequest{
+		resp, err := r.apiClient.CreateRoute(ctx, connect.NewRequest(&configpb.CreateRouteRequest{
 			Route: apiRoute,
 		}))
 		if err == nil {
@@ -667,7 +666,7 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *pb.Route) (bo
 		"id", apiRoute.GetId(),
 		"diff", cmp.Diff(existing, apiRoute, protocmp.Transform()))
 
-	_, err = r.apiClient.UpdateRoute(ctx, connect.NewRequest(&pomerium.UpdateRouteRequest{
+	_, err = r.apiClient.UpdateRoute(ctx, connect.NewRequest(&configpb.UpdateRouteRequest{
 		Route: apiRoute,
 	}))
 	return err == nil, err
@@ -675,7 +674,7 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *pb.Route) (bo
 
 func (r *APIReconciler) findRouteByName(
 	ctx context.Context, name string,
-) (existing *pomerium.Route, err error) {
+) (existing *configpb.Route, err error) {
 	filter, err := structpb.NewStruct(map[string]any{
 		"originatorId": originatorID,
 		"name":         name,
@@ -683,7 +682,7 @@ func (r *APIReconciler) findRouteByName(
 	if err != nil {
 		return nil, fmt.Errorf("internal error - couldn't create ListRoutes filter: %w", err)
 	}
-	resp, err := r.apiClient.ListRoutes(ctx, connect.NewRequest(&pomerium.ListRoutesRequest{
+	resp, err := r.apiClient.ListRoutes(ctx, connect.NewRequest(&configpb.ListRoutesRequest{
 		Filter: filter,
 	}))
 	if err != nil {
@@ -703,7 +702,7 @@ func (r *APIReconciler) deleteRoutes(
 	var anyDeletes bool
 	annotations := obj.GetAnnotations()
 	for k := range annotationKeys {
-		_, err := r.apiClient.DeleteRoute(ctx, connect.NewRequest(&pomerium.DeleteRouteRequest{
+		_, err := r.apiClient.DeleteRoute(ctx, connect.NewRequest(&configpb.DeleteRouteRequest{
 			Id: annotations[k],
 		}))
 		if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
@@ -730,7 +729,7 @@ func (r *APIReconciler) syncIngressPolicy(
 		return false, "", nil
 	}
 
-	apiPolicy, err := convertProto[*pomerium.Policy](policy)
+	apiPolicy, err := convertProto[*configpb.Policy](policy)
 	if err != nil {
 		return false, "", fmt.Errorf("internal error: %w", err)
 	}
@@ -751,10 +750,10 @@ func (r *APIReconciler) syncIngressPolicy(
 
 // upsertPolicy will create or update a Pomerium policy. If a new ID is
 // assigned, policy.Id will be updated.
-func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *pomerium.Policy) (changed bool, err error) {
-	var existing *pomerium.Policy
+func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *configpb.Policy) (changed bool, err error) {
+	var existing *configpb.Policy
 	if id := policy.GetId(); id != "" {
-		resp, err := r.apiClient.GetPolicy(ctx, connect.NewRequest(&pomerium.GetPolicyRequest{
+		resp, err := r.apiClient.GetPolicy(ctx, connect.NewRequest(&configpb.GetPolicyRequest{
 			Id: id,
 		}))
 		if err == nil {
@@ -766,7 +765,7 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *pomerium.Polic
 
 	// If there is no existing policy, create one.
 	if existing == nil {
-		resp, err := r.apiClient.CreatePolicy(ctx, connect.NewRequest(&pomerium.CreatePolicyRequest{
+		resp, err := r.apiClient.CreatePolicy(ctx, connect.NewRequest(&configpb.CreatePolicyRequest{
 			Policy: policy,
 		}))
 		if err == nil {
@@ -801,7 +800,7 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *pomerium.Polic
 	logger := log.FromContext(ctx).WithName("APIReconciler.upsertPolicy")
 	logger.V(1).Info("updating existing policy", "id", policy.GetId(), "diff", cmp.Diff(existing, policy, protocmp.Transform()))
 
-	_, err = r.apiClient.UpdatePolicy(ctx, connect.NewRequest(&pomerium.UpdatePolicyRequest{
+	_, err = r.apiClient.UpdatePolicy(ctx, connect.NewRequest(&configpb.UpdatePolicyRequest{
 		Policy: policy,
 	}))
 	if err != nil {
@@ -812,7 +811,7 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *pomerium.Polic
 
 func (r *APIReconciler) findPolicyByName(
 	ctx context.Context, name string,
-) (existing *pomerium.Policy, err error) {
+) (existing *configpb.Policy, err error) {
 	filter, err := structpb.NewStruct(map[string]any{
 		"originatorId": originatorID,
 		"name":         name,
@@ -820,7 +819,7 @@ func (r *APIReconciler) findPolicyByName(
 	if err != nil {
 		return nil, fmt.Errorf("internal error - couldn't create ListPolicies filter: %w", err)
 	}
-	resp, err := r.apiClient.ListPolicies(ctx, connect.NewRequest(&pomerium.ListPoliciesRequest{
+	resp, err := r.apiClient.ListPolicies(ctx, connect.NewRequest(&configpb.ListPoliciesRequest{
 		Filter: filter,
 	}))
 	if err != nil {
@@ -842,7 +841,7 @@ func (r *APIReconciler) deletePolicy(
 	if policyID == "" {
 		return false, nil
 	}
-	_, err = r.apiClient.DeletePolicy(ctx, connect.NewRequest(&pomerium.DeletePolicyRequest{
+	_, err = r.apiClient.DeletePolicy(ctx, connect.NewRequest(&configpb.DeletePolicyRequest{
 		Id: policyID,
 	}))
 	if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
@@ -852,10 +851,10 @@ func (r *APIReconciler) deletePolicy(
 	return true, nil
 }
 
-func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.KeyPair) (changed bool, err error) {
-	var existing *pomerium.KeyPair
+func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *configpb.KeyPair) (changed bool, err error) {
+	var existing *configpb.KeyPair
 	if id := keyPair.GetId(); id != "" {
-		resp, err := r.apiClient.GetKeyPair(ctx, connect.NewRequest(&pomerium.GetKeyPairRequest{
+		resp, err := r.apiClient.GetKeyPair(ctx, connect.NewRequest(&configpb.GetKeyPairRequest{
 			Id: id,
 		}))
 		if err == nil {
@@ -867,7 +866,7 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.Key
 
 	// If there is no existing keypair, create one.
 	if existing == nil {
-		resp, err := r.apiClient.CreateKeyPair(ctx, connect.NewRequest(&pomerium.CreateKeyPairRequest{
+		resp, err := r.apiClient.CreateKeyPair(ctx, connect.NewRequest(&configpb.CreateKeyPairRequest{
 			KeyPair: keyPair,
 		}))
 		if err == nil {
@@ -892,8 +891,8 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.Key
 	existing.CreatedAt = nil
 	existing.ModifiedAt = nil
 	existing.CertificateInfo = nil
-	existing.Origin = pomerium.KeyPairOrigin_KEY_PAIR_ORIGIN_UNKNOWN
-	existing.Status = pomerium.KeyPairStatus_KEY_PAIR_STATUS_UNKNOWN
+	existing.Origin = configpb.KeyPairOrigin_KEY_PAIR_ORIGIN_UNKNOWN
+	existing.Status = configpb.KeyPairStatus_KEY_PAIR_STATUS_UNKNOWN
 
 	if proto.Equal(existing, keyPair) {
 		// No changes needed.
@@ -905,7 +904,7 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.Key
 		"id", keyPair.GetId(),
 		"diff", cmp.Diff(existing, keyPair, protocmp.Transform()))
 
-	_, err = r.apiClient.UpdateKeyPair(ctx, connect.NewRequest(&pomerium.UpdateKeyPairRequest{
+	_, err = r.apiClient.UpdateKeyPair(ctx, connect.NewRequest(&configpb.UpdateKeyPairRequest{
 		KeyPair: keyPair,
 	}))
 	if err != nil {
@@ -916,7 +915,7 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *pomerium.Key
 
 func (r *APIReconciler) findKeyPairByName(
 	ctx context.Context, name string,
-) (existing *pomerium.KeyPair, err error) {
+) (existing *configpb.KeyPair, err error) {
 	filter, err := structpb.NewStruct(map[string]any{
 		"originatorId": originatorID,
 		"name":         name,
@@ -924,7 +923,7 @@ func (r *APIReconciler) findKeyPairByName(
 	if err != nil {
 		return nil, fmt.Errorf("internal error - couldn't create ListKeyPairs filter: %w", err)
 	}
-	resp, err := r.apiClient.ListKeyPairs(ctx, connect.NewRequest(&pomerium.ListKeyPairsRequest{
+	resp, err := r.apiClient.ListKeyPairs(ctx, connect.NewRequest(&configpb.ListKeyPairsRequest{
 		Filter: filter,
 	}))
 	if err != nil {
@@ -968,7 +967,7 @@ func (r *APIReconciler) deleteKeyPairs(
 		}
 
 		if keyPairID != "" {
-			_, err = r.apiClient.DeleteKeyPair(ctx, connect.NewRequest(&pomerium.DeleteKeyPairRequest{
+			_, err = r.apiClient.DeleteKeyPair(ctx, connect.NewRequest(&configpb.DeleteKeyPairRequest{
 				Id: keyPairID,
 			}))
 			if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
