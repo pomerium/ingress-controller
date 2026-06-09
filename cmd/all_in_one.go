@@ -298,6 +298,10 @@ func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 	} else {
 		s.cfg.Options.LogLevel = "info"
 	}
+	// Keep envoy (proxy) logging at info regardless of the core log level, so
+	// --debug-pomerium raises only Pomerium core logging. --debug-envoy below
+	// opts envoy into debug explicitly.
+	s.cfg.Options.ProxyLogLevel = "info"
 	if opt.debugEnvoy {
 		s.cfg.Options.ProxyLogLevel = "debug"
 		s.cfg.Options.LogLevel = "debug"
