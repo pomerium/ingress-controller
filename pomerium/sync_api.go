@@ -676,8 +676,8 @@ func (r *APIReconciler) findRouteByName(
 	ctx context.Context, name string,
 ) (existing *configpb.Route, err error) {
 	filter, err := structpb.NewStruct(map[string]any{
-		"originatorId": originatorID,
-		"name":         name,
+		"originator_id": originatorID,
+		"name":          name,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("internal error - couldn't create ListRoutes filter: %w", err)
@@ -813,8 +813,8 @@ func (r *APIReconciler) findPolicyByName(
 	ctx context.Context, name string,
 ) (existing *configpb.Policy, err error) {
 	filter, err := structpb.NewStruct(map[string]any{
-		"originatorId": originatorID,
-		"name":         name,
+		"originator_id": originatorID,
+		"name":          name,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("internal error - couldn't create ListPolicies filter: %w", err)
@@ -917,8 +917,8 @@ func (r *APIReconciler) findKeyPairByName(
 	ctx context.Context, name string,
 ) (existing *configpb.KeyPair, err error) {
 	filter, err := structpb.NewStruct(map[string]any{
-		"originatorId": originatorID,
-		"name":         name,
+		"originator_id": originatorID,
+		"name":          name,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("internal error - couldn't create ListKeyPairs filter: %w", err)

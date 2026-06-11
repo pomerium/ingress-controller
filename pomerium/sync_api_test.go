@@ -1675,8 +1675,8 @@ func (noopBackendRefChecker) Valid(_ client.Object, _ *gateway_v1.BackendRef) bo
 
 func filterByName(t *testing.T, name string) *structpb.Struct {
 	f, err := structpb.NewStruct(map[string]any{
-		"originatorId": "ingress-controller",
-		"name":         name,
+		"originator_id": "ingress-controller",
+		"name":          name,
 	})
 	require.NoError(t, err)
 	return f
