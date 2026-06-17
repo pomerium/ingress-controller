@@ -35,14 +35,15 @@ import (
 // NewAPIReconciler initializes a reconciler that syncs using the unified API,
 // for the given API url and API token.
 func NewAPIReconciler(
-	url, token string,
+	url, token string, baseOptions *config.Options,
 ) Reconciler {
 	client := sdk.NewClient(
 		sdk.WithURL(url),
 		sdk.WithAPIToken(token))
 	return &APIReconciler{
-		apiClient:  client,
-		secretsMap: model.NewTLSSecretsMap(),
+		apiClient:   client,
+		baseOptions: baseOptions,
+		secretsMap:  model.NewTLSSecretsMap(),
 	}
 }
 
@@ -57,7 +58,8 @@ type APIReconciler struct {
 	apiClient sdk.Client
 	k8sClient client.Client
 
-	secretsMap *model.TLSSecretsMap
+	baseOptions *config.Options
+	secretsMap  *model.TLSSecretsMap
 }
 
 const (
@@ -341,8 +343,8 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 	pbConfig.Settings.Certificates = nil
 	pbConfig.Settings.CertificateAuthority = nil
 
-	// Apply all Core defaults.
-	mergedSettings := config.NewDefaultOptions()
+	// Layer settings on top of the baseOptions.
+	mergedSettings := *r.baseOptions
 	mergedSettings.ApplySettings(ctx, nil, pbConfig.Settings)
 
 	settings, err := convertProto[*configpb.Settings](mergedSettings.ToProto().GetSettings())

@@ -58,8 +58,9 @@ func setupReconciler(t *testing.T) (
 	k8sClient := controllers_mock.NewMockClient(ctrl)
 
 	r := &APIReconciler{
-		apiClient:  apiClient,
-		secretsMap: model.NewTLSSecretsMap(),
+		apiClient:   apiClient,
+		baseOptions: config.NewDefaultOptions(),
+		secretsMap:  model.NewTLSSecretsMap(),
 	}
 	r.SetK8sClient(k8sClient)
 	return apiClient, k8sClient, r
@@ -1097,6 +1098,45 @@ func TestAPIReconciler_SetConfig(t *testing.T) {
 
 		changes, err := r.SetConfig(ctx, cfg)
 		assert.False(t, changes)
+		assert.NoError(t, err)
+	})
+
+	t.Run("base options", func(t *testing.T) {
+		apiClient, _, r := setupReconciler(t)
+		r.baseOptions = &config.Options{
+			Addr: ":8443",
+		}
+		ctx := t.Context()
+
+		apiClient.EXPECT().GetSettings(ctx, RequestEq(&configpb.GetSettingsRequest{})).
+			Return(&connect.Response[configpb.GetSettingsResponse]{
+				Msg: &configpb.GetSettingsResponse{
+					Settings: &configpb.Settings{
+						Id: new("settings-id-123"),
+					},
+				},
+			}, nil)
+
+		// The address from the base options should be preserved.
+		expectedSettings := &configpb.Settings{
+			Id:                     new("settings-id-123"),
+			Address:                new(":8443"),
+			AuthenticateServiceUrl: new("https://authenticate.localhost.pomerium.io"),
+			IdpClientId:            new("CLIENT_ID"),
+			IdpClientSecret:        new("CLIENT_SECRET"),
+			IdpProvider:            new("oidc"),
+			IdpProviderUrl:         new("https://idp.example.com"),
+			PassIdentityHeaders:    new(true),
+		}
+
+		apiClient.EXPECT().UpdateSettings(ctx, RequestEq(&configpb.UpdateSettingsRequest{
+			Settings: expectedSettings,
+		})).Return(&connect.Response[configpb.UpdateSettingsResponse]{
+			Msg: &configpb.UpdateSettingsResponse{},
+		}, nil)
+
+		changes, err := r.SetConfig(ctx, cfg)
+		assert.True(t, changes)
 		assert.NoError(t, err)
 	})
 }

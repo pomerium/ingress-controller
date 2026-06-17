@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	pomerium_config "github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 
@@ -167,7 +168,8 @@ func (s *controllerCmd) buildController(ctx context.Context) (*controllers.Contr
 	}
 
 	if s.SyncAPIURL != "" {
-		c.Reconciler = pomerium.NewAPIReconciler(s.SyncAPIURL, s.SyncAPIToken)
+		c.Reconciler = pomerium.NewAPIReconciler(
+			s.SyncAPIURL, s.SyncAPIToken, pomerium_config.NewDefaultOptions())
 		c.MgrOpts.LeaderElection = true
 		c.MgrOpts.LeaderElectionID = s.leaderElectionID
 		c.MgrOpts.LeaderElectionNamespace = s.leaderElectionNamespace
