@@ -1,0 +1,11 @@
+# Same as config/default but WITHOUT the CRD bases. Use this when the
+# pomerium.ingress.pomerium.io / policyfilters.gateway.pomerium.io CRDs are
+# owned by a separate installer (e.g. a dedicated ArgoCD CRD Application or a
+# Terraform-managed CRD) so the controller install does not also write the
+# cluster-scoped CRD object and fight over its schema.
+namespace: pomerium
+commonLabels:
+  app.kubernetes.io/name: pomerium
+resources:
+  - ../pomerium
+  - ../gen_secrets
