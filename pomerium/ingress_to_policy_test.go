@@ -78,6 +78,54 @@ func TestKeysToPolicy(t *testing.T) {
 ]`, *p.SourcePpl)
 }
 
+func TestKeysToPolicy_AnyAuthenticatedUser(t *testing.T) {
+	kv, err := removeKeyPrefix(map[string]string{
+		"a/allow_any_authenticated_user": "true",
+	}, "a")
+	require.NoError(t, err)
+
+	p, err := keysToPolicy(kv, "POLICY-NAME")
+	require.NoError(t, err)
+	require.NotNil(t, p.Name)
+	assert.Equal(t, "POLICY-NAME", *p.Name)
+	require.NotNil(t, p.SourcePpl)
+	assert.JSONEq(t, `[
+  {
+    "allow": {
+      "or": [
+        {
+          "authenticated_user": true
+        }
+      ]
+    }
+  }
+]`, *p.SourcePpl)
+}
+
+func TestKeysToPolicy_Public(t *testing.T) {
+	kv, err := removeKeyPrefix(map[string]string{
+		"a/allow_public_unauthenticated_access": "true",
+	}, "a")
+	require.NoError(t, err)
+
+	p, err := keysToPolicy(kv, "POLICY-NAME")
+	require.NoError(t, err)
+	require.NotNil(t, p.Name)
+	assert.Equal(t, "POLICY-NAME", *p.Name)
+	require.NotNil(t, p.SourcePpl)
+	assert.JSONEq(t, `[
+  {
+    "allow": {
+      "or": [
+        {
+          "accept": true
+        }
+      ]
+    }
+  }
+]`, *p.SourcePpl)
+}
+
 func TestKeysToPolicy_Empty(t *testing.T) {
 	// keysToPolicy should return nil when there are no policy-related annotations.
 	kv, err := removeKeyPrefix(map[string]string{

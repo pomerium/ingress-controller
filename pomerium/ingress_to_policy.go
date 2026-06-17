@@ -14,6 +14,13 @@ import (
 // keysToPolicy translates Ingress annotations to a Policy proto compatible
 // with the unified API.
 func keysToPolicy(kv *keys, name string) (*configpb.Policy, error) {
+	// Some policy-related annotations are part of the "base" annotations while
+	// most are part of the "policy" annotations. Reassemble the complete policy
+	// by combining both of these.
+	r := new(configpb.Route)
+	if err := unmarshalAnnotations(r, kv.Base); err != nil {
+		return nil, fmt.Errorf("couldn't unmarshal base annotations: %w", err)
+	}
 	p := new(configpb.Policy)
 	if err := unmarshalPolicyAnnotations(p, kv.Policy); err != nil {
 		return nil, fmt.Errorf("couldn't unmarshal policy annotations: %w", err)
@@ -22,9 +29,11 @@ func keysToPolicy(kv *keys, name string) (*configpb.Policy, error) {
 	// Use the same conversion logic from Core to translate the legacy
 	// allowlist fields.
 	configPolicy := config.Policy{
-		AllowedDomains:   p.AllowedDomains,
-		AllowedUsers:     p.AllowedUsers,
-		AllowedIDPClaims: identity.NewFlattenedClaimsFromPB(p.AllowedIdpClaims),
+		AllowAnyAuthenticatedUser:        r.AllowAnyAuthenticatedUser,
+		AllowPublicUnauthenticatedAccess: r.AllowPublicUnauthenticatedAccess,
+		AllowedDomains:                   p.AllowedDomains,
+		AllowedUsers:                     p.AllowedUsers,
+		AllowedIDPClaims:                 identity.NewFlattenedClaimsFromPB(p.AllowedIdpClaims),
 	}
 	// Include any user-defined PPL.
 	if p.SourcePpl != nil {
