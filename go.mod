@@ -18,10 +18,10 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.17.0
-	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260612230558-d0eca80b3f7d
-	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260612230558-d0eca80b3f7d
-	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260612230558-d0eca80b3f7d
-	github.com/pomerium/sdk-go v0.0.10-0.20260605161428-36780b9256af
+	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260616145459-a5edba5a6f65
+	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260616145459-a5edba5a6f65
+	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260616145459-a5edba5a6f65
+	github.com/pomerium/sdk-go v0.0.10-0.20260616121541-df531135651b
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
 	github.com/spf13/cobra v1.10.2
@@ -170,6 +170,7 @@ require (
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/cel-go v0.28.1 // indirect
+	github.com/google/gnostic v0.7.2-0.20250814192921-e0e09f706281 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
@@ -239,7 +240,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/pomerium/datasource v0.18.2-0.20260603163953-765661d49be8 // indirect
+	github.com/pomerium/datasource v0.18.2-0.20260615144725-aec349b682d9 // indirect
 	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260519214603-7724aff26b06 // indirect
 	github.com/pomerium/protoutil v0.0.0-20260603235917-a733aa3acfed // indirect
 	github.com/pomerium/webauthn v0.0.0-20260603151519-07401bebfe9c // indirect
@@ -321,8 +322,8 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/api v0.283.0 // indirect
 	google.golang.org/genproto v0.0.0-20260319201613-d00831a3d3e7 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260610212136-7ab31c22f7ad // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260610212136-7ab31c22f7ad // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260615183401-62b3387ff324 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260615183401-62b3387ff324 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
