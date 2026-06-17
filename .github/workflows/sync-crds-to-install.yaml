@@ -12,6 +12,11 @@ on:
       - "config/crd/bases/**"
   workflow_dispatch:
 
+# Only this repo is checked out with GITHUB_TOKEN; the PR against pomerium/install
+# is created with the APPARITOR_GITHUB_TOKEN PAT, so contents: read is enough here.
+permissions:
+  contents: read
+
 jobs:
   sync-crds:
     runs-on: ubuntu-latest
