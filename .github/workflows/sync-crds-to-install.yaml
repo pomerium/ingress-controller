@@ -1,0 +1,54 @@
+name: Sync CRDs to install
+
+# Publishes the generated CRD bases to pomerium/install so the Terraform
+# install module never silently lags this repo. Opens a PR against install
+# whenever the CRD bases change on main (and on demand).
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "config/crd/bases/**"
+  workflow_dispatch:
+
+# Only this repo is checked out with GITHUB_TOKEN; the PR against pomerium/install
+# is created with the APPARITOR_GITHUB_TOKEN PAT, so contents: read is enough here.
+permissions:
+  contents: read
+
+jobs:
+  sync-crds:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ingress-controller
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          sparse-checkout: config/crd/bases
+
+      - name: Checkout install
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: pomerium/install
+          path: install
+          token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
+
+      - name: Copy CRD bases
+        run: |
+          dst="install/ingress-controller/kustomize/crd/bases"
+          mkdir -p "$dst"
+          cp config/crd/bases/ingress.pomerium.io_pomerium.yaml "$dst/"
+          cp config/crd/bases/gateway.pomerium.io_policyfilters.yaml "$dst/"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1
+        with:
+          path: install
+          author: GitHub Actions <apparitor@users.noreply.github.com>
+          body: "Automated CRD sync from pomerium/ingress-controller@${{ github.sha }}."
+          branch: ci/sync-crds
+          commit-message: "ci: sync CRDs from ingress-controller"
+          delete-branch: true
+          labels: ci
+          title: "ci: sync CRDs from ingress-controller"
+          token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
