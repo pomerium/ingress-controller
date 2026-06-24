@@ -168,8 +168,11 @@ func (s *controllerCmd) buildController(ctx context.Context) (*controllers.Contr
 	}
 
 	if s.SyncAPIURL != "" {
-		c.Reconciler = pomerium.NewAPIReconciler(
-			s.SyncAPIURL, s.SyncAPIToken, pomerium_config.NewDefaultOptions())
+		c.Reconciler, err = pomerium.NewAPIReconciler(
+			s.SyncAPIURL, s.SyncAPIToken, pomerium_config.NewDefaultOptions(), "")
+		if err != nil {
+			return nil, err
+		}
 		c.MgrOpts.LeaderElection = true
 		c.MgrOpts.LeaderElectionID = s.leaderElectionID
 		c.MgrOpts.LeaderElectionNamespace = s.leaderElectionNamespace

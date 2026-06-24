@@ -2,9 +2,13 @@ package pomerium
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"maps"
+	"net"
+	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -35,16 +39,36 @@ import (
 // NewAPIReconciler initializes a reconciler that syncs using the unified API,
 // for the given API url and API token.
 func NewAPIReconciler(
-	url, token string, baseOptions *config.Options,
-) Reconciler {
-	client := sdk.NewClient(
-		sdk.WithURL(url),
-		sdk.WithAPIToken(token))
+	apiURL, apiToken string, baseOptions *config.Options, dialAddressOverride string,
+) (Reconciler, error) {
+	opts := []sdk.ClientOption{
+		sdk.WithURL(apiURL),
+		sdk.WithAPIToken(apiToken),
+	}
+
+	if dialAddressOverride != "" {
+		u, err := url.Parse(apiURL)
+		if err != nil {
+			return nil, fmt.Errorf("invalid API URL: %w", err)
+		}
+		dialer := &tls.Dialer{
+			Config: &tls.Config{
+				ServerName: u.Hostname(),
+			},
+		}
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		transport.DialTLSContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return dialer.DialContext(ctx, network, dialAddressOverride)
+		}
+		opts = append(opts, sdk.WithHTTPClient(&http.Client{
+			Transport: transport,
+		}))
+	}
 	return &APIReconciler{
-		apiClient:   client,
+		apiClient:   sdk.NewClient(opts...),
 		baseOptions: baseOptions,
 		secretsMap:  model.NewTLSSecretsMap(),
-	}
+	}, nil
 }
 
 var (
@@ -637,12 +661,19 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *configpb.Rout
 		if err == nil {
 			route.Id = resp.Msg.Route.Id
 			return true, nil
-		} else if connect.CodeOf(err) != connect.CodeAlreadyExists {
-			return false, err
 		}
 
 		// If we already created a route, but failed to save the ID annotation,
-		// attempt to look up the route by name.
+		// we may get either an already_exists error (there is a name uniqueness
+		// constraint in Pomerium Zero), or a failed_precondition error (there is
+		// a route 'From' overlap check in Pomerium Enterprise). Any other error
+		// should be returned as is.
+		errCode := connect.CodeOf(err)
+		if errCode != connect.CodeAlreadyExists && errCode != connect.CodeFailedPrecondition {
+			return false, err
+		}
+
+		// Attempt to look up the route by name.
 		existing, err = r.findRouteByName(ctx, route.GetName())
 		if err != nil {
 			return false, err

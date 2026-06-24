@@ -7,8 +7,6 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/pomerium/sdk-go"
-
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/controllers/gateway"
 	"github.com/pomerium/ingress-controller/controllers/ingress"
@@ -23,7 +21,6 @@ type ingressControllerOpts struct {
 	Namespaces              []string
 	UpdateStatusFromService string ``
 	GlobalSettings          string `validate:"required"`
-	SyncAPIOptions          []sdk.ClientOption
 	SyncAPIURL              string
 	SyncAPIToken            string
 }
@@ -37,6 +34,7 @@ const (
 	sharedSecret               = "shared-secret"
 	updateStatusFromService    = "update-status-from-service"
 	globalSettings             = "pomerium-config"
+	syncAPIIngress             = "sync-api-ingress"
 	syncAPIURL                 = "sync-api-url"
 	syncAPIToken               = "sync-api-token" //nolint:gosec
 )

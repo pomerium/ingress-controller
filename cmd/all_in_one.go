@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"strings"
@@ -13,8 +14,10 @@ import (
 	"github.com/volatiletech/null/v9"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 	runtime_ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	controllerconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -23,6 +26,7 @@ import (
 	"github.com/pomerium/ingress-controller/controllers/gateway"
 	"github.com/pomerium/ingress-controller/controllers/ingress"
 	"github.com/pomerium/ingress-controller/controllers/settings"
+	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/pomerium"
 	pomerium_ctrl "github.com/pomerium/ingress-controller/pomerium/ctrl"
 	"github.com/pomerium/ingress-controller/util"
@@ -52,6 +56,7 @@ type allCmdOptions struct {
 	deriveTLS          string   `validate:"required,hostname"`
 	grpcAddr           string   `validate:"required,hostname_port"`
 	services           []string `validate:"dive,oneof=all authenticate authorize databroker proxy"`
+	syncAPIIngress     string
 
 	CertificateControllerOptions certificateControllerOptions
 	DataBrokerOptions            dataBrokerOptions
@@ -65,6 +70,7 @@ type allCmdParam struct {
 	dumpConfigDiff          bool
 	syncAPIURL              string
 	syncAPIToken            string
+	syncAPIBootstrap        bool
 
 	// bootstrapMetricsAddr for bootstrap configuration controller metrics
 	bootstrapMetricsAddr string
@@ -135,6 +141,7 @@ func (s *allCmd) setupFlags() error {
 	flags.DurationVar(&s.configControllerShutdownTimeout, configControllerShutdown, time.Second*30, "timeout waiting for graceful config controller shutdown")
 	flags.StringVar(&s.grpcAddr, "grpc-addr", ":5443", "the address the gRPC server would bind to")
 	flags.StringSliceVar(&s.services, "services", []string{"all"}, "the pomerium services to run")
+	flags.StringVar(&s.syncAPIIngress, syncAPIIngress, "", "unified API sync ingress")
 
 	for _, flag := range hidden {
 		if err := s.PersistentFlags().MarkHidden(flag); err != nil {
@@ -160,7 +167,7 @@ func (s *allCmd) exec(*cobra.Command, []string) error {
 	setupLogger(s.debug)
 	ctx := runtime_ctrl.SetupSignalHandler()
 
-	param, err := s.getParam()
+	param, err := s.getParam(ctx)
 	if err != nil {
 		return err
 	}
@@ -168,7 +175,7 @@ func (s *allCmd) exec(*cobra.Command, []string) error {
 	return param.run(ctx)
 }
 
-func (s *allCmdOptions) getParam() (*allCmdParam, error) {
+func (s *allCmdOptions) getParam(ctx context.Context) (*allCmdParam, error) {
 	settings, err := util.ParseNamespacedName(s.GlobalSettings, util.WithClusterScope())
 	if err != nil {
 		return nil, fmt.Errorf("--%s: %w", globalSettings, err)
@@ -197,9 +204,10 @@ func (s *allCmdOptions) getParam() (*allCmdParam, error) {
 		configControllerShutdownTimeout: s.configControllerShutdownTimeout,
 		syncAPIURL:                      s.SyncAPIURL,
 		syncAPIToken:                    s.SyncAPIToken,
+		syncAPIBootstrap:                s.syncAPIIngress != "",
 		certificateControllerName:       s.CertificateControllerOptions.Name,
 	}
-	if err := p.makeBootstrapConfig(*s); err != nil {
+	if err := p.makeBootstrapConfig(ctx, *s); err != nil {
 		return nil, fmt.Errorf("bootstrap: %w", err)
 	}
 
@@ -218,7 +226,7 @@ func (s *allCmdParam) run(ctx context.Context) error {
 
 	eg, ctx := errgroup.WithContext(ctx)
 	cfgCtl := util.NewRestartOnChange[*config.Config]()
-	runner, err := pomerium_ctrl.NewPomeriumRunner(s.cfg, cfgCtl.OnConfigUpdated)
+	runner, err := pomerium_ctrl.NewPomeriumRunner(s.cfg, cfgCtl.OnConfigUpdated, s.syncAPIBootstrap)
 	if err != nil {
 		return fmt.Errorf("preparing to run pomerium: %w", err)
 	}
@@ -242,7 +250,7 @@ func (s *allCmdParam) run(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
+func (s *allCmdParam) makeBootstrapConfig(ctx context.Context, opt allCmdOptions) error {
 	s.cfg = *config.New(config.NewDefaultOptions())
 
 	s.cfg.Options.Services = strings.Join(opt.services, ",")
@@ -312,6 +320,61 @@ func (s *allCmdParam) makeBootstrapConfig(opt allCmdOptions) error {
 
 	opt.DataBrokerOptions.apply(&s.cfg)
 
+	if err := s.applyBootstrapIngress(ctx, opt.syncAPIIngress, opt.AnnotationPrefix); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *allCmdParam) applyBootstrapIngress(
+	ctx context.Context, name string, annotationPrefix string,
+) (err error) {
+	if name == "" {
+		// No bootstrap ingress.
+		return nil
+	}
+
+	// Fetch the bootstrap ingress as a one-off.
+	ns, n, ok := strings.Cut(name, "/")
+	if !ok {
+		return fmt.Errorf("expected ingress name in namespace/name formt")
+	}
+	nn := types.NamespacedName{Namespace: ns, Name: n}
+	scheme, err := getScheme()
+	if err != nil {
+		return fmt.Errorf("get scheme for bootstrap ingress: %w", err)
+	}
+	restCfg, err := runtime_ctrl.GetConfig()
+	if err != nil {
+		return fmt.Errorf("get k8s config for bootstrap ingress: %w", err)
+	}
+	k8sClient, err := client.New(restCfg, client.Options{Scheme: scheme})
+	if err != nil {
+		return fmt.Errorf("create k8s client for bootstrap ingress: %w", err)
+	}
+	var bootstrapIngress networkingv1.Ingress
+	if err := k8sClient.Get(ctx, nn, &bootstrapIngress); err != nil {
+		return fmt.Errorf("get bootstrap ingress: %w", err)
+	}
+	ic, err := ingress.FetchIngress(ctx, k8sClient, &bootstrapIngress, annotationPrefix)
+	if err != nil {
+		return fmt.Errorf("fetch bootstrap ingress data: %w", err)
+	}
+
+	// Force the route 'From' URL to use the service proxy URL (so we don't need
+	// to watch for changes to the service endpoints).
+	ic.Ingress = ic.Ingress.DeepCopy()
+	ic.Ingress.Annotations[annotationPrefix+"/"+model.UseServiceProxy] = "true"
+
+	routes, err := pomerium.IngressToRoutes(ctx, ic)
+	if err != nil {
+		return fmt.Errorf("convert bootstrap ingress to routes: %w", err)
+	}
+	s.cfg.Options.Policies = append(s.cfg.Options.Policies, routes...)
+
+	s.syncAPIURL = routes[0].From
+
 	return nil
 }
 
@@ -339,7 +402,18 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 	client := databroker.NewDataBrokerServiceClient(conn)
 	var reconciler pomerium.Reconciler
 	if s.syncAPIURL != "" {
-		reconciler = pomerium.NewAPIReconciler(s.syncAPIURL, s.syncAPIToken, s.cfg.Options)
+		var dialAddressOverride string
+		if s.syncAPIBootstrap {
+			_, port, err := net.SplitHostPort(s.cfg.Options.Addr)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't get server address port: %w", err)
+			}
+			dialAddressOverride = net.JoinHostPort("localhost", port)
+		}
+		reconciler, err = pomerium.NewAPIReconciler(s.syncAPIURL, s.syncAPIToken, s.cfg.Options, dialAddressOverride)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		reconciler = pomerium.NewDataBrokerReconciler(client, s.dumpConfigDiff)
 	}
@@ -389,7 +463,6 @@ func (s *allCmdParam) runBootstrapConfigController(ctx context.Context, reconcil
 	if host, err := os.Hostname(); err == nil {
 		name = fmt.Sprintf("%s pod/%s", name, host)
 	}
-	// TODO: do we need to disable the bootstrap config controller when syncing via the API?
 	if err := settings.NewSettingsController(mgr, reconciler, s.settings, name, false, health_ctrl.SettingsBootstrapReconciler); err != nil {
 		return fmt.Errorf("settings controller: %w", err)
 	}
