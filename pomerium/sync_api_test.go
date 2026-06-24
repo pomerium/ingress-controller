@@ -617,6 +617,51 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 		assert.Equal(t, "missing-route-id", ic.Annotations["api.pomerium.io/route-id-0"])
 	})
 
+	t.Run("failed precondition", func(t *testing.T) {
+		// Pomerium Enterprise returns FailedPrecondition when route 'From' overlaps
+		// with an existing route.
+		ingress := ingressTemplate.DeepCopy()
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a", Ingress: ingress,
+			Services: map[types.NamespacedName]*corev1.Service{
+				{Name: "example-svc", Namespace: "test"}: {},
+			},
+		}
+
+		apiClient, k8sClient, r := setupReconciler(t)
+		ctx := t.Context()
+
+		apiClient.EXPECT().CreateRoute(ctx, RequestEq(&configpb.CreateRouteRequest{
+			Route: &configpb.Route{
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
+				From:         "https://a.localhost.pomerium.io",
+				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
+				Prefix:       "/",
+			},
+		})).Return(nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("route overlap")))
+
+		apiClient.EXPECT().ListRoutes(ctx, RequestEq(&configpb.ListRoutesRequest{
+			Filter: filterByName(t, "test-my-ingress-a-localhost-pomerium-io"),
+		})).Return(connect.NewResponse(&configpb.ListRoutesResponse{
+			Routes: []*configpb.Route{{
+				Id:           new("overlapping-route-id"),
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
+				From:         "https://a.localhost.pomerium.io",
+				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
+				Prefix:       "/",
+			}},
+		}), nil)
+
+		k8sClient.EXPECT().Patch(ctx, ingress, gomock.Any()).Return(nil)
+
+		changed, err := r.upsertOneIngress(ctx, ic)
+		assert.True(t, changed)
+		assert.NoError(t, err)
+		assert.Equal(t, "overlapping-route-id", ic.Annotations["api.pomerium.io/route-id-0"])
+	})
+
 	t.Run("patch error", func(t *testing.T) {
 		ingress := ingressTemplate.DeepCopy()
 		ic := &model.IngressConfig{
@@ -1645,6 +1690,14 @@ func TestAPIReconciler_deletePolicy(t *testing.T) {
 		assert.Equal(t, apiError, err)
 		assert.Equal(t, "existing-policy-id", ingress.Annotations["api.pomerium.io/policy-id"])
 	})
+}
+
+func TestNewAPIReconciler_InvalidURL(t *testing.T) {
+	// NewAPIReconciler should return an error if the API URL is invalid
+	// when a dial address override is specified.
+	_, err := NewAPIReconciler("://invalid", "token", config.NewDefaultOptions(), "localhost:8443")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid API URL")
 }
 
 func createKeyPairResponseWithID(id string) *connect.Response[configpb.CreateKeyPairResponse] {

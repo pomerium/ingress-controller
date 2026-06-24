@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 
+	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/util"
 )
@@ -66,4 +67,63 @@ func TestSecretsDecodeRules(t *testing.T) {
 			},
 		},
 	}))
+}
+
+const exampleCert = `-----BEGIN CERTIFICATE-----
+MIIBXzCCAQagAwIBAgICEAAwCgYIKoZIzj0EAwIwFzEVMBMGA1UEAxMMVGVzdCBS
+b290IENBMB4XDTI1MDkxMjE1NTk1M1oXDTM1MDkxMDE1NTk1M1owFzEVMBMGA1UE
+AxMMVGVzdCBSb290IENBMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEnomv0HAN
+5+BEp3H5LZPl7WE3KWa6VPAxBpCf8BXYpyaJH2PG7VJ1Ateu/I2Y/+AH4f8m6DHV
+iHhi3ll2Qu1oLqNCMEAwDgYDVR0PAQH/BAQDAgEGMA8GA1UdEwEB/wQFMAMBAf8w
+HQYDVR0OBBYEFEibW9kXYo7F3BR++6c8lMlU5GAYMAoGCCqGSM49BAMCA0cAMEQC
+IDopBqx9I9AxBtHFzAESP7uoReoRdwwoqdUDY+I+/kW0AiAY1wV3V3A4fSdjV6x9
+fk5EbQ+E27ez9yyDZ6XtQKlJLQ==
+-----END CERTIFICATE-----`
+
+func TestApplyAdditional(t *testing.T) {
+	// ApplyAdditional propagates additional core bootstrap settings from the
+	// Pomerium CRD spec to the config.Options struct.
+	idpURL := "https://idp.example.com"
+	cfg := &model.Config{
+		Pomerium: icsv1.Pomerium{
+			Spec: icsv1.PomeriumSpec{
+				Authenticate: &icsv1.Authenticate{
+					URL: "https://authenticate.example.com",
+				},
+				IdentityProvider: &icsv1.IdentityProvider{
+					Provider: "oidc",
+					URL:      &idpURL,
+					Secret:   "test/idp-client-secret",
+				},
+			},
+		},
+		IdpSecret: &v1.Secret{
+			Data: map[string][]byte{
+				"client_id":     []byte("test-client-id"),
+				"client_secret": []byte("test-client-secret"),
+			},
+		},
+		Certs: map[types.NamespacedName]*v1.Secret{
+			{Namespace: "test", Name: "my-cert"}: {
+				Type: v1.SecretTypeTLS,
+				Data: map[string][]byte{
+					"tls.crt": []byte(exampleCert),
+					"tls.key": []byte("not-a-real-key"),
+				},
+			},
+		},
+	}
+
+	var opts config.Options
+	err := ApplyAdditional(t.Context(), &opts, cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "https://authenticate.example.com", opts.AuthenticateURLString)
+	assert.Equal(t, "oidc", opts.Provider)
+	assert.Equal(t, "https://idp.example.com", opts.ProviderURL)
+	assert.Equal(t, "test-client-id", opts.ClientID)
+	assert.Equal(t, "test-client-secret", opts.ClientSecret)
+	if assert.Len(t, opts.CertificateData, 1) {
+		assert.Equal(t, []byte(exampleCert), opts.CertificateData[0].CertBytes)
+		assert.Equal(t, []byte("not-a-real-key"), opts.CertificateData[0].KeyBytes)
+	}
 }
