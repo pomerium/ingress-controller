@@ -18,10 +18,10 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.17.0
-	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260618224910-de33872b3fe6
-	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260618224910-de33872b3fe6
-	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260618224910-de33872b3fe6
-	github.com/pomerium/sdk-go v0.0.10-0.20260618132024-97aa680ed6d0
+	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260623212418-7565e9cafca5
+	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260623212418-7565e9cafca5
+	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260623212418-7565e9cafca5
+	github.com/pomerium/sdk-go v0.0.10-0.20260622150924-dab772e3ce7f
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
 	github.com/spf13/cobra v1.10.2
@@ -241,7 +241,7 @@ require (
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/pomerium/datasource v0.18.2-0.20260615144725-aec349b682d9 // indirect
-	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260519214603-7724aff26b06 // indirect
+	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260618180819-16ede7a56f2f // indirect
 	github.com/pomerium/protoutil v0.0.0-20260603235917-a733aa3acfed // indirect
 	github.com/pomerium/webauthn v0.0.0-20260603151519-07401bebfe9c // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
@@ -322,8 +322,8 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/api v0.283.0 // indirect
 	google.golang.org/genproto v0.0.0-20260319201613-d00831a3d3e7 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260618152121-87f3d3e198d3 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260618152121-87f3d3e198d3 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260622175928-b703f567277d // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260622175928-b703f567277d // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
