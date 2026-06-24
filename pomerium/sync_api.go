@@ -661,19 +661,12 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *configpb.Rout
 		if err == nil {
 			route.Id = resp.Msg.Route.Id
 			return true, nil
-		}
-
-		// If we already created a route, but failed to save the ID annotation,
-		// we may get either an already_exists error (there is a name uniqueness
-		// constraint in Pomerium Zero), or a failed_precondition error (there is
-		// a route 'From' overlap check in Pomerium Enterprise). Any other error
-		// should be returned as is.
-		errCode := connect.CodeOf(err)
-		if errCode != connect.CodeAlreadyExists && errCode != connect.CodeFailedPrecondition {
+		} else if connect.CodeOf(err) != connect.CodeAlreadyExists {
 			return false, err
 		}
 
-		// Attempt to look up the route by name.
+		// If we already created a route, but failed to save the ID annotation,
+		// attempt to look up the route by name.
 		existing, err = r.findRouteByName(ctx, route.GetName())
 		if err != nil {
 			return false, err
