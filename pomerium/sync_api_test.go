@@ -74,6 +74,7 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 	// APIReconciler should create, update, and delete a Pomerium route and
 	// keypair entity.
 	apiClient, k8sClient, r := setupReconciler(t)
+	r.namespaceID = new("api-namespace-id")
 
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -106,6 +107,7 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 	route := &configpb.Route{
 		OriginatorId: new("ingress-controller"),
 		Name:         new("test-my-ingress-a-localhost-pomerium-io"),
+		NamespaceId:  new("api-namespace-id"),
 		From:         "https://a.localhost.pomerium.io",
 		To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
 		Prefix:       "/",
@@ -143,6 +145,7 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 		KeyPair: &configpb.KeyPair{
 			OriginatorId: new("ingress-controller"),
 			Name:         new("test-pomerium-wildcard-cert"),
+			NamespaceId:  new("api-namespace-id"),
 			Certificate:  []byte("fake-cert-data"),
 			Key:          []byte("fake-key-data"),
 		},
@@ -157,6 +160,7 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 			OriginatorId:      new("ingress-controller"),
 			Id:                new("new-route-id-1"),
 			Name:              new("test-my-ingress-a-localhost-pomerium-io"),
+			NamespaceId:       new("api-namespace-id"),
 			From:              "https://a.localhost.pomerium.io",
 			To:                []string{"http://example-svc.test.svc.cluster.local:8080"},
 			Prefix:            "/",
@@ -789,6 +793,7 @@ func TestAPIReconciler_upsertOneIngress_multipleRoutes(t *testing.T) {
 func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 	// Test the basic route & policy lifecycle via the SetGatewayConfig method.
 	apiClient, k8sClient, r := setupReconciler(t)
+	r.namespaceID = new("api-namespace-id")
 	ctx := t.Context()
 
 	examplePPL := `allow:
@@ -858,12 +863,14 @@ func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 		Policy: &configpb.Policy{
 			OriginatorId: new("ingress-controller"),
 			Name:         new("test-example-policy"),
+			NamespaceId:  new("api-namespace-id"),
 			SourcePpl:    &examplePPL,
 		},
 	})).Return(createPolicyResponseWithID("example-policy-id"), nil)
 	route := &configpb.Route{
 		OriginatorId:         new("ingress-controller"),
 		Name:                 new("test-route-a-a-localhost-pomerium-io"),
+		NamespaceId:          new("api-namespace-id"),
 		From:                 "https://a.localhost.pomerium.io",
 		To:                   []string{"http://example-svc.test.svc.cluster.local:8000"},
 		LoadBalancingWeights: []uint32{1},
@@ -888,6 +895,7 @@ func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 			Id:           new("example-policy-id"),
 			OriginatorId: new("ingress-controller"),
 			Name:         new("test-example-policy"),
+			NamespaceId:  new("api-namespace-id"),
 			SourcePpl:    &examplePPL,
 		},
 	}), nil)
@@ -901,6 +909,7 @@ func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 			OriginatorId:         new("ingress-controller"),
 			Id:                   new("new-route-id-1"),
 			Name:                 new("test-route-a-a-localhost-pomerium-io"),
+			NamespaceId:          new("api-namespace-id"),
 			From:                 "https://a.localhost.pomerium.io",
 			To:                   []string{"http://example-svc.test.svc.cluster.local:1234"},
 			LoadBalancingWeights: []uint32{1},
@@ -923,6 +932,7 @@ func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 			OriginatorId: new("ingress-controller"),
 			Id:           new("new-route-id-1"),
 			Name:         new("test-route-a-a-localhost-pomerium-io"),
+			NamespaceId:  new("api-namespace-id"),
 			From:         "https://a.localhost.pomerium.io",
 			Response: &configpb.RouteDirectResponse{
 				Status: 500,
@@ -1317,6 +1327,7 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 					Key:          []byte("key-data"),
 
 					// these fields should be ignored
+					NamespaceId: new("default-namespace-id"),
 					CertificateInfo: []*configpb.CertificateInfo{{
 						Version: 1234,
 						Serial:  "ABCD",
@@ -1360,6 +1371,7 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 				Key:          []byte("key-data"),
 
 				// these fields should be ignored
+				NamespaceId: new("default-namespace-id"),
 				CertificateInfo: []*configpb.CertificateInfo{{
 					Version: 1234,
 					Serial:  "ABCD",
@@ -1650,7 +1662,8 @@ func TestAPIReconciler_deletePolicy(t *testing.T) {
 func TestNewAPIReconciler_InvalidURL(t *testing.T) {
 	// NewAPIReconciler should return an error if the API URL is invalid
 	// when a dial address override is specified.
-	_, err := NewAPIReconciler("://invalid", "token", config.NewDefaultOptions(), "localhost:8443")
+	_, err := NewAPIReconciler(
+		"://invalid", "namespace", "token", config.NewDefaultOptions(), "localhost:8443")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid API URL")
 }

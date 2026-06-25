@@ -39,7 +39,7 @@ import (
 // NewAPIReconciler initializes a reconciler that syncs using the unified API,
 // for the given API url and API token.
 func NewAPIReconciler(
-	apiURL, apiToken string, baseOptions *config.Options, dialAddressOverride string,
+	apiURL, namespaceID, apiToken string, baseOptions *config.Options, dialAddressOverride string,
 ) (Reconciler, error) {
 	opts := []sdk.ClientOption{
 		sdk.WithURL(apiURL),
@@ -64,11 +64,15 @@ func NewAPIReconciler(
 			Transport: transport,
 		}))
 	}
-	return &APIReconciler{
+	ar := &APIReconciler{
 		apiClient:   sdk.NewClient(opts...),
 		baseOptions: baseOptions,
 		secretsMap:  model.NewTLSSecretsMap(),
-	}, nil
+	}
+	if namespaceID != "" {
+		ar.namespaceID = &namespaceID
+	}
+	return ar, nil
 }
 
 var (
@@ -83,6 +87,7 @@ type APIReconciler struct {
 	k8sClient client.Client
 
 	baseOptions *config.Options
+	namespaceID *string
 	secretsMap  *model.TLSSecretsMap
 }
 
@@ -319,6 +324,7 @@ func (r *APIReconciler) syncOneSecret(
 	name := keyPairName(util.GetNamespacedName(secret))
 	keyPair := &configpb.KeyPair{
 		Name:         &name,
+		NamespaceId:  r.namespaceID,
 		Certificate:  cert,
 		Key:          secret.Data[corev1.TLSPrivateKeyKey],
 		OriginatorId: &originatorID,
@@ -561,6 +567,7 @@ func (r *APIReconciler) syncGatewayPolicies(
 		policy.Rego = nil
 		policyName := slug.Make(fmt.Sprintf("%s %s", obj.Namespace, obj.Name))
 		policy.Name = &policyName
+		policy.NamespaceId = r.namespaceID
 		if id := obj.Annotations[apiPolicyIDAnnotation]; id != "" {
 			policy.Id = &id
 		}
@@ -637,6 +644,7 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *configpb.Rout
 	if err != nil {
 		return false, err
 	}
+	apiRoute.NamespaceId = r.namespaceID
 	apiRoute.OriginatorId = &originatorID
 
 	var existing *configpb.Route
@@ -652,8 +660,6 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *configpb.Rout
 	}
 
 	if existing == nil {
-		apiRoute.OriginatorId = &originatorID
-
 		// If the route does not currently exist, create it.
 		resp, err := r.apiClient.CreateRoute(ctx, connect.NewRequest(&configpb.CreateRouteRequest{
 			Route: apiRoute,
@@ -676,7 +682,9 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *configpb.Rout
 	}
 
 	// Clear the fields that should be ignored when looking for changes.
-	existing.NamespaceId = nil
+	if r.namespaceID == nil {
+		existing.NamespaceId = nil
+	}
 	existing.CreatedAt = nil
 	existing.ModifiedAt = nil
 	existing.AssignedPolicies = nil
@@ -759,6 +767,7 @@ func (r *APIReconciler) syncIngressPolicy(
 	if err != nil {
 		return false, "", fmt.Errorf("internal error: %w", err)
 	}
+	apiPolicy.NamespaceId = r.namespaceID
 	apiPolicy.OriginatorId = &originatorID
 	if existingPolicyID != "" {
 		apiPolicy.Id = &existingPolicyID
@@ -812,7 +821,9 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *configpb.Polic
 	}
 
 	// Zero out fields that should be ignored when looking for changes.
-	existing.NamespaceId = nil
+	if r.namespaceID == nil {
+		existing.NamespaceId = nil
+	}
 	existing.CreatedAt = nil
 	existing.ModifiedAt = nil
 	existing.AssignedRoutes = nil
@@ -913,7 +924,9 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *configpb.Key
 	}
 
 	// Zero out fields that should be ignored when looking for changes.
-	existing.NamespaceId = nil
+	if r.namespaceID == nil {
+		existing.NamespaceId = nil
+	}
 	existing.CreatedAt = nil
 	existing.ModifiedAt = nil
 	existing.CertificateInfo = nil
