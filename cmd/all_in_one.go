@@ -338,7 +338,7 @@ func (s *allCmdParam) applyBootstrapIngress(
 	// Fetch the bootstrap ingress as a one-off.
 	ns, n, ok := strings.Cut(name, "/")
 	if !ok {
-		return fmt.Errorf("expected ingress name in namespace/name formt")
+		return fmt.Errorf("expected ingress name in namespace/name format, got %q", name)
 	}
 	nn := types.NamespacedName{Namespace: ns, Name: n}
 	scheme, err := getScheme()
@@ -362,14 +362,16 @@ func (s *allCmdParam) applyBootstrapIngress(
 		return fmt.Errorf("fetch bootstrap ingress data: %w", err)
 	}
 
-	// Force the route 'From' URL to use the service proxy URL (so we don't need
+	// Force the route 'To' URL to use the service proxy URL (so we don't need
 	// to watch for changes to the service endpoints).
 	ic.Ingress = ic.Ingress.DeepCopy()
-	ic.Ingress.Annotations[annotationPrefix+"/"+model.UseServiceProxy] = "true"
+	util.SetAnnotation(ic.Ingress, annotationPrefix+"/"+model.UseServiceProxy, "true")
 
 	routes, err := pomerium.IngressToRoutes(ctx, ic)
 	if err != nil {
 		return fmt.Errorf("convert bootstrap ingress to routes: %w", err)
+	} else if len(routes) == 0 {
+		return fmt.Errorf("bootstrap ingress %q has no rules", name)
 	}
 	s.cfg.Options.Policies = append(s.cfg.Options.Policies, routes...)
 
