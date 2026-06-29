@@ -18,8 +18,9 @@ var _ = pomerium.ConfigReconciler(new(Runner))
 
 // Runner implements pomerium control loop
 type Runner struct {
-	src  *InMemoryConfigSource
-	base config.Config
+	src              *InMemoryConfigSource
+	base             config.Config
+	syncAPIBootstrap bool
 	sync.Once
 	ready chan struct{}
 }
@@ -50,6 +51,11 @@ func (r *Runner) SetConfig(ctx context.Context, src *model.Config) (changes bool
 	if err := Apply(ctx, dst.Options, src); err != nil {
 		return false, fmt.Errorf("transform config: %w", err)
 	}
+	if r.syncAPIBootstrap {
+		if err := ApplyAdditional(ctx, dst.Options, src); err != nil {
+			return false, fmt.Errorf("apply additional config: %w", err)
+		}
+	}
 
 	changed := r.src.SetConfig(ctx, dst)
 	r.Once.Do(r.readyToRun)
@@ -58,13 +64,14 @@ func (r *Runner) SetConfig(ctx context.Context, src *model.Config) (changes bool
 }
 
 // NewPomeriumRunner creates new pomerium command and control
-func NewPomeriumRunner(base config.Config, listener config.ChangeListener) (*Runner, error) {
+func NewPomeriumRunner(base config.Config, listener config.ChangeListener, syncAPIBootstrap bool) (*Runner, error) {
 	return &Runner{
 		base: base,
 		src: &InMemoryConfigSource{
 			listeners: []config.ChangeListener{listener},
 		},
-		ready: make(chan struct{}),
+		syncAPIBootstrap: syncAPIBootstrap,
+		ready:            make(chan struct{}),
 	}, nil
 }
 

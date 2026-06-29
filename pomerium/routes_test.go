@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net/url"
 	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -19,7 +21,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	"github.com/pomerium/pomerium/config"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/identity"
 
 	_ "github.com/pomerium/ingress-controller/internal"
 	"github.com/pomerium/ingress-controller/model"
@@ -80,6 +84,59 @@ func TestHttp01Solver(t *testing.T) {
 	require.Len(t, routes, 1)
 	require.True(t, routes[0].AllowPublicUnauthenticatedAccess)
 	require.True(t, routes[0].PreserveHostHeader)
+}
+
+func TestIngressToRoutes(t *testing.T) {
+	typePrefix := networkingv1.PathTypePrefix
+	ic := &model.IngressConfig{
+		Ingress: &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{Name: "my-ingress", Namespace: "test"},
+			Spec: networkingv1.IngressSpec{
+				Rules: []networkingv1.IngressRule{{
+					Host: "a.localhost.pomerium.io",
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{{
+								Path:     "/",
+								PathType: &typePrefix,
+								Backend: networkingv1.IngressBackend{
+									Service: &networkingv1.IngressServiceBackend{
+										Name: "example-svc",
+										Port: networkingv1.ServiceBackendPort{Number: 8080},
+									},
+								},
+							}},
+						},
+					},
+				}},
+			},
+		},
+		Services: map[types.NamespacedName]*corev1.Service{
+			{Name: "example-svc", Namespace: "test"}: {},
+		},
+	}
+
+	routes, err := IngressToRoutes(context.Background(), ic)
+	require.NoError(t, err)
+	assert.Equal(t, []config.Policy{{
+		ID:   `{"n":"my-ingress","ns":"test","h":"a.localhost.pomerium.io","p":"/"}`,
+		Name: "test-my-ingress-a-localhost-pomerium-io",
+		From: "https://a.localhost.pomerium.io",
+		To: config.WeightedURLs{{
+			URL: url.URL{
+				Scheme: "http",
+				Host:   "example-svc.test.svc.cluster.local:8080",
+			},
+			LbWeight: 0,
+		}},
+		Prefix:           "/",
+		StatName:         null.StringFrom("test-my-ingress-a-localhost-pomerium-io"),
+		AllowedIDPClaims: identity.FlattenedClaims{},
+		SubPolicies: []config.SubPolicy{{
+			AllowedIDPClaims: identity.FlattenedClaims{},
+		}},
+		HealthyPanicThreshold: null.NewInt32(0, false),
+	}}, routes)
 }
 
 func TestUpsertIngress(t *testing.T) {

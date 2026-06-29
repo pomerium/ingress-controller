@@ -28,10 +28,11 @@ func (r *ingressController) fetchIngress(ctx context.Context, ingress *networkin
 		_ = client.Get(ctx, *r.updateStatusFromService, new(corev1.Service))
 	}
 
-	return fetchIngress(ctx, client, ingress, r.annotationPrefix)
+	return FetchIngress(ctx, client, ingress, r.annotationPrefix)
 }
 
-func fetchIngress(
+// FetchIngress populates a model.IngressConfig for ingress.
+func FetchIngress(
 	ctx context.Context,
 	client client.Client,
 	ingress *networkingv1.Ingress,

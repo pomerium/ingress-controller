@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/pomerium/pomerium/config"
 )
@@ -23,7 +24,9 @@ var (
 
 var (
 	cmpOpts = []cmp.Option{
+		protocmp.Transform(),
 		cmpopts.IgnoreUnexported(config.Options{}),
+		cmpopts.IgnoreUnexported(config.Policy{}),
 		cmpopts.EquateEmpty(),
 	}
 )

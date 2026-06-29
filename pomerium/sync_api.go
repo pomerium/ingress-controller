@@ -2,9 +2,13 @@ package pomerium
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"maps"
+	"net"
+	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -35,16 +39,36 @@ import (
 // NewAPIReconciler initializes a reconciler that syncs using the unified API,
 // for the given API url and API token.
 func NewAPIReconciler(
-	url, token string, baseOptions *config.Options,
-) Reconciler {
-	client := sdk.NewClient(
-		sdk.WithURL(url),
-		sdk.WithAPIToken(token))
+	apiURL, apiToken string, baseOptions *config.Options, dialAddressOverride string,
+) (Reconciler, error) {
+	opts := []sdk.ClientOption{
+		sdk.WithURL(apiURL),
+		sdk.WithAPIToken(apiToken),
+	}
+
+	if dialAddressOverride != "" {
+		u, err := url.Parse(apiURL)
+		if err != nil {
+			return nil, fmt.Errorf("invalid API URL: %w", err)
+		}
+		dialer := &tls.Dialer{
+			Config: &tls.Config{
+				ServerName: u.Hostname(),
+			},
+		}
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		transport.DialTLSContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return dialer.DialContext(ctx, network, dialAddressOverride)
+		}
+		opts = append(opts, sdk.WithHTTPClient(&http.Client{
+			Transport: transport,
+		}))
+	}
 	return &APIReconciler{
-		apiClient:   client,
+		apiClient:   sdk.NewClient(opts...),
 		baseOptions: baseOptions,
 		secretsMap:  model.NewTLSSecretsMap(),
-	}
+	}, nil
 }
 
 var (
@@ -236,7 +260,7 @@ func (r *APIReconciler) upsertOneIngress(
 			return changed, err
 		}
 		if ic.Annotations[k] != *route.Id {
-			setAnnotation(ic, k, *route.Id)
+			util.SetAnnotation(ic, k, *route.Id)
 		}
 		changed = changed || changedRoute
 	}
@@ -308,7 +332,7 @@ func (r *APIReconciler) syncOneSecret(
 	if err != nil {
 		return false, err
 	} else if changed {
-		setAnnotation(secret, apiKeyPairIDAnnotation, keyPair.GetId())
+		util.SetAnnotation(secret, apiKeyPairIDAnnotation, keyPair.GetId())
 		controllerutil.AddFinalizer(secret, apiFinalizer)
 		err = r.k8sClient.Patch(ctx, secret, client.MergeFrom(originalSecret))
 	}
@@ -478,7 +502,7 @@ func (r *APIReconciler) SetGatewayConfig(
 				}
 				changes = changes || routeChanged
 				if gr.Annotations[k] != *route.Id {
-					setAnnotation(gr, k, *route.Id)
+					util.SetAnnotation(gr, k, *route.Id)
 				}
 			}
 			controllerutil.AddFinalizer(gr, apiFinalizer)
@@ -546,7 +570,7 @@ func (r *APIReconciler) syncGatewayPolicies(
 			return changes, nil, err
 		} else if changedPolicy {
 			changes = true
-			setAnnotation(obj, apiPolicyIDAnnotation, policy.GetId())
+			util.SetAnnotation(obj, apiPolicyIDAnnotation, policy.GetId())
 			controllerutil.AddFinalizer(obj, apiFinalizer)
 		}
 
@@ -746,7 +770,7 @@ func (r *APIReconciler) syncIngressPolicy(
 		return false, "", fmt.Errorf("couldn't update ingress policy: %w", err)
 	}
 	updatedPolicyID = apiPolicy.GetId()
-	setAnnotation(ingress, apiPolicyIDAnnotation, updatedPolicyID)
+	util.SetAnnotation(ingress, apiPolicyIDAnnotation, updatedPolicyID)
 	return changed, updatedPolicyID, nil
 }
 
@@ -1014,15 +1038,6 @@ func convertProto[Dst, Src proto.Message](msg Src) (Dst, error) {
 	newMsg = newMsg.ProtoReflect().Type().New().Interface().(Dst)
 	err = proto.Unmarshal(b, newMsg)
 	return newMsg, err
-}
-
-func setAnnotation(object client.Object, key, value string) {
-	m := object.GetAnnotations()
-	if m == nil {
-		m = make(map[string]string)
-	}
-	m[key] = value
-	object.SetAnnotations(m)
 }
 
 func falseToNil(x *bool) *bool {

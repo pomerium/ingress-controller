@@ -1647,6 +1647,14 @@ func TestAPIReconciler_deletePolicy(t *testing.T) {
 	})
 }
 
+func TestNewAPIReconciler_InvalidURL(t *testing.T) {
+	// NewAPIReconciler should return an error if the API URL is invalid
+	// when a dial address override is specified.
+	_, err := NewAPIReconciler("://invalid", "token", config.NewDefaultOptions(), "localhost:8443")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid API URL")
+}
+
 func createKeyPairResponseWithID(id string) *connect.Response[configpb.CreateKeyPairResponse] {
 	return &connect.Response[configpb.CreateKeyPairResponse]{
 		Msg: &configpb.CreateKeyPairResponse{
