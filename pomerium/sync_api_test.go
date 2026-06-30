@@ -549,6 +549,62 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 		assert.Equal(t, "recreated-route-id", ic.Annotations["api.pomerium.io/route-id-0"])
 	})
 
+	t.Run("different route namespace", func(t *testing.T) {
+		ingress := ingressTemplate.DeepCopy()
+		ingress.Annotations = map[string]string{
+			"api.pomerium.io/route-id-0": "existing-route-id",
+		}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a", Ingress: ingress,
+			Services: map[types.NamespacedName]*corev1.Service{
+				{Name: "example-svc", Namespace: "test"}: {},
+			},
+		}
+
+		apiClient, k8sClient, r := setupReconciler(t)
+		r.namespaceID = new("namespace-bravo")
+		ctx := t.Context()
+
+		// The route already exists, but in a different namespace.
+		apiClient.EXPECT().GetRoute(ctx, RequestEq(&configpb.GetRouteRequest{
+			Id: "existing-route-id",
+		})).Return(connect.NewResponse(&configpb.GetRouteResponse{
+			Route: &configpb.Route{
+				Id:           new("existing-route-id"),
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-a-localhost-pomerium-io"),
+				NamespaceId:  new("namespace-alpha"),
+				StatName:     new("route-a-stat-name"),
+				From:         "https://a.localhost.pomerium.io",
+				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
+				Prefix:       "/",
+			},
+		}), nil)
+
+		// The existing route should be deleted and recreated.
+		apiClient.EXPECT().DeleteRoute(ctx, RequestEq(&configpb.DeleteRouteRequest{
+			Id: "existing-route-id",
+		})).Return(connect.NewResponse(&configpb.DeleteRouteResponse{}), nil)
+
+		apiClient.EXPECT().CreateRoute(ctx, RequestEq(&configpb.CreateRouteRequest{
+			Route: &configpb.Route{
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
+				NamespaceId:  new("namespace-bravo"),
+				From:         "https://a.localhost.pomerium.io",
+				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
+				Prefix:       "/",
+			},
+		})).Return(createRouteResponseWithID("recreated-route-id"), nil)
+
+		k8sClient.EXPECT().Patch(ctx, ingress, gomock.Any()).Return(nil)
+
+		changed, err := r.upsertOneIngress(ctx, ic)
+		assert.True(t, changed)
+		assert.NoError(t, err)
+		assert.Equal(t, "recreated-route-id", ic.Annotations["api.pomerium.io/route-id-0"])
+	})
+
 	t.Run("other error on update", func(t *testing.T) {
 		ingress := ingressTemplate.DeepCopy()
 		ingress.Annotations = map[string]string{
@@ -1573,6 +1629,48 @@ func TestAPIReconciler_upsertPolicy(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("different namespace", func(t *testing.T) {
+		apiClient, _, r := setupReconciler(t)
+		ctx := t.Context()
+
+		policy := proto.CloneOf(policy)
+		policy.NamespaceId = new("namespace-bravo")
+
+		// The policy already exists, but in a different namespace.
+		apiClient.EXPECT().GetPolicy(ctx, RequestEq(&configpb.GetPolicyRequest{
+			Id: "existing-policy-id",
+		})).Return(connect.NewResponse(&configpb.GetPolicyResponse{
+			Policy: &configpb.Policy{
+				Id:          new("existing-policy-id"),
+				NamespaceId: new("namespace-alpha"),
+
+				CreatedAt:  timestamppb.Now(),
+				ModifiedAt: timestamppb.Now(),
+				AssignedRoutes: []*configpb.EntityInfo{{
+					Id:   new("some-route-id"),
+					Name: new("some-route-name"),
+				}},
+				Enforced: new(false),
+			},
+		}), nil)
+
+		// The existing policy should be deleted and recreated in the new namespace.
+		apiClient.EXPECT().DeletePolicy(ctx, RequestEq(&configpb.DeletePolicyRequest{
+			Id: "existing-policy-id",
+		})).Return(connect.NewResponse(&configpb.DeletePolicyResponse{}), nil)
+
+		apiClient.EXPECT().CreatePolicy(ctx, RequestEq(&configpb.CreatePolicyRequest{
+			Policy: &configpb.Policy{
+				NamespaceId: new("namespace-bravo"),
+			},
+		})).Return(createPolicyResponseWithID("recreated-policy-id"), nil)
+
+		changed, err := r.upsertPolicy(ctx, policy)
+		assert.True(t, changed)
+		assert.NoError(t, err)
+		assert.Equal(t, "recreated-policy-id", policy.GetId())
+	})
+
 	t.Run("already exists", func(t *testing.T) {
 		policy := &configpb.Policy{
 			OriginatorId: new("originator-id"),
@@ -1628,7 +1726,7 @@ func TestAPIReconciler_deletePolicy(t *testing.T) {
 			Id: "existing-policy-id",
 		})).Return(nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("not found")))
 
-		deleted, err := r.deletePolicy(ctx, ingress)
+		deleted, err := r.deletePolicyForObject(ctx, ingress)
 		assert.True(t, deleted)
 		assert.NoError(t, err)
 		assert.NotContains(t, ingress.Annotations, "api.pomerium.io/policy-id")
@@ -1652,7 +1750,7 @@ func TestAPIReconciler_deletePolicy(t *testing.T) {
 			Id: "existing-policy-id",
 		})).Return(nil, apiError)
 
-		deleted, err := r.deletePolicy(ctx, ingress)
+		deleted, err := r.deletePolicyForObject(ctx, ingress)
 		assert.False(t, deleted)
 		assert.Equal(t, apiError, err)
 		assert.Equal(t, "existing-policy-id", ingress.Annotations["api.pomerium.io/policy-id"])
