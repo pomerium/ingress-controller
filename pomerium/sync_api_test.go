@@ -1485,6 +1485,65 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("different namespace", func(t *testing.T) {
+		apiClient, k8sClient, r := setupReconciler(t)
+		r.namespaceID = new("namespace-bravo")
+		ctx := t.Context()
+
+		secret := secretTemplate.DeepCopy()
+		secret.Annotations = map[string]string{
+			apiKeyPairIDAnnotation: "existing-keypair-id",
+		}
+
+		// The policy already exists, but in a different namespace.
+		// If there is an existing keypair ID annotation present, but it cannot
+		// be retrieved, APIReconciler should create it as a new keypair.
+		apiClient.EXPECT().GetKeyPair(ctx, RequestEq(&configpb.GetKeyPairRequest{
+			Id: "existing-keypair-id",
+		})).Return(&connect.Response[configpb.GetKeyPairResponse]{
+			Msg: &configpb.GetKeyPairResponse{
+				KeyPair: &configpb.KeyPair{
+					OriginatorId: new("ingress-controller"),
+					Id:           new("existing-keypair-id"),
+					Name:         new("test-secret-1"),
+					NamespaceId:  new("namespace-alpha"),
+					Certificate:  []byte("cert-data"),
+					Key:          []byte("key-data"),
+				},
+			},
+		}, nil)
+
+		// The existing key pair should be deleted and a new key pair created in
+		// the new namespace.
+		apiClient.EXPECT().DeleteKeyPair(ctx, RequestEq(&configpb.DeleteKeyPairRequest{
+			Id: "existing-keypair-id",
+		})).Return(connect.NewResponse(&configpb.DeleteKeyPairResponse{}), nil)
+
+		apiClient.EXPECT().CreateKeyPair(ctx, RequestEq(&configpb.CreateKeyPairRequest{
+			KeyPair: &configpb.KeyPair{
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-secret-1"),
+				NamespaceId:  new("namespace-bravo"),
+				Certificate:  []byte("cert-data"),
+				Key:          []byte("key-data"),
+			},
+		})).Return(&connect.Response[configpb.CreateKeyPairResponse]{
+			Msg: &configpb.CreateKeyPairResponse{
+				KeyPair: &configpb.KeyPair{
+					Id: new("recreated-keypair-id"),
+					// rest of the data omitted (not currently read)
+				},
+			},
+		}, nil)
+
+		k8sClient.EXPECT().Patch(ctx, secret, gomock.Any()).Return(nil)
+
+		changed, err := r.syncOneSecret(ctx, secret)
+		assert.True(t, changed)
+		assert.NoError(t, err)
+		assert.Equal(t, "recreated-keypair-id", secret.Annotations[apiKeyPairIDAnnotation])
+	})
+
 	t.Run("patch error", func(t *testing.T) {
 		apiClient, k8sClient, r := setupReconciler(t)
 		ctx := t.Context()
