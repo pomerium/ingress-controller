@@ -198,6 +198,8 @@ func (r *APIReconciler) upsertOneIngress(
 		return changed, err
 	}
 
+	existingPolicyID := ic.Annotations[apiPolicyIDAnnotation]
+
 	changedPolicy, updatedPolicyID, err := r.syncIngressPolicy(ctx, ic.Ingress, kv)
 	if err != nil {
 		return changed, err
@@ -278,6 +280,15 @@ func (r *APIReconciler) upsertOneIngress(
 		return changed, err
 	}
 	changed = changed || anyDeletes
+
+	// If we had to recreate the linked policy e.g. due to a change in the
+	// namespace, now we can delete the old policy.
+	if existingPolicyID != "" && existingPolicyID != updatedPolicyID {
+		// I don't see an easy way to make this delete idempotent.
+		// TODO: figure out if it's worth additional complexity to avoid
+		// an orphaned policy in the old namespace.
+		r.deletePolicy(ctx, existingPolicyID)
+	}
 
 	// If there was a linked policy that is no no longer needed, delete it.
 	// (This cannot be done until all of the linked routes are updated to no
@@ -819,10 +830,8 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *configpb.Polic
 	if existing != nil && policy.NamespaceId != nil &&
 		policy.GetNamespaceId() != existing.GetNamespaceId() {
 		// The policy exists already, but in a different namespace.
-		// Delete the existing policy so we can recreate it in the new namespace.
-		if err := r.deletePolicy(ctx, existing.GetId()); err != nil {
-			return false, fmt.Errorf("couldn't delete existing policy in different namespace: %w", err)
-		}
+		// We'll need to delete and recreate it, but we can't delete it until
+		// any routes that reference it are also deleted.
 		existing = nil
 		policy.Id = nil
 	}
