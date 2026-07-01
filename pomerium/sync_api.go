@@ -130,7 +130,7 @@ func (r *APIReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bo
 
 	// Remove keypairs corresponding to any newly-unreferenced TLS secrets.
 	unreferencedSecrets := r.secretsMap.UpdateIngress(ic)
-	anyDeletes, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
+	anyDeletes, err := r.deleteKeyPairsForSecrets(ctx, unreferencedSecrets...)
 	if err != nil {
 		return anyChanges, err
 	}
@@ -287,7 +287,7 @@ func (r *APIReconciler) upsertOneIngress(
 		// I don't see an easy way to make this delete idempotent.
 		// TODO: figure out if it's worth additional complexity to avoid
 		// an orphaned policy in the old namespace.
-		r.deletePolicy(ctx, existingPolicyID)
+		_ = r.deletePolicy(ctx, existingPolicyID)
 	}
 
 	// If there was a linked policy that is no no longer needed, delete it.
@@ -360,7 +360,7 @@ func (r *APIReconciler) syncOneSecret(
 func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (changes bool, err error) {
 	// Remove keypairs corresponding to any newly-unreferenced TLS secrets.
 	unreferencedSecrets := r.secretsMap.UpdateConfig(cfg)
-	anyDeletes, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
+	anyDeletes, err := r.deleteKeyPairsForSecrets(ctx, unreferencedSecrets...)
 	if err != nil {
 		return changes, err
 	}
@@ -462,7 +462,7 @@ func (r *APIReconciler) Delete(ctx context.Context, name types.NamespacedName) (
 		Kind:           ingress.Kind,
 		NamespacedName: name,
 	})
-	anyKeyPairDeleted, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
+	anyKeyPairDeleted, err := r.deleteKeyPairsForSecrets(ctx, unreferencedSecrets...)
 	if err != nil {
 		return changed, err
 	}
@@ -480,7 +480,7 @@ func (r *APIReconciler) SetGatewayConfig(
 ) (changes bool, err error) {
 	// Sync keypairs.
 	unreferencedSecrets := r.secretsMap.UpdateGatewayConfig(gatewayConfig)
-	anyDeletes, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
+	anyDeletes, err := r.deleteKeyPairsForSecrets(ctx, unreferencedSecrets...)
 	if err != nil {
 		return changes, err
 	}
@@ -946,6 +946,17 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *configpb.Key
 		}
 	}
 
+	if existing != nil && keyPair.NamespaceId != nil &&
+		keyPair.GetNamespaceId() != existing.GetNamespaceId() {
+		// The key pair exists already, but in a different namespace.
+		// Delete the existing key pair so we can recreate it in the new namespace.
+		if err := r.deleteKeyPair(ctx, existing.GetId()); err != nil {
+			return false, fmt.Errorf("couldn't delete existing key pair in different namespace: %w", err)
+		}
+		existing = nil
+		keyPair.Id = nil
+	}
+
 	// If there is no existing keypair, create one.
 	if existing == nil {
 		resp, err := r.apiClient.CreateKeyPair(ctx, connect.NewRequest(&configpb.CreateKeyPairRequest{
@@ -1018,10 +1029,10 @@ func (r *APIReconciler) findKeyPairByName(
 	return resp.Msg.KeyPairs[0], nil
 }
 
-// deleteKeyPairs deletes the keypairs corresponding to the given Secret names,
-// clearing the keypair ID annotation for each. Returns true if any deletes were
-// successful, or an error if some delete operation failed.
-func (r *APIReconciler) deleteKeyPairs(
+// deleteKeyPairsForSecrets deletes the keypairs corresponding to the given
+// Secret names, clearing the keypair ID annotation for each. Returns true if
+// any deletes were successful, or an error if some delete operation failed.
+func (r *APIReconciler) deleteKeyPairsForSecrets(
 	ctx context.Context, secretNames ...types.NamespacedName,
 ) (bool, error) {
 	var anyDeletes bool
@@ -1051,10 +1062,7 @@ func (r *APIReconciler) deleteKeyPairs(
 		}
 
 		if keyPairID != "" {
-			_, err = r.apiClient.DeleteKeyPair(ctx, connect.NewRequest(&configpb.DeleteKeyPairRequest{
-				Id: keyPairID,
-			}))
-			if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
+			if err := r.deleteKeyPair(ctx, keyPairID); err != nil {
 				return anyDeletes, err
 			}
 		}
@@ -1070,6 +1078,16 @@ func (r *APIReconciler) deleteKeyPairs(
 		anyDeletes = true
 	}
 	return anyDeletes, nil
+}
+
+func (r *APIReconciler) deleteKeyPair(ctx context.Context, id string) error {
+	_, err := r.apiClient.DeleteKeyPair(ctx, connect.NewRequest(&configpb.DeleteKeyPairRequest{
+		Id: id,
+	}))
+	if connect.CodeOf(err) == connect.CodeNotFound {
+		return nil
+	}
+	return err
 }
 
 func routeIDAnnotationForIndex(i int) string {

@@ -1538,7 +1538,7 @@ func TestAPIReconciler_deleteKeyPairs(t *testing.T) {
 			Id: "my-keypair-id",
 		}))
 
-		_, err := r.deleteKeyPairs(ctx, n)
+		_, err := r.deleteKeyPairsForSecrets(ctx, n)
 		assert.NoError(t, err)
 	})
 
@@ -1555,7 +1555,7 @@ func TestAPIReconciler_deleteKeyPairs(t *testing.T) {
 			Filter: filterByName(t, "test-my-secret"),
 		})).Return(connect.NewResponse(&configpb.ListKeyPairsResponse{KeyPairs: nil}), nil)
 
-		_, err := r.deleteKeyPairs(ctx, n)
+		_, err := r.deleteKeyPairsForSecrets(ctx, n)
 		assert.NoError(t, err)
 	})
 }
