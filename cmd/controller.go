@@ -169,7 +169,7 @@ func (s *controllerCmd) buildController(ctx context.Context) (*controllers.Contr
 
 	if s.SyncAPIURL != "" {
 		c.Reconciler, err = pomerium.NewAPIReconciler(
-			s.SyncAPIURL, s.SyncAPIToken, pomerium_config.NewDefaultOptions(), "")
+			s.SyncAPIURL, s.SyncAPINamespaceID, s.SyncAPIToken, pomerium_config.NewDefaultOptions(), "")
 		if err != nil {
 			return nil, err
 		}

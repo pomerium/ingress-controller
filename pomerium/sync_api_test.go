@@ -74,6 +74,7 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 	// APIReconciler should create, update, and delete a Pomerium route and
 	// keypair entity.
 	apiClient, k8sClient, r := setupReconciler(t)
+	r.namespaceID = new("api-namespace-id")
 
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -106,6 +107,7 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 	route := &configpb.Route{
 		OriginatorId: new("ingress-controller"),
 		Name:         new("test-my-ingress-a-localhost-pomerium-io"),
+		NamespaceId:  new("api-namespace-id"),
 		From:         "https://a.localhost.pomerium.io",
 		To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
 		Prefix:       "/",
@@ -143,6 +145,7 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 		KeyPair: &configpb.KeyPair{
 			OriginatorId: new("ingress-controller"),
 			Name:         new("test-pomerium-wildcard-cert"),
+			NamespaceId:  new("api-namespace-id"),
 			Certificate:  []byte("fake-cert-data"),
 			Key:          []byte("fake-key-data"),
 		},
@@ -157,6 +160,7 @@ func TestAPIReconcilerBasicIngressLifecycle(t *testing.T) {
 			OriginatorId:      new("ingress-controller"),
 			Id:                new("new-route-id-1"),
 			Name:              new("test-my-ingress-a-localhost-pomerium-io"),
+			NamespaceId:       new("api-namespace-id"),
 			From:              "https://a.localhost.pomerium.io",
 			To:                []string{"http://example-svc.test.svc.cluster.local:8080"},
 			Prefix:            "/",
@@ -545,6 +549,62 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 		assert.Equal(t, "recreated-route-id", ic.Annotations["api.pomerium.io/route-id-0"])
 	})
 
+	t.Run("different route namespace", func(t *testing.T) {
+		ingress := ingressTemplate.DeepCopy()
+		ingress.Annotations = map[string]string{
+			"api.pomerium.io/route-id-0": "existing-route-id",
+		}
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "a", Ingress: ingress,
+			Services: map[types.NamespacedName]*corev1.Service{
+				{Name: "example-svc", Namespace: "test"}: {},
+			},
+		}
+
+		apiClient, k8sClient, r := setupReconciler(t)
+		r.namespaceID = new("namespace-bravo")
+		ctx := t.Context()
+
+		// The route already exists, but in a different namespace.
+		apiClient.EXPECT().GetRoute(ctx, RequestEq(&configpb.GetRouteRequest{
+			Id: "existing-route-id",
+		})).Return(connect.NewResponse(&configpb.GetRouteResponse{
+			Route: &configpb.Route{
+				Id:           new("existing-route-id"),
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-a-localhost-pomerium-io"),
+				NamespaceId:  new("namespace-alpha"),
+				StatName:     new("route-a-stat-name"),
+				From:         "https://a.localhost.pomerium.io",
+				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
+				Prefix:       "/",
+			},
+		}), nil)
+
+		// The existing route should be deleted and recreated.
+		apiClient.EXPECT().DeleteRoute(ctx, RequestEq(&configpb.DeleteRouteRequest{
+			Id: "existing-route-id",
+		})).Return(connect.NewResponse(&configpb.DeleteRouteResponse{}), nil)
+
+		apiClient.EXPECT().CreateRoute(ctx, RequestEq(&configpb.CreateRouteRequest{
+			Route: &configpb.Route{
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
+				NamespaceId:  new("namespace-bravo"),
+				From:         "https://a.localhost.pomerium.io",
+				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
+				Prefix:       "/",
+			},
+		})).Return(createRouteResponseWithID("recreated-route-id"), nil)
+
+		k8sClient.EXPECT().Patch(ctx, ingress, gomock.Any()).Return(nil)
+
+		changed, err := r.upsertOneIngress(ctx, ic)
+		assert.True(t, changed)
+		assert.NoError(t, err)
+		assert.Equal(t, "recreated-route-id", ic.Annotations["api.pomerium.io/route-id-0"])
+	})
+
 	t.Run("other error on update", func(t *testing.T) {
 		ingress := ingressTemplate.DeepCopy()
 		ingress.Annotations = map[string]string{
@@ -834,6 +894,7 @@ func TestAPIReconciler_upsertOneIngress_multipleRoutes(t *testing.T) {
 func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 	// Test the basic route & policy lifecycle via the SetGatewayConfig method.
 	apiClient, k8sClient, r := setupReconciler(t)
+	r.namespaceID = new("api-namespace-id")
 	ctx := t.Context()
 
 	examplePPL := `allow:
@@ -903,12 +964,14 @@ func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 		Policy: &configpb.Policy{
 			OriginatorId: new("ingress-controller"),
 			Name:         new("test-example-policy"),
+			NamespaceId:  new("api-namespace-id"),
 			SourcePpl:    &examplePPL,
 		},
 	})).Return(createPolicyResponseWithID("example-policy-id"), nil)
 	route := &configpb.Route{
 		OriginatorId:         new("ingress-controller"),
 		Name:                 new("test-route-a-a-localhost-pomerium-io"),
+		NamespaceId:          new("api-namespace-id"),
 		From:                 "https://a.localhost.pomerium.io",
 		To:                   []string{"http://example-svc.test.svc.cluster.local:8000"},
 		LoadBalancingWeights: []uint32{1},
@@ -933,6 +996,7 @@ func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 			Id:           new("example-policy-id"),
 			OriginatorId: new("ingress-controller"),
 			Name:         new("test-example-policy"),
+			NamespaceId:  new("api-namespace-id"),
 			SourcePpl:    &examplePPL,
 		},
 	}), nil)
@@ -946,6 +1010,7 @@ func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 			OriginatorId:         new("ingress-controller"),
 			Id:                   new("new-route-id-1"),
 			Name:                 new("test-route-a-a-localhost-pomerium-io"),
+			NamespaceId:          new("api-namespace-id"),
 			From:                 "https://a.localhost.pomerium.io",
 			To:                   []string{"http://example-svc.test.svc.cluster.local:1234"},
 			LoadBalancingWeights: []uint32{1},
@@ -968,6 +1033,7 @@ func TestAPIReconciler_SetGatewayConfig(t *testing.T) {
 			OriginatorId: new("ingress-controller"),
 			Id:           new("new-route-id-1"),
 			Name:         new("test-route-a-a-localhost-pomerium-io"),
+			NamespaceId:  new("api-namespace-id"),
 			From:         "https://a.localhost.pomerium.io",
 			Response: &configpb.RouteDirectResponse{
 				Status: 500,
@@ -1362,6 +1428,7 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 					Key:          []byte("key-data"),
 
 					// these fields should be ignored
+					NamespaceId: new("default-namespace-id"),
 					CertificateInfo: []*configpb.CertificateInfo{{
 						Version: 1234,
 						Serial:  "ABCD",
@@ -1405,6 +1472,7 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 				Key:          []byte("key-data"),
 
 				// these fields should be ignored
+				NamespaceId: new("default-namespace-id"),
 				CertificateInfo: []*configpb.CertificateInfo{{
 					Version: 1234,
 					Serial:  "ABCD",
@@ -1462,6 +1530,65 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("different namespace", func(t *testing.T) {
+		apiClient, k8sClient, r := setupReconciler(t)
+		r.namespaceID = new("namespace-bravo")
+		ctx := t.Context()
+
+		secret := secretTemplate.DeepCopy()
+		secret.Annotations = map[string]string{
+			apiKeyPairIDAnnotation: "existing-keypair-id",
+		}
+
+		// The policy already exists, but in a different namespace.
+		// If there is an existing keypair ID annotation present, but it cannot
+		// be retrieved, APIReconciler should create it as a new keypair.
+		apiClient.EXPECT().GetKeyPair(ctx, RequestEq(&configpb.GetKeyPairRequest{
+			Id: "existing-keypair-id",
+		})).Return(&connect.Response[configpb.GetKeyPairResponse]{
+			Msg: &configpb.GetKeyPairResponse{
+				KeyPair: &configpb.KeyPair{
+					OriginatorId: new("ingress-controller"),
+					Id:           new("existing-keypair-id"),
+					Name:         new("test-secret-1"),
+					NamespaceId:  new("namespace-alpha"),
+					Certificate:  []byte("cert-data"),
+					Key:          []byte("key-data"),
+				},
+			},
+		}, nil)
+
+		// The existing key pair should be deleted and a new key pair created in
+		// the new namespace.
+		apiClient.EXPECT().DeleteKeyPair(ctx, RequestEq(&configpb.DeleteKeyPairRequest{
+			Id: "existing-keypair-id",
+		})).Return(connect.NewResponse(&configpb.DeleteKeyPairResponse{}), nil)
+
+		apiClient.EXPECT().CreateKeyPair(ctx, RequestEq(&configpb.CreateKeyPairRequest{
+			KeyPair: &configpb.KeyPair{
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-secret-1"),
+				NamespaceId:  new("namespace-bravo"),
+				Certificate:  []byte("cert-data"),
+				Key:          []byte("key-data"),
+			},
+		})).Return(&connect.Response[configpb.CreateKeyPairResponse]{
+			Msg: &configpb.CreateKeyPairResponse{
+				KeyPair: &configpb.KeyPair{
+					Id: new("recreated-keypair-id"),
+					// rest of the data omitted (not currently read)
+				},
+			},
+		}, nil)
+
+		k8sClient.EXPECT().Patch(ctx, secret, gomock.Any()).Return(nil)
+
+		changed, err := r.syncOneSecret(ctx, secret)
+		assert.True(t, changed)
+		assert.NoError(t, err)
+		assert.Equal(t, "recreated-keypair-id", secret.Annotations[apiKeyPairIDAnnotation])
+	})
+
 	t.Run("patch error", func(t *testing.T) {
 		apiClient, k8sClient, r := setupReconciler(t)
 		ctx := t.Context()
@@ -1515,7 +1642,7 @@ func TestAPIReconciler_deleteKeyPairs(t *testing.T) {
 			Id: "my-keypair-id",
 		}))
 
-		_, err := r.deleteKeyPairs(ctx, n)
+		_, err := r.deleteKeyPairsForSecrets(ctx, n)
 		assert.NoError(t, err)
 	})
 
@@ -1532,7 +1659,7 @@ func TestAPIReconciler_deleteKeyPairs(t *testing.T) {
 			Filter: filterByName(t, "test-my-secret"),
 		})).Return(connect.NewResponse(&configpb.ListKeyPairsResponse{KeyPairs: nil}), nil)
 
-		_, err := r.deleteKeyPairs(ctx, n)
+		_, err := r.deleteKeyPairsForSecrets(ctx, n)
 		assert.NoError(t, err)
 	})
 }
@@ -1606,6 +1733,46 @@ func TestAPIReconciler_upsertPolicy(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("different namespace", func(t *testing.T) {
+		apiClient, _, r := setupReconciler(t)
+		ctx := t.Context()
+
+		policy := proto.CloneOf(policy)
+		policy.NamespaceId = new("namespace-bravo")
+
+		// The policy already exists, but in a different namespace.
+		apiClient.EXPECT().GetPolicy(ctx, RequestEq(&configpb.GetPolicyRequest{
+			Id: "existing-policy-id",
+		})).Return(connect.NewResponse(&configpb.GetPolicyResponse{
+			Policy: &configpb.Policy{
+				Id:          new("existing-policy-id"),
+				NamespaceId: new("namespace-alpha"),
+
+				CreatedAt:  timestamppb.Now(),
+				ModifiedAt: timestamppb.Now(),
+				AssignedRoutes: []*configpb.EntityInfo{{
+					Id:   new("some-route-id"),
+					Name: new("some-route-name"),
+				}},
+				Enforced: new(false),
+			},
+		}), nil)
+
+		// The policy should be recreated in the new namespace.
+		// (The existing policy can't be deleted yet because it might still be
+		// assigned to a route.)
+		apiClient.EXPECT().CreatePolicy(ctx, RequestEq(&configpb.CreatePolicyRequest{
+			Policy: &configpb.Policy{
+				NamespaceId: new("namespace-bravo"),
+			},
+		})).Return(createPolicyResponseWithID("recreated-policy-id"), nil)
+
+		changed, err := r.upsertPolicy(ctx, policy)
+		assert.True(t, changed)
+		assert.NoError(t, err)
+		assert.Equal(t, "recreated-policy-id", policy.GetId())
+	})
+
 	t.Run("already exists", func(t *testing.T) {
 		policy := &configpb.Policy{
 			OriginatorId: new("originator-id"),
@@ -1661,7 +1828,7 @@ func TestAPIReconciler_deletePolicy(t *testing.T) {
 			Id: "existing-policy-id",
 		})).Return(nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("not found")))
 
-		deleted, err := r.deletePolicy(ctx, ingress)
+		deleted, err := r.deletePolicyForObject(ctx, ingress)
 		assert.True(t, deleted)
 		assert.NoError(t, err)
 		assert.NotContains(t, ingress.Annotations, "api.pomerium.io/policy-id")
@@ -1685,7 +1852,7 @@ func TestAPIReconciler_deletePolicy(t *testing.T) {
 			Id: "existing-policy-id",
 		})).Return(nil, apiError)
 
-		deleted, err := r.deletePolicy(ctx, ingress)
+		deleted, err := r.deletePolicyForObject(ctx, ingress)
 		assert.False(t, deleted)
 		assert.Equal(t, apiError, err)
 		assert.Equal(t, "existing-policy-id", ingress.Annotations["api.pomerium.io/policy-id"])
@@ -1695,7 +1862,8 @@ func TestAPIReconciler_deletePolicy(t *testing.T) {
 func TestNewAPIReconciler_InvalidURL(t *testing.T) {
 	// NewAPIReconciler should return an error if the API URL is invalid
 	// when a dial address override is specified.
-	_, err := NewAPIReconciler("://invalid", "token", config.NewDefaultOptions(), "localhost:8443")
+	_, err := NewAPIReconciler(
+		"://invalid", "namespace", "token", config.NewDefaultOptions(), "localhost:8443")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid API URL")
 }
