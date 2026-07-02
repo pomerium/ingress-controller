@@ -1713,11 +1713,9 @@ func TestAPIReconciler_upsertPolicy(t *testing.T) {
 			},
 		}), nil)
 
-		// The existing policy should be deleted and recreated in the new namespace.
-		apiClient.EXPECT().DeletePolicy(ctx, RequestEq(&configpb.DeletePolicyRequest{
-			Id: "existing-policy-id",
-		})).Return(connect.NewResponse(&configpb.DeletePolicyResponse{}), nil)
-
+		// The policy should be recreated in the new namespace.
+		// (The existing policy can't be deleted yet because it might still be
+		// assigned to a route.)
 		apiClient.EXPECT().CreatePolicy(ctx, RequestEq(&configpb.CreatePolicyRequest{
 			Policy: &configpb.Policy{
 				NamespaceId: new("namespace-bravo"),

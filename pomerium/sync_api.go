@@ -283,7 +283,7 @@ func (r *APIReconciler) upsertOneIngress(
 
 	// If we had to recreate the linked policy e.g. due to a change in the
 	// namespace, now we can delete the old policy.
-	if existingPolicyID != "" && existingPolicyID != updatedPolicyID {
+	if existingPolicyID != "" && updatedPolicyID != "" && existingPolicyID != updatedPolicyID {
 		// I don't see an easy way to make this delete idempotent.
 		// TODO: figure out if it's worth additional complexity to avoid
 		// an orphaned policy in the old namespace.
