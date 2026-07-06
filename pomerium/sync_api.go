@@ -39,7 +39,7 @@ import (
 // NewAPIReconciler initializes a reconciler that syncs using the unified API,
 // for the given API url and API token.
 func NewAPIReconciler(
-	apiURL, apiToken string, baseOptions *config.Options, dialAddressOverride string,
+	apiURL, namespaceID, apiToken string, baseOptions *config.Options, dialAddressOverride string,
 ) (Reconciler, error) {
 	opts := []sdk.ClientOption{
 		sdk.WithURL(apiURL),
@@ -64,11 +64,15 @@ func NewAPIReconciler(
 			Transport: transport,
 		}))
 	}
-	return &APIReconciler{
+	ar := &APIReconciler{
 		apiClient:   sdk.NewClient(opts...),
 		baseOptions: baseOptions,
 		secretsMap:  model.NewTLSSecretsMap(),
-	}, nil
+	}
+	if namespaceID != "" {
+		ar.namespaceID = &namespaceID
+	}
+	return ar, nil
 }
 
 var (
@@ -83,6 +87,7 @@ type APIReconciler struct {
 	k8sClient client.Client
 
 	baseOptions *config.Options
+	namespaceID *string
 	secretsMap  *model.TLSSecretsMap
 }
 
@@ -125,7 +130,7 @@ func (r *APIReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bo
 
 	// Remove keypairs corresponding to any newly-unreferenced TLS secrets.
 	unreferencedSecrets := r.secretsMap.UpdateIngress(ic)
-	anyDeletes, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
+	anyDeletes, err := r.deleteKeyPairsForSecrets(ctx, unreferencedSecrets...)
 	if err != nil {
 		return anyChanges, err
 	}
@@ -192,6 +197,8 @@ func (r *APIReconciler) upsertOneIngress(
 	if err != nil {
 		return changed, err
 	}
+
+	existingPolicyID := ic.Annotations[apiPolicyIDAnnotation]
 
 	changedPolicy, updatedPolicyID, err := r.syncIngressPolicy(ctx, ic.Ingress, kv)
 	if err != nil {
@@ -274,11 +281,20 @@ func (r *APIReconciler) upsertOneIngress(
 	}
 	changed = changed || anyDeletes
 
+	// If we had to recreate the linked policy e.g. due to a change in the
+	// namespace, now we can delete the old policy.
+	if existingPolicyID != "" && updatedPolicyID != "" && existingPolicyID != updatedPolicyID {
+		// I don't see an easy way to make this delete idempotent.
+		// TODO: figure out if it's worth additional complexity to avoid
+		// an orphaned policy in the old namespace.
+		_ = r.deletePolicy(ctx, existingPolicyID)
+	}
+
 	// If there was a linked policy that is no no longer needed, delete it.
 	// (This cannot be done until all of the linked routes are updated to no
 	// longer reference the existing policy ID.)
 	if ic.Annotations[apiPolicyIDAnnotation] != "" && updatedPolicyID == "" {
-		deleted, err := r.deletePolicy(ctx, ic.Ingress)
+		deleted, err := r.deletePolicyForObject(ctx, ic.Ingress)
 		if err != nil {
 			return changed, err
 		}
@@ -319,6 +335,7 @@ func (r *APIReconciler) syncOneSecret(
 	name := keyPairName(util.GetNamespacedName(secret))
 	keyPair := &configpb.KeyPair{
 		Name:         &name,
+		NamespaceId:  r.namespaceID,
 		Certificate:  cert,
 		Key:          secret.Data[corev1.TLSPrivateKeyKey],
 		OriginatorId: &originatorID,
@@ -343,7 +360,7 @@ func (r *APIReconciler) syncOneSecret(
 func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (changes bool, err error) {
 	// Remove keypairs corresponding to any newly-unreferenced TLS secrets.
 	unreferencedSecrets := r.secretsMap.UpdateConfig(cfg)
-	anyDeletes, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
+	anyDeletes, err := r.deleteKeyPairsForSecrets(ctx, unreferencedSecrets...)
 	if err != nil {
 		return changes, err
 	}
@@ -434,7 +451,7 @@ func (r *APIReconciler) Delete(ctx context.Context, name types.NamespacedName) (
 		return changed, err
 	}
 
-	policyDeleted, err := r.deletePolicy(ctx, ingress)
+	policyDeleted, err := r.deletePolicyForObject(ctx, ingress)
 	if err != nil {
 		return changed, err
 	}
@@ -445,7 +462,7 @@ func (r *APIReconciler) Delete(ctx context.Context, name types.NamespacedName) (
 		Kind:           ingress.Kind,
 		NamespacedName: name,
 	})
-	anyKeyPairDeleted, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
+	anyKeyPairDeleted, err := r.deleteKeyPairsForSecrets(ctx, unreferencedSecrets...)
 	if err != nil {
 		return changed, err
 	}
@@ -463,7 +480,7 @@ func (r *APIReconciler) SetGatewayConfig(
 ) (changes bool, err error) {
 	// Sync keypairs.
 	unreferencedSecrets := r.secretsMap.UpdateGatewayConfig(gatewayConfig)
-	anyDeletes, err := r.deleteKeyPairs(ctx, unreferencedSecrets...)
+	anyDeletes, err := r.deleteKeyPairsForSecrets(ctx, unreferencedSecrets...)
 	if err != nil {
 		return changes, err
 	}
@@ -561,6 +578,7 @@ func (r *APIReconciler) syncGatewayPolicies(
 		policy.Rego = nil
 		policyName := slug.Make(fmt.Sprintf("%s %s", obj.Namespace, obj.Name))
 		policy.Name = &policyName
+		policy.NamespaceId = r.namespaceID
 		if id := obj.Annotations[apiPolicyIDAnnotation]; id != "" {
 			policy.Id = &id
 		}
@@ -598,7 +616,7 @@ func (r *APIReconciler) removeDeletedGatewayPolicies(
 			continue
 		}
 
-		deleted, err := r.deletePolicy(ctx, obj)
+		deleted, err := r.deletePolicyForObject(ctx, obj)
 		if err != nil {
 			return changes, err
 		}
@@ -637,6 +655,7 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *configpb.Rout
 	if err != nil {
 		return false, err
 	}
+	apiRoute.NamespaceId = r.namespaceID
 	apiRoute.OriginatorId = &originatorID
 
 	var existing *configpb.Route
@@ -651,9 +670,18 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *configpb.Rout
 		}
 	}
 
-	if existing == nil {
-		apiRoute.OriginatorId = &originatorID
+	if existing != nil && apiRoute.NamespaceId != nil &&
+		apiRoute.GetNamespaceId() != existing.GetNamespaceId() {
+		// The route exists already, but in a different namespace.
+		// Delete the existing route so we can recreate it in the new namespace.
+		if err := r.deleteRoute(ctx, existing.GetId()); err != nil {
+			return false, fmt.Errorf("couldn't delete existing route in different namespace: %w", err)
+		}
+		existing = nil
+		apiRoute.Id = nil
+	}
 
+	if existing == nil {
 		// If the route does not currently exist, create it.
 		resp, err := r.apiClient.CreateRoute(ctx, connect.NewRequest(&configpb.CreateRouteRequest{
 			Route: apiRoute,
@@ -683,7 +711,9 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *configpb.Rout
 	}
 
 	// Clear the fields that should be ignored when looking for changes.
-	existing.NamespaceId = nil
+	if r.namespaceID == nil {
+		existing.NamespaceId = nil
+	}
 	existing.CreatedAt = nil
 	existing.ModifiedAt = nil
 	existing.AssignedPolicies = nil
@@ -735,16 +765,23 @@ func (r *APIReconciler) deleteRoutes(
 	var anyDeletes bool
 	annotations := obj.GetAnnotations()
 	for k := range annotationKeys {
-		_, err := r.apiClient.DeleteRoute(ctx, connect.NewRequest(&configpb.DeleteRouteRequest{
-			Id: annotations[k],
-		}))
-		if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
+		if err := r.deleteRoute(ctx, annotations[k]); err != nil {
 			return anyDeletes, err
 		}
 		delete(annotations, k)
 		anyDeletes = true
 	}
 	return anyDeletes, nil
+}
+
+func (r *APIReconciler) deleteRoute(ctx context.Context, id string) error {
+	_, err := r.apiClient.DeleteRoute(ctx, connect.NewRequest(&configpb.DeleteRouteRequest{
+		Id: id,
+	}))
+	if connect.CodeOf(err) == connect.CodeNotFound {
+		return nil
+	}
+	return err
 }
 
 func (r *APIReconciler) syncIngressPolicy(
@@ -766,6 +803,7 @@ func (r *APIReconciler) syncIngressPolicy(
 	if err != nil {
 		return false, "", fmt.Errorf("internal error: %w", err)
 	}
+	apiPolicy.NamespaceId = r.namespaceID
 	apiPolicy.OriginatorId = &originatorID
 	if existingPolicyID != "" {
 		apiPolicy.Id = &existingPolicyID
@@ -796,6 +834,15 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *configpb.Polic
 		}
 	}
 
+	if existing != nil && policy.NamespaceId != nil &&
+		policy.GetNamespaceId() != existing.GetNamespaceId() {
+		// The policy exists already, but in a different namespace.
+		// We'll need to delete and recreate it, but we can't delete it until
+		// any routes that reference it are also deleted.
+		existing = nil
+		policy.Id = nil
+	}
+
 	// If there is no existing policy, create one.
 	if existing == nil {
 		resp, err := r.apiClient.CreatePolicy(ctx, connect.NewRequest(&configpb.CreatePolicyRequest{
@@ -819,7 +866,9 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *configpb.Polic
 	}
 
 	// Zero out fields that should be ignored when looking for changes.
-	existing.NamespaceId = nil
+	if r.namespaceID == nil {
+		existing.NamespaceId = nil
+	}
 	existing.CreatedAt = nil
 	existing.ModifiedAt = nil
 	existing.AssignedRoutes = nil
@@ -863,10 +912,10 @@ func (r *APIReconciler) findPolicyByName(
 	return resp.Msg.Policies[0], nil
 }
 
-// deletePolicy deletes the policy for obj and clears its policy ID annotation.
-// Returns true if any changes were made, or an error if the delete operation
-// failed.
-func (r *APIReconciler) deletePolicy(
+// deletePolicyForObject deletes the policy for obj and clears its policy ID
+// annotation. Returns true if any changes were made, or an error if the delete
+// operation failed.
+func (r *APIReconciler) deletePolicyForObject(
 	ctx context.Context, obj client.Object,
 ) (deleted bool, err error) {
 	annotations := obj.GetAnnotations()
@@ -874,14 +923,21 @@ func (r *APIReconciler) deletePolicy(
 	if policyID == "" {
 		return false, nil
 	}
-	_, err = r.apiClient.DeletePolicy(ctx, connect.NewRequest(&configpb.DeletePolicyRequest{
-		Id: policyID,
-	}))
-	if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
+	if err := r.deletePolicy(ctx, policyID); err != nil {
 		return false, err
 	}
 	delete(annotations, apiPolicyIDAnnotation)
 	return true, nil
+}
+
+func (r *APIReconciler) deletePolicy(ctx context.Context, id string) (err error) {
+	_, err = r.apiClient.DeletePolicy(ctx, connect.NewRequest(&configpb.DeletePolicyRequest{
+		Id: id,
+	}))
+	if connect.CodeOf(err) == connect.CodeNotFound {
+		return nil
+	}
+	return err
 }
 
 func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *configpb.KeyPair) (changed bool, err error) {
@@ -895,6 +951,17 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *configpb.Key
 		} else if connect.CodeOf(err) != connect.CodeNotFound {
 			return false, err
 		}
+	}
+
+	if existing != nil && keyPair.NamespaceId != nil &&
+		keyPair.GetNamespaceId() != existing.GetNamespaceId() {
+		// The key pair exists already, but in a different namespace.
+		// Delete the existing key pair so we can recreate it in the new namespace.
+		if err := r.deleteKeyPair(ctx, existing.GetId()); err != nil {
+			return false, fmt.Errorf("couldn't delete existing key pair in different namespace: %w", err)
+		}
+		existing = nil
+		keyPair.Id = nil
 	}
 
 	// If there is no existing keypair, create one.
@@ -920,7 +987,9 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *configpb.Key
 	}
 
 	// Zero out fields that should be ignored when looking for changes.
-	existing.NamespaceId = nil
+	if r.namespaceID == nil {
+		existing.NamespaceId = nil
+	}
 	existing.CreatedAt = nil
 	existing.ModifiedAt = nil
 	existing.CertificateInfo = nil
@@ -967,10 +1036,10 @@ func (r *APIReconciler) findKeyPairByName(
 	return resp.Msg.KeyPairs[0], nil
 }
 
-// deleteKeyPairs deletes the keypairs corresponding to the given Secret names,
-// clearing the keypair ID annotation for each. Returns true if any deletes were
-// successful, or an error if some delete operation failed.
-func (r *APIReconciler) deleteKeyPairs(
+// deleteKeyPairsForSecrets deletes the keypairs corresponding to the given
+// Secret names, clearing the keypair ID annotation for each. Returns true if
+// any deletes were successful, or an error if some delete operation failed.
+func (r *APIReconciler) deleteKeyPairsForSecrets(
 	ctx context.Context, secretNames ...types.NamespacedName,
 ) (bool, error) {
 	var anyDeletes bool
@@ -1000,10 +1069,7 @@ func (r *APIReconciler) deleteKeyPairs(
 		}
 
 		if keyPairID != "" {
-			_, err = r.apiClient.DeleteKeyPair(ctx, connect.NewRequest(&configpb.DeleteKeyPairRequest{
-				Id: keyPairID,
-			}))
-			if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
+			if err := r.deleteKeyPair(ctx, keyPairID); err != nil {
 				return anyDeletes, err
 			}
 		}
@@ -1019,6 +1085,16 @@ func (r *APIReconciler) deleteKeyPairs(
 		anyDeletes = true
 	}
 	return anyDeletes, nil
+}
+
+func (r *APIReconciler) deleteKeyPair(ctx context.Context, id string) error {
+	_, err := r.apiClient.DeleteKeyPair(ctx, connect.NewRequest(&configpb.DeleteKeyPairRequest{
+		Id: id,
+	}))
+	if connect.CodeOf(err) == connect.CodeNotFound {
+		return nil
+	}
+	return err
 }
 
 func routeIDAnnotationForIndex(i int) string {

@@ -22,6 +22,7 @@ type ingressControllerOpts struct {
 	UpdateStatusFromService string ``
 	GlobalSettings          string `validate:"required"`
 	SyncAPIURL              string
+	SyncAPINamespaceID      string
 	SyncAPIToken            string
 }
 
@@ -36,6 +37,7 @@ const (
 	globalSettings             = "pomerium-config"
 	syncAPIIngress             = "sync-api-ingress"
 	syncAPIURL                 = "sync-api-url"
+	syncAPINamespaceID         = "sync-api-namespace-id"
 	syncAPIToken               = "sync-api-token" //nolint:gosec
 )
 
@@ -49,6 +51,7 @@ func (s *ingressControllerOpts) setupFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&s.GlobalSettings, globalSettings, "",
 		fmt.Sprintf("namespace/name to a resource of type %s/Settings", icsv1.GroupVersion.Group))
 	flags.StringVar(&s.SyncAPIURL, syncAPIURL, "", "unified API sync URL")
+	flags.StringVar(&s.SyncAPINamespaceID, syncAPINamespaceID, "", "unified API sync namespace ID")
 	flags.StringVar(&s.SyncAPIToken, syncAPIToken, "", "unified API sync token")
 }
 

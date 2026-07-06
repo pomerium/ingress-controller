@@ -69,6 +69,7 @@ type allCmdParam struct {
 	updateStatusFromService string
 	dumpConfigDiff          bool
 	syncAPIURL              string
+	syncAPINamespaceID      string
 	syncAPIToken            string
 	syncAPIBootstrap        bool
 
@@ -203,6 +204,7 @@ func (s *allCmdOptions) getParam(ctx context.Context) (*allCmdParam, error) {
 		dumpConfigDiff:                  s.debugDumpConfigDiff,
 		configControllerShutdownTimeout: s.configControllerShutdownTimeout,
 		syncAPIURL:                      s.SyncAPIURL,
+		syncAPINamespaceID:              s.SyncAPINamespaceID,
 		syncAPIToken:                    s.SyncAPIToken,
 		syncAPIBootstrap:                s.syncAPIIngress != "",
 		certificateControllerName:       s.CertificateControllerOptions.Name,
@@ -412,7 +414,7 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 			}
 			dialAddressOverride = net.JoinHostPort("localhost", port)
 		}
-		reconciler, err = pomerium.NewAPIReconciler(s.syncAPIURL, s.syncAPIToken, s.cfg.Options, dialAddressOverride)
+		reconciler, err = pomerium.NewAPIReconciler(s.syncAPIURL, s.syncAPINamespaceID, s.syncAPIToken, s.cfg.Options, dialAddressOverride)
 		if err != nil {
 			return nil, err
 		}
