@@ -45,6 +45,7 @@ type allCmdOptions struct {
 	debugPomerium                   bool
 	debugEnvoy                      bool
 	adminBindAddr                   string
+	debugPort                       string
 	configControllerShutdownTimeout time.Duration
 	// healthProbeBindAddress must be externally accessible host:port
 	healthProbeBindAddress string
@@ -115,6 +116,7 @@ const (
 	debugEnvoy               = "debug-envoy"
 	debugAdminBindAddr       = "debug-admin-addr"
 	debugDumpConfigDiff      = "debug-dump-config-diff"
+	debugPort                = "debug-port"
 	configControllerShutdown = "config-controller-shutdown"
 )
 
@@ -123,6 +125,7 @@ var hidden = []string{
 	debugEnvoy,
 	debugAdminBindAddr,
 	debugDumpConfigDiff,
+	debugPort,
 }
 
 func (s *allCmd) setupFlags() error {
@@ -134,6 +137,7 @@ func (s *allCmd) setupFlags() error {
 	flags.StringVar(&s.metricsBindAddress, metricsBindAddress, "", "host:port for aggregate metrics. host is mandatory")
 	flags.StringVar(&s.healthProbeBindAddress, healthProbeBindAddress, "127.0.0.1:28080", "host:port for http health probes")
 	flags.StringVar(&s.adminBindAddr, debugAdminBindAddr, "", "host:port for admin server")
+	flags.StringVar(&s.debugPort, debugPort, "", "bind pomerium's internal debug/admin listener to this fixed port instead of an ephemeral one (host is always 127.0.0.1)")
 	flags.StringVar(&s.serverAddr, "server-addr", ":8443", "the address the HTTPS server would bind to")
 	flags.StringVar(&s.sshAddr, "ssh-addr", "", "the address the SSH server would bind to")
 	flags.StringVar(&s.httpRedirectAddr, "http-redirect-addr", ":8080", "the address HTTP redirect would bind to")
@@ -264,6 +268,13 @@ func (s *allCmdParam) makeBootstrapConfig(ctx context.Context, opt allCmdOptions
 	}
 
 	s.cfg.AllocatePorts(*(*[7]string)(ports[:7]))
+
+	// Override the auto-allocated debug listener port with a fixed value when
+	// requested, so the debug/admin endpoints (databroker browser, pprof, etc.)
+	// are reachable on a stable, predictable port across restarts.
+	if opt.debugPort != "" {
+		s.cfg.DebugPort = opt.debugPort
+	}
 
 	if opt.deriveTLS != "" {
 		s.cfg.Options.DeriveInternalDomainCert = &opt.deriveTLS
