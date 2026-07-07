@@ -355,7 +355,7 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
                     <strong>boolean</strong>&#160;
                 </p>
                 <p>
-                    UseProxyProtocol enables <a href="https://www.pomerium.com/docs/reference/use-proxy-protocol">Proxy Protocol</a> support.
+                    UseProxyProtocol enables <a href="https://www.pomerium.com/docs/reference/use-proxy-protocol">PROXY protocol</a> support.
                 </p>
             </td>
         </tr>
