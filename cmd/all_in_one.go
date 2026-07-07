@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -271,8 +272,12 @@ func (s *allCmdParam) makeBootstrapConfig(ctx context.Context, opt allCmdOptions
 
 	// Override the auto-allocated debug listener port with a fixed value when
 	// requested, so the debug/admin endpoints (databroker browser, pprof, etc.)
-	// are reachable on a stable, predictable port across restarts.
+	// are reachable on a stable, predictable port across restarts. The value is
+	// a bare port number; the debug listener always binds to 127.0.0.1.
 	if opt.debugPort != "" {
+		if _, err := strconv.ParseUint(opt.debugPort, 10, 16); err != nil {
+			return fmt.Errorf("--%s: %q is not a valid port number", debugPort, opt.debugPort)
+		}
 		s.cfg.DebugPort = opt.debugPort
 	}
 
