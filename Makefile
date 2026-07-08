@@ -8,6 +8,10 @@ CRD_OPTIONS?=
 ENVTEST_K8S_VERSION?=$(shell go list -f '{{.Module.Version}}' k8s.io/api | sed -E 's/v0/1/; s/([0-9]+\.[0-9]+)\.[0-9]+/\1.x/')
 SETUP_ENVTEST=go run sigs.k8s.io/controller-runtime/tools/setup-envtest@v0.0.0-20251010203701-b9bccfd41914
 CONTROLLER_GEN=go run sigs.k8s.io/controller-tools/cmd/controller-gen@v0.18.0
+# Populate version variables
+# Add to compile time flags
+VERSION ?= $(shell git describe --tags)
+GITCOMMIT := $(shell git rev-parse --short HEAD)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -23,7 +27,10 @@ GOTAGS = -tags embed_pomerium
 GOLDFLAGS = -X github.com/pomerium/pomerium/internal/version.Version=$(shell go list -f '{{.Module.Version}}' github.com/pomerium/pomerium) \
 	-X github.com/pomerium/pomerium/internal/version.BuildMeta=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ") \
 	-X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium-ingress-controller \
-	-X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io
+	-X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io \
+	-X github.com/pomerium/ingress-controller/internal/version.PomeriumVersion=$(shell go list -f '{{.Module.Version}}' github.com/pomerium/pomerium) \
+	-X github.com/pomerium/ingress-controller/internal/version.GitCommit=$(GITCOMMIT) \
+	-X github.com/pomerium/ingress-controller/internal/version.Version=$(VERSION)
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
