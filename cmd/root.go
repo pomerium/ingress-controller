@@ -6,6 +6,8 @@ import (
 	"github.com/spf13/cobra"
 
 	stress_cmd "github.com/pomerium/ingress-controller/internal/stress/cmd"
+	"github.com/pomerium/ingress-controller/internal/version"
+	"github.com/pomerium/pomerium/pkg/envoy/files"
 )
 
 // RootCommand generates default secrets
@@ -13,6 +15,7 @@ func RootCommand() (*cobra.Command, error) {
 	root := cobra.Command{
 		Use:          "ingress-controller",
 		Short:        "pomerium ingress controller",
+		Version:      fmt.Sprintf("%s envoy: %s", version.FullVersion(), files.Lockfile().Version),
 		SilenceUsage: true,
 	}
 
