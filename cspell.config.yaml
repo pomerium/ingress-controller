@@ -23,6 +23,7 @@ words:
   - rego
   - sharedkey
   - sdkclient
+  - semconv
   - sslcert
   - sslkey
   - sslrootcert
