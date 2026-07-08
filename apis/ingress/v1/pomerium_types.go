@@ -342,7 +342,7 @@ type PomeriumSpec struct {
 	// Timeout specifies the <a href="https://www.pomerium.com/docs/reference/global-timeouts">global timeouts</a> for all routes.
 	Timeouts *Timeouts `json:"timeouts,omitempty"`
 
-	// UseProxyProtocol enables <a href="https://www.pomerium.com/docs/reference/use-proxy-protocol">Proxy Protocol</a> support.
+	// UseProxyProtocol enables <a href="https://www.pomerium.com/docs/reference/use-proxy-protocol">PROXY protocol</a> support.
 	UseProxyProtocol *bool `json:"useProxyProtocol,omitempty"`
 
 	// CodecType sets the <a href="https://www.pomerium.com/docs/reference/codec-type">Codec Type</a>.
