@@ -138,7 +138,7 @@ func (s *allCmd) setupFlags() error {
 	flags.StringVar(&s.metricsBindAddress, metricsBindAddress, "", "host:port for aggregate metrics. host is mandatory")
 	flags.StringVar(&s.healthProbeBindAddress, healthProbeBindAddress, "127.0.0.1:28080", "host:port for http health probes")
 	flags.StringVar(&s.adminBindAddr, debugAdminBindAddr, "", "host:port for admin server")
-	flags.StringVar(&s.debugPort, debugPort, "", "bind pomerium's internal debug/admin listener to this fixed port instead of an ephemeral one (host is always 127.0.0.1)")
+	flags.StringVar(&s.debugPort, debugPort, "", "bind the debug/admin listener to this fixed port instead of an ephemeral one (127.0.0.1 only)")
 	flags.StringVar(&s.serverAddr, "server-addr", ":8443", "the address the HTTPS server would bind to")
 	flags.StringVar(&s.sshAddr, "ssh-addr", "", "the address the SSH server would bind to")
 	flags.StringVar(&s.httpRedirectAddr, "http-redirect-addr", ":8080", "the address HTTP redirect would bind to")
