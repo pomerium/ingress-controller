@@ -230,6 +230,14 @@ func applySetOtherOptions(_ context.Context, p *pb.Config, c *model.Config) erro
 	} else {
 		p.Settings.AllowUpgrades = nil
 	}
+
+	if c.Spec.EnvoyDynamicExtensions != nil {
+		p.Settings.EnvoyDynamicExtensions = &pb.Settings_StringList{
+			Values: *c.Spec.EnvoyDynamicExtensions,
+		}
+	} else {
+		p.Settings.EnvoyDynamicExtensions = nil
+	}
 	return nil
 }
 
