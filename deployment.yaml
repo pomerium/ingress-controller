@@ -446,6 +446,12 @@ spec:
                     format: int32
                     type: integer
                 type: object
+              envoyDynamicExtensions:
+                description: EnvoyDynamicExtensions file paths to the extensions to
+                  be loaded by Envoy at runtime.
+                items:
+                  type: string
+                type: array
               identityProvider:
                 description: |-
                   IdentityProvider configure single-sign-on authentication and user identity details

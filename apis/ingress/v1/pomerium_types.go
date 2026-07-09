@@ -390,6 +390,9 @@ type PomeriumSpec struct {
 	//
 	// +kubebuilder:validation:Optional
 	CertificateAutoProvision *CertificateAutoProvision `json:"certificateAutoProvision,omitzero"`
+
+	// EnvoyDynamicExtensions file paths to the extensions to be loaded by Envoy at runtime.
+	EnvoyDynamicExtensions *[]string `json:"envoyDynamicExtensions,omitempty"`
 }
 
 // OTEL configures OpenTelemetry.
