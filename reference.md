@@ -189,6 +189,17 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>envoyDynamicExtensions</code>&#160;&#160;
+                    <strong>[]string</strong>&#160;
+                </p>
+                <p>
+                    EnvoyDynamicExtensions file paths to the extensions to be loaded by Envoy at runtime.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
                 <code>identityProvider</code>&#160;&#160;
                     <strong>object</strong>&#160;
                     (<a href="#identityprovider">identityProvider</a>)
