@@ -34,9 +34,6 @@ type controllerCmd struct {
 	tlsInsecureSkipVerify      bool
 	tlsOverrideCertificateName string
 
-	leaderElectionID        string
-	leaderElectionNamespace string
-
 	sharedSecret string
 
 	debug bool
@@ -66,8 +63,6 @@ const (
 	databrokerTLSCA            = "databroker-tls-ca"
 	tlsInsecureSkipVerify      = "databroker-tls-insecure-skip-verify"
 	tlsOverrideCertificateName = "databroker-tls-override-certificate-name"
-	leaderElectionID           = "leader-election-id"
-	leaderElectionNamespace    = "leader-election-namespace"
 )
 
 func (s *controllerCmd) setupFlags() error {
@@ -82,8 +77,6 @@ func (s *controllerCmd) setupFlags() error {
 		"disable remote hosts TLS certificate chain and hostname check for the databroker connection")
 	flags.StringVar(&s.tlsOverrideCertificateName, tlsOverrideCertificateName, "",
 		"override the certificate name used for the databroker connection")
-	flags.StringVar(&s.leaderElectionID, leaderElectionID, "pomerium-ingress-controller", "leader election lease name")
-	flags.StringVar(&s.leaderElectionNamespace, leaderElectionNamespace, "", "leader election lease namespace")
 
 	flags.StringVar(&s.sharedSecret, sharedSecret, "",
 		"base64-encoded shared secret for signing JWTs")
@@ -174,8 +167,8 @@ func (s *controllerCmd) buildController(ctx context.Context) (*controllers.Contr
 			return nil, err
 		}
 		c.MgrOpts.LeaderElection = true
-		c.MgrOpts.LeaderElectionID = s.leaderElectionID
-		c.MgrOpts.LeaderElectionNamespace = s.leaderElectionNamespace
+		c.MgrOpts.LeaderElectionID = s.LeaderElectionID
+		c.MgrOpts.LeaderElectionNamespace = s.LeaderElectionNamespace
 		return c, nil
 	} else if f := s.Flags(); f.Changed(leaderElectionID) || f.Changed(leaderElectionNamespace) {
 		return nil, fmt.Errorf("kubernetes leader election can be used only with sync API")

@@ -21,6 +21,8 @@ type ingressControllerOpts struct {
 	Namespaces              []string
 	UpdateStatusFromService string ``
 	GlobalSettings          string `validate:"required"`
+	LeaderElectionID        string
+	LeaderElectionNamespace string
 	SyncAPIURL              string
 	SyncAPINamespaceID      string
 	SyncAPIToken            string
@@ -39,6 +41,8 @@ const (
 	syncAPIURL                 = "sync-api-url"
 	syncAPINamespaceID         = "sync-api-namespace-id"
 	syncAPIToken               = "sync-api-token" //nolint:gosec
+	leaderElectionID           = "leader-election-id"
+	leaderElectionNamespace    = "leader-election-namespace"
 )
 
 func (s *ingressControllerOpts) setupFlags(flags *pflag.FlagSet) {
@@ -53,6 +57,8 @@ func (s *ingressControllerOpts) setupFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&s.SyncAPIURL, syncAPIURL, "", "unified API sync URL")
 	flags.StringVar(&s.SyncAPINamespaceID, syncAPINamespaceID, "", "unified API sync namespace ID")
 	flags.StringVar(&s.SyncAPIToken, syncAPIToken, "", "unified API sync token")
+	flags.StringVar(&s.LeaderElectionID, leaderElectionID, "pomerium-ingress-controller", "leader election lease name")
+	flags.StringVar(&s.LeaderElectionNamespace, leaderElectionNamespace, "", "leader election lease namespace")
 }
 
 func (s *ingressControllerOpts) Validate() error {

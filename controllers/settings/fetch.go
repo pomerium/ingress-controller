@@ -105,7 +105,7 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 	s := cfg.Spec
 	return applyAll(
 		// bootstrap secrets
-		apply("bootstrap secret", required(&s.Secrets), &cfg.Secrets),
+		apply("bootstrap secret", optional(&s.Secrets), &cfg.Secrets),
 		// ca secrets
 		func() error {
 			for _, caSecret := range s.CASecrets {

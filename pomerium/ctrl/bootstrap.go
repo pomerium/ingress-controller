@@ -187,7 +187,7 @@ func applyStoragePostgres(dst *config.Options, src *model.Config) error {
 
 func applySecrets(_ context.Context, dst *config.Options, src *model.Config) error {
 	if src.Secrets == nil {
-		return fmt.Errorf("secrets missing, this is a bug")
+		return fmt.Errorf("bootstrap secrets missing")
 	}
 
 	name := types.NamespacedName{Name: src.Secrets.Name, Namespace: src.Secrets.Namespace}

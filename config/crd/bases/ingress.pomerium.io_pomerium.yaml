@@ -624,8 +624,6 @@ spec:
                 description: UseProxyProtocol enables <a href="https://www.pomerium.com/docs/reference/use-proxy-protocol">PROXY
                   protocol</a> support.
                 type: boolean
-            required:
-            - secrets
             type: object
             x-kubernetes-validations:
             - fieldPath: .authenticate
