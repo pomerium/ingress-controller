@@ -37,6 +37,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
+	zero_cmd "github.com/pomerium/pomerium/pkg/zero/cmd"
 )
 
 type allCmdOptions struct {
@@ -59,6 +60,7 @@ type allCmdOptions struct {
 	grpcAddr           string   `validate:"required,hostname_port"`
 	services           []string `validate:"dive,oneof=all authenticate authorize databroker proxy"`
 	syncAPIIngress     string
+	zeroToken          string
 
 	CertificateControllerOptions certificateControllerOptions
 	DataBrokerOptions            dataBrokerOptions
@@ -74,6 +76,7 @@ type allCmdParam struct {
 	syncAPINamespaceID      string
 	syncAPIToken            string
 	syncAPIBootstrap        bool
+	zeroToken               string
 
 	// bootstrapMetricsAddr for bootstrap configuration controller metrics
 	bootstrapMetricsAddr string
@@ -148,6 +151,7 @@ func (s *allCmd) setupFlags() error {
 	flags.StringVar(&s.grpcAddr, "grpc-addr", ":5443", "the address the gRPC server would bind to")
 	flags.StringSliceVar(&s.services, "services", []string{"all"}, "the pomerium services to run")
 	flags.StringVar(&s.syncAPIIngress, syncAPIIngress, "", "unified API sync ingress")
+	flags.StringVar(&s.zeroToken, "pomerium-zero-token", "", "Pomerium Zero cluster token")
 
 	for _, flag := range hidden {
 		if err := s.PersistentFlags().MarkHidden(flag); err != nil {
@@ -212,6 +216,7 @@ func (s *allCmdOptions) getParam(ctx context.Context) (*allCmdParam, error) {
 		syncAPINamespaceID:              s.SyncAPINamespaceID,
 		syncAPIToken:                    s.SyncAPIToken,
 		syncAPIBootstrap:                s.syncAPIIngress != "",
+		zeroToken:                       s.zeroToken,
 		certificateControllerName:       s.CertificateControllerOptions.Name,
 	}
 	if err := p.makeBootstrapConfig(ctx, *s); err != nil {
@@ -222,6 +227,27 @@ func (s *allCmdOptions) getParam(ctx context.Context) (*allCmdParam, error) {
 }
 
 func (s *allCmdParam) run(ctx context.Context) error {
+	if s.zeroToken != "" {
+		// Run Pomerium Core in Zero-managed mode.
+		return s.runZeroManagedPomerium(ctx)
+	}
+
+	// Run Pomerium Core using the bootstrap config source.
+	return s.runBootstrappedPomerium(ctx)
+}
+
+func (s *allCmdParam) runZeroManagedPomerium(ctx context.Context) error {
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		return runHealthz(ctx, s.cfg.Options.HealthCheckAddr)
+	})
+	eg.Go(func() error {
+		return zero_cmd.Run(ctx, s.zeroToken)
+	})
+	return eg.Wait()
+}
+
+func (s *allCmdParam) runBootstrappedPomerium(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
