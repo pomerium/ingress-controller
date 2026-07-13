@@ -18,10 +18,10 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.18.1
-	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260707215703-6d62baae72da
-	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260707215703-6d62baae72da
-	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260707215703-6d62baae72da
-	github.com/pomerium/sdk-go v0.0.10-0.20260701210820-4bea206a982e
+	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260712031901-55e4a9752cc3
+	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260712031901-55e4a9752cc3
+	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260712031901-55e4a9752cc3
+	github.com/pomerium/sdk-go v0.0.10-0.20260712024454-787da740e0f9
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
 	github.com/spf13/cobra v1.10.2
@@ -239,7 +239,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/natefinch/atomic v1.0.1 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
-	github.com/oapi-codegen/runtime v1.4.2 // indirect
+	github.com/oapi-codegen/runtime v1.5.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
