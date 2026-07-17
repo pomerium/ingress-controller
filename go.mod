@@ -18,10 +18,10 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.18.1
-	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260712031901-55e4a9752cc3
-	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260712031901-55e4a9752cc3
-	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260712031901-55e4a9752cc3
-	github.com/pomerium/sdk-go v0.0.10-0.20260712024454-787da740e0f9
+	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260716174157-c51fdf6d0945
+	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260716174157-c51fdf6d0945
+	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260716174157-c51fdf6d0945
+	github.com/pomerium/sdk-go v0.0.10-0.20260716140524-6868457396d5
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
 	github.com/spf13/cobra v1.10.2
@@ -34,7 +34,7 @@ require (
 	go.uber.org/zap v1.28.0
 	golang.org/x/net v0.57.0
 	golang.org/x/sync v0.22.0
-	google.golang.org/grpc v1.82.0
+	google.golang.org/grpc v1.82.1
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.36.2
@@ -239,7 +239,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/natefinch/atomic v1.0.1 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
-	github.com/oapi-codegen/runtime v1.5.0 // indirect
+	github.com/oapi-codegen/runtime v1.6.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
@@ -248,10 +248,10 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/pomerium/datasource v0.18.2-0.20260615144725-aec349b682d9 // indirect
+	github.com/pomerium/datasource v0.18.2-0.20260712023818-d0e40970f4c4 // indirect
 	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260618180819-16ede7a56f2f // indirect
-	github.com/pomerium/protoutil v0.0.0-20260603235917-a733aa3acfed // indirect
-	github.com/pomerium/webauthn v0.0.0-20260603151519-07401bebfe9c // indirect
+	github.com/pomerium/protoutil v0.0.0-20260712023948-476583c4c434 // indirect
+	github.com/pomerium/webauthn v0.0.0-20260712023900-f47fcf774920 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
@@ -330,8 +330,8 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/api v0.283.0 // indirect
 	google.golang.org/genproto v0.0.0-20260319201613-d00831a3d3e7 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260706201446-f0a921348800 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260715232425-e75dac1f907d // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260715232425-e75dac1f907d // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
