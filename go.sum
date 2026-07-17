@@ -806,8 +806,8 @@ github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260716174157-c51fdf6d0
 github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260716174157-c51fdf6d0945/go.mod h1:3+KroqGDQ6EpTFXlyKWcKc1oYcZvdLXJ2yzEe72v3S0=
 github.com/pomerium/protoutil v0.0.0-20260712023948-476583c4c434 h1:RIaEViw7WEO/xDqk/s2I3pyBQbrCjJwprKOKlLcCrjQ=
 github.com/pomerium/protoutil v0.0.0-20260712023948-476583c4c434/go.mod h1:xwCM2uuRDv4OWk/AeiEM7RYO3HQ7JaJD/Uk4mit19xc=
-github.com/pomerium/sdk-go v0.0.10-0.20260716140524-6868457396d5 h1:cUsvevXO66aGXjRSQmBFX9HCRyjzRuOwpOxnaqq+3Dk=
-github.com/pomerium/sdk-go v0.0.10-0.20260716140524-6868457396d5/go.mod h1:+IEjHjRdHom564beDgxXvqb4SnyWSB435kwrXShphmw=
+github.com/pomerium/sdk-go v0.0.10-0.20260717162757-c07b754ff8f0 h1:ZkYF1Z7FoMltm/RoYRvyyjQ5LByI2f7XkG8zhr8h/rs=
+github.com/pomerium/sdk-go v0.0.10-0.20260717162757-c07b754ff8f0/go.mod h1:MYI2UgDYMeRdDhgMQLjCwLj+6HtVzYm1c8ljlKGZ7Hs=
 github.com/pomerium/webauthn v0.0.0-20260712023900-f47fcf774920 h1:D3EjISouFV+o7sD7h5ILDmON6mCsNEBhdD5KrLIiDKs=
 github.com/pomerium/webauthn v0.0.0-20260712023900-f47fcf774920/go.mod h1:dZrwNDXLOdPza+WMAV/hsQQehm4OW4eOCM7DP55g3PM=
 github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 h1:o4JXh1EVt9k/+g42oCprj/FisM4qX9L3sZB3upGN2ZU=

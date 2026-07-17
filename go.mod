@@ -21,7 +21,7 @@ require (
 	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260716174157-c51fdf6d0945
 	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260716174157-c51fdf6d0945
 	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260716174157-c51fdf6d0945
-	github.com/pomerium/sdk-go v0.0.10-0.20260716140524-6868457396d5
+	github.com/pomerium/sdk-go v0.0.10-0.20260717162757-c07b754ff8f0
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
 	github.com/spf13/cobra v1.10.2
