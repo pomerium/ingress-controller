@@ -55,6 +55,14 @@ type ingressController struct {
 	// globalSettings defines which global settings object to watch
 	globalSettings *types.NamespacedName
 
+	// reconcileBatchWindow is the quiet period used to coalesce real changes.
+	// A zero value disables batching.
+	reconcileBatchWindow time.Duration
+	// reconcileBatchMaxWait bounds the delay under continuous event load.
+	reconcileBatchMaxWait time.Duration
+	batchCoordinator      *reconcileBatchCoordinator
+	ingressChangeDetector pomerium.IngressChangeDetector
+
 	// object Kinds are frequently used, do not change and are cached
 	endpointsKind    string
 	ingressKind      string
@@ -119,6 +127,15 @@ func WithWatchSettings(name types.NamespacedName) Option {
 	}
 }
 
+// WithAdaptiveReconcileBatching coalesces real configuration changes after a
+// quiet period, while maxWait bounds latency when events arrive continuously.
+func WithAdaptiveReconcileBatching(quietPeriod, maxWait time.Duration) Option {
+	return func(ic *ingressController) {
+		ic.reconcileBatchWindow = quietPeriod
+		ic.reconcileBatchMaxWait = maxWait
+	}
+}
+
 // SetupWithManager sets up the controller with the Manager
 func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 	r.Client = mgr.GetClient()
@@ -134,17 +151,26 @@ func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 
 	err := ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
-		For(&networkingv1.Ingress{}).
+		For(
+			&networkingv1.Ingress{},
+			builder.WithPredicates(r.batchSignalPredicate("ingress")),
+		).
 		Watches(
 			&networkingv1.IngressClass{},
-			handler.EnqueueRequestsFromMapFunc(r.watchIngressClass()),
+			handler.EnqueueRequestsFromMapFunc(r.batchSignalMap("ingress-class", r.watchIngressClass())),
 			builder.WithPredicates(generic.NewPredicateFuncs(func(ic *networkingv1.IngressClass) bool {
 				return ic.Spec.Controller == r.controllerName
 			})),
 		).
-		Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(r.secretKind))).
-		Watches(&corev1.Service{}, handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(r.serviceKind))).
-		Watches(&corev1.Endpoints{}, handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(r.endpointsKind))).
+		Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(
+			r.batchSignalMap("secret", r.getDependantIngressFn(r.secretKind)),
+		)).
+		Watches(&corev1.Service{}, handler.EnqueueRequestsFromMapFunc(
+			r.batchSignalMap("service", r.getDependantIngressFn(r.serviceKind)),
+		)).
+		Watches(&corev1.Endpoints{}, handler.EnqueueRequestsFromMapFunc(
+			r.batchSignalMap("endpoints", r.getDependantIngressFn(r.endpointsKind)),
+		)).
 		WithEventFilter(predicate.ResourceVersionChangedPredicate{}).
 		Complete(r)
 	if err != nil {

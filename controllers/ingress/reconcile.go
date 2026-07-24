@@ -6,6 +6,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -27,9 +28,28 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 		}
 	}()
 
+	ics, err := r.reconcileAll(ctx)
+	for i := range ics {
+		ingress := ics[i].Ingress
+		if err != nil {
+			r.IngressNotReconciled(ctx, ingress, err)
+		} else if _, statusErr := r.updateIngressStatus(ctx, ingress); statusErr != nil {
+			r.IngressNotReconciled(ctx, ingress, fmt.Errorf("update /status: %w", statusErr))
+		} else {
+			r.IngressReconciled(ctx, ingress)
+		}
+	}
+	return err
+}
+
+// reconcileAll reads the current managed Ingress state and persists it with a
+// single full-state Set call. It deliberately does not update statuses; queued
+// reconcile requests do that after the batch has been applied.
+func (r *ingressController) reconcileAll(ctx context.Context) ([]*model.IngressConfig, error) {
+	logger := log.FromContext(ctx)
 	ingressList := new(networkingv1.IngressList)
 	if err := r.Client.List(ctx, ingressList); err != nil {
-		return fmt.Errorf("list ingresses: %w", err)
+		return nil, fmt.Errorf("list ingresses: %w", err)
 	}
 
 	var ics []*model.IngressConfig
@@ -37,7 +57,7 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 		ingress := &ingressList.Items[i]
 		res, err := r.isManaging(ctx, ingress)
 		if err != nil {
-			return fmt.Errorf("get ingressClass info: %w", err)
+			return nil, fmt.Errorf("get ingressClass info: %w", err)
 		}
 		if !res.managed {
 			logger.V(1).Info("skipping ingress", "ingress", ingress.Name, "reason", res.reasonIfNot)
@@ -45,26 +65,24 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 		}
 		ic, err := r.fetchIngress(ctx, ingress)
 		if err != nil {
-			return fmt.Errorf("fetch ingress %s/%s: %w", ingress.Namespace, ingress.Name, err)
+			// An invalid Ingress must not prevent unrelated valid changes from
+			// being applied in the same full-state batch.
+			r.IngressNotReconciled(ctx, ingress, err)
+			logger.Error(err, "skip ingress with unavailable dependencies", "ingress", types.NamespacedName{
+				Namespace: ingress.Namespace,
+				Name:      ingress.Name,
+			})
+			continue
 		}
 		logger.V(1).Info("fetch", "ingress", ingress.Name, "secrets", len(ic.Secrets), "services", len(ic.Services))
 		ics = append(ics, ic)
 	}
 
-	_, err = r.IngressReconciler.Set(ctx, ics)
-	for i := range ics {
-		ingress := ics[i].Ingress
-		if err != nil {
-			r.IngressNotReconciled(ctx, ingress, err)
-		} else if err := r.updateIngressStatus(ctx, ingress); err != nil {
-			r.IngressNotReconciled(ctx, ingress, fmt.Errorf("update /status: %w", err))
-		} else {
-			r.IngressReconciled(ctx, ingress)
-		}
-	}
-
-	return err
+	_, err := r.IngressReconciler.Set(ctx, ics)
+	return ics, err
 }
+
+const reasonIngressDeleted = "Ingress resource was deleted"
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -72,13 +90,18 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err := r.initComplete.yield(ctx); err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("initial reconciliation: %w", err)
 	}
+	if r.batchCoordinator != nil {
+		return r.reconcileBatched(ctx, req)
+	}
 
 	ingress := new(networkingv1.Ingress)
 	if err := r.Client.Get(ctx, req.NamespacedName, ingress); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return ctrl.Result{Requeue: true}, fmt.Errorf("get ingress: %w", err)
 		}
-		return r.deleteIngress(ctx, req.NamespacedName, "Ingress resource was deleted")
+		return r.deleteIngress(ctx, req.NamespacedName, reasonIngressDeleted)
+	} else if ingress.DeletionTimestamp != nil {
+		return r.deleteIngress(ctx, req.NamespacedName, reasonIngressDeleted)
 	}
 
 	managing, err := r.isManaging(ctx, ingress)
@@ -124,28 +147,35 @@ func (r *ingressController) upsertIngress(ctx context.Context, ic *model.Ingress
 
 	r.IngressReconciled(ctx, ic.Ingress)
 
-	if err = r.updateIngressStatus(ctx, ic.Ingress); err != nil {
+	if _, err = r.updateIngressStatus(ctx, ic.Ingress); err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("update ingress status: %w", err)
 	}
 
 	return ctrl.Result{}, nil
 }
 
-func (r *ingressController) updateIngressStatus(ctx context.Context, ingress *networkingv1.Ingress) error {
+func (r *ingressController) updateIngressStatus(ctx context.Context, ingress *networkingv1.Ingress) (bool, error) {
 	if r.updateStatusFromService == nil {
-		return nil
+		return false, nil
 	}
 
 	svc := new(corev1.Service)
 	if err := r.Client.Get(ctx, *r.updateStatusFromService, svc); err != nil {
-		return fmt.Errorf("get pomerium-proxy service %s: %w", r.updateStatusFromService.String(), err)
+		return false, fmt.Errorf("get pomerium-proxy service %s: %w", r.updateStatusFromService.String(), err)
 	}
 
-	ingress.Status.LoadBalancer = networkingv1.IngressLoadBalancerStatus{
+	desired := networkingv1.IngressLoadBalancerStatus{
 		Ingress: svcStatusToIngress(svc),
 	}
+	if apiequality.Semantic.DeepEqual(ingress.Status.LoadBalancer, desired) {
+		return false, nil
+	}
+	ingress.Status.LoadBalancer = desired
 
-	return r.Client.Status().Update(ctx, ingress)
+	if err := r.Client.Status().Update(ctx, ingress); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func svcStatusToIngress(svc *corev1.Service) []networkingv1.IngressLoadBalancerIngress {
