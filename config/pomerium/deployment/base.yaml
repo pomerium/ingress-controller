@@ -15,5 +15,11 @@ spec:
     spec:
       containers:
         - name: pomerium
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /busybox/sleep
+                  - "30"
       serviceAccountName: pomerium-controller
-      terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: 60
