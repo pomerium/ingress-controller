@@ -144,7 +144,9 @@ func (c *reconcileBatchCoordinator) notify() {
 func (c *reconcileBatchCoordinator) Start(ctx context.Context) error {
 	logger := log.FromContext(ctx).WithName("adaptive-ingress-batcher")
 	logger.Info("starting", "quiet-period", c.quietPeriod, "max-wait", c.maxWait)
-	defer c.finishWaiters(ctx.Err())
+	defer func() {
+		c.finishWaiters(ctx.Err())
+	}()
 
 	for {
 		deadline, ok := c.deadline()

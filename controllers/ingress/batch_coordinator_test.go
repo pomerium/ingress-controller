@@ -119,3 +119,17 @@ func TestReconcileBatchCoordinatorReturnsFailureAndRetries(t *testing.T) {
 	require.NoError(t, c.Submit(context.Background()))
 	assert.Equal(t, int32(2), calls.Load())
 }
+
+func TestReconcileBatchCoordinatorPreservesShutdownError(t *testing.T) {
+	c := newReconcileBatchCoordinator(time.Hour, time.Hour, func(context.Context) error {
+		return nil
+	})
+	result := make(chan error, 1)
+	c.waiters = append(c.waiters, batchWaiter{result: result})
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+	require.NoError(t, c.Start(ctx))
+
+	assert.ErrorIs(t, <-result, context.DeadlineExceeded)
+}
