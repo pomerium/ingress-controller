@@ -19,6 +19,13 @@ type IngressReconciler interface {
 	Delete(ctx context.Context, namespacedName types.NamespacedName) (changes bool, err error)
 }
 
+// IngressChangeDetector reports whether the current Kubernetes inputs have
+// already been persisted. It is used by optional controller-side batching.
+type IngressChangeDetector interface {
+	NeedsIngressUpdate(ic *model.IngressConfig) (bool, error)
+	TracksIngress(namespacedName types.NamespacedName) bool
+}
+
 // GatewayReconciler updates Pomerium configuration based on Gateway-defined resources.
 type GatewayReconciler interface {
 	// GatewaySetConfig updates the entire Gateway-defined route configuration.

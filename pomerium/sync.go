@@ -36,6 +36,7 @@ const (
 
 var (
 	_ = IngressReconciler((*DataBrokerReconciler)(nil))
+	_ = IngressChangeDetector((*DataBrokerReconciler)(nil))
 	_ = GatewayReconciler((*DataBrokerReconciler)(nil))
 	_ = ConfigReconciler((*DataBrokerReconciler)(nil))
 )
@@ -50,10 +51,36 @@ type DataBrokerReconciler struct {
 	DebugDumpConfigDiff bool
 	// RemoveUnreferencedCerts would strip any certs not matched by any of the Routes SNI
 	RemoveUnreferencedCerts bool
+	// ingressConfigCache avoids rebuilding the monolithic Pomerium config for
+	// duplicate Kubernetes events. The zero value is ready for use.
+	ingressConfigCache ingressConfigCache
+}
+
+// NeedsIngressUpdate reports whether the current Kubernetes inputs differ
+// from the last configuration successfully persisted by this reconciler.
+func (r *DataBrokerReconciler) NeedsIngressUpdate(ic *model.IngressConfig) (bool, error) {
+	fingerprint, err := fingerprintIngressConfig(ic)
+	if err != nil {
+		return false, fmt.Errorf("fingerprint ingress config: %w", err)
+	}
+	return !r.ingressConfigCache.hit(ic.GetIngressNamespacedName(), fingerprint), nil
+}
+
+// TracksIngress reports whether this reconciler last persisted an Ingress.
+func (r *DataBrokerReconciler) TracksIngress(namespacedName types.NamespacedName) bool {
+	return r.ingressConfigCache.contains(namespacedName)
 }
 
 // Upsert should update or create the pomerium routes corresponding to this ingress
 func (r *DataBrokerReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
+	fingerprint, err := fingerprintIngressConfig(ic)
+	if err != nil {
+		return false, fmt.Errorf("fingerprint ingress config: %w", err)
+	}
+	if r.ingressConfigCache.hit(ic.GetIngressNamespacedName(), fingerprint) {
+		return false, nil
+	}
+
 	prev, err := r.getConfig(ctx)
 	if err != nil {
 		return false, fmt.Errorf("get config: %w", err)
@@ -65,12 +92,23 @@ func (r *DataBrokerReconciler) Upsert(ctx context.Context, ic *model.IngressConf
 	}
 	addCerts(next, ic.Secrets)
 
-	return r.saveConfig(ctx, prev, next, fmt.Sprintf("%s-%s", r.ConfigID, ic.Ingress.UID))
+	changed, err := r.saveConfig(ctx, prev, next, fmt.Sprintf("%s-%s", r.ConfigID, ic.Ingress.UID))
+	if err == nil {
+		r.ingressConfigCache.store(ic.GetIngressNamespacedName(), fingerprint)
+	}
+	return changed, err
 }
 
 // Set merges existing config with the one generated for ingress
 func (r *DataBrokerReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bool, error) {
 	logger := log.FromContext(ctx)
+	fingerprints, err := fingerprintIngressConfigs(ics)
+	if err != nil {
+		return false, fmt.Errorf("fingerprint ingress configs: %w", err)
+	}
+	if r.ingressConfigCache.matches(fingerprints) {
+		return false, nil
+	}
 
 	prev, err := r.getConfig(ctx)
 	if err != nil {
@@ -91,7 +129,11 @@ func (r *DataBrokerReconciler) Set(ctx context.Context, ics []*model.IngressConf
 		next = cfg
 	}
 
-	return r.saveConfig(ctx, prev, next, r.ConfigID)
+	changed, err := r.saveConfig(ctx, prev, next, r.ConfigID)
+	if err == nil {
+		r.ingressConfigCache.replace(fingerprints)
+	}
+	return changed, err
 }
 
 // SetConfig updates just the shared config settings
@@ -123,6 +165,7 @@ func (r *DataBrokerReconciler) Delete(ctx context.Context, namespacedName types.
 	if err != nil {
 		return false, fmt.Errorf("updating pomerium config: %w", err)
 	}
+	r.ingressConfigCache.delete(namespacedName)
 	return changed, nil
 }
 
