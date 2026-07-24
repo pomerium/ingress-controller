@@ -75,14 +75,13 @@ func (r *ingressController) reconcileAll(ctx context.Context) ([]*model.IngressC
 		active[name.String()] = struct{}{}
 		ic, err := r.fetchIngress(ctx, ingress)
 		if err != nil {
-			// An invalid Ingress must not prevent unrelated valid changes from
-			// being applied in the same full-state batch.
 			r.IngressNotReconciled(ctx, ingress, err)
-			logger.Error(err, "skip ingress with unavailable dependencies", "ingress", types.NamespacedName{
-				Namespace: ingress.Namespace,
-				Name:      ingress.Name,
-			})
-			continue
+			// Do not persist a partial full-state configuration. A dependency may
+			// be temporarily unavailable while informer caches converge; omitting
+			// its Ingress here would remove a previously valid route. Returning the
+			// error preserves the last applied configuration and lets
+			// controller-runtime retry the batch.
+			return ics, active, fmt.Errorf("fetch ingress %s dependencies: %w", name, err)
 		}
 		logger.V(1).Info("fetch", "ingress", ingress.Name, "secrets", len(ic.Secrets), "services", len(ic.Services))
 		ics = append(ics, ic)

@@ -202,7 +202,7 @@ func TestReconcileBatchedAppliesFullStateOnce(t *testing.T) {
 		"an unchanged ingress should not emit duplicate status updates")
 }
 
-func TestReconcileBatchedSkipsUnrelatedIngressWithMissingDependency(t *testing.T) {
+func TestReconcileBatchedPreservesFullStateWithMissingDependency(t *testing.T) {
 	reconciler := &batchTestReconciler{tracked: map[types.NamespacedName]int64{
 		{Namespace: "default", Name: "app-a"}: 1,
 		{Namespace: "default", Name: "app-b"}: 1,
@@ -219,20 +219,23 @@ func TestReconcileBatchedSkipsUnrelatedIngressWithMissingDependency(t *testing.T
 	result, err := r.reconcileBatched(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{
 		Namespace: "default", Name: "app-a",
 	}})
+	require.ErrorContains(t, err, "missing")
+	assert.True(t, result.Requeue)
+	assert.Zero(t, reconciler.setCalls, "a partial full-state configuration must not be applied")
+	assert.True(t, reconciler.TracksIngress(types.NamespacedName{Namespace: "default", Name: "app-a"}))
+	assert.True(t, reconciler.TracksIngress(types.NamespacedName{Namespace: "default", Name: "app-b"}))
+
+	require.NoError(t, r.Client.Delete(context.Background(), broken))
+	result, err = r.reconcileBatched(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{
+		Namespace: "default", Name: "app-a",
+	}})
 	require.NoError(t, err)
 	assert.False(t, result.Requeue)
-	assert.Equal(t, 1, reconciler.setCalls)
+	assert.Equal(t, 1, reconciler.setCalls, "the retry should apply the complete state after recovery")
 	assert.Equal(t, []types.NamespacedName{
 		{Namespace: "default", Name: "app-a"},
 		{Namespace: "default", Name: "app-b"},
 	}, reconciler.lastSet)
-
-	result, err = r.reconcileBatched(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{
-		Namespace: "default", Name: "broken",
-	}})
-	require.ErrorContains(t, err, "missing")
-	assert.True(t, result.Requeue)
-	assert.Equal(t, 1, reconciler.setCalls, "the invalid ingress must not trigger another full Set")
 }
 
 func TestReconcileBatchedDeletesStatusForInvalidManagedIngress(t *testing.T) {
