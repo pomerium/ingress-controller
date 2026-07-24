@@ -58,6 +58,20 @@ func (r MultiIngressStatusReporter) IngressDeleted(ctx context.Context, name typ
 	logErrorIfAny(ctx, errs.ErrorOrNil(), "ingress", name, "original reason", reason)
 }
 
+// PruneIngressStatuses asks reporters with persistent route status to remove
+// entries that are not present in the active managed Ingress set.
+func (r MultiIngressStatusReporter) PruneIngressStatuses(ctx context.Context, active map[string]struct{}) {
+	var errs *multierror.Error
+	for _, u := range r {
+		if pruner, ok := u.(IngressStatusPruner); ok {
+			if err := pruner.PruneIngressStatuses(ctx, active); err != nil {
+				errs = multierror.Append(errs, err)
+			}
+		}
+	}
+	logErrorIfAny(ctx, errs.ErrorOrNil())
+}
+
 // SettingsUpdated marks that configuration was reconciled
 func (r MultiPomeriumStatusReporter) SettingsUpdated(ctx context.Context, obj *icsv1.Pomerium) {
 	var errs *multierror.Error

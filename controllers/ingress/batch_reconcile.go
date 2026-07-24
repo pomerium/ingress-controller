@@ -16,7 +16,7 @@ func (r *ingressController) flushReconcileBatch(ctx context.Context) error {
 	if err := r.initComplete.yield(ctx); err != nil {
 		return fmt.Errorf("initial reconciliation: %w", err)
 	}
-	_, err := r.reconcileAll(ctx)
+	_, _, err := r.reconcileAll(ctx)
 	return err
 }
 
@@ -38,6 +38,7 @@ func (r *ingressController) reconcileBatched(ctx context.Context, req ctrl.Reque
 	if !managing.managed {
 		return r.reconcileBatchedDelete(ctx, req.NamespacedName, managing.reasonIfNot)
 	}
+	r.managedIngresses.Store(req.NamespacedName, struct{}{})
 
 	ic, err := r.fetchIngress(ctx, ingress)
 	if err != nil {
@@ -71,12 +72,17 @@ func (r *ingressController) reconcileBatchedDelete(
 	name types.NamespacedName,
 	reason string,
 ) (ctrl.Result, error) {
-	if r.ingressChangeDetector.TracksIngress(name) {
+	tracked := r.ingressChangeDetector.TracksIngress(name)
+	_, knownManaged := r.managedIngresses.Load(name)
+	if tracked {
 		if err := r.batchCoordinator.Submit(ctx); err != nil {
 			return ctrl.Result{Requeue: true}, fmt.Errorf("apply ingress deletion batch: %w", err)
 		}
+	}
+	if tracked || knownManaged {
 		r.IngressDeleted(ctx, name, reason)
 	}
+	r.managedIngresses.Delete(name)
 	r.DeleteCascade(model.Key{Kind: r.ingressKind, NamespacedName: name})
 	return ctrl.Result{}, nil
 }

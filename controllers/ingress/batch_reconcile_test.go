@@ -30,6 +30,7 @@ type batchTestReconciler struct {
 	setErr   error
 	lastSet  []types.NamespacedName
 	reported map[types.NamespacedName]int
+	deleted  map[types.NamespacedName]int
 }
 
 func (*batchTestReconciler) Upsert(context.Context, *model.IngressConfig) (bool, error) {
@@ -86,7 +87,13 @@ func (*batchTestReconciler) IngressNotReconciled(context.Context, *networkingv1.
 	return nil
 }
 
-func (*batchTestReconciler) IngressDeleted(context.Context, types.NamespacedName, string) error {
+func (r *batchTestReconciler) IngressDeleted(_ context.Context, name types.NamespacedName, _ string) error {
+	r.Lock()
+	defer r.Unlock()
+	if r.deleted == nil {
+		r.deleted = make(map[types.NamespacedName]int)
+	}
+	r.deleted[name]++
 	return nil
 }
 
@@ -158,7 +165,7 @@ func newBatchTestController(
 		ingressClassKind:           "IngressClass",
 	}
 	r.batchCoordinator = newReconcileBatchCoordinator(time.Millisecond, 10*time.Millisecond, func(ctx context.Context) error {
-		_, err := r.reconcileAll(ctx)
+		_, _, err := r.reconcileAll(ctx)
 		return err
 	})
 	startBatchCoordinator(t, r.batchCoordinator)
@@ -226,6 +233,32 @@ func TestReconcileBatchedSkipsUnrelatedIngressWithMissingDependency(t *testing.T
 	require.ErrorContains(t, err, "missing")
 	assert.True(t, result.Requeue)
 	assert.Equal(t, 1, reconciler.setCalls, "the invalid ingress must not trigger another full Set")
+}
+
+func TestReconcileBatchedDeletesStatusForInvalidManagedIngress(t *testing.T) {
+	reconciler := &batchTestReconciler{tracked: make(map[types.NamespacedName]int64)}
+	r, ingress := newBatchTestController(t, reconciler)
+	broken := ingress.DeepCopy()
+	broken.Name = "broken"
+	broken.ResourceVersion = ""
+	broken.UID = ""
+	broken.Spec.Rules[0].Host = "broken.example.com"
+	broken.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name = "missing"
+	ctx := context.Background()
+	require.NoError(t, r.Client.Create(ctx, broken))
+
+	name := types.NamespacedName{Namespace: broken.Namespace, Name: broken.Name}
+	result, err := r.reconcileBatched(ctx, ctrl.Request{NamespacedName: name})
+	require.ErrorContains(t, err, "missing")
+	assert.True(t, result.Requeue)
+	assert.False(t, reconciler.TracksIngress(name))
+
+	require.NoError(t, r.Client.Delete(ctx, broken))
+	result, err = r.reconcileBatched(ctx, ctrl.Request{NamespacedName: name})
+	require.NoError(t, err)
+	assert.False(t, result.Requeue)
+	assert.Equal(t, 1, reconciler.deleted[name])
+	assert.Equal(t, 0, reconciler.setCalls, "an invalid ingress was never part of the applied config")
 }
 
 func TestReconcileBatchedDeleteRetriesFailedSet(t *testing.T) {

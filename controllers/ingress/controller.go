@@ -1,6 +1,7 @@
 package ingress
 
 import (
+	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -62,6 +63,7 @@ type ingressController struct {
 	reconcileBatchMaxWait time.Duration
 	batchCoordinator      *reconcileBatchCoordinator
 	ingressChangeDetector pomerium.IngressChangeDetector
+	managedIngresses      sync.Map
 
 	// object Kinds are frequently used, do not change and are cached
 	endpointsKind    string

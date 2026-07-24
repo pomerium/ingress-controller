@@ -28,7 +28,13 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 		}
 	}()
 
-	ics, err := r.reconcileAll(ctx)
+	ics, active, err := r.reconcileAll(ctx)
+	if err == nil {
+		// Prune before reporting each active Ingress. On large clusters those
+		// status updates can consume most of the initial reconciliation timeout,
+		// leaving no usable context for stale-entry cleanup.
+		r.PruneIngressStatuses(ctx, active)
+	}
 	for i := range ics {
 		ingress := ics[i].Ingress
 		if err != nil {
@@ -45,24 +51,28 @@ func (r *ingressController) reconcileInitial(ctx context.Context) (err error) {
 // reconcileAll reads the current managed Ingress state and persists it with a
 // single full-state Set call. It deliberately does not update statuses; queued
 // reconcile requests do that after the batch has been applied.
-func (r *ingressController) reconcileAll(ctx context.Context) ([]*model.IngressConfig, error) {
+func (r *ingressController) reconcileAll(ctx context.Context) ([]*model.IngressConfig, map[string]struct{}, error) {
 	logger := log.FromContext(ctx)
 	ingressList := new(networkingv1.IngressList)
 	if err := r.Client.List(ctx, ingressList); err != nil {
-		return nil, fmt.Errorf("list ingresses: %w", err)
+		return nil, nil, fmt.Errorf("list ingresses: %w", err)
 	}
 
 	var ics []*model.IngressConfig
+	active := make(map[string]struct{})
 	for i := range ingressList.Items {
 		ingress := &ingressList.Items[i]
 		res, err := r.isManaging(ctx, ingress)
 		if err != nil {
-			return nil, fmt.Errorf("get ingressClass info: %w", err)
+			return nil, nil, fmt.Errorf("get ingressClass info: %w", err)
 		}
 		if !res.managed {
 			logger.V(1).Info("skipping ingress", "ingress", ingress.Name, "reason", res.reasonIfNot)
 			continue
 		}
+		name := types.NamespacedName{Namespace: ingress.Namespace, Name: ingress.Name}
+		r.managedIngresses.Store(name, struct{}{})
+		active[name.String()] = struct{}{}
 		ic, err := r.fetchIngress(ctx, ingress)
 		if err != nil {
 			// An invalid Ingress must not prevent unrelated valid changes from
@@ -79,7 +89,7 @@ func (r *ingressController) reconcileAll(ctx context.Context) ([]*model.IngressC
 	}
 
 	_, err := r.IngressReconciler.Set(ctx, ics)
-	return ics, err
+	return ics, active, err
 }
 
 const reasonIngressDeleted = "Ingress resource was deleted"
@@ -112,6 +122,7 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if !managing.managed {
 		return r.deleteIngress(ctx, req.NamespacedName, managing.reasonIfNot)
 	}
+	r.managedIngresses.Store(req.NamespacedName, struct{}{})
 
 	ic, err := r.fetchIngress(ctx, ingress)
 	if err != nil {
@@ -127,13 +138,15 @@ func (r *ingressController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func (r *ingressController) deleteIngress(ctx context.Context, name types.NamespacedName, reason string) (ctrl.Result, error) {
+	_, knownManaged := r.managedIngresses.Load(name)
 	changed, err := r.IngressReconciler.Delete(ctx, name)
 	if err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("deleting ingress: %w", err)
 	}
-	if changed {
+	if changed || knownManaged {
 		r.IngressDeleted(ctx, name, reason)
 	}
+	r.managedIngresses.Delete(name)
 	r.DeleteCascade(model.Key{Kind: r.ingressKind, NamespacedName: name})
 	return ctrl.Result{}, nil
 }
