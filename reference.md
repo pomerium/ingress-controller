@@ -1,4 +1,3 @@
-
 ---
 title: Kubernetes Deployment Reference
 sidebar_label: Reference
