@@ -1,6 +1,6 @@
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/base-debian12:debug-nonroot@sha256:d26c2eeca8201ce4f80adf6aca05d10fb9bca5035b6c18bb0a1f9665ea2b80ee
+FROM gcr.io/distroless/base-nossl-debian12:debug-nonroot@sha256:32d0efd5a21d0274ba4d04c5bc233fec686a4d5fe28aca3447926d5304f1b102
 COPY bin/manager /manager
 USER 65532:65532
 
