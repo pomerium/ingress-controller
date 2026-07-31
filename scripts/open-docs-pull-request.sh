@@ -19,7 +19,7 @@ echo "Copying contents to git repo"
 cp -R "$source_path" "$clone_dir/$destination_path"
 cd "$clone_dir"
 npm ci
-npx --no-install prettier --write "$destination_path/$source_path"
+npx --no-install oxfmt --write "$destination_path/$source_path"
 git checkout -b "$destination_head_branch"
 
 if [ -z "$(git status -z)" ]; then
