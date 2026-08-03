@@ -40,6 +40,21 @@ func NewIngressController(
 	for _, opt := range opts {
 		opt(ic)
 	}
+	if ic.reconcileBatchWindow > 0 {
+		detector, ok := pcr.(pomerium.IngressChangeDetector)
+		if !ok {
+			return fmt.Errorf("adaptive reconcile batching requires an ingress change detector")
+		}
+		ic.ingressChangeDetector = detector
+		ic.batchCoordinator = newReconcileBatchCoordinator(
+			ic.reconcileBatchWindow,
+			ic.reconcileBatchMaxWait,
+			ic.flushReconcileBatch,
+		)
+		if err := mgr.Add(ic.batchCoordinator); err != nil {
+			return fmt.Errorf("add adaptive reconcile batch coordinator: %w", err)
+		}
+	}
 
 	if err := ic.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create controller: %w", err)

@@ -3,9 +3,9 @@ package pomerium
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -36,6 +36,7 @@ const (
 
 var (
 	_ = IngressReconciler((*DataBrokerReconciler)(nil))
+	_ = IngressChangeDetector((*DataBrokerReconciler)(nil))
 	_ = GatewayReconciler((*DataBrokerReconciler)(nil))
 	_ = ConfigReconciler((*DataBrokerReconciler)(nil))
 )
@@ -50,10 +51,36 @@ type DataBrokerReconciler struct {
 	DebugDumpConfigDiff bool
 	// RemoveUnreferencedCerts would strip any certs not matched by any of the Routes SNI
 	RemoveUnreferencedCerts bool
+	// ingressConfigCache avoids rebuilding the monolithic Pomerium config for
+	// duplicate Kubernetes events. The zero value is ready for use.
+	ingressConfigCache ingressConfigCache
+}
+
+// NeedsIngressUpdate reports whether the current Kubernetes inputs differ
+// from the last configuration successfully persisted by this reconciler.
+func (r *DataBrokerReconciler) NeedsIngressUpdate(ic *model.IngressConfig) (bool, error) {
+	fingerprint, err := fingerprintIngressConfig(ic)
+	if err != nil {
+		return false, fmt.Errorf("fingerprint ingress config: %w", err)
+	}
+	return !r.ingressConfigCache.hit(ic.GetIngressNamespacedName(), fingerprint), nil
+}
+
+// TracksIngress reports whether this reconciler last persisted an Ingress.
+func (r *DataBrokerReconciler) TracksIngress(namespacedName types.NamespacedName) bool {
+	return r.ingressConfigCache.contains(namespacedName)
 }
 
 // Upsert should update or create the pomerium routes corresponding to this ingress
 func (r *DataBrokerReconciler) Upsert(ctx context.Context, ic *model.IngressConfig) (bool, error) {
+	fingerprint, err := fingerprintIngressConfig(ic)
+	if err != nil {
+		return false, fmt.Errorf("fingerprint ingress config: %w", err)
+	}
+	if r.ingressConfigCache.hit(ic.GetIngressNamespacedName(), fingerprint) {
+		return false, nil
+	}
+
 	prev, err := r.getConfig(ctx)
 	if err != nil {
 		return false, fmt.Errorf("get config: %w", err)
@@ -65,33 +92,76 @@ func (r *DataBrokerReconciler) Upsert(ctx context.Context, ic *model.IngressConf
 	}
 	addCerts(next, ic.Secrets)
 
-	return r.saveConfig(ctx, prev, next, fmt.Sprintf("%s-%s", r.ConfigID, ic.Ingress.UID))
+	changed, err := r.saveConfig(ctx, prev, next, fmt.Sprintf("%s-%s", r.ConfigID, ic.Ingress.UID))
+	if err == nil {
+		r.ingressConfigCache.store(ic.GetIngressNamespacedName(), fingerprint)
+	}
+	return changed, err
 }
 
 // Set merges existing config with the one generated for ingress
 func (r *DataBrokerReconciler) Set(ctx context.Context, ics []*model.IngressConfig) (bool, error) {
-	logger := log.FromContext(ctx)
+	fingerprints, err := fingerprintIngressConfigs(ics)
+	if err != nil {
+		return false, fmt.Errorf("fingerprint ingress configs: %w", err)
+	}
+	if r.ingressConfigCache.matches(fingerprints) {
+		return false, nil
+	}
 
 	prev, err := r.getConfig(ctx)
 	if err != nil {
 		return false, fmt.Errorf("get config: %w", err)
 	}
+	next := buildIngressConfig(ctx, ics, nil)
+
+	changed, err := r.saveConfig(ctx, prev, next, r.ConfigID)
+	var validationErr *configValidationError
+	if errors.As(err, &validationErr) {
+		// Keep the fast path to one full validation. If it fails, fall back to
+		// validating each Ingress in isolation so one invalid object still does
+		// not block unrelated valid changes.
+		next = buildIngressConfig(ctx, ics, validate)
+		changed, err = r.saveConfig(ctx, prev, next, r.ConfigID)
+	}
+	if err == nil {
+		r.ingressConfigCache.replace(fingerprints)
+	}
+	return changed, err
+}
+
+type configValidator func(context.Context, *pb.Config, string) error
+
+// buildIngressConfig builds each Ingress in isolation before merging it into
+// the full configuration. The optional validator is used by the slow fallback
+// after full validation fails. Cloning and validating the accumulated config
+// for every Ingress makes reconciliation quadratic and can leave removed
+// endpoints active while a large batch is being rebuilt.
+func buildIngressConfig(
+	ctx context.Context,
+	ics []*model.IngressConfig,
+	validator configValidator,
+) *pb.Config {
+	logger := log.FromContext(ctx)
 	next := new(pb.Config)
 
 	for _, ic := range ics {
-		cfg := proto.Clone(next).(*pb.Config)
-		if err := multierror.Append(
-			upsertRoutes(ctx, cfg, ic),
-			validate(ctx, cfg, string(ic.Ingress.UID)),
-		).ErrorOrNil(); err != nil {
+		cfg := new(pb.Config)
+		if err := upsertRoutes(ctx, cfg, ic); err != nil {
 			logger.Error(err, "skip ingress", "ingress", fmt.Sprintf("%s/%s", ic.Namespace, ic.Name))
 			continue
 		}
-		addCerts(cfg, ic.Secrets)
-		next = cfg
+		if validator != nil {
+			if err := validator(ctx, cfg, string(ic.Ingress.UID)); err != nil {
+				logger.Error(err, "skip ingress", "ingress", fmt.Sprintf("%s/%s", ic.Namespace, ic.Name))
+				continue
+			}
+		}
+		next.Routes = append(next.Routes, cfg.Routes...)
+		addCerts(next, ic.Secrets)
 	}
 
-	return r.saveConfig(ctx, prev, next, r.ConfigID)
+	return next
 }
 
 // SetConfig updates just the shared config settings
@@ -123,6 +193,7 @@ func (r *DataBrokerReconciler) Delete(ctx context.Context, namespacedName types.
 	if err != nil {
 		return false, fmt.Errorf("updating pomerium config: %w", err)
 	}
+	r.ingressConfigCache.delete(namespacedName)
 	return changed, nil
 }
 
@@ -196,7 +267,7 @@ func (r *DataBrokerReconciler) saveConfig(ctx context.Context, prev, next *pb.Co
 	ensureDeterministicConfigOrder(next)
 
 	if err := validate(ctx, next, id); err != nil {
-		return false, fmt.Errorf("config validation: %w", err)
+		return false, &configValidationError{err: err}
 	}
 
 	logger := log.FromContext(ctx)
@@ -222,6 +293,18 @@ func (r *DataBrokerReconciler) saveConfig(ctx context.Context, prev, next *pb.Co
 	logger.Info("new pomerium config applied")
 
 	return true, nil
+}
+
+type configValidationError struct {
+	err error
+}
+
+func (e *configValidationError) Error() string {
+	return fmt.Sprintf("config validation: %v", e.err)
+}
+
+func (e *configValidationError) Unwrap() error {
+	return e.err
 }
 
 func debugDumpConfigDiff(prev, next *pb.Config) []byte {
