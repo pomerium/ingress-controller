@@ -37,6 +37,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
+	zero_cmd "github.com/pomerium/pomerium/pkg/zero/cmd"
 )
 
 type allCmdOptions struct {
@@ -59,6 +60,7 @@ type allCmdOptions struct {
 	grpcAddr           string   `validate:"required,hostname_port"`
 	services           []string `validate:"dive,oneof=all authenticate authorize databroker proxy"`
 	syncAPIIngress     string
+	zeroToken          string
 
 	CertificateControllerOptions certificateControllerOptions
 	DataBrokerOptions            dataBrokerOptions
@@ -70,10 +72,13 @@ type allCmdParam struct {
 	gatewayConfig           *gateway.ControllerConfig
 	updateStatusFromService string
 	dumpConfigDiff          bool
+	leaderElectionID        string
+	leaderElectionNamespace string
 	syncAPIURL              string
 	syncAPINamespaceID      string
 	syncAPIToken            string
 	syncAPIBootstrap        bool
+	zeroToken               string
 
 	// bootstrapMetricsAddr for bootstrap configuration controller metrics
 	bootstrapMetricsAddr string
@@ -148,6 +153,7 @@ func (s *allCmd) setupFlags() error {
 	flags.StringVar(&s.grpcAddr, "grpc-addr", ":5443", "the address the gRPC server would bind to")
 	flags.StringSliceVar(&s.services, "services", []string{"all"}, "the pomerium services to run")
 	flags.StringVar(&s.syncAPIIngress, syncAPIIngress, "", "unified API sync ingress")
+	flags.StringVar(&s.zeroToken, "pomerium-zero-token", "", "Pomerium Zero cluster token")
 
 	for _, flag := range hidden {
 		if err := s.PersistentFlags().MarkHidden(flag); err != nil {
@@ -208,10 +214,13 @@ func (s *allCmdOptions) getParam(ctx context.Context) (*allCmdParam, error) {
 		updateStatusFromService:         s.UpdateStatusFromService,
 		dumpConfigDiff:                  s.debugDumpConfigDiff,
 		configControllerShutdownTimeout: s.configControllerShutdownTimeout,
+		leaderElectionID:                s.LeaderElectionID,
+		leaderElectionNamespace:         s.LeaderElectionNamespace,
 		syncAPIURL:                      s.SyncAPIURL,
 		syncAPINamespaceID:              s.SyncAPINamespaceID,
 		syncAPIToken:                    s.SyncAPIToken,
 		syncAPIBootstrap:                s.syncAPIIngress != "",
+		zeroToken:                       s.zeroToken,
 		certificateControllerName:       s.CertificateControllerOptions.Name,
 	}
 	if err := p.makeBootstrapConfig(ctx, *s); err != nil {
@@ -222,6 +231,30 @@ func (s *allCmdOptions) getParam(ctx context.Context) (*allCmdParam, error) {
 }
 
 func (s *allCmdParam) run(ctx context.Context) error {
+	if s.zeroToken != "" {
+		// Run Pomerium Core in Zero-managed mode.
+		return s.runZeroManagedPomerium(ctx)
+	}
+
+	// Run Pomerium Core using the bootstrap config source.
+	return s.runBootstrappedPomerium(ctx)
+}
+
+func (s *allCmdParam) runZeroManagedPomerium(ctx context.Context) error {
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		return runHealthz(ctx, s.cfg.Options.HealthCheckAddr)
+	})
+	eg.Go(func() error {
+		return zero_cmd.Run(ctx, s.zeroToken)
+	})
+	eg.Go(func() error {
+		return s.runConfigControllers(ctx, config.New(config.NewDefaultOptions()))
+	})
+	return eg.Wait()
+}
+
+func (s *allCmdParam) runBootstrappedPomerium(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -420,25 +453,8 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 	}
 
 	client := databroker.NewDataBrokerServiceClient(conn)
-	var reconciler pomerium.Reconciler
-	if s.syncAPIURL != "" {
-		var dialAddressOverride string
-		if s.syncAPIBootstrap {
-			_, port, err := net.SplitHostPort(s.cfg.Options.Addr)
-			if err != nil {
-				return nil, fmt.Errorf("couldn't get server address port: %w", err)
-			}
-			dialAddressOverride = net.JoinHostPort("localhost", port)
-		}
-		reconciler, err = pomerium.NewAPIReconciler(s.syncAPIURL, s.syncAPINamespaceID, s.syncAPIToken, s.cfg.Options, dialAddressOverride)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		reconciler = pomerium.NewDataBrokerReconciler(client, s.dumpConfigDiff)
-	}
+
 	c := &controllers.Controller{
-		Reconciler:              reconciler,
 		DataBrokerServiceClient: client,
 		MgrOpts: runtime_ctrl.Options{
 			Scheme: scheme,
@@ -454,6 +470,31 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 		GlobalSettings:            &s.settings,
 		GatewayControllerConfig:   s.gatewayConfig,
 		CertificateControllerName: s.certificateControllerName,
+	}
+
+	if s.syncAPIURL != "" {
+		var dialAddressOverride string
+		if s.syncAPIBootstrap {
+			_, port, err := net.SplitHostPort(s.cfg.Options.Addr)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't get server address port: %w", err)
+			}
+			dialAddressOverride = net.JoinHostPort("localhost", port)
+		}
+		c.Reconciler, err = pomerium.NewAPIReconciler(s.syncAPIURL, s.syncAPINamespaceID, s.syncAPIToken, s.cfg.Options, dialAddressOverride)
+		if err != nil {
+			return nil, err
+		}
+
+		if s.zeroToken != "" {
+			// If running Core in Zero-managed mode, we may not be able to rely
+			// on taking a databroker lease.
+			c.MgrOpts.LeaderElection = true
+			c.MgrOpts.LeaderElectionID = s.leaderElectionID
+			c.MgrOpts.LeaderElectionNamespace = s.leaderElectionNamespace
+		}
+	} else {
+		c.Reconciler = pomerium.NewDataBrokerReconciler(client, s.dumpConfigDiff)
 	}
 
 	return c, nil

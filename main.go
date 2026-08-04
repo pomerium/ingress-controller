@@ -8,6 +8,8 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 
+	_ "github.com/pomerium/pomerium/pkg/zero/bootstrapwriters/k8s"
+
 	"github.com/pomerium/ingress-controller/cmd"
 	_ "github.com/pomerium/ingress-controller/internal"
 )

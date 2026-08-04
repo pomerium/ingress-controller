@@ -321,7 +321,7 @@ type PomeriumSpec struct {
 	// raw strings, while <code>data.signing_key</code> is base64-encoded.
 	// </p>
 	//
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Format="namespace/name"
