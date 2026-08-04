@@ -393,6 +393,35 @@ type PomeriumSpec struct {
 
 	// EnvoyDynamicExtensions file paths to the extensions to be loaded by Envoy at runtime.
 	EnvoyDynamicExtensions *[]string `json:"envoyDynamicExtensions,omitempty"`
+
+	// NormalizePath controls whether request URI paths will be normalized
+	// according to RFC 3986. Defaults to true.
+	//
+	// +kubebuilder:validation:Optional
+	NormalizePath *bool `json:"normalizePath,omitempty"`
+
+	// MergeSlashes controls whether adjacent slashes in the request URI path
+	// will be merged into one. Defaults to true.
+	//
+	// +kubebuilder:validation:Optional
+	MergeSlashes *bool `json:"mergeSlashes,omitempty"`
+
+	// PathWithEscapedSlashesAction controls the behavior for a request with an
+	// escaped slash or backslash character in the URI path. This operation will
+	// occur before path normalization and the merge slashes operation. The
+	// default behavior is reject_request.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=keep_unchanged;reject_request;unescape_and_redirect;unescape_and_forward
+	PathWithEscapedSlashesAction *string `json:"pathWithEscapedSlashesAction,omitempty"`
+
+	// HeadersWithUnderscoresAction controls the behavior for a request with a
+	// header name containing an underscore character. The default behavior is
+	// reject_request.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=allow;reject_request;drop_header
+	HeadersWithUnderscoresAction *string `json:"headersWithUnderscoresAction,omitempty"`
 }
 
 // OTEL configures OpenTelemetry.
