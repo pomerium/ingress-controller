@@ -199,6 +199,17 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>headersWithUnderscoresAction</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    HeadersWithUnderscoresAction sets the action to take when a client request with a header name containing underscore characters is received. These settings apply to the whole listener and cannot be set per Ingress.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
                 <code>identityProvider</code>&#160;&#160;
                     <strong>object</strong>&#160;
                     (<a href="#identityprovider">identityProvider</a>)
@@ -255,6 +266,28 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>mergeSlashes</code>&#160;&#160;
+                    <strong>boolean</strong>&#160;
+                </p>
+                <p>
+                    MergeSlashes sets whether adjacent slashes in the path are merged into one before any processing of requests by HTTP filters or routing. These settings apply to the whole listener and cannot be set per Ingress.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>normalizePath</code>&#160;&#160;
+                    <strong>boolean</strong>&#160;
+                </p>
+                <p>
+                    NormalizePath sets whether paths are normalized according to RFC 3986 before any processing of requests by HTTP filters or routing. These settings apply to the whole listener and cannot be set per Ingress.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
                 <code>otel</code>&#160;&#160;
                     <strong>object</strong>&#160;
                     (<a href="#otel">otel</a>)
@@ -272,6 +305,17 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
                 </p>
                 <p>
                     PassIdentityHeaders sets the <a href="https://www.pomerium.com/docs/reference/pass-identity-headers">pass identity headers</a> option.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>pathWithEscapedSlashesAction</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    PathWithEscapedSlashesAction sets the action to take when a request URL path contains escaped slash sequences (%2F, %2f, %5C and %5c). These settings apply to the whole listener and cannot be set per Ingress.
                 </p>
             </td>
         </tr>

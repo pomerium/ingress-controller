@@ -37,6 +37,42 @@ func TestApplyConfig(t *testing.T) {
 		assert.Equal(t, []string{"a", "b", "c"}, dst.Settings.GetAllowUpgrades().GetValues(),
 			"should set allow upgrades")
 	})
+
+	t.Run("Normalization", func(t *testing.T) {
+		t.Parallel()
+		var dst pb.Config
+
+		assert.NoError(t, pomerium.ApplyConfig(t.Context(), &dst, &model.Config{}))
+		assert.Nil(t, dst.Settings.NormalizePath, "should default to nil")
+		assert.Nil(t, dst.Settings.MergeSlashes, "should default to nil")
+		assert.Nil(t, dst.Settings.PathWithEscapedSlashesAction, "should default to nil")
+		assert.Nil(t, dst.Settings.HeadersWithUnderscoresAction, "should default to nil")
+
+		assert.NoError(t, pomerium.ApplyConfig(t.Context(), &dst, &model.Config{
+			Pomerium: v1.Pomerium{
+				Spec: v1.PomeriumSpec{
+					NormalizePath:                proto.Bool(false),
+					MergeSlashes:                 proto.Bool(false),
+					PathWithEscapedSlashesAction: proto.String("keep_unchanged"),
+					HeadersWithUnderscoresAction: proto.String("allow"),
+				},
+			},
+		}))
+		assert.False(t, dst.Settings.GetNormalizePath())
+		assert.False(t, dst.Settings.GetMergeSlashes())
+		assert.Equal(t, pb.PathWithEscapedSlashesAction_PATH_WITH_ESCAPED_SLASHES_ACTION_KEEP_UNCHANGED,
+			dst.Settings.GetPathWithEscapedSlashesAction())
+		assert.Equal(t, pb.HeadersWithUnderscoresAction_HEADERS_WITH_UNDERSCORES_ACTION_ALLOW,
+			dst.Settings.GetHeadersWithUnderscoresAction())
+
+		assert.Error(t, pomerium.ApplyConfig(t.Context(), &dst, &model.Config{
+			Pomerium: v1.Pomerium{
+				Spec: v1.PomeriumSpec{
+					PathWithEscapedSlashesAction: proto.String("nonsense"),
+				},
+			},
+		}), "should reject an unknown action")
+	})
 }
 
 func TestApplyConfig_DownstreamMTLS(t *testing.T) {

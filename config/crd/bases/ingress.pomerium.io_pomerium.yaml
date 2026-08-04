@@ -310,6 +310,16 @@ spec:
                 items:
                   type: string
                 type: array
+              headersWithUnderscoresAction:
+                description: |-
+                  HeadersWithUnderscoresAction sets the action to take when a client request
+                  with a header name containing underscore characters is received.
+                  These settings apply to the whole listener and cannot be set per Ingress.
+                enum:
+                - allow
+                - reject_request
+                - drop_header
+                type: string
               identityProvider:
                 description: |-
                   IdentityProvider configure single-sign-on authentication and user identity details
@@ -433,6 +443,18 @@ spec:
                 items:
                   type: string
                 type: array
+              mergeSlashes:
+                description: |-
+                  MergeSlashes sets whether adjacent slashes in the path are merged into one
+                  before any processing of requests by HTTP filters or routing.
+                  These settings apply to the whole listener and cannot be set per Ingress.
+                type: boolean
+              normalizePath:
+                description: |-
+                  NormalizePath sets whether paths are normalized according to RFC 3986
+                  before any processing of requests by HTTP filters or routing.
+                  These settings apply to the whole listener and cannot be set per Ingress.
+                type: boolean
               otel:
                 description: OTEL sets the <a href="https://www.pomerium.com/docs/reference/tracing">OpenTelemetry
                   Tracing</a>.
@@ -494,6 +516,17 @@ spec:
                 description: PassIdentityHeaders sets the <a href="https://www.pomerium.com/docs/reference/pass-identity-headers">pass
                   identity headers</a> option.
                 type: boolean
+              pathWithEscapedSlashesAction:
+                description: |-
+                  PathWithEscapedSlashesAction sets the action to take when a request URL path
+                  contains escaped slash sequences (%2F, %2f, %5C and %5c).
+                  These settings apply to the whole listener and cannot be set per Ingress.
+                enum:
+                - keep_unchanged
+                - reject_request
+                - unescape_and_redirect
+                - unescape_and_forward
+                type: string
               programmaticRedirectDomains:
                 description: |-
                   ProgrammaticRedirectDomains specifies a list of domains that can be used for

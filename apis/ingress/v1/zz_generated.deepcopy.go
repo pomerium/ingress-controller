@@ -552,6 +552,26 @@ func (in *PomeriumSpec) DeepCopyInto(out *PomeriumSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.NormalizePath != nil {
+		in, out := &in.NormalizePath, &out.NormalizePath
+		*out = new(bool)
+		**out = **in
+	}
+	if in.MergeSlashes != nil {
+		in, out := &in.MergeSlashes, &out.MergeSlashes
+		*out = new(bool)
+		**out = **in
+	}
+	if in.PathWithEscapedSlashesAction != nil {
+		in, out := &in.PathWithEscapedSlashesAction, &out.PathWithEscapedSlashesAction
+		*out = new(string)
+		**out = **in
+	}
+	if in.HeadersWithUnderscoresAction != nil {
+		in, out := &in.HeadersWithUnderscoresAction, &out.HeadersWithUnderscoresAction
+		*out = new(string)
+		**out = **in
+	}
 	if in.BearerTokenFormat != nil {
 		in, out := &in.BearerTokenFormat, &out.BearerTokenFormat
 		*out = new(string)

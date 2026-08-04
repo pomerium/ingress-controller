@@ -351,6 +351,36 @@ type PomeriumSpec struct {
 	// +kubebuilder:validation:Enum=auto;http1;http2;http3
 	CodecType *string `json:"codecType,omitempty"`
 
+	// NormalizePath sets whether paths are normalized according to RFC 3986
+	// before any processing of requests by HTTP filters or routing.
+	// These settings apply to the whole listener and cannot be set per Ingress.
+	//
+	// +kubebuilder:validation:Optional
+	NormalizePath *bool `json:"normalizePath,omitempty"`
+
+	// MergeSlashes sets whether adjacent slashes in the path are merged into one
+	// before any processing of requests by HTTP filters or routing.
+	// These settings apply to the whole listener and cannot be set per Ingress.
+	//
+	// +kubebuilder:validation:Optional
+	MergeSlashes *bool `json:"mergeSlashes,omitempty"`
+
+	// PathWithEscapedSlashesAction sets the action to take when a request URL path
+	// contains escaped slash sequences (%2F, %2f, %5C and %5c).
+	// These settings apply to the whole listener and cannot be set per Ingress.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=keep_unchanged;reject_request;unescape_and_redirect;unescape_and_forward
+	PathWithEscapedSlashesAction *string `json:"pathWithEscapedSlashesAction,omitempty"`
+
+	// HeadersWithUnderscoresAction sets the action to take when a client request
+	// with a header name containing underscore characters is received.
+	// These settings apply to the whole listener and cannot be set per Ingress.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=allow;reject_request;drop_header
+	HeadersWithUnderscoresAction *string `json:"headersWithUnderscoresAction,omitempty"`
+
 	// BearerTokenFormat sets the <a href="https://www.pomerium.com/docs/reference/bearer-token-format">Bearer Token Format</a>.
 	//
 	// +kubebuilder:validation:Optional

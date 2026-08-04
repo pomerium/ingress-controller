@@ -185,6 +185,38 @@ func applySetOtherOptions(_ context.Context, p *pb.Config, c *model.Config) erro
 			return fmt.Errorf("unknown codecType %s", *c.Spec.CodecType)
 		}
 	}
+	p.Settings.NormalizePath = c.Spec.NormalizePath
+	p.Settings.MergeSlashes = c.Spec.MergeSlashes
+	if c.Spec.PathWithEscapedSlashesAction != nil {
+		switch *c.Spec.PathWithEscapedSlashesAction {
+		case "keep_unchanged":
+			p.Settings.PathWithEscapedSlashesAction = pb.PathWithEscapedSlashesAction_PATH_WITH_ESCAPED_SLASHES_ACTION_KEEP_UNCHANGED.Enum()
+		case "reject_request":
+			p.Settings.PathWithEscapedSlashesAction = pb.PathWithEscapedSlashesAction_PATH_WITH_ESCAPED_SLASHES_ACTION_REJECT_REQUEST.Enum()
+		case "unescape_and_redirect":
+			p.Settings.PathWithEscapedSlashesAction = pb.PathWithEscapedSlashesAction_PATH_WITH_ESCAPED_SLASHES_ACTION_UNESCAPE_AND_REDIRECT.Enum()
+		case "unescape_and_forward":
+			p.Settings.PathWithEscapedSlashesAction = pb.PathWithEscapedSlashesAction_PATH_WITH_ESCAPED_SLASHES_ACTION_UNESCAPE_AND_FORWARD.Enum()
+		default:
+			return fmt.Errorf("unknown pathWithEscapedSlashesAction %s", *c.Spec.PathWithEscapedSlashesAction)
+		}
+	} else {
+		p.Settings.PathWithEscapedSlashesAction = nil
+	}
+	if c.Spec.HeadersWithUnderscoresAction != nil {
+		switch *c.Spec.HeadersWithUnderscoresAction {
+		case "allow":
+			p.Settings.HeadersWithUnderscoresAction = pb.HeadersWithUnderscoresAction_HEADERS_WITH_UNDERSCORES_ACTION_ALLOW.Enum()
+		case "reject_request":
+			p.Settings.HeadersWithUnderscoresAction = pb.HeadersWithUnderscoresAction_HEADERS_WITH_UNDERSCORES_ACTION_REJECT_REQUEST.Enum()
+		case "drop_header":
+			p.Settings.HeadersWithUnderscoresAction = pb.HeadersWithUnderscoresAction_HEADERS_WITH_UNDERSCORES_ACTION_DROP_HEADER.Enum()
+		default:
+			return fmt.Errorf("unknown headersWithUnderscoresAction %s", *c.Spec.HeadersWithUnderscoresAction)
+		}
+	} else {
+		p.Settings.HeadersWithUnderscoresAction = nil
+	}
 	if c.Spec.AccessLogFields != nil {
 		p.Settings.AccessLogFields = &pb.Settings_StringList{
 			Values: *c.Spec.AccessLogFields,
