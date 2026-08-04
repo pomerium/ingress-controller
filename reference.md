@@ -199,6 +199,17 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>headersWithUnderscoresAction</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    HeadersWithUnderscoresAction controls the behavior for a request with a header name containing an underscore character. The default behavior is reject_request.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
                 <code>identityProvider</code>&#160;&#160;
                     <strong>object</strong>&#160;
                     (<a href="#identityprovider">identityProvider</a>)
@@ -255,6 +266,28 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>mergeSlashes</code>&#160;&#160;
+                    <strong>boolean</strong>&#160;
+                </p>
+                <p>
+                    MergeSlashes controls whether adjacent slashes in the request URI path will be merged into one. Defaults to true.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>normalizePath</code>&#160;&#160;
+                    <strong>boolean</strong>&#160;
+                </p>
+                <p>
+                    NormalizePath controls whether request URI paths will be normalized according to RFC 3986. Defaults to true.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
                 <code>otel</code>&#160;&#160;
                     <strong>object</strong>&#160;
                     (<a href="#otel">otel</a>)
@@ -272,6 +305,17 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
                 </p>
                 <p>
                     PassIdentityHeaders sets the <a href="https://www.pomerium.com/docs/reference/pass-identity-headers">pass identity headers</a> option.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>pathWithEscapedSlashesAction</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    PathWithEscapedSlashesAction controls the behavior for a request with an escaped slash or backslash character in the URI path. This operation will occur before path normalization and the merge slashes operation. The default behavior is reject_request.
                 </p>
             </td>
         </tr>
