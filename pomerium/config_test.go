@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
@@ -216,5 +217,80 @@ func TestApplyConfig_IdentityProvider(t *testing.T) {
 		dst := new(pb.Config)
 		err := pomerium.ApplyConfig(t.Context(), dst, src)
 		assert.ErrorContains(t, err, "idp secret: is required")
+	})
+}
+
+func TestApplyConfig_RequestNormalizationOptions(t *testing.T) {
+	t.Run("unset", func(t *testing.T) {
+		src := &model.Config{}
+		dst := new(pb.Config)
+		err := pomerium.ApplyConfig(t.Context(), dst, src)
+		require.NoError(t, err)
+		assert.Nil(t, dst.GetSettings().NormalizePath)
+		assert.Nil(t, dst.GetSettings().MergeSlashes)
+		assert.Nil(t, dst.GetSettings().PathWithEscapedSlashesAction)
+		assert.Nil(t, dst.GetSettings().HeadersWithUnderscoresAction)
+	})
+	t.Run("no normalization", func(t *testing.T) {
+		src := &model.Config{
+			Pomerium: v1.Pomerium{
+				Spec: v1.PomeriumSpec{
+					NormalizePath:                new(false),
+					MergeSlashes:                 new(false),
+					PathWithEscapedSlashesAction: new("keep_unchanged"),
+					HeadersWithUnderscoresAction: new("allow"),
+				},
+			},
+		}
+		dst := new(pb.Config)
+		err := pomerium.ApplyConfig(t.Context(), dst, src)
+		require.NoError(t, err)
+		assert.Equal(t, new(false), dst.GetSettings().NormalizePath)
+		assert.Equal(t, new(false), dst.GetSettings().MergeSlashes)
+		assert.Equal(t, pb.PathWithEscapedSlashesAction_PATH_WITH_ESCAPED_SLASHES_ACTION_KEEP_UNCHANGED.Enum(), dst.GetSettings().PathWithEscapedSlashesAction)
+		assert.Equal(t, pb.HeadersWithUnderscoresAction_HEADERS_WITH_UNDERSCORES_ACTION_ALLOW.Enum(), dst.GetSettings().HeadersWithUnderscoresAction)
+	})
+	t.Run("other", func(t *testing.T) {
+		src := &model.Config{
+			Pomerium: v1.Pomerium{
+				Spec: v1.PomeriumSpec{
+					NormalizePath:                new(true),
+					MergeSlashes:                 new(true),
+					PathWithEscapedSlashesAction: new("unescape_and_redirect"),
+					HeadersWithUnderscoresAction: new("drop_header"),
+				},
+			},
+		}
+		dst := new(pb.Config)
+		err := pomerium.ApplyConfig(t.Context(), dst, src)
+		require.NoError(t, err)
+		assert.Equal(t, new(true), dst.GetSettings().NormalizePath)
+		assert.Equal(t, new(true), dst.GetSettings().MergeSlashes)
+		assert.Equal(t, pb.PathWithEscapedSlashesAction_PATH_WITH_ESCAPED_SLASHES_ACTION_UNESCAPE_AND_REDIRECT.Enum(), dst.GetSettings().PathWithEscapedSlashesAction)
+		assert.Equal(t, pb.HeadersWithUnderscoresAction_HEADERS_WITH_UNDERSCORES_ACTION_DROP_HEADER.Enum(), dst.GetSettings().HeadersWithUnderscoresAction)
+	})
+	t.Run("unknown pathWithEscapedSlashesAction", func(t *testing.T) {
+		src := &model.Config{
+			Pomerium: v1.Pomerium{
+				Spec: v1.PomeriumSpec{
+					PathWithEscapedSlashesAction: new("foobar"),
+				},
+			},
+		}
+		dst := new(pb.Config)
+		err := pomerium.ApplyConfig(t.Context(), dst, src)
+		assert.ErrorContains(t, err, `unknown pathWithEscapedSlashesAction "foobar"`)
+	})
+	t.Run("unknown headersWithUnderscoresAction", func(t *testing.T) {
+		src := &model.Config{
+			Pomerium: v1.Pomerium{
+				Spec: v1.PomeriumSpec{
+					HeadersWithUnderscoresAction: new("foobar"),
+				},
+			},
+		}
+		dst := new(pb.Config)
+		err := pomerium.ApplyConfig(t.Context(), dst, src)
+		assert.ErrorContains(t, err, `unknown headersWithUnderscoresAction "foobar"`)
 	})
 }
