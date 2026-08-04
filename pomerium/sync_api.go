@@ -393,7 +393,13 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 		return false, err
 	}
 
-	resp, err := r.apiClient.GetSettings(ctx, connect.NewRequest(&configpb.GetSettingsRequest{}))
+	req := &configpb.GetSettingsRequest{}
+	if r.namespaceID != nil {
+		req.For = &configpb.GetSettingsRequest_NamespaceId{
+			NamespaceId: *r.namespaceID,
+		}
+	}
+	resp, err := r.apiClient.GetSettings(ctx, connect.NewRequest(req))
 	if err != nil {
 		return false, err
 	}
@@ -401,6 +407,7 @@ func (r *APIReconciler) SetConfig(ctx context.Context, cfg *model.Config) (chang
 
 	// Preserve any settings that cannot be set via the Pomerium CRD.
 	settings.Id = existing.Id
+	settings.NamespaceId = existing.NamespaceId
 	settings.AutoApplyChangesets = existing.AutoApplyChangesets
 	settings.AutocertDir = existing.AutocertDir
 	settings.RuntimeFlags = existing.RuntimeFlags

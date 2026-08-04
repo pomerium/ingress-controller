@@ -1146,20 +1146,26 @@ func TestAPIReconciler_SetConfig(t *testing.T) {
 
 	t.Run("settings changed", func(t *testing.T) {
 		apiClient, _, r := setupReconciler(t)
+		r.namespaceID = new("api-namespace-id")
 		ctx := t.Context()
 
 		// APIReconciler should first call GetSettings() to determine if it needs to sync any changes...
-		apiClient.EXPECT().GetSettings(ctx, RequestEq(&configpb.GetSettingsRequest{})).
-			Return(&connect.Response[configpb.GetSettingsResponse]{
-				Msg: &configpb.GetSettingsResponse{
-					Settings: &configpb.Settings{
-						Id: new("settings-id-123"),
-					},
+		apiClient.EXPECT().GetSettings(ctx, RequestEq(&configpb.GetSettingsRequest{
+			For: &configpb.GetSettingsRequest_NamespaceId{
+				NamespaceId: "api-namespace-id",
+			},
+		})).Return(&connect.Response[configpb.GetSettingsResponse]{
+			Msg: &configpb.GetSettingsResponse{
+				Settings: &configpb.Settings{
+					Id:          new("settings-id-123"),
+					NamespaceId: new("api-namespace-id"),
 				},
-			}, nil)
+			},
+		}, nil)
 
 		expectedSettings := proto.CloneOf(defaultSettings)
 		expectedSettings.Id = new("settings-id-123")
+		expectedSettings.NamespaceId = new("api-namespace-id")
 		expectedSettings.AuthenticateServiceUrl = new("https://authenticate.localhost.pomerium.io")
 		expectedSettings.AutocertDir = nil
 		expectedSettings.IdpClientId = new("CLIENT_ID")
