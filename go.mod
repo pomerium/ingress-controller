@@ -5,9 +5,9 @@ go 1.26.3
 require (
 	connectrpc.com/connect v1.20.0
 	github.com/cenkalti/backoff/v4 v4.3.0
-	github.com/cert-manager/cert-manager v1.20.3
+	github.com/cert-manager/cert-manager v1.21.1
 	github.com/envoyproxy/go-control-plane/envoy v1.37.0
-	github.com/go-logr/logr v1.4.3
+	github.com/go-logr/logr v1.4.4
 	github.com/go-logr/zapr v1.3.0
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/google/go-cmp v0.7.0
@@ -17,10 +17,10 @@ require (
 	github.com/hashicorp/go-set/v3 v3.0.1
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
-	github.com/open-policy-agent/opa v1.18.1
+	github.com/open-policy-agent/opa v1.18.2
 	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260731175238-396e6327102d
-	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260731175238-396e6327102d
-	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260731163429-55014d89c6f7
+	github.com/pomerium/pomerium/pkg/grpc/config v0.33.0
+	github.com/pomerium/pomerium/pkg/grpc/databroker v0.33.0
 	github.com/pomerium/sdk-go v0.0.10-0.20260731163531-1ca490d84c3c
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
@@ -67,11 +67,11 @@ require (
 	filippo.io/bigmod v0.0.3 // indirect
 	filippo.io/csrf v0.2.1 // indirect
 	filippo.io/keygen v0.0.0-20250626140535-790df0a991a0 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.0 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/internal v1.11.2 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.22.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.4 // indirect
-	github.com/AzureAD/microsoft-authentication-library-for-go v1.7.0 // indirect
+	github.com/AzureAD/microsoft-authentication-library-for-go v1.7.2 // indirect
 	github.com/CAFxX/httpcompression v0.0.9 // indirect
 	github.com/DataDog/zstd v1.5.7 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.33.0 // indirect
@@ -338,7 +338,7 @@ require (
 	k8s.io/component-base v0.36.3 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260501160325-927ab1f70cd6 // indirect
-	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5 // indirect
+	k8s.io/utils v0.0.0-20260626114624-be93311217bd // indirect
 	oras.land/oras-go/v2 v2.6.2 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
