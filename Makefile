@@ -197,18 +197,13 @@ clean:
 	@chmod -Rf u+w internal/ui || true
 	@rm -rf internal/ui
 
-.PHONY: deployment
-deployment:
-	@echo "==> $@"
-	@kustomize build config/default > deployment.yaml
-
 .PHONY: docs
 docs: generated
 	@echo "==> $@"
 	@go run docs/cmd/main.go > reference.md
 
 .PHONY: generate
-generate: docs deployment
+generate: docs
 
 #
 # --- internal development targets
