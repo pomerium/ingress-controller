@@ -95,7 +95,7 @@ func NewSettingsController(
 	secretKind := generic.GVKForType[*corev1.Secret](mgr.GetScheme()).Kind
 	err := ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
-		For(new(icsv1.Pomerium)).
+		For(new(icsv1.Pomerium), builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(deps.GetDependantMapFunc(stc.Registry, secretKind)),
