@@ -538,8 +538,15 @@ func TestAPIReconciler_upsertOneIngress(t *testing.T) {
 		apiClient.EXPECT().GetRoute(ctx, RequestEq(&configpb.GetRouteRequest{
 			Id: "existing-route-id",
 		})).Return(nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("not found")))
-		apiClient.EXPECT().CreateRoute(ctx, gomock.Any()).
-			Return(createRouteResponseWithID("recreated-route-id"), nil)
+		apiClient.EXPECT().CreateRoute(ctx, RequestEq(&configpb.CreateRouteRequest{
+			Route: &configpb.Route{
+				OriginatorId: new("ingress-controller"),
+				Name:         new("test-my-ingress-a-localhost-pomerium-io"),
+				From:         "https://a.localhost.pomerium.io",
+				To:           []string{"http://example-svc.test.svc.cluster.local:8080"},
+				Prefix:       "/",
+			},
+		})).Return(createRouteResponseWithID("recreated-route-id"), nil)
 
 		k8sClient.EXPECT().Patch(ctx, ingress, gomock.Any()).Return(nil)
 
@@ -1107,8 +1114,16 @@ func TestAPIReconciler_SetGatewayConfig_routeRecreated(t *testing.T) {
 	apiClient.EXPECT().GetRoute(ctx, RequestEq(&configpb.GetRouteRequest{
 		Id: "existing-route-id",
 	})).Return(nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("not found")))
-	apiClient.EXPECT().CreateRoute(ctx, gomock.Any()).
-		Return(createRouteResponseWithID("recreated-route-id"), nil)
+	apiClient.EXPECT().CreateRoute(ctx, RequestEq(&configpb.CreateRouteRequest{
+		Route: &configpb.Route{
+			OriginatorId:         new("ingress-controller"),
+			Name:                 new("test-route-a-a-localhost-pomerium-io"),
+			From:                 "https://a.localhost.pomerium.io",
+			To:                   []string{"http://example-svc.test.svc.cluster.local:8000"},
+			LoadBalancingWeights: []uint32{1},
+			PreserveHostHeader:   true,
+		},
+	})).Return(createRouteResponseWithID("recreated-route-id"), nil)
 
 	k8sClient.EXPECT().Patch(ctx, httpRouteObject, gomock.Any()).Return(nil)
 
@@ -1514,7 +1529,6 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 
 		apiClient.EXPECT().CreateKeyPair(ctx, RequestEq(&configpb.CreateKeyPairRequest{
 			KeyPair: &configpb.KeyPair{
-				Id:           new("existing-keypair-id"),
 				OriginatorId: new("ingress-controller"),
 				Name:         new("test-secret-1"),
 				Certificate:  []byte("cert-data"),
@@ -1523,7 +1537,7 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 		})).Return(&connect.Response[configpb.CreateKeyPairResponse]{
 			Msg: &configpb.CreateKeyPairResponse{
 				KeyPair: &configpb.KeyPair{
-					Id: new("existing-keypair-id"),
+					Id: new("new-keypair-id"),
 					// rest of the data omitted (not currently read)
 				},
 			},
@@ -1534,6 +1548,7 @@ func TestAPIReconciler_syncOneSecret(t *testing.T) {
 		changed, err := r.syncOneSecret(ctx, secret)
 		assert.True(t, changed)
 		assert.NoError(t, err)
+		assert.Equal(t, "new-keypair-id", secret.Annotations[apiKeyPairIDAnnotation])
 	})
 
 	t.Run("different namespace", func(t *testing.T) {
@@ -1686,7 +1701,7 @@ func TestAPIReconciler_upsertPolicy(t *testing.T) {
 		})).Return(nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("not found")))
 
 		apiClient.EXPECT().CreatePolicy(ctx, RequestEq(&configpb.CreatePolicyRequest{
-			Policy: policy,
+			Policy: &configpb.Policy{},
 		})).Return(createPolicyResponseWithID("existing-policy-id"), nil)
 
 		changed, err := r.upsertPolicy(ctx, policy)
