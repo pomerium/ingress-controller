@@ -685,10 +685,11 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *configpb.Rout
 			return false, fmt.Errorf("couldn't delete existing route in different namespace: %w", err)
 		}
 		existing = nil
-		apiRoute.Id = nil
 	}
 
 	if existing == nil {
+		apiRoute.Id = nil // don't try to reuse a previous ID
+
 		// If the route does not currently exist, create it.
 		resp, err := r.apiClient.CreateRoute(ctx, connect.NewRequest(&configpb.CreateRouteRequest{
 			Route: apiRoute,
@@ -847,11 +848,12 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *configpb.Polic
 		// We'll need to delete and recreate it, but we can't delete it until
 		// any routes that reference it are also deleted.
 		existing = nil
-		policy.Id = nil
 	}
 
 	// If there is no existing policy, create one.
 	if existing == nil {
+		policy.Id = nil // don't try to reuse a previous ID
+
 		resp, err := r.apiClient.CreatePolicy(ctx, connect.NewRequest(&configpb.CreatePolicyRequest{
 			Policy: policy,
 		}))
@@ -968,11 +970,12 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *configpb.Key
 			return false, fmt.Errorf("couldn't delete existing key pair in different namespace: %w", err)
 		}
 		existing = nil
-		keyPair.Id = nil
 	}
 
 	// If there is no existing keypair, create one.
 	if existing == nil {
+		keyPair.Id = nil // don't try to reuse a previous ID
+
 		resp, err := r.apiClient.CreateKeyPair(ctx, connect.NewRequest(&configpb.CreateKeyPairRequest{
 			KeyPair: keyPair,
 		}))
