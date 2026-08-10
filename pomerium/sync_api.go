@@ -681,6 +681,8 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *configpb.Rout
 		apiRoute.GetNamespaceId() != existing.GetNamespaceId() {
 		// The route exists already, but in a different namespace.
 		// Delete the existing route so we can recreate it in the new namespace.
+		logger.V(1).Info("upsertOneRoute: deleting existing route due to namespace change",
+			"name", route.GetName())
 		if err := r.deleteRoute(ctx, existing.GetId()); err != nil {
 			return false, fmt.Errorf("couldn't delete existing route in different namespace: %w", err)
 		}
@@ -714,8 +716,8 @@ func (r *APIReconciler) upsertOneRoute(ctx context.Context, route *configpb.Rout
 		if err != nil {
 			return false, err
 		}
-		apiRoute.Id = existing.Id
 		route.Id = existing.Id
+		return true, nil // we'll reconcile any updates on a separate pass
 	}
 
 	// Clear the fields that should be ignored when looking for changes.
@@ -830,6 +832,8 @@ func (r *APIReconciler) syncIngressPolicy(
 // upsertPolicy will create or update a Pomerium policy. If a new ID is
 // assigned, policy.Id will be updated.
 func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *configpb.Policy) (changed bool, err error) {
+	logger := log.FromContext(ctx).WithName("APIReconciler.upsertPolicy")
+
 	var existing *configpb.Policy
 	if id := policy.GetId(); id != "" {
 		resp, err := r.apiClient.GetPolicy(ctx, connect.NewRequest(&configpb.GetPolicyRequest{
@@ -871,7 +875,7 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *configpb.Polic
 			return false, err
 		}
 		policy.Id = existing.Id
-		changed = true
+		return true, nil // we'll reconcile any updates on a separate pass
 	}
 
 	// Zero out fields that should be ignored when looking for changes.
@@ -885,19 +889,15 @@ func (r *APIReconciler) upsertPolicy(ctx context.Context, policy *configpb.Polic
 
 	if proto.Equal(existing, policy) {
 		// No changes needed.
-		return changed, nil
+		return false, nil
 	}
 
-	logger := log.FromContext(ctx).WithName("APIReconciler.upsertPolicy")
 	logger.V(1).Info("updating existing policy", "id", policy.GetId(), "diff", cmp.Diff(existing, policy, protocmp.Transform()))
 
 	_, err = r.apiClient.UpdatePolicy(ctx, connect.NewRequest(&configpb.UpdatePolicyRequest{
 		Policy: policy,
 	}))
-	if err != nil {
-		return changed, err
-	}
-	return true, nil
+	return err == nil, err
 }
 
 func (r *APIReconciler) findPolicyByName(
@@ -950,6 +950,8 @@ func (r *APIReconciler) deletePolicy(ctx context.Context, id string) (err error)
 }
 
 func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *configpb.KeyPair) (changed bool, err error) {
+	logger := log.FromContext(ctx).WithName("APIReconciler.upsertKeyPair")
+
 	var existing *configpb.KeyPair
 	if id := keyPair.GetId(); id != "" {
 		resp, err := r.apiClient.GetKeyPair(ctx, connect.NewRequest(&configpb.GetKeyPairRequest{
@@ -966,6 +968,8 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *configpb.Key
 		keyPair.GetNamespaceId() != existing.GetNamespaceId() {
 		// The key pair exists already, but in a different namespace.
 		// Delete the existing key pair so we can recreate it in the new namespace.
+		logger.V(1).Info("upsertKeyPair: deleting existing key pair due to namespace change",
+			"name", keyPair.GetName())
 		if err := r.deleteKeyPair(ctx, existing.GetId()); err != nil {
 			return false, fmt.Errorf("couldn't delete existing key pair in different namespace: %w", err)
 		}
@@ -993,7 +997,7 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *configpb.Key
 			return false, err
 		}
 		keyPair.Id = existing.Id
-		changed = true
+		return true, nil // we'll reconcile any updates on a separate pass
 	}
 
 	// Zero out fields that should be ignored when looking for changes.
@@ -1008,10 +1012,9 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *configpb.Key
 
 	if proto.Equal(existing, keyPair) {
 		// No changes needed.
-		return changed, nil
+		return false, nil
 	}
 
-	logger := log.FromContext(ctx).WithName("APIReconciler.upsertKeyPair")
 	logger.V(1).Info("updating existing keypair",
 		"id", keyPair.GetId(),
 		"diff", cmp.Diff(existing, keyPair, protocmp.Transform()))
@@ -1019,10 +1022,7 @@ func (r *APIReconciler) upsertKeyPair(ctx context.Context, keyPair *configpb.Key
 	_, err = r.apiClient.UpdateKeyPair(ctx, connect.NewRequest(&configpb.UpdateKeyPairRequest{
 		KeyPair: keyPair,
 	}))
-	if err != nil {
-		return changed, err
-	}
-	return true, nil
+	return err == nil, err
 }
 
 func (r *APIReconciler) findKeyPairByName(
