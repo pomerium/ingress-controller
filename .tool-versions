@@ -1,4 +1,4 @@
 golangci-lint 2.12.2
-golang 1.26.5
+golang 1.26.6
 nodejs 24.15.0
 kustomize 5.8.1
