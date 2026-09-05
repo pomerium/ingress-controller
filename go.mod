@@ -18,9 +18,9 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.20.1
-	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260903142036-1a874e184b4a
-	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260903142036-1a874e184b4a
-	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260903142036-1a874e184b4a
+	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260904154452-03d227ebe552
+	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260904154452-03d227ebe552
+	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260904154452-03d227ebe552
 	github.com/pomerium/sdk-go v0.0.10-0.20260903145840-3f04b2fa0237
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
@@ -330,8 +330,8 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/api v0.295.0 // indirect
 	google.golang.org/genproto v0.0.0-20260715232425-e75dac1f907d // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260831171406-18b4a7587f8a // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260831171406-18b4a7587f8a // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260904194346-d0f1323225a4 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260904194346-d0f1323225a4 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
