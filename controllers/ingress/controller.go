@@ -10,6 +10,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -54,6 +55,10 @@ type ingressController struct {
 
 	// globalSettings defines which global settings object to watch
 	globalSettings *types.NamespacedName
+
+	// maxConcurrentReconciles is the number of concurrent ingress reconciles.
+	// Defaults to 1 (controller-runtime default) when unset.
+	maxConcurrentReconciles int
 
 	// object Kinds are frequently used, do not change and are cached
 	endpointsKind    string
@@ -119,6 +124,14 @@ func WithWatchSettings(name types.NamespacedName) Option {
 	}
 }
 
+// WithMaxConcurrentReconciles sets the maximum number of concurrent ingress
+// reconciles. A value < 1 leaves the controller-runtime default (1) in place.
+func WithMaxConcurrentReconciles(n int) Option {
+	return func(ic *ingressController) {
+		ic.maxConcurrentReconciles = n
+	}
+}
+
 // SetupWithManager sets up the controller with the Manager
 func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 	r.Client = mgr.GetClient()
@@ -131,6 +144,11 @@ func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 	r.settingsKind = generic.GVKForType[*icsv1.Pomerium](r.Scheme).Kind
 	r.endpointsKind = generic.GVKForType[*corev1.Endpoints](r.Scheme).Kind
 	r.ingressClassKind = generic.GVKForType[*networkingv1.IngressClass](r.Scheme).Kind
+
+	opts := controller.Options{}
+	if r.maxConcurrentReconciles > 0 {
+		opts.MaxConcurrentReconciles = r.maxConcurrentReconciles
+	}
 
 	err := ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
@@ -146,6 +164,7 @@ func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&corev1.Service{}, handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(r.serviceKind))).
 		Watches(&corev1.Endpoints{}, handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(r.endpointsKind))).
 		WithEventFilter(predicate.ResourceVersionChangedPredicate{}).
+		WithOptions(opts).
 		Complete(r)
 	if err != nil {
 		return err
