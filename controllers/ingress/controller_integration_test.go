@@ -197,6 +197,13 @@ func (s *ControllerTestSuite) deleteAll() {
 		s.NoError(s.Client.Delete(ctx, &svcs.Items[i]))
 	}
 
+	// deleting a service no longer removes its endpoints, so clean them up explicitly
+	endpoints := new(corev1.EndpointsList)
+	s.NoError(s.Client.List(ctx, endpoints))
+	for i := range endpoints.Items {
+		s.NoError(s.Client.Delete(ctx, &endpoints.Items[i]))
+	}
+
 	secrets := new(corev1.SecretList)
 	s.NoError(s.Client.List(ctx, secrets))
 	for i := range secrets.Items {
