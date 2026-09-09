@@ -43,6 +43,12 @@ func IngressToRoutes(ctx context.Context, ic *model.IngressConfig) ([]config.Pol
 func ingressToRoutes(ctx context.Context, ic *model.IngressConfig) (routeList, error) {
 	tmpl := &pb.Route{}
 
+	// upstream scheme annotations apply to HTTP-01 solver ingresses too (they bypass applyAnnotations),
+	// so they are validated here where both branches converge
+	if err := validateUpstreamAnnotations(ic); err != nil {
+		return nil, fmt.Errorf("annotations: %w", err)
+	}
+
 	if model.IsHTTP01Solver(ic.Ingress) {
 		log.FromContext(ctx).Info("Ingress is HTTP-01 challenge solver, enabling public unauthenticated access")
 		tmpl.AllowPublicUnauthenticatedAccess = true
@@ -314,17 +320,38 @@ func getPathServiceHosts(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.
 	return hosts, nil
 }
 
+// upstreamSchemes maps upstream scheme annotations to the `to` URL scheme.
+// The list is ordered: the first annotation set wins, preserving historical precedence.
+var upstreamSchemes = []struct{ annotation, scheme string }{
+	{model.SSHUpstream, "ssh"},
+	{model.TCPUpstream, "tcp"},
+	{model.UDPUpstream, "udp"},
+	{model.SecureUpstream, "https"},
+	{model.H2CUpstream, "h2c"},
+}
+
 func getUpstreamScheme(ic *model.IngressConfig) string {
-	if ic.IsSSHUpstream() {
-		return "ssh"
-	} else if ic.IsTCPUpstream() {
-		return "tcp"
-	} else if ic.IsUDPUpstream() {
-		return "udp"
-	} else if ic.IsSecureUpstream() {
-		return "https"
+	for _, s := range upstreamSchemes {
+		if ic.IsAnnotationSet(s.annotation) {
+			return s.scheme
+		}
 	}
 	return "http"
+}
+
+// validateUpstreamAnnotations rejects h2c_upstream combined with any other upstream scheme annotation.
+// Older scheme annotations are intentionally still resolved by precedence for backwards compatibility.
+func validateUpstreamAnnotations(ic *model.IngressConfig) error {
+	if !ic.IsH2CUpstream() {
+		return nil
+	}
+	for _, s := range upstreamSchemes {
+		if s.annotation != model.H2CUpstream && ic.IsAnnotationSet(s.annotation) {
+			return fmt.Errorf("%s/%s and %s/%s are mutually exclusive",
+				ic.AnnotationPrefix, model.H2CUpstream, ic.AnnotationPrefix, s.annotation)
+		}
+	}
+	return nil
 }
 
 func setServiceURLs(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) error {

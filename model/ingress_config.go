@@ -28,6 +28,8 @@ const (
 	TLSServerName = "tls_server_name"
 	// SecureUpstream indicate that service communication should happen over HTTPS
 	SecureUpstream = "secure_upstream"
+	// H2CUpstream indicates that service communication should happen over plaintext HTTP/2 (h2c)
+	H2CUpstream = "h2c_upstream"
 	// PathRegex indicates that paths of ImplementationSpecific type should be treated as regular expression
 	PathRegex = "path_regex"
 	// UseServiceProxy will use standard k8s service proxy as upstream, opposed to individual endpoints
@@ -189,6 +191,11 @@ func (ic *IngressConfig) IsAnnotationSet(name string) bool {
 // IsSecureUpstream returns true if upstream endpoints should be HTTPS
 func (ic *IngressConfig) IsSecureUpstream() bool {
 	return ic.IsAnnotationSet(SecureUpstream)
+}
+
+// IsH2CUpstream returns true if upstream endpoints should use plaintext HTTP/2 (h2c)
+func (ic *IngressConfig) IsH2CUpstream() bool {
+	return ic.IsAnnotationSet(H2CUpstream)
 }
 
 // IsSSHUpstream returns true if this route is for natively-proxied SSH https://www.pomerium.com/docs/capabilities/native-ssh-access

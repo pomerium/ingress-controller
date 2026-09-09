@@ -1356,6 +1356,27 @@ func TestEndpointsHTTPS(t *testing.T) {
 			},
 			"",
 		},
+		{
+			"H2C multiple IPs",
+			map[string]string{
+				fmt.Sprintf("p/%s", model.H2CUpstream): "true",
+			},
+			networkingv1.ServiceBackendPort{Name: "grpc"},
+			[]corev1.ServicePort{{
+				Name:       "grpc",
+				Port:       9090,
+				TargetPort: intstr.IntOrString{IntVal: 9090},
+			}},
+			[]corev1.EndpointSubset{{
+				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}, {IP: "1.2.3.5"}},
+				Ports:     []corev1.EndpointPort{{Name: "grpc", Port: 9090}},
+			}},
+			[]string{
+				"h2c://1.2.3.4:9090",
+				"h2c://1.2.3.5:9090",
+			},
+			"",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			pathTypePrefix := networkingv1.PathTypePrefix
@@ -1427,6 +1448,31 @@ func TestEndpointsHTTPS(t *testing.T) {
 			require.NotNil(t, route, "route not found in %v", routes)
 			require.ElementsMatch(t, tc.expectTO, route.To)
 			require.Equal(t, tc.expectTLSServerName, route.TlsServerName)
+		})
+	}
+}
+
+func TestH2CUpstreamConflicts(t *testing.T) {
+	for _, s := range upstreamSchemes {
+		if s.annotation == model.H2CUpstream {
+			continue
+		}
+		t.Run(s.annotation, func(t *testing.T) {
+			ic := &model.IngressConfig{
+				AnnotationPrefix: "p",
+				Ingress: &networkingv1.Ingress{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "ingress",
+						Namespace: "default",
+						Annotations: map[string]string{
+							fmt.Sprintf("p/%s", model.H2CUpstream): "true",
+							fmt.Sprintf("p/%s", s.annotation):      "true",
+						},
+					},
+				},
+			}
+			_, err := ingressToRoutes(t.Context(), ic)
+			assert.ErrorContains(t, err, fmt.Sprintf("p/%s and p/%s are mutually exclusive", model.H2CUpstream, s.annotation))
 		})
 	}
 }
