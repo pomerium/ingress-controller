@@ -797,12 +797,12 @@ github.com/pomerium/pomerium v0.32.5-rc.1.0.20260909022959-b0a98b1da5f2 h1:mNcMu
 github.com/pomerium/pomerium v0.32.5-rc.1.0.20260909022959-b0a98b1da5f2/go.mod h1:jNREE6250Q/wSwpwarxj/pEX/2sAFFfuVpTFV5+B2Ws=
 github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260909022959-b0a98b1da5f2 h1:dIMAzDkedrBtByV5u8yzDWOYUthl+DZbqVwN9gHrw04=
 github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260909022959-b0a98b1da5f2/go.mod h1:/ZKqV6keYcbaMn1IiJnSBD0LITjI0lCoA2vxlxXkSds=
-github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260909005639-2bc86321b9d9 h1:0/coewHE0oPKIymjn7hRqgivY3ch+wRHDdngWkjprA4=
-github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260909005639-2bc86321b9d9/go.mod h1:b25aCQYqko9THJKKFBsowTqTBDTWmfO7yVExOF0RtWU=
+github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260909022959-b0a98b1da5f2 h1:eW5Jkl4sJAcUXMkdBRfAttsRomnQdGfSsVxB9CyKGDE=
+github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260909022959-b0a98b1da5f2/go.mod h1:b25aCQYqko9THJKKFBsowTqTBDTWmfO7yVExOF0RtWU=
 github.com/pomerium/protoutil v0.0.0-20260903003736-c0c6cb1eb609 h1:CWUK7GRqnsk3/pW/uB/VPB2uq0cMS3W84ZHw6/uLl3Y=
 github.com/pomerium/protoutil v0.0.0-20260903003736-c0c6cb1eb609/go.mod h1:RBtnsXnXAxSoYyIlbAJ27v1+slsrawtJWuLcJ0VSkmY=
-github.com/pomerium/sdk-go v0.0.10-0.20260903145840-3f04b2fa0237 h1:VH3ztx5sMDA6t6rE71i1Jv2dq8ztgsMJGXQI7y4Xk5o=
-github.com/pomerium/sdk-go v0.0.10-0.20260903145840-3f04b2fa0237/go.mod h1:MXlrUlyzLYgiK0AMMwv3QnGdcOuyL1Ohwco86z+Jq1A=
+github.com/pomerium/sdk-go v0.0.10-0.20260909161909-2c03c4c9a9bd h1:J7RaZNOdVZYkafDt83mCnD9qq5zbdvB2/LIGndB3cuQ=
+github.com/pomerium/sdk-go v0.0.10-0.20260909161909-2c03c4c9a9bd/go.mod h1:ctmEO73G1+w6vQc4anyMhl+Wy45/tD9mjkSjkqZ1NkM=
 github.com/pomerium/webauthn v0.0.0-20260903003757-b3d1ace9ea4c h1:jtxSYlYkH2N43mTcXfikOguM4xyu7zSSAjw7wkUWs8w=
 github.com/pomerium/webauthn v0.0.0-20260903003757-b3d1ace9ea4c/go.mod h1:VhazHyftqvcbiNps5fc3BjRBt6lu8NHT4FxrsbtndD4=
 github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 h1:o4JXh1EVt9k/+g42oCprj/FisM4qX9L3sZB3upGN2ZU=

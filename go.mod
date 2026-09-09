@@ -20,8 +20,8 @@ require (
 	github.com/open-policy-agent/opa v1.20.1
 	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260909022959-b0a98b1da5f2
 	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260909022959-b0a98b1da5f2
-	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260909005639-2bc86321b9d9
-	github.com/pomerium/sdk-go v0.0.10-0.20260903145840-3f04b2fa0237
+	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260909022959-b0a98b1da5f2
+	github.com/pomerium/sdk-go v0.0.10-0.20260909161909-2c03c4c9a9bd
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
 	github.com/spf13/cobra v1.10.2
