@@ -95,6 +95,7 @@ var (
 	handledElsewhere = boolMap([]string{
 		model.PathRegex,
 		model.SecureUpstream,
+		model.H2CUpstream,
 		model.SSHUpstream,
 		model.TCPUpstream,
 		model.UDPUpstream,
