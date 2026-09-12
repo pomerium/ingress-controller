@@ -1,6 +1,6 @@
 module github.com/pomerium/ingress-controller
 
-go 1.26.3
+go 1.27.1
 
 require (
 	connectrpc.com/connect v1.21.0
@@ -18,9 +18,9 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.20.1
-	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260909022959-b0a98b1da5f2
-	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260909022959-b0a98b1da5f2
-	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260909022959-b0a98b1da5f2
+	github.com/pomerium/pomerium v0.32.5-rc.1.0.20260911201225-1e32fd4c5048
+	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260911201225-1e32fd4c5048
+	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260911201225-1e32fd4c5048
 	github.com/pomerium/sdk-go v0.0.10-0.20260909161909-2c03c4c9a9bd
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
@@ -330,8 +330,8 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/api v0.295.0 // indirect
 	google.golang.org/genproto v0.0.0-20260715232425-e75dac1f907d // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260908043556-f8649ddbbfe6 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260908043556-f8649ddbbfe6 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260911204522-f61a6ca850bd // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260911204522-f61a6ca850bd // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
