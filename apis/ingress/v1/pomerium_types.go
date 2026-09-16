@@ -70,6 +70,50 @@ type IdentityProvider struct {
 	RefreshDirectory *RefreshDirectorySettings `json:"refreshDirectory" deprecated:"idp_directory_sync"`
 }
 
+// JWTIdentityProvider declares an identity provider whose JWTs are accepted as
+// bearer tokens on routes with <code>bearerTokenFormat: jwt</code>. It is meant for
+// non-interactive workloads that already hold a JWT - Kubernetes projected
+// ServiceAccount tokens, GitHub Actions OIDC tokens, SPIFFE JWT-SVIDs - and does
+// not replace the interactive single-sign-on <code>identityProvider</code>.
+// Authorization on the verified claims is left to policy (<code>claim/...</code>).
+// +kubebuilder:validation:XValidation:rule="self.issuer.startsWith('kubernetes://') ? !has(self.jwksUrl) : true",message="jwksUrl must not be set with a kubernetes:// issuer, as the JWKS URL is then the API server's own endpoint",reason="FieldValueForbidden",fieldPath=".jwksUrl"
+type JWTIdentityProvider struct {
+	// Issuer is the <code>iss</code> claim tokens must carry, and must be unique across providers.
+	// It is also where the signing keys are fetched from, unless <code>jwksUrl</code> is set.
+	// <p>
+	// The special value <code>kubernetes:///</code> selects the API server of the cluster
+	// Pomerium runs in: the actual issuer and JWKS URL are read from Pomerium's own
+	// ServiceAccount token at runtime, so tokens projected by this cluster verify
+	// without naming the issuer here.
+	// </p>
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	Issuer string `json:"issuer"`
+
+	// JWKSURL, when set, skips OpenID Connect discovery and fetches the signing keys
+	// from this URL directly. Useful when the issuer URL is not routable from Pomerium.
+	// It must not be set together with a <code>kubernetes:///</code> issuer, as the JWKS
+	// URL is then the API server's own endpoint.
+	// +optional
+	// +kubebuilder:validation:Format=uri
+	// +kubebuilder:validation:Pattern=`^https://`
+	JWKSURL *string `json:"jwksUrl,omitempty"`
+
+	// SupportedAlgs is the allowlist of JWT signing algorithms.
+	// Defaults to <code>RS256</code>, <code>ES256</code> and <code>EdDSA</code>.
+	// Symmetric (<code>HS*</code>) algorithms and <code>none</code> are not accepted.
+	// +optional
+	// +kubebuilder:validation:items:Enum=RS256;RS384;RS512;PS256;PS384;PS512;ES256;ES384;ES512;EdDSA
+	SupportedAlgs []string `json:"supportedAlgs,omitempty"`
+
+	// Audiences accepted on tokens from this provider. At least one of them must appear
+	// in the token's <code>aud</code> claim. Matching is fail-closed: a provider with no
+	// audiences would reject every token.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinItems=1
+	Audiences []string `json:"audiences"`
+}
+
 // RefreshDirectorySettings defines how frequently should directory update.
 type RefreshDirectorySettings struct {
 	// interval is the time that pomerium will sync your IDP directory.
@@ -354,8 +398,16 @@ type PomeriumSpec struct {
 	// BearerTokenFormat sets the <a href="https://www.pomerium.com/docs/reference/bearer-token-format">Bearer Token Format</a>.
 	//
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=default;idp_access_token;idp_identity_token
+	// +kubebuilder:validation:Enum=default;idp_access_token;idp_identity_token;jwt
 	BearerTokenFormat *string `json:"bearerTokenFormat,omitempty"`
+
+	// IdentityProviders declares the identity providers whose JWTs are accepted as bearer
+	// tokens on routes with <code>bearerTokenFormat: jwt</code>. The map key is the provider
+	// name, referenced from the <code>identity_providers</code> Ingress annotation to narrow
+	// a route to a subset of the providers; a route that names none accepts all of them.
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="self.all(k, k != '' && k == k.lowerAscii() && !k.contains('/'))",message="identity provider names must be non-empty, lowercase and must not contain '/'"
+	IdentityProviders map[string]JWTIdentityProvider `json:"identityProviders,omitempty"`
 
 	// IDPAccessTokenAllowedAudiences specifies the
 	// <a href="https://www.pomerium.com/docs/reference/idp-access-token-allowed-audiences">idp access token allowed audiences</a>

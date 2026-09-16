@@ -14,6 +14,7 @@ import (
 	v1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/model"
 	"github.com/pomerium/ingress-controller/pomerium"
+	"github.com/pomerium/pomerium/config"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
@@ -293,4 +294,124 @@ func TestApplyConfig_RequestNormalizationOptions(t *testing.T) {
 		err := pomerium.ApplyConfig(t.Context(), dst, src)
 		assert.ErrorContains(t, err, `unknown headersWithUnderscoresAction "foobar"`)
 	})
+}
+
+func TestApplyConfig_BearerTokenFormat(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		format    *string
+		expect    *pb.BearerTokenFormat
+		expectErr string
+	}{
+		{"unset", nil, nil, ""},
+		{"empty", new(""), pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN.Enum(), ""},
+		{"default", new("default"), pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT.Enum(), ""},
+		{"idp access token", new("idp_access_token"), pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN.Enum(), ""},
+		{"idp identity token", new("idp_identity_token"), pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN.Enum(), ""},
+		{"jwt", new("jwt"), pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT.Enum(), ""},
+		{"unknown", new("nonsense"), nil, "unknown bearerTokenFormat nonsense"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dst := new(pb.Config)
+			err := pomerium.ApplyConfig(t.Context(), dst, &model.Config{
+				Pomerium: v1.Pomerium{
+					Spec: v1.PomeriumSpec{BearerTokenFormat: tc.format},
+				},
+			})
+			if tc.expectErr != "" {
+				assert.ErrorContains(t, err, tc.expectErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expect, dst.GetSettings().BearerTokenFormat)
+		})
+	}
+}
+
+func TestApplyConfig_IdentityProviders(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		src    map[string]v1.JWTIdentityProvider
+		expect map[string]*pb.IdentityProvider
+	}{
+		{"unset", nil, nil},
+		{"empty", map[string]v1.JWTIdentityProvider{}, nil},
+		{
+			"in-cluster",
+			map[string]v1.JWTIdentityProvider{
+				"cluster": {Issuer: "kubernetes:///", Audiences: []string{"pomerium"}},
+			},
+			map[string]*pb.IdentityProvider{
+				"cluster": {Issuer: "kubernetes:///", Audiences: []string{"pomerium"}},
+			},
+		},
+		{
+			"all fields, multiple providers",
+			map[string]v1.JWTIdentityProvider{
+				"cluster": {Issuer: "kubernetes:///", Audiences: []string{"pomerium"}},
+				"github": {
+					Issuer:        "https://token.actions.githubusercontent.com",
+					JWKSURL:       new("https://token.actions.githubusercontent.com/.well-known/jwks"),
+					SupportedAlgs: []string{"RS256", "ES256"},
+					Audiences:     []string{"https://pomerium.example.com"},
+				},
+			},
+			map[string]*pb.IdentityProvider{
+				"cluster": {Issuer: "kubernetes:///", Audiences: []string{"pomerium"}},
+				"github": {
+					Issuer:        "https://token.actions.githubusercontent.com",
+					JwksUrl:       "https://token.actions.githubusercontent.com/.well-known/jwks",
+					SupportedAlgs: []string{"RS256", "ES256"},
+					Audiences:     []string{"https://pomerium.example.com"},
+				},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dst := new(pb.Config)
+			err := pomerium.ApplyConfig(t.Context(), dst, &model.Config{
+				Pomerium: v1.Pomerium{
+					Spec: v1.PomeriumSpec{IdentityProviders: tc.src},
+				},
+			})
+			require.NoError(t, err)
+			assert.Empty(t, cmp.Diff(tc.expect, dst.GetSettings().GetIdentityProviders(), protocmp.Transform()))
+		})
+	}
+}
+
+// TestApplyConfig_IdentityProvidersRoundTrip feeds the generated settings back
+// through Pomerium's own config to check that what we emit is actually accepted -
+// the proto round trip alone does not show whether Pomerium can read the result.
+// Note this covers the settings only: Pomerium also cross-validates providers
+// against the routes referencing them, which routes do not reach from here.
+func TestApplyConfig_IdentityProvidersRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	dst := new(pb.Config)
+	require.NoError(t, pomerium.ApplyConfig(t.Context(), dst, &model.Config{
+		Pomerium: v1.Pomerium{Spec: v1.PomeriumSpec{
+			BearerTokenFormat: new("jwt"),
+			IdentityProviders: map[string]v1.JWTIdentityProvider{
+				"cluster": {Issuer: "kubernetes:///", Audiences: []string{"pomerium"}},
+			},
+		}},
+	}))
+
+	options := config.NewDefaultOptions()
+	options.ApplySettings(t.Context(), nil, dst.Settings)
+
+	assert.Equal(t, config.IdentityProvider{
+		Issuer:    "kubernetes:///",
+		Audiences: []string{"pomerium"},
+	}, options.IdentityProviders["cluster"])
+	assert.True(t, options.BearerTokenFormat.IsSet)
+	assert.Equal(t, pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT, options.BearerTokenFormat.Value)
+	assert.NoError(t, options.Validate())
 }

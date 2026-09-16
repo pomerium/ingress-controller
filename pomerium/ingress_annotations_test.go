@@ -60,6 +60,7 @@ func TestAnnotations(t *testing.T) {
 					"a/host_path_regex_rewrite_substitution":          "rewrite-sub",
 					"a/host_rewrite_header":                           "rewrite-header",
 					"a/host_rewrite":                                  "rewrite",
+					"a/identity_providers":                            `["cluster","github"]`,
 					"a/identity_provider_secret":                      "identity_provider_secret",
 					"a/idle_timeout":                                  `60s`,
 					"a/idp_access_token_allowed_audiences":            `["x","y","z"]`,
@@ -171,6 +172,7 @@ func TestAnnotations(t *testing.T) {
 		HostPathRegexRewriteSubstitution: strp("rewrite-sub"),
 		HostRewrite:                      strp("rewrite"),
 		HostRewriteHeader:                strp("rewrite-header"),
+		IdentityProviders:                []string{"cluster", "github"},
 		IdleTimeout:                      durationpb.New(time.Minute),
 		IdpAccessTokenAllowedAudiences:   &pb.Route_StringList{Values: []string{"x", "y", "z"}},
 		IdpClientId:                      proto.String("CLIENT_ID"),
@@ -784,4 +786,32 @@ func TestNameAnnotation(t *testing.T) {
 		// Name should be empty here since setRouteNameID hasn't been called yet
 		assert.Equal(t, "", r.GetName())
 	})
+}
+
+// TestBearerTokenFormatAnnotation covers every accepted bearer_token_format
+// string, as the annotation path maps them independently of the Pomerium CRD.
+func TestBearerTokenFormatAnnotation(t *testing.T) {
+	for _, tc := range []struct {
+		value  string
+		expect pb.BearerTokenFormat
+	}{
+		{"", pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN},
+		{"default", pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT},
+		{"idp_access_token", pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN},
+		{"idp_identity_token", pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN},
+		{"jwt", pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT},
+	} {
+		t.Run(tc.value, func(t *testing.T) {
+			r := new(pb.Route)
+			require.NoError(t, applyAnnotations(r, &model.IngressConfig{
+				AnnotationPrefix: "a",
+				Ingress: &networkingv1.Ingress{
+					ObjectMeta: v1.ObjectMeta{
+						Annotations: map[string]string{"a/bearer_token_format": tc.value},
+					},
+				},
+			}))
+			assert.Equal(t, tc.expect, r.GetBearerTokenFormat())
+		})
+	}
 }
