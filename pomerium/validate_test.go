@@ -10,10 +10,8 @@ import (
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
-// TestValidateRoutesOnlyJWTRoute reproduces the databroker-mode preflight: the
-// routes record is validated on its own, without the settings record that
-// carries identity_providers. A JWT bearer route must not be rejected just
-// because its providers live in a different record.
+// The databroker preflight validates the routes record without the settings
+// record that holds identity_providers; a JWT route must still pass.
 func TestValidateRoutesOnlyJWTRoute(t *testing.T) {
 	cfg := &pb.Config{
 		Routes: []*pb.Route{{
