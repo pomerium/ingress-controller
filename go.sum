@@ -793,8 +793,8 @@ github.com/pomerium/datasource v0.18.2-0.20260903003835-0e65bb3b87a4 h1:mT6CHKml
 github.com/pomerium/datasource v0.18.2-0.20260903003835-0e65bb3b87a4/go.mod h1:N8eRmrayFfIEXyDqz7LxRZdbX9BTjngkgBb6w9rx1o4=
 github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260618180819-16ede7a56f2f h1:LG3PfhAQrJzPoSNnpkGpqwojoJQzrmrynX484yCmn4Y=
 github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260618180819-16ede7a56f2f/go.mod h1:7Svo/CaRt9vfJ22sEC+T/q/y2WNi/cZTlugNYUS7xwI=
-github.com/pomerium/pomerium v0.32.5-rc.1.0.20260916223211-3cad7236a920 h1:gRRLykRTDfjMU+3y26ySvGljjx7xWORC1+AHshzvozk=
-github.com/pomerium/pomerium v0.32.5-rc.1.0.20260916223211-3cad7236a920/go.mod h1:hZ53ISCVO9GbglJUuEUCWWYuVn2Pw4Ond91bRSPynT4=
+github.com/pomerium/pomerium v0.32.5-rc.1.0.20260917144030-ee74e190c89c h1:86/bZznyFukQfsxf7FvGyw6MrMsYcwJcM2toMcCc7xo=
+github.com/pomerium/pomerium v0.32.5-rc.1.0.20260917144030-ee74e190c89c/go.mod h1:hZ53ISCVO9GbglJUuEUCWWYuVn2Pw4Ond91bRSPynT4=
 github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260916223211-3cad7236a920 h1:e7zHohVGCdofcir1VU+h/nPiIaQUsBNx+5OVQT1OELM=
 github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260916223211-3cad7236a920/go.mod h1:/ZKqV6keYcbaMn1IiJnSBD0LITjI0lCoA2vxlxXkSds=
 github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260916223211-3cad7236a920 h1:3peh2Xd/aBTfgiserXQL+8tpbIPDqYjmXOpfb9sCOZc=
