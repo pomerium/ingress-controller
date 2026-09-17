@@ -795,10 +795,10 @@ github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260618180819-16ede7a56f2f h1:LG
 github.com/pomerium/envoy-custom v1.37.0-rc3.0.20260618180819-16ede7a56f2f/go.mod h1:7Svo/CaRt9vfJ22sEC+T/q/y2WNi/cZTlugNYUS7xwI=
 github.com/pomerium/pomerium v0.32.5-rc.1.0.20260917144030-ee74e190c89c h1:86/bZznyFukQfsxf7FvGyw6MrMsYcwJcM2toMcCc7xo=
 github.com/pomerium/pomerium v0.32.5-rc.1.0.20260917144030-ee74e190c89c/go.mod h1:hZ53ISCVO9GbglJUuEUCWWYuVn2Pw4Ond91bRSPynT4=
-github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260916223211-3cad7236a920 h1:e7zHohVGCdofcir1VU+h/nPiIaQUsBNx+5OVQT1OELM=
-github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260916223211-3cad7236a920/go.mod h1:/ZKqV6keYcbaMn1IiJnSBD0LITjI0lCoA2vxlxXkSds=
-github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260916223211-3cad7236a920 h1:3peh2Xd/aBTfgiserXQL+8tpbIPDqYjmXOpfb9sCOZc=
-github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260916223211-3cad7236a920/go.mod h1:b25aCQYqko9THJKKFBsowTqTBDTWmfO7yVExOF0RtWU=
+github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260917144030-ee74e190c89c h1:F+Ztv8Ud85GMOVEZl4UB4e3knIdLigHANy1YH4zxT9k=
+github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20260917144030-ee74e190c89c/go.mod h1:/ZKqV6keYcbaMn1IiJnSBD0LITjI0lCoA2vxlxXkSds=
+github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260917144030-ee74e190c89c h1:dYVSgy1228peHddEM+4/OU/dcUjYv8LmSNnHyoNw+Ko=
+github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20260917144030-ee74e190c89c/go.mod h1:b25aCQYqko9THJKKFBsowTqTBDTWmfO7yVExOF0RtWU=
 github.com/pomerium/protoutil v0.0.0-20260903003736-c0c6cb1eb609 h1:CWUK7GRqnsk3/pW/uB/VPB2uq0cMS3W84ZHw6/uLl3Y=
 github.com/pomerium/protoutil v0.0.0-20260903003736-c0c6cb1eb609/go.mod h1:RBtnsXnXAxSoYyIlbAJ27v1+slsrawtJWuLcJ0VSkmY=
 github.com/pomerium/sdk-go v0.0.10-0.20260909161909-2c03c4c9a9bd h1:J7RaZNOdVZYkafDt83mCnD9qq5zbdvB2/LIGndB3cuQ=
