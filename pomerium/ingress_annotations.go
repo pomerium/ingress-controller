@@ -37,6 +37,7 @@ var (
 		"host_path_regex_rewrite_substitution",
 		"host_rewrite_header",
 		"host_rewrite",
+		"identity_providers",
 		"idle_timeout",
 		"idp_access_token_allowed_audiences",
 		"load_balancing_policy",

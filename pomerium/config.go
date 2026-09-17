@@ -42,6 +42,7 @@ func ApplyConfig(ctx context.Context, dst *pb.Config, src *model.Config) error {
 		{"cookie", applyCookie},
 		{"warnings", checkForWarnings},
 		{"jwt claim headers", applyJWTClaimHeaders},
+		{"jwt identity providers", applyJWTIdentityProviders},
 		{"timeouts", applyTimeouts},
 		{"misc opts", applySetOtherOptions},
 		{"otel", applyOTEL},
@@ -166,6 +167,34 @@ func applyJWTClaimHeaders(_ context.Context, p *pb.Config, c *model.Config) erro
 	return nil
 }
 
+// applyJWTIdentityProviders maps the JWT bearer-token identity providers. These are
+// unrelated to the interactive SSO provider handled by applyIDP. Note that Pomerium
+// ignores an empty map rather than treating it as "remove them all", so providers
+// cannot be cleared by emptying the field - they have to be removed from the
+// Pomerium bootstrap config.
+func applyJWTIdentityProviders(_ context.Context, p *pb.Config, c *model.Config) error {
+	if len(c.Spec.IdentityProviders) == 0 {
+		p.Settings.IdentityProviders = nil
+		return nil
+	}
+
+	dst := make(map[string]*pb.IdentityProvider, len(c.Spec.IdentityProviders))
+	for name, src := range c.Spec.IdentityProviders {
+		idp := &pb.IdentityProvider{
+			Issuer:        src.Issuer,
+			SupportedAlgs: src.SupportedAlgs,
+			Audiences:     src.Audiences,
+		}
+		if src.JWKSURL != nil {
+			idp.JwksUrl = *src.JWKSURL
+		}
+		dst[name] = idp
+	}
+	p.Settings.IdentityProviders = dst
+
+	return nil
+}
+
 func applySetOtherOptions(_ context.Context, p *pb.Config, c *model.Config) error {
 	p.Settings.SetResponseHeaders = c.Spec.SetResponseHeaders
 	p.Settings.ProgrammaticRedirectDomainWhitelist = c.Spec.ProgrammaticRedirectDomains
@@ -211,6 +240,8 @@ func applySetOtherOptions(_ context.Context, p *pb.Config, c *model.Config) erro
 			p.Settings.BearerTokenFormat = pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN.Enum()
 		case "idp_identity_token":
 			p.Settings.BearerTokenFormat = pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN.Enum()
+		case "jwt":
+			p.Settings.BearerTokenFormat = pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT.Enum()
 		default:
 			return fmt.Errorf("unknown bearerTokenFormat %s", *c.Spec.BearerTokenFormat)
 		}
