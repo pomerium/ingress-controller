@@ -24,6 +24,7 @@ type ingressControllerOpts struct {
 	SyncAPIURL              string
 	SyncAPINamespaceID      string
 	SyncAPIToken            string
+	MaxConcurrentReconciles int `validate:"min=1"`
 }
 
 const (
@@ -39,6 +40,7 @@ const (
 	syncAPIURL                 = "sync-api-url"
 	syncAPINamespaceID         = "sync-api-namespace-id"
 	syncAPIToken               = "sync-api-token" //nolint:gosec
+	maxConcurrentReconciles    = "max-concurrent-reconciles"
 )
 
 func (s *ingressControllerOpts) setupFlags(flags *pflag.FlagSet) {
@@ -53,6 +55,8 @@ func (s *ingressControllerOpts) setupFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&s.SyncAPIURL, syncAPIURL, "", "unified API sync URL")
 	flags.StringVar(&s.SyncAPINamespaceID, syncAPINamespaceID, "", "unified API sync namespace ID")
 	flags.StringVar(&s.SyncAPIToken, syncAPIToken, "", "unified API sync token")
+	flags.IntVar(&s.MaxConcurrentReconciles, maxConcurrentReconciles, 1,
+		"maximum number of concurrent ingress reconciles")
 }
 
 func (s *ingressControllerOpts) Validate() error {
@@ -76,6 +80,7 @@ func (s *ingressControllerOpts) getIngressControllerOptions() ([]ingress.Option,
 		ingress.WithNamespaces(s.Namespaces),
 		ingress.WithAnnotationPrefix(s.AnnotationPrefix),
 		ingress.WithControllerName(s.ClassName),
+		ingress.WithMaxConcurrentReconciles(s.MaxConcurrentReconciles),
 	}
 	if name, err := s.getGlobalSettings(); err != nil {
 		return nil, err

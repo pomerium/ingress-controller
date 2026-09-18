@@ -15,8 +15,10 @@ import (
 	"github.com/pomerium/ingress-controller/pomerium/envoy"
 )
 
-// validate validates pomerium config.
-func validate(ctx context.Context, cfg *pb.Config, id string) error {
+// validateOptions builds and validates pomerium options from the config without
+// invoking the (expensive) embedded envoy subprocess. It catches route/policy and
+// option-level errors cheaply.
+func validateOptions(ctx context.Context, cfg *pb.Config) (*config.Options, error) {
 	options := config.NewDefaultOptions()
 	options.ApplySettings(ctx, cryptutil.NewCertificatesIndex(), cfg.GetSettings())
 	options.InsecureServer = true
@@ -24,16 +26,34 @@ func validate(ctx context.Context, cfg *pb.Config, id string) error {
 	for _, r := range cfg.GetRoutes() {
 		p, err := config.NewPolicyFromProto(r)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		err = p.Validate()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		options.Policies = append(options.Policies, *p)
 	}
 
-	err := options.Validate()
+	if err := options.Validate(); err != nil {
+		return nil, err
+	}
+
+	return options, nil
+}
+
+// validateCheap validates a pomerium config without invoking the embedded envoy
+// subprocess. It is used to catch most invalid ingresses quickly, deferring the
+// single expensive full-config envoy validation to saveConfig.
+func validateCheap(ctx context.Context, cfg *pb.Config) error {
+	_, err := validateOptions(ctx, cfg)
+	return err
+}
+
+// validate validates pomerium config, including a full bootstrap validation via
+// the embedded envoy binary.
+func validate(ctx context.Context, cfg *pb.Config, id string) error {
+	options, err := validateOptions(ctx, cfg)
 	if err != nil {
 		return err
 	}
