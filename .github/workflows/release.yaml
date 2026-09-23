@@ -65,3 +65,25 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - name: Checkout Gitops Repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: pomerium/gitops-argocd
+          token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
+
+      - name: Bump demo environment
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+        run: scripts/bump-demo-ingress-controller.sh "$COMMIT_SHA"
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d
+        with:
+          commit_message: |
+            Bump demo environment pomerium/ingress-controller
+            Source Repo: ${{ github.repository }}@${{ github.sha }}
