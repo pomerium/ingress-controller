@@ -294,3 +294,24 @@ func TestApplyConfig_RequestNormalizationOptions(t *testing.T) {
 		assert.ErrorContains(t, err, `unknown headersWithUnderscoresAction "foobar"`)
 	})
 }
+
+func TestApplyConfig_BlobStorage(t *testing.T) {
+	t.Parallel()
+	var dst pb.Config
+	cfg := &model.Config{}
+	for _, storage := range []*v1.BlobStorage{
+		nil,
+		{BucketURI: "gs://recordings", ManagedPrefix: "default"},
+		{BucketURI: "gs://other", ManagedPrefix: "cluster-two"},
+		nil,
+	} {
+		cfg.Spec.BlobStorage = storage
+		require.NoError(t, pomerium.ApplyConfig(t.Context(), &dst, cfg))
+		if storage == nil {
+			assert.Nil(t, dst.Settings.BlobStorage)
+		} else {
+			assert.Equal(t, storage.BucketURI, dst.Settings.BlobStorage.GetBucketUri())
+			assert.Equal(t, storage.ManagedPrefix, dst.Settings.BlobStorage.GetManagedPrefix())
+		}
+	}
+}

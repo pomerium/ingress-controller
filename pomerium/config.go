@@ -232,6 +232,15 @@ func applySetOtherOptions(_ context.Context, p *pb.Config, c *model.Config) erro
 		p.Settings.AllowUpgrades = nil
 	}
 
+	if c.Spec.BlobStorage != nil {
+		p.Settings.BlobStorage = &pb.BlobStorageSettings{
+			BucketUri:     proto.String(c.Spec.BlobStorage.BucketURI),
+			ManagedPrefix: proto.String(c.Spec.BlobStorage.ManagedPrefix),
+		}
+	} else {
+		p.Settings.BlobStorage = nil
+	}
+
 	if c.Spec.EnvoyDynamicExtensions != nil {
 		p.Settings.EnvoyDynamicExtensions = &pb.Settings_StringList{
 			Values: *c.Spec.EnvoyDynamicExtensions,

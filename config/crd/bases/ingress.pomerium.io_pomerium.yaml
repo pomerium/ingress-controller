@@ -87,6 +87,23 @@ spec:
                 - idp_access_token
                 - idp_identity_token
                 type: string
+              blobStorage:
+                description: BlobStorage configures object storage for session recordings.
+                properties:
+                  bucketUri:
+                    description: BucketURI identifies the storage bucket, for example
+                      gs://recordings.
+                    minLength: 1
+                    type: string
+                  managedPrefix:
+                    description: ManagedPrefix is the cluster ID used to store and
+                      query recordings.
+                    minLength: 1
+                    type: string
+                required:
+                - bucketUri
+                - managedPrefix
+                type: object
               caSecrets:
                 description: CASecret should refer to k8s secrets with key <code>ca.crt</code>
                   containing a CA certificate.

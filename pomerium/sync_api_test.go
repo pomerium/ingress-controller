@@ -1942,3 +1942,38 @@ func filterByName(t *testing.T, name string) *structpb.Struct {
 	require.NoError(t, err)
 	return f
 }
+
+func TestAPIReconciler_SetConfig_BlobStorage(t *testing.T) {
+	apiClient, _, r := setupReconciler(t)
+	ctx := t.Context()
+	cfg := &model.Config{}
+	existing := &configpb.Settings{Id: new("settings-id")}
+	apiClient.EXPECT().GetSettings(ctx, gomock.Any()).DoAndReturn(
+		func(context.Context, *connect.Request[configpb.GetSettingsRequest]) (*connect.Response[configpb.GetSettingsResponse], error) {
+			return connect.NewResponse(&configpb.GetSettingsResponse{Settings: proto.CloneOf(existing)}), nil
+		}).AnyTimes()
+	for _, storage := range []*icsv1.BlobStorage{
+		{BucketURI: "gs://recordings", ManagedPrefix: "default"},
+		{BucketURI: "gs://other", ManagedPrefix: "cluster-two"},
+		nil,
+	} {
+		cfg.Spec.BlobStorage = storage
+		apiClient.EXPECT().UpdateSettings(ctx, gomock.Any()).DoAndReturn(
+			func(_ context.Context, req *connect.Request[configpb.UpdateSettingsRequest]) (*connect.Response[configpb.UpdateSettingsResponse], error) {
+				existing = proto.CloneOf(req.Msg.Settings)
+				if storage == nil {
+					assert.Nil(t, existing.BlobStorage)
+				} else {
+					assert.Equal(t, storage.BucketURI, existing.BlobStorage.GetBucketUri())
+					assert.Equal(t, storage.ManagedPrefix, existing.BlobStorage.GetManagedPrefix())
+				}
+				return connect.NewResponse(&configpb.UpdateSettingsResponse{}), nil
+			}).Times(1)
+		changed, err := r.SetConfig(ctx, cfg)
+		require.NoError(t, err)
+		assert.True(t, changed)
+		changed, err = r.SetConfig(ctx, cfg)
+		require.NoError(t, err)
+		assert.False(t, changed)
+	}
+}

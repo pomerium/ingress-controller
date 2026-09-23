@@ -391,6 +391,10 @@ type PomeriumSpec struct {
 	// +kubebuilder:validation:Optional
 	CertificateAutoProvision *CertificateAutoProvision `json:"certificateAutoProvision,omitzero"`
 
+	// BlobStorage configures object storage for session recordings.
+	// +kubebuilder:validation:Optional
+	BlobStorage *BlobStorage `json:"blobStorage,omitempty"`
+
 	// EnvoyDynamicExtensions file paths to the extensions to be loaded by Envoy at runtime.
 	EnvoyDynamicExtensions *[]string `json:"envoyDynamicExtensions,omitempty"`
 
@@ -570,6 +574,17 @@ type DNS struct {
 	//
 	// +kubebuilder:validation:Optional
 	UseTCP *bool `json:"useTcp,omitempty"`
+}
+
+// BlobStorage configures object storage for session recordings.
+type BlobStorage struct {
+	// BucketURI identifies the storage bucket, for example gs://recordings.
+	// +kubebuilder:validation:MinLength=1
+	BucketURI string `json:"bucketUri"`
+
+	// ManagedPrefix is the cluster ID used to store and query recordings.
+	// +kubebuilder:validation:MinLength=1
+	ManagedPrefix string `json:"managedPrefix"`
 }
 
 // SSH are the ssh settings.

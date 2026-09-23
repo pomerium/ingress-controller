@@ -82,6 +82,18 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>blobStorage</code>&#160;&#160;
+                    <strong>object</strong>&#160;
+                    (<a href="#blobstorage">blobStorage</a>)
+                </p>
+                <p>
+                    BlobStorage configures object storage for session recordings.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
                 <code>caSecrets</code>&#160;&#160;
                     <strong>[]string</strong>&#160;
                 </p>
@@ -437,6 +449,41 @@ Authenticate sets authenticate service parameters. If not specified, a Pomerium-
                     AuthenticateURL is a dedicated domain URL the non-authenticated persons would be referred to. <p><ul> <li>You do not need to create a dedicated <code>Ingress</code> for this virtual route, as it is handled by Pomerium internally. </li> <li>You do need create a secret with corresponding TLS certificate for this route and reference it via <a href="#prop-certificates"><code>certificates</code></a>. If you use <code>cert-manager</code> with <code>HTTP01</code> challenge, you may use <code>pomerium</code> <code>ingressClass</code> to solve it.</li> </ul></p>
                 </p>
                 Format: an URI as parsed by Golang net/url.ParseRequestURI.
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+### `blobStorage`
+
+BlobStorage configures object storage for session recordings.
+
+<table>
+    <thead>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+                <p>
+                <code>bucketUri</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    <strong>Required.</strong>&#160;
+                    BucketURI identifies the storage bucket, for example gs://recordings.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>managedPrefix</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    <strong>Required.</strong>&#160;
+                    ManagedPrefix is the cluster ID used to store and query recordings.
+                </p>
             </td>
         </tr>
     </tbody>
