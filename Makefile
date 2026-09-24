@@ -62,14 +62,14 @@ help: ## Display this help.
 ##@ Development
 
 .PHONY: generated
-generated: config/crd/bases/ingress.pomerium.io_pomerium.yaml apis/ingress/v1/zz_generated.deepcopy.go config/crd/bases/gateway.pomerium.io_policyfilters.yaml apis/gateway/v1alpha1/zz_generated.deepcopy.go
+generated: config/crd/bases/ingress.pomerium.io_pomerium.yaml config/crd/bases/ingress.pomerium.io_pomeriumservices.yaml apis/ingress/v1/zz_generated.deepcopy.go config/crd/bases/gateway.pomerium.io_policyfilters.yaml apis/gateway/v1alpha1/zz_generated.deepcopy.go
 	@echo "==> $@"
 
-apis/ingress/v1/zz_generated.deepcopy.go: apis/ingress/v1/pomerium_types.go
+apis/ingress/v1/zz_generated.deepcopy.go: apis/ingress/v1/pomerium_types.go apis/ingress/v1/pomeriumservice_types.go
 	@echo "==> $@"
 	@$(CONTROLLER_GEN) object paths=$(CRD_BASE)/ingress/v1 output:dir=apis/ingress/v1
 
-config/crd/bases/ingress.pomerium.io_pomerium.yaml: apis/ingress/v1/pomerium_types.go
+config/crd/bases/ingress.pomerium.io_pomerium.yaml config/crd/bases/ingress.pomerium.io_pomeriumservices.yaml: apis/ingress/v1/pomerium_types.go apis/ingress/v1/pomeriumservice_types.go
 	@echo "==> $@"
 	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role crd paths=$(CRD_BASE)/ingress/v1 output:crd:artifacts:config=config/crd/bases
 

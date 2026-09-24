@@ -181,6 +181,9 @@ type IngressConfig struct {
 	Endpoints map[types.NamespacedName]*corev1.Endpoints
 	Secrets   map[types.NamespacedName]*corev1.Secret
 	Services  map[types.NamespacedName]*corev1.Service
+	// PomeriumServices are the PomeriumService objects referenced as
+	// resource backends.
+	PomeriumServices map[types.NamespacedName]*icsv1.PomeriumService
 }
 
 // IsAnnotationSet checks if a boolean annotation is set to true
@@ -268,6 +271,7 @@ func (ic *IngressConfig) Clone() *IngressConfig {
 		Endpoints:        make(map[types.NamespacedName]*corev1.Endpoints, len(ic.Endpoints)),
 		Secrets:          make(map[types.NamespacedName]*corev1.Secret, len(ic.Secrets)),
 		Services:         make(map[types.NamespacedName]*corev1.Service, len(ic.Services)),
+		PomeriumServices: make(map[types.NamespacedName]*icsv1.PomeriumService, len(ic.PomeriumServices)),
 	}
 
 	for k, v := range ic.Secrets {
@@ -276,6 +280,10 @@ func (ic *IngressConfig) Clone() *IngressConfig {
 
 	for k, v := range ic.Services {
 		dst.Services[k] = v.DeepCopy()
+	}
+
+	for k, v := range ic.PomeriumServices {
+		dst.PomeriumServices[k] = v.DeepCopy()
 	}
 
 	return dst

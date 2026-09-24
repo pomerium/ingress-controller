@@ -800,6 +800,7 @@ func TestBearerTokenFormatAnnotation(t *testing.T) {
 		{"idp_access_token", pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN},
 		{"idp_identity_token", pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN},
 		{"jwt", pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT},
+		{"agentic_run_token", pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_AGENTIC_RUN_TOKEN},
 	} {
 		t.Run(tc.value, func(t *testing.T) {
 			r := new(pb.Route)

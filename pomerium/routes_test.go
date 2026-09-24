@@ -25,6 +25,7 @@ import (
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/identity"
 
+	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	_ "github.com/pomerium/ingress-controller/internal"
 	"github.com/pomerium/ingress-controller/model"
 )
@@ -1653,4 +1654,84 @@ func TestCustomRouteName(t *testing.T) {
 
 	// The envoy opts should have the unique slug for stats
 	assert.Equal(t, proto.String("default-test-ingress-service-localhost-pomerium-io"), route.StatName)
+}
+
+func TestPomeriumServiceBackend(t *testing.T) {
+	apiGroup := icsv1.GroupVersion.Group
+	makeRoute := func(t *testing.T, ref *corev1.TypedLocalObjectReference, annotations map[string]string) (*pb.Route, error) {
+		t.Helper()
+		typeExact := networkingv1.PathTypeExact
+		ic := &model.IngressConfig{
+			AnnotationPrefix: "p",
+			Ingress: &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "ingress",
+					Namespace:   "default",
+					Annotations: annotations,
+				},
+				Spec: networkingv1.IngressSpec{
+					Rules: []networkingv1.IngressRule{{
+						Host: "agentic.localhost.pomerium.io",
+						IngressRuleValue: networkingv1.IngressRuleValue{
+							HTTP: &networkingv1.HTTPIngressRuleValue{
+								Paths: []networkingv1.HTTPIngressPath{{
+									Path:     "/agentic/token",
+									PathType: &typeExact,
+									Backend:  networkingv1.IngressBackend{Resource: ref},
+								}},
+							},
+						},
+					}},
+				},
+			},
+			PomeriumServices: map[types.NamespacedName]*icsv1.PomeriumService{
+				{Name: "as", Namespace: "default"}: {
+					ObjectMeta: metav1.ObjectMeta{Name: "as", Namespace: "default"},
+					Spec:       icsv1.PomeriumServiceSpec{Service: icsv1.PomeriumServiceAgentic},
+				},
+			},
+		}
+
+		cfg := new(pb.Config)
+		if err := upsertRoutes(context.Background(), cfg, ic); err != nil {
+			return nil, err
+		}
+		routes, err := routeList(cfg.Routes).toMap()
+		if err != nil {
+			return nil, err
+		}
+		return routes[routeID{
+			Name:      "ingress",
+			Namespace: "default",
+			Path:      "/agentic/token",
+			Host:      "agentic.localhost.pomerium.io",
+		}], nil
+	}
+
+	t.Run("agentic", func(t *testing.T) {
+		route, err := makeRoute(t, &corev1.TypedLocalObjectReference{
+			APIGroup: &apiGroup, Kind: model.PomeriumServiceKind, Name: "as",
+		}, nil)
+		require.NoError(t, err)
+		require.Equal(t, []string{"pomerium://agentic"}, route.To)
+		require.Equal(t, "/agentic/token", route.Path)
+	})
+	t.Run("upstream scheme annotation", func(t *testing.T) {
+		_, err := makeRoute(t, &corev1.TypedLocalObjectReference{
+			APIGroup: &apiGroup, Kind: model.PomeriumServiceKind, Name: "as",
+		}, map[string]string{fmt.Sprintf("p/%s", model.SecureUpstream): "true"})
+		require.Error(t, err)
+	})
+	t.Run("other resource kind", func(t *testing.T) {
+		_, err := makeRoute(t, &corev1.TypedLocalObjectReference{
+			APIGroup: &apiGroup, Kind: "Pomerium", Name: "as",
+		}, nil)
+		require.Error(t, err)
+	})
+	t.Run("no API group", func(t *testing.T) {
+		_, err := makeRoute(t, &corev1.TypedLocalObjectReference{
+			Kind: model.PomeriumServiceKind, Name: "as",
+		}, nil)
+		require.Error(t, err)
+	})
 }

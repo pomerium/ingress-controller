@@ -60,6 +60,14 @@ rules:
   - apiGroups:
       - ingress.pomerium.io
     resources:
+      - pomeriumservices
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ingress.pomerium.io
+    resources:
       - pomerium/status
     verbs:
       - get

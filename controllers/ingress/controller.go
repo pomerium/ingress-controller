@@ -63,6 +63,8 @@ type ingressController struct {
 	serviceKind      string
 	settingsKind     string
 
+	pomeriumServiceKind string
+
 	initComplete *once
 }
 
@@ -129,6 +131,7 @@ func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 	r.ingressKind = generic.GVKForType[*networkingv1.Ingress](r.Scheme).Kind
 	r.serviceKind = generic.GVKForType[*corev1.Service](r.Scheme).Kind
 	r.settingsKind = generic.GVKForType[*icsv1.Pomerium](r.Scheme).Kind
+	r.pomeriumServiceKind = generic.GVKForType[*icsv1.PomeriumService](r.Scheme).Kind
 	r.endpointsKind = generic.GVKForType[*corev1.Endpoints](r.Scheme).Kind
 	r.ingressClassKind = generic.GVKForType[*networkingv1.IngressClass](r.Scheme).Kind
 
@@ -145,6 +148,7 @@ func (r *ingressController) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(r.secretKind))).
 		Watches(&corev1.Service{}, handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(r.serviceKind))).
 		Watches(&corev1.Endpoints{}, handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(r.endpointsKind))).
+		Watches(&icsv1.PomeriumService{}, handler.EnqueueRequestsFromMapFunc(r.getDependantIngressFn(r.pomeriumServiceKind))).
 		WithEventFilter(predicate.ResourceVersionChangedPredicate{}).
 		Complete(r)
 	if err != nil {

@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	pb "github.com/pomerium/pomerium/pkg/grpc/config"
 
+	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/model"
 )
 
@@ -355,6 +356,10 @@ func validateUpstreamAnnotations(ic *model.IngressConfig) error {
 }
 
 func setServiceURLs(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.IngressConfig) error {
+	if p.Backend.Service == nil && p.Backend.Resource != nil {
+		return setPomeriumServiceURL(r, p.Backend.Resource, ic)
+	}
+
 	hosts, err := getPathServiceHosts(r, p, ic)
 	if err != nil {
 		return fmt.Errorf("get service hosts: %w", err)
@@ -371,6 +376,32 @@ func setServiceURLs(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.Ingre
 	sort.Strings(urls)
 
 	r.To = urls
+	return nil
+}
+
+// setPomeriumServiceURL routes to a service Pomerium runs itself, which core
+// names with the pomerium:// To scheme and resolves to its loopback listener.
+func setPomeriumServiceURL(r *pb.Route, ref *corev1.TypedLocalObjectReference, ic *model.IngressConfig) error {
+	if !model.IsPomeriumServiceRef(ref) {
+		return fmt.Errorf("unsupported resource backend %s", model.ResourceRefString(ref))
+	}
+	for _, s := range upstreamSchemes {
+		if ic.IsAnnotationSet(s.annotation) {
+			return fmt.Errorf("%s/%s does not apply to a %s backend",
+				ic.AnnotationPrefix, s.annotation, model.PomeriumServiceKind)
+		}
+	}
+	name := ic.GetNamespacedName(ref.Name)
+	ps, ok := ic.PomeriumServices[name]
+	if !ok {
+		return fmt.Errorf("%s %s was not fetched, this is a bug", model.PomeriumServiceKind, name.String())
+	}
+	switch ps.Spec.Service {
+	case icsv1.PomeriumServiceAgentic:
+	default:
+		return fmt.Errorf("%s %s: unknown service %q", model.PomeriumServiceKind, name.String(), ps.Spec.Service)
+	}
+	r.To = []string{(&url.URL{Scheme: config.InternalUpstreamScheme, Host: ps.Spec.Service}).String()}
 	return nil
 }
 

@@ -215,6 +215,12 @@ func (s *ControllerTestSuite) deleteAll() {
 	for i := range settings.Items {
 		s.NoError(s.Client.Delete(ctx, &settings.Items[i]))
 	}
+
+	pomeriumServices := new(icsv1.PomeriumServiceList)
+	s.NoError(s.Client.List(ctx, pomeriumServices))
+	for i := range pomeriumServices.Items {
+		s.NoError(s.Client.Delete(ctx, &pomeriumServices.Items[i]))
+	}
 }
 
 func (s *ControllerTestSuite) TearDownTest() {
@@ -444,6 +450,49 @@ func (s *ControllerTestSuite) TestDependencies() {
 	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
 		return cmp.Diff(secret, ic.Secrets[secretName], cmpOpts...)
 	}, "updated secret")
+}
+
+// TestPomeriumServiceDependency checks that an Ingress routing to a
+// PomeriumService is reconciled once that object exists, and again when it
+// changes.
+func (s *ControllerTestSuite) TestPomeriumServiceDependency() {
+	ctx := context.Background()
+	s.createTestController(ctx)
+
+	to := s.initialTestObjects("default")
+	ingressClass, ingress, secret := to.IngressClass, to.Ingress, to.Secret
+	apiGroup := icsv1.GroupVersion.Group
+	ingress.Spec.Rules[0].HTTP.Paths[0].Backend = networkingv1.IngressBackend{
+		Resource: &corev1.TypedLocalObjectReference{
+			APIGroup: &apiGroup,
+			Kind:     model.PomeriumServiceKind,
+			Name:     "as",
+		},
+	}
+	psName := types.NamespacedName{Name: "as", Namespace: "default"}
+	ps := &icsv1.PomeriumService{
+		ObjectMeta: metav1.ObjectMeta{Name: psName.Name, Namespace: psName.Namespace},
+		Spec:       icsv1.PomeriumServiceSpec{Service: icsv1.PomeriumServiceAgentic},
+	}
+
+	for _, obj := range []client.Object{ingressClass, ingress, secret} {
+		s.NoError(s.Client.Create(ctx, obj))
+	}
+	s.NeverEqual(func(ic *model.IngressConfig) string {
+		return cmp.Diff(ingress, ic.Ingress, cmpOpts...)
+	})
+
+	s.NoError(s.Client.Create(ctx, ps))
+	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
+		return cmp.Diff(ps, ic.PomeriumServices[psName], cmpOpts...) +
+			cmp.Diff(ingress, ic.Ingress, cmpOpts...)
+	}, "PomeriumService fetched once it exists")
+
+	ps.Labels = map[string]string{"changed": "true"}
+	s.NoError(s.Client.Update(ctx, ps))
+	s.EventuallyUpsert(func(ic *model.IngressConfig) string {
+		return cmp.Diff(ps, ic.PomeriumServices[psName], cmpOpts...)
+	}, "PomeriumService change reconciled")
 }
 
 func (s *ControllerTestSuite) TestAnnotationDependencies() {

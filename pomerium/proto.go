@@ -107,6 +107,8 @@ func preprocessAnnotationField(fd protoreflect.FieldDescriptor, data any) any {
 				return "BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN"
 			case "jwt":
 				return "BEARER_TOKEN_FORMAT_JWT"
+			case "agentic_run_token":
+				return "BEARER_TOKEN_FORMAT_AGENTIC_RUN_TOKEN"
 			}
 		}
 	}

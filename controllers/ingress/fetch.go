@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/controllers/deps"
 	"github.com/pomerium/ingress-controller/model"
 )
@@ -43,7 +44,7 @@ func FetchIngress(
 		return nil, fmt.Errorf("tls: %w", err)
 	}
 
-	services, endpoints, err := fetchIngressServices(ctx, client, ingress)
+	services, endpoints, pomeriumServices, err := fetchIngressServices(ctx, client, ingress)
 	if err != nil {
 		return nil, fmt.Errorf("services: %w", err)
 	}
@@ -54,48 +55,67 @@ func FetchIngress(
 		Endpoints:        endpoints,
 		Secrets:          secrets,
 		Services:         services,
+		PomeriumServices: pomeriumServices,
 	}, nil
 }
 
-// fetchIngressServices returns list of services referred from named port in the ingress path backend spec
+// fetchIngressServices returns the services and PomeriumServices the ingress
+// backends refer to
 func fetchIngressServices(ctx context.Context, client client.Client, ingress *networkingv1.Ingress) (
 	map[types.NamespacedName]*corev1.Service,
 	map[types.NamespacedName]*corev1.Endpoints,
+	map[types.NamespacedName]*icsv1.PomeriumService,
 	error,
 ) {
 	sm := make(map[types.NamespacedName]*corev1.Service)
 	em := make(map[types.NamespacedName]*corev1.Endpoints)
+	psm := make(map[types.NamespacedName]*icsv1.PomeriumService)
+
+	fetchBackend := func(backend networkingv1.IngressBackend) error {
+		if res := backend.Resource; backend.Service == nil && res != nil {
+			if !model.IsPomeriumServiceRef(res) {
+				return fmt.Errorf("unsupported resource backend %s", model.ResourceRefString(res))
+			}
+			name := types.NamespacedName{Name: res.Name, Namespace: ingress.Namespace}
+			ps := new(icsv1.PomeriumService)
+			if err := client.Get(ctx, name, ps); err != nil {
+				return fmt.Errorf("get PomeriumService %s: %w", name.String(), err)
+			}
+			psm[name] = ps
+			return nil
+		}
+		svc := backend.Service
+		if svc == nil {
+			return fmt.Errorf("no backend service defined")
+		}
+		svcName := types.NamespacedName{Name: svc.Name, Namespace: ingress.Namespace}
+		if err := fetchIngressService(ctx, client, sm, em, svcName); err != nil {
+			return fmt.Errorf("refers to service %s port=%s, failed to get service information: %w",
+				svcName.String(), svc.Port.String(), err)
+		}
+		return nil
+	}
 
 	for _, rule := range ingress.Spec.Rules {
 		if rule.HTTP == nil {
 			continue
 		}
 		for _, p := range rule.HTTP.Paths {
-			svc := p.Backend.Service
-			if svc == nil {
-				return nil, nil, fmt.Errorf("rule host=%s path=%s has no backend service defined", rule.Host, p.Path)
-			}
-			svcName := types.NamespacedName{Name: svc.Name, Namespace: ingress.Namespace}
-			if err := fetchIngressService(ctx, client, sm, em, svcName); err != nil {
-				return nil, nil, fmt.Errorf("rule host=%s path=%s refers to service %s port=%s, failed to get service information: %w",
-					rule.Host, p.Path, svcName.String(), svc.Port.String(), err)
+			if err := fetchBackend(p.Backend); err != nil {
+				return nil, nil, nil, fmt.Errorf("rule host=%s path=%s: %w", rule.Host, p.Path, err)
 			}
 		}
 	}
 
 	if ingress.Spec.DefaultBackend == nil {
-		return sm, em, nil
+		return sm, em, psm, nil
 	}
 
-	if err := fetchIngressService(ctx, client, sm, em,
-		types.NamespacedName{
-			Name:      ingress.Spec.DefaultBackend.Service.Name,
-			Namespace: ingress.Namespace,
-		}); err != nil {
-		return nil, nil, fmt.Errorf("defaultBackend: %w", err)
+	if err := fetchBackend(*ingress.Spec.DefaultBackend); err != nil {
+		return nil, nil, nil, fmt.Errorf("defaultBackend: %w", err)
 	}
 
-	return sm, em, nil
+	return sm, em, psm, nil
 }
 
 func fetchIngressService(

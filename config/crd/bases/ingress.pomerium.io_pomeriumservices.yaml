@@ -1,0 +1,69 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: pomeriumservices.ingress.pomerium.io
+spec:
+  group: ingress.pomerium.io
+  names:
+    kind: PomeriumService
+    listKind: PomeriumServiceList
+    plural: pomeriumservices
+    singular: pomeriumservice
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.service
+      name: Service
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: "PomeriumService makes a service Pomerium runs itself available
+          as an\nIngress backend in its namespace. An Ingress path routes to it with\n\n\tbackend:\n\t
+          \ resource:\n\t    apiGroup: ingress.pomerium.io\n\t    kind: PomeriumService\n\t
+          \   name: <this object's name>\n\nWhoever may create a PomeriumService in
+          a namespace may put that service\nbehind Ingresses there with policies of
+          their choosing, so creating one is\nmeant to be restricted by RBAC."
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: PomeriumServiceSpec names a service Pomerium runs itself.
+            properties:
+              service:
+                description: |-
+                  Service is the Pomerium-internal service to route to.
+
+                  "agentic" is the agentic authorization server. Its endpoints have no
+                  authorization of their own: the policies of the Ingresses routing to it
+                  are what decide who may summon, exchange and approve.
+                enum:
+                - agentic
+                type: string
+            required:
+            - service
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources: {}

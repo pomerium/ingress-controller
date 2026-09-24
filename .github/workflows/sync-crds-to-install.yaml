@@ -38,6 +38,7 @@ jobs:
           dst="install/ingress-controller/kustomize/crd/bases"
           mkdir -p "$dst"
           cp config/crd/bases/ingress.pomerium.io_pomerium.yaml "$dst/"
+          cp config/crd/bases/ingress.pomerium.io_pomeriumservices.yaml "$dst/"
           cp config/crd/bases/gateway.pomerium.io_policyfilters.yaml "$dst/"
 
       - name: Create Pull Request
