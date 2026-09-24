@@ -1,0 +1,8 @@
+# The all-in-one pod as a StatefulSet with a PVC mounted at /data, for a file
+# databroker (Pomerium spec.storage.file.path under /data) that must survive pod
+# restarts. A drop-in for ../deployment: compose it with ../rbac, ../service and
+# ../../gen_secrets instead of ../deployment.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- statefulset.yaml
