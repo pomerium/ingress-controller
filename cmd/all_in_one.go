@@ -265,12 +265,12 @@ func (s *allCmdParam) makeBootstrapConfig(ctx context.Context, opt allCmdOptions
 	s.cfg.Options.GRPCAddr = opt.grpcAddr
 	s.cfg.Options.HTTPRedirectAddr = opt.httpRedirectAddr
 
-	ports, err := netutil.AllocatePorts(9)
+	ports, err := netutil.AllocatePorts(10)
 	if err != nil {
 		return fmt.Errorf("allocating ports: %w", err)
 	}
 
-	s.cfg.AllocatePorts(*(*[7]string)(ports[:7]))
+	s.cfg.AllocatePorts(*(*[8]string)(ports[:8]))
 
 	// Override the auto-allocated debug listener port with a fixed value when
 	// requested, so the debug/admin endpoints (databroker browser, pprof, etc.)
@@ -288,8 +288,8 @@ func (s *allCmdParam) makeBootstrapConfig(ctx context.Context, opt allCmdOptions
 		s.cfg.Options.GRPCInsecure = proto.Bool(false)
 	}
 
-	s.bootstrapMetricsAddr = fmt.Sprintf("localhost:%s", ports[7])
-	s.ingressMetricsAddr = fmt.Sprintf("localhost:%s", ports[8])
+	s.bootstrapMetricsAddr = fmt.Sprintf("localhost:%s", ports[8])
+	s.ingressMetricsAddr = fmt.Sprintf("localhost:%s", ports[9])
 
 	s.cfg.Options.MetricsAddr = opt.metricsBindAddress
 	s.cfg.Options.HealthCheckAddr = opt.healthProbeBindAddress
