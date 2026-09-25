@@ -1,0 +1,30 @@
+namespace: pomerium
+commonLabels:
+  app.kubernetes.io/name: pomerium
+resources:
+  - ../default
+  - pomerium.yaml
+patches:
+  - patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: POMERIUM_ZERO_API_USER
+          valueFrom:
+            secretKeyRef:
+              name: pomerium-zero-api-user
+              key: token
+      - op: replace
+        path: /spec/template/spec/containers/0/args/0
+        value: controller
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: '--sync-api-url=https://console.pomerium.app'
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: '--sync-api-token=$(POMERIUM_ZERO_API_USER)'
+    target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: pomerium
