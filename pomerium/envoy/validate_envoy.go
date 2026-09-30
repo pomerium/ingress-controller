@@ -6,7 +6,7 @@ package envoy
 
 import (
 	"context"
-
+	"crypto/sha256"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,6 +31,14 @@ func Validate(ctx context.Context, bootstrap *envoy_config_bootstrap_v3.Bootstra
 	bs, err := proto.Marshal(bootstrap)
 	if err != nil {
 		return nil, err
+	}
+
+	// Skip the (expensive) envoy subprocess if this exact config was already
+	// validated successfully. saveConfig revalidates the whole config on every
+	// change, so identical configs are validated repeatedly without this cache.
+	hash := sha256.Sum256(bs)
+	if defaultValidationCache.hit(hash) {
+		return &ValidateResult{Valid: true, Message: "OK (cached)"}, nil
 	}
 
 	cfgName := filepath.Join(os.TempDir(), id+".pb")
@@ -62,6 +70,7 @@ func Validate(ctx context.Context, bootstrap *envoy_config_bootstrap_v3.Bootstra
 		// all other errors are returned as errors
 		return nil, err
 	}
+	defaultValidationCache.store(hash)
 	return &ValidateResult{
 		Valid:   true,
 		Message: "OK",
