@@ -25,7 +25,7 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
           images: |
-            pomerium/ingress-controller
+            pomerium/ingress-controller-oss
             docker.cloudsmith.io/pomerium/ingress-controller/ingress-controller
           tags: |
             type=semver,pattern={{raw}}
