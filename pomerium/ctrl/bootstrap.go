@@ -230,7 +230,7 @@ func applyEnterprise(_ context.Context, dst *config.Options, src *model.Config) 
 
 	// only enable enterprise for the first replica
 	if dst.DataBroker.ClusterNodeID.String == "pomerium-0" {
-		m["bind-addr"] = "localhost:8701"
+		m["bind-addr"] = ":8701"
 		m["public-addr"] = "pomerium-0.pomerium-headless:8701"
 		dst.Enterprise = m
 	}

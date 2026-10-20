@@ -36,22 +36,23 @@ func (o *defaultOptions) apply(dst *config.Config) {
 	// configure the databroker
 	dst.Options.DataBroker.ClusterNodeID = null.StringFrom(podName)
 	dst.Options.DataBroker.ClusterNodes = nil
+	dst.Options.DataBroker.ServiceURL = ""
+	dst.Options.DataBroker.ServiceURLs = nil
 	for i := range replicas {
 		dst.Options.DataBroker.ClusterNodes = append(dst.Options.DataBroker.ClusterNodes, config.DataBrokerClusterNode{
 			ID:          fmt.Sprintf("pomerium-%d", i),
 			GRPCAddress: fmt.Sprintf("https://pomerium-%d.pomerium-headless:5443", i),
 			RaftAddress: null.StringFrom(fmt.Sprintf("pomerium-%d.pomerium-headless:5999", i)),
 		})
+		dst.Options.DataBroker.ServiceURLs = append(dst.Options.DataBroker.ServiceURLs,
+			fmt.Sprintf("https://pomerium-%d.pomerium-headless:5443", i))
 	}
+	dst.Options.DataBroker.RaftBindAddress = null.StringFrom(":5999")
+	dst.Options.DeriveInternalDomainCert = new("*.pomerium-headless")
+	dst.Options.GRPCInsecure = new(false)
 	if replicas == 1 {
-		// if there is only a single replica, set the leader id and disable raft
+		// if there is only a single replica, set the leader id explicitly
 		dst.Options.DataBroker.ClusterLeaderID = dst.Options.DataBroker.ClusterNodeID
-		dst.Options.DataBroker.RaftBindAddress = null.NewString("", false)
-	} else {
-		// if there are multiple nodes, use raft leader election
-		dst.Options.DataBroker.RaftBindAddress = null.StringFrom(":5999")
-		dst.Options.DeriveInternalDomainCert = new("*.pomerium-headless")
-		dst.Options.GRPCInsecure = new(false)
 	}
 }
 

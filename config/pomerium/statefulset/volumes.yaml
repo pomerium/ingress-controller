@@ -8,8 +8,6 @@ spec:
     whenScaled: Delete
   template:
     spec:
-      fsGroup: 65532
-      fsGroupChangePolicy: OnRootMismatch
       nodeSelector:
         kubernetes.io/os: linux
       containers:
@@ -21,11 +19,13 @@ spec:
               value: "/tmp"
             - name: XDG_CACHE_HOME
               value: "/tmp"
+            - name: XDG_DATA_HOME
+              value: "/var/pomerium"
           volumeMounts:
             - name: tmp
-              mountPath: "/tmp"
+              mountPath: /tmp
             - name: storage
-              mountPath: /var/pomerium/databroker
+              mountPath: /var/pomerium
       volumes:
         - name: tmp
           emptyDir: {}

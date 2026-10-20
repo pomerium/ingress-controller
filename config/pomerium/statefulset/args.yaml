@@ -10,10 +10,6 @@ spec:
           args:
             - all-in-one
             - --default-config
-            # - --pomerium-config=global
-            # - --update-status-from-service=$(POMERIUM_NAMESPACE)/pomerium-proxy
-            # - --metrics-bind-address=$(POD_IP):9090
-            # - --health-probe-bind-address=$(POD_IP):28080
           env:
             - name: POMERIUM_NAMESPACE
               valueFrom:
@@ -28,7 +24,3 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: REPLICAS
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.replicas

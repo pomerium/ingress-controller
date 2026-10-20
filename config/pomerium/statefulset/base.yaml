@@ -24,9 +24,12 @@ spec:
                   app.kubernetes.io/name: pomerium
       containers:
         - name: pomerium
+          env:
+            - name: REPLICAS
+              value: "3"
       serviceAccountName: pomerium-controller
       terminationGracePeriodSeconds: 10
-      updateStrategy:
-        type: RollingUpdate
-        rollingUpdate:
-          maxUnavailable: 1
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
