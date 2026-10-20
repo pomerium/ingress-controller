@@ -4,7 +4,7 @@ namespace: pomerium-2
 commonLabels:
   app.kubernetes.io/name: pomerium-2
 resources:
-  - ../pomerium/deployment
+  - ../pomerium/statefulset
   - ../pomerium/service
   - ../pomerium/rbac
   - ../gen_secrets
@@ -20,6 +20,6 @@ patches:
         value: '--pomerium-config=global-2'
     target:
       group: apps
-      kind: Deployment
+      kind: StatefulSet
       name: pomerium
       version: v1

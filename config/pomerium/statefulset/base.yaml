@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pomerium
+  labels:
+    app.kubernetes.io/name: pomerium
+    app.kubernetes.io/component: proxy
+spec:
+  replicas: 3
+  podManagementPolicy: Parallel
+  serviceName: pomerium-headless
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pomerium
+        app.kubernetes.io/component: proxy
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: pomerium
+      containers:
+        - name: pomerium
+      serviceAccountName: pomerium-controller
+      terminationGracePeriodSeconds: 10
+      updateStrategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxUnavailable: 1

@@ -14,6 +14,7 @@ kubectl describe pomerium
 
 Kubernetes-specific deployment parameters should be added via `kustomize` to the manifests.
 
+don't know how to handle type 
 ## Spec
 
 PomeriumSpec defines Pomerium-specific configuration parameters.

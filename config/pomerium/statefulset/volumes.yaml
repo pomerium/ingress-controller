@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pomerium
+spec:
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Delete
+    whenScaled: Delete
+  template:
+    spec:
+      fsGroup: 65532
+      fsGroupChangePolicy: OnRootMismatch
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+        - name: pomerium
+          securityContext:
+            readOnlyRootFilesystem: true
+          env:
+            - name: TMPDIR
+              value: "/tmp"
+            - name: XDG_CACHE_HOME
+              value: "/tmp"
+          volumeMounts:
+            - name: tmp
+              mountPath: "/tmp"
+            - name: storage
+              mountPath: /var/pomerium/databroker
+      volumes:
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi

@@ -305,6 +305,9 @@ spec:
                     format: int32
                     type: integer
                 type: object
+              enterprise:
+                description: Enterprise options for the embedded enterprise console.
+                x-kubernetes-preserve-unknown-fields: true
               envoyDynamicExtensions:
                 description: EnvoyDynamicExtensions file paths to the extensions to
                   be loaded by Envoy at runtime.

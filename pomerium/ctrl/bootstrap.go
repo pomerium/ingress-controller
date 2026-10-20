@@ -4,6 +4,7 @@ package ctrl
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
@@ -34,6 +35,7 @@ func Apply(ctx context.Context, dst *config.Options, src *model.Config) error {
 		{"secrets", applySecrets},
 		{"storage", applyStorage},
 		{"runtime flags", applyRuntimeFlags},
+		{"enterprise", applyEnterprise},
 	} {
 		if err := apply.fn(ctx, dst, src); err != nil {
 			return fmt.Errorf("%s: %w", apply.name, err)
@@ -210,6 +212,27 @@ func applySecrets(_ context.Context, dst *config.Options, src *model.Config) err
 		}
 		txt := base64.StdEncoding.EncodeToString(data)
 		*secret.sp = txt
+	}
+
+	return nil
+}
+
+func applyEnterprise(_ context.Context, dst *config.Options, src *model.Config) error {
+	if src.Spec.Enterprise == nil {
+		return nil
+	}
+
+	m := map[string]any{}
+	err := json.Unmarshal(src.Spec.Enterprise.Raw, &m)
+	if err != nil {
+		return fmt.Errorf("spec.enterprise must be an object: %w", err)
+	}
+
+	// only enable enterprise for the first replica
+	if dst.DataBroker.ClusterNodeID.String == "pomerium-0" {
+		m["bind-addr"] = "localhost:8701"
+		m["public-addr"] = "pomerium-0.pomerium-headless:8701"
+		dst.Enterprise = m
 	}
 
 	return nil

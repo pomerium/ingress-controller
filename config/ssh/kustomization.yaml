@@ -17,7 +17,7 @@ patches:
     target:
       group: apps
       version: v1
-      kind: Deployment
+      kind: StatefulSet
       name: pomerium
   - patch: |-
       - op: add

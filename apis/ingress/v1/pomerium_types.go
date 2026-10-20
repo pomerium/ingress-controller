@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -474,6 +475,11 @@ type PomeriumSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=allow;reject_request;drop_header
 	HeadersWithUnderscoresAction *string `json:"headersWithUnderscoresAction,omitempty"`
+
+	// Enterprise options for the embedded enterprise console.
+	//
+	// +optional
+	Enterprise *apiextensionsv1.JSON `json:"enterprise,omitzero"`
 }
 
 // OTEL configures OpenTelemetry.
