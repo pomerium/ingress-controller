@@ -188,6 +188,17 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>enterprise</code>&#160;&#160;
+                    <strong></strong>&#160;
+                </p>
+                <p>
+                    Enterprise options for the embedded enterprise console.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
                 <code>envoyDynamicExtensions</code>&#160;&#160;
                     <strong>[]string</strong>&#160;
                 </p>

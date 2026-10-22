@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: pomerium
 spec:
@@ -7,6 +7,8 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: pomerium
           securityContext:

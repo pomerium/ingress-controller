@@ -46,5 +46,5 @@ patches:
         value: pomerium
     target:
       version: apps/v1
-      kind: Deployment
+      kind: StatefulSet
       name: pomerium

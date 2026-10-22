@@ -9,10 +9,12 @@ spec:
   publishNotReadyAddresses: true
   clusterIP: None
   ports:
-    - port: 5443
-      name: grpc
-    - port: 5999
-      name: raft
+    - name: enterprise
+      port: 8701
+    - name: grpc
+      port: 5443
+    - name: raft
+      port: 5999
   selector:
     app.kubernetes.io/name: pomerium
     app.kubernetes.io/component: proxy

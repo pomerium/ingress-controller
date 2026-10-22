@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: pomerium
 spec:
@@ -9,7 +9,7 @@ spec:
         - name: pomerium
           resources:
             limits:
-              cpu: 5000m
+              cpu: 500m
               memory: 1Gi
             requests:
               cpu: 300m

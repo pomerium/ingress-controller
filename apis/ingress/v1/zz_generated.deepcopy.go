@@ -5,6 +5,7 @@
 package v1
 
 import (
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -675,6 +676,11 @@ func (in *PomeriumSpec) DeepCopyInto(out *PomeriumSpec) {
 		in, out := &in.HeadersWithUnderscoresAction, &out.HeadersWithUnderscoresAction
 		*out = new(string)
 		**out = **in
+	}
+	if in.Enterprise != nil {
+		in, out := &in.Enterprise, &out.Enterprise
+		*out = new(apiextensionsv1.JSON)
+		(*in).DeepCopyInto(*out)
 	}
 }
 
