@@ -13,7 +13,7 @@ export GITHUB_TOKEN=$API_TOKEN_GITHUB
 
 echo "Cloning destination git repository"
 git clone --depth 1 \
-	"https://$API_TOKEN_GITHUB@github.com/$destination_repo.git" "$clone_dir"
+	"https://x-access-token:$API_TOKEN_GITHUB@github.com/$destination_repo.git" "$clone_dir"
 
 echo "Copying contents to git repo"
 cp -R "$source_path" "$clone_dir/$destination_path"
