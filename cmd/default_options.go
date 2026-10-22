@@ -15,8 +15,8 @@ type defaultOptions struct {
 	enabled bool
 }
 
-func (o *defaultOptions) setupFlags(flags *pflag.FlagSet) {
-	flags.BoolVar(&o.enabled, "default-config", false, "configure pomerium using the default set of config options")
+func (o *defaultOptions) setupFlags(_ *pflag.FlagSet) {
+	o.enabled = os.Getenv("REPLICAS") != ""
 }
 
 func (o *defaultOptions) apply(dst *config.Config) {
@@ -26,12 +26,6 @@ func (o *defaultOptions) apply(dst *config.Config) {
 
 	replicas := o.getReplicas()
 	podName := o.getPodName()
-
-	// configure metrics
-	dst.Options.MetricsAddr = fmt.Sprintf("%s:9090", o.getPodIP())
-
-	// configure health checks
-	dst.Options.HealthCheckAddr = fmt.Sprintf("%s:28080", o.getPodIP())
 
 	// configure the databroker
 	dst.Options.DataBroker.ClusterNodeID = null.StringFrom(podName)
@@ -61,10 +55,6 @@ func (o *defaultOptions) getReplicas() int {
 		return v
 	}
 	return 1
-}
-
-func (o *defaultOptions) getPodIP() string {
-	return os.Getenv("POD_IP")
 }
 
 func (o *defaultOptions) getPodName() string {

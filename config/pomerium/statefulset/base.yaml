@@ -6,11 +6,13 @@ metadata:
     app.kubernetes.io/name: pomerium
     app.kubernetes.io/component: proxy
 spec:
-  replicas: 3
+  replicas: 1
   podManagementPolicy: Parallel
   serviceName: pomerium-headless
   template:
     metadata:
+      annotations:
+        replicas: "1"
       labels:
         app.kubernetes.io/name: pomerium
         app.kubernetes.io/component: proxy
@@ -22,11 +24,6 @@ spec:
               labelSelector:
                 matchLabels:
                   app.kubernetes.io/name: pomerium
-      containers:
-        - name: pomerium
-          env:
-            - name: REPLICAS
-              value: "3"
       serviceAccountName: pomerium-controller
       terminationGracePeriodSeconds: 10
   updateStrategy:
