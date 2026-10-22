@@ -14,7 +14,6 @@ kubectl describe pomerium
 
 Kubernetes-specific deployment parameters should be added via `kustomize` to the manifests.
 
-don't know how to handle type 
 ## Spec
 
 PomeriumSpec defines Pomerium-specific configuration parameters.
@@ -183,6 +182,17 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
                 </p>
                 <p>
                     DownstreamMTLS sets the <a href="https://www.pomerium.com/docs/reference/downstream-mtls-settings">Downstream MTLS Settings</a>.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>enterprise</code>&#160;&#160;
+                    <strong></strong>&#160;
+                </p>
+                <p>
+                    Enterprise options for the embedded enterprise console.
                 </p>
             </td>
         </tr>
