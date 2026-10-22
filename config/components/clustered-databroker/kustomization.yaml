@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./pdb.yaml
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+      - op: replace
+        path: /spec/template/metadata/annotations/replicas
+        value: '3'
+    target:
+      group: apps
+      kind: StatefulSet
+      name: pomerium
+      version: v1

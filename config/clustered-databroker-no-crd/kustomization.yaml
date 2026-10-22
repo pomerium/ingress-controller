@@ -1,16 +1,4 @@
 namespace: pomerium
 resources:
   - ../default-no-crd
-patches:
-  - patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 3
-      - op: replace
-        path: /spec/template/metadata/annotations/replicas
-        value: '3'
-    target:
-      group: apps
-      kind: StatefulSet
-      name: pomerium
-      version: v1
+  - ../components/clustered-databroker
