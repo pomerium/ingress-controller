@@ -1,4 +1,5 @@
 namespace: pomerium
 resources:
   - ../default
-  - ../components/clustered-databroker
+components:
+  - ../components/databroker-cluster
