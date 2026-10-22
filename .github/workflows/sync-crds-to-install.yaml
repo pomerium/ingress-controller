@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 # Only this repo is checked out with GITHUB_TOKEN; the PR against pomerium/install
-# is created with the APPARITOR_GITHUB_TOKEN PAT, so contents: read is enough here.
+# is created with a GitHub App token, so contents: read is enough here.
 permissions:
   contents: read
 
@@ -26,12 +26,23 @@ jobs:
         with:
           sparse-checkout: config/crd/bases
 
+      - name: Create CI token
+        id: ci-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          client-id: ${{ secrets.POMERIUM_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.POMERIUM_CI_APP_PRIVATE_KEY }}
+          owner: pomerium
+          repositories: install
+          permission-contents: write
+          permission-pull-requests: write
+
       - name: Checkout install
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: pomerium/install
           path: install
-          token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
+          token: ${{ steps.ci-token.outputs.token }}
 
       - name: Copy CRD bases
         run: |
@@ -44,11 +55,11 @@ jobs:
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1
         with:
           path: install
-          author: GitHub Actions <apparitor@users.noreply.github.com>
+          author: pomerium-ci-bot[bot] <346165314+pomerium-ci-bot[bot]@users.noreply.github.com>
           body: "Automated CRD sync from pomerium/ingress-controller@${{ github.sha }}."
           branch: ci/sync-crds
           commit-message: "ci: sync CRDs from ingress-controller"
           delete-branch: true
           labels: ci
           title: "ci: sync CRDs from ingress-controller"
-          token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
+          token: ${{ steps.ci-token.outputs.token }}
