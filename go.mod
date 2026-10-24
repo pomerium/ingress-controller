@@ -18,9 +18,9 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.21.0
-	github.com/pomerium/pomerium v0.32.5-rc.1.0.20261023152834-e43287b1d2e2
-	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20261023152834-e43287b1d2e2
-	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20261023152834-e43287b1d2e2
+	github.com/pomerium/pomerium v0.32.5-rc.1.0.20261023153227-548f63720016
+	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20261023153227-548f63720016
+	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20261023153227-548f63720016
 	github.com/pomerium/sdk-go v0.0.10-0.20261023135408-e4eca085164e
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
