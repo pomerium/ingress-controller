@@ -1,7 +1,7 @@
 name: Release
 run-name: candidate ${{ inputs.version }} ${{ inputs.request }}
 permissions:
-  contents: write
+  contents: read
 
 on:
   workflow_dispatch:
@@ -22,6 +22,8 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       VERSION: ${{ inputs.version }}
       CORE_SHA: ${{ inputs.core_sha }}
@@ -33,7 +35,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Check branch
+      - name: Check inputs
         run: |
           [[ "$VERSION" =~ ^v([0-9]+)\.([0-9]+)\.[0-9]+$ ]]
           [[ "$GITHUB_REF_NAME" == "${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-0" ]]
@@ -43,6 +45,7 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: .tool-versions
+          cache: false
 
       - name: Pin core and image
         run: |
@@ -60,9 +63,6 @@ jobs:
             git commit -am "prepare for $VERSION release"
             git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:$GITHUB_REF"
           fi
-
-      - name: Tag
-        run: git tag "$VERSION"
 
       - name: Docker meta
         id: meta
