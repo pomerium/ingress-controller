@@ -20,6 +20,12 @@ jobs:
         # check that docker image reference is the same as the release tag
         run: ./scripts/check-image-tag.sh ${{ github.event.release.tag_name }}
 
+      - name: Find latest tag
+        id: latestTag
+        run: |
+          LATEST_TAG=$(git tag | grep -vi 'rc' | sort --version-sort | tail -1)
+          echo "latest=$([ "$LATEST_TAG" = "$GITHUB_REF_NAME" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9
@@ -27,6 +33,7 @@ jobs:
           images: |
             pomerium/ingress-controller
             docker.cloudsmith.io/pomerium/ingress-controller/ingress-controller
+          flavor: latest=${{ steps.latestTag.outputs.latest }}
           tags: |
             type=semver,pattern={{raw}}
             type=semver,pattern=v{{major}}.{{minor}}
