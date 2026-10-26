@@ -1,35 +1,80 @@
 name: Release
+run-name: candidate ${{ inputs.version }} ${{ inputs.request }}
 permissions:
-  contents: read
+  contents: write
 
 on:
-  release:
-    types:
-      - published
+  workflow_dispatch:
+    inputs:
+      version:
+        required: true
+        type: string
+      core_sha:
+        required: true
+        type: string
+      request:
+        required: true
+        type: string
+
+concurrency:
+  group: candidate-${{ github.ref_name }}
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+      CORE_SHA: ${{ inputs.core_sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ github.ref }}
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Check image reference
-        # check that docker image reference is the same as the release tag
-        run: ./scripts/check-image-tag.sh ${{ github.event.release.tag_name }}
+      - name: Check branch
+        run: |
+          [[ "$VERSION" =~ ^v([0-9]+)\.([0-9]+)\.[0-9]+$ ]]
+          [[ "$GITHUB_REF_NAME" == "${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-0" ]]
+          [[ "$CORE_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: .tool-versions
+
+      - name: Pin core and image
+        run: |
+          go get "github.com/pomerium/pomerium@$CORE_SHA" "github.com/pomerium/pomerium/pkg/grpc/config@$CORE_SHA" "github.com/pomerium/pomerium/pkg/grpc/databroker@$CORE_SHA"
+          go mod tidy
+          yq -i '.spec.template.spec.containers[0].image = "pomerium/ingress-controller:" + strenv(VERSION)' config/pomerium/deployment/image.yaml
+
+      - name: Commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -am "prepare for $VERSION release"
+            git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:$GITHUB_REF"
+          fi
+
+      - name: Tag
+        run: git tag "$VERSION"
 
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
+          context: git
           images: |
             us-central1-docker.pkg.dev/pomerium-public-prd/ingress-controller/ingress-controller
-            docker.cloudsmith.io/pomerium/ingress-controller/ingress-controller
+          flavor: latest=false
           tags: |
-            type=semver,pattern={{raw}}
-            type=semver,pattern=v{{major}}.{{minor}}
+            type=semver,pattern={{raw}},value=${{ inputs.version }}
+            type=semver,pattern=v{{major}}.{{minor}},value=${{ inputs.version }}
             type=sha
 
       - name: Set up Docker Buildx
@@ -50,20 +95,8 @@ jobs:
       - name: gcloud auth configure-docker
         run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
-      - name: Log in to cloudsmith registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
-        with:
-          registry: docker.cloudsmith.io
-          username: ${{ secrets.CLOUDSMITH_USER }}
-          password: ${{ secrets.CLOUDSMITH_API_KEY }}
-
-      - name: Setup Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
-        with:
-          go-version-file: .tool-versions
-
       - name: Build
-        run: make build-ci
+        run: make build-ci POMERIUM_VERSION="$VERSION"
 
       - name: Docker Publish - Main
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
@@ -74,3 +107,17 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          drafts=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[] | select(.draft and .tag_name == env.VERSION) | .id')
+          for id in $drafts; do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id"
+          done
+          previous=()
+          if [[ $VERSION =~ ^v([0-9]+)\.([1-9][0-9]*)\.0$ ]]; then
+            previous=(--notes-start-tag "v${BASH_REMATCH[1]}.$((BASH_REMATCH[2] - 1)).0")
+          fi
+          gh release create "$VERSION" --draft --generate-notes --target "$(git rev-parse HEAD)" "${previous[@]}"
