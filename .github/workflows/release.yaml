@@ -74,7 +74,6 @@ jobs:
           flavor: latest=false
           tags: |
             type=semver,pattern={{raw}},value=${{ inputs.version }}
-            type=semver,pattern=v{{major}}.{{minor}},value=${{ inputs.version }}
             type=sha
 
       - name: Set up Docker Buildx
