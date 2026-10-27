@@ -307,7 +307,183 @@ spec:
                 type: object
               enterprise:
                 description: Enterprise options for the embedded enterprise console.
-                x-kubernetes-preserve-unknown-fields: true
+                properties:
+                  administrators:
+                    description: A list of user IDs or email addresses to make administrators.
+                    items:
+                      type: string
+                    type: array
+                  analyticsCollectInterval:
+                    description: The period for analytics data collection and export
+                      to the cloud.
+                    format: duration
+                    type: string
+                  analyticsUrl:
+                    description: The analytics URL.
+                    format: uri
+                    type: string
+                  audiences:
+                    description: A list of audiences for verifying the signing key.
+                    items:
+                      type: string
+                    type: array
+                  authenticateServiceUrl:
+                    description: The URL for the authenticate service.
+                    format: uri
+                    type: string
+                  bootstrapServiceAccount:
+                    description: When true, create the bootstrap service account in
+                      the database.
+                    type: boolean
+                  cacheDirectory:
+                    description: The directory to store cache data.
+                    type: string
+                  changesetRequiredApprovalCount:
+                    description: How many approvals are required to deploy a changeset.
+                    format: int32
+                    type: integer
+                  customerId:
+                    description: The customer ID.
+                    type: string
+                  dangerouslyDisableAllNamespaceChecks:
+                    description: Disables all namespace checks.
+                    type: boolean
+                  databaseEncryptionKeyFile:
+                    description: A file containing the base64-encoded database encryption
+                      key.
+                    type: string
+                  databaseEncryptionKeyRawFile:
+                    description: A file containing the raw database encryption key.
+                    type: string
+                  databrokerServiceUrls:
+                    description: The databroker service URLs.
+                    items:
+                      type: string
+                    type: array
+                  debugAddress:
+                    description: The address to expose pprof debug endpoints.
+                    type: string
+                  debugConfigDump:
+                    description: |-
+                      Dumps the databroker configuration. This is a debug option to be used
+                      only when specified by Pomerium Support.
+                    type: boolean
+                  directoryProvider:
+                    description: The directory provider for directory sync.
+                    type: string
+                  directoryProviderRefreshInterval:
+                    description: The directory provider refresh interval.
+                    format: duration
+                    type: string
+                  directoryProviderRefreshTimeout:
+                    description: The directory provider refresh timeout.
+                    format: duration
+                    type: string
+                  disableFeedbackWidget:
+                    description: Disables the feedback widget.
+                    type: boolean
+                  disableRemoteDiagnostics:
+                    description: Disables remote diagnostics.
+                    type: boolean
+                  enableSessionRecordingQuerierCache:
+                    description: |-
+                      Indexes remote session recording metadata locally for more efficient
+                      querying.
+                    type: boolean
+                  licenseKeyValidateOffline:
+                    description: Validates the license key offline, without contacting
+                      the license server.
+                    type: boolean
+                  logLevel:
+                    description: The enterprise console log level. Defaults to info.
+                    enum:
+                    - trace
+                    - debug
+                    - info
+                    - warn
+                    - error
+                    - fatal
+                    type: string
+                  metricsAddress:
+                    description: The address to expose console metrics in Prometheus
+                      format.
+                    type: string
+                  overrideCertificateName:
+                    description: Overrides the certificate name used for the databroker
+                      connection.
+                    type: string
+                  prometheusDataDirectory:
+                    description: The path to Prometheus data.
+                    type: string
+                  prometheusListenAddress:
+                    description: The address the embedded Prometheus listens on, as
+                      host:port.
+                    type: string
+                  prometheusScrapeInterval:
+                    description: The Prometheus scrape frequency.
+                    format: duration
+                    type: string
+                  secret:
+                    description: |-
+                      Secret containing enterprise specific parameters. Supported keys:
+                        - database_encryption_key
+                        - database_url
+                        - directory_provider_options
+                        - license_key
+                        - prometheus_url
+                        - session_recording_options
+                    format: namespace/name
+                    minLength: 1
+                    type: string
+                  sharedSecretFile:
+                    description: A file containing the base64-encoded shared secret.
+                    type: string
+                  sharedSecretRawFile:
+                    description: A file containing the raw shared secret.
+                    type: string
+                  signingKeyFile:
+                    description: A file containing the base64-encoded signing key.
+                    type: string
+                  signingKeyRawFile:
+                    description: A file containing the raw signing key.
+                    type: string
+                  tlsCertificateAuthoritySecret:
+                    description: Secret containing the enterprise TLS certificate
+                      authority.
+                    format: namespace/name
+                    minLength: 1
+                    type: string
+                  tlsDerive:
+                    description: Derives the TLS certificate for this domain name
+                      from the shared secret.
+                    type: string
+                  tlsInsecureSkipVerify:
+                    description: Disables remote hosts' TLS certificate chain and
+                      hostname checks.
+                    type: boolean
+                  tlsSecret:
+                    description: Secret containing the enterprise TLS certificate.
+                    format: namespace/name
+                    minLength: 1
+                    type: string
+                  url:
+                    description: |-
+                      The URL to host the enterprise console at. The enterprise console is
+                      only enabled when this is set.
+                    format: uri
+                    type: string
+                  useStaticAssets:
+                    description: When false, forwards static requests to localhost:3000.
+                      Defaults to true.
+                    type: boolean
+                  validationMode:
+                    description: How much validation to perform. Defaults to static.
+                    enum:
+                    - disabled
+                    - static
+                    - full
+                    type: string
+                type: object
               envoyDynamicExtensions:
                 description: EnvoyDynamicExtensions file paths to the extensions to
                   be loaded by Envoy at runtime.

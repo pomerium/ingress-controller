@@ -189,7 +189,8 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
             <td>
                 <p>
                 <code>enterprise</code>&#160;&#160;
-                    <strong></strong>&#160;
+                    <strong>object</strong>&#160;
+                    (<a href="#enterprise">enterprise</a>)
                 </p>
                 <p>
                     Enterprise options for the embedded enterprise console.
@@ -814,6 +815,339 @@ DownstreamMTLS sets the <a href="https://www.pomerium.com/docs/reference/downstr
                 </p>
                 <p>
                     MaxVerifyDepth sets a limit on the depth of a certificate chain presented by the client.
+                </p>
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+### `enterprise`
+
+Enterprise options for the embedded enterprise console.
+
+<table>
+    <thead>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+                <p>
+                <code>administrators</code>&#160;&#160;
+                    <strong>[]string</strong>&#160;
+                </p>
+                <p>
+                    A list of user IDs or email addresses to make administrators.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>analyticsUrl</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                    (uri)
+                </p>
+                <p>
+                    The analytics URL.
+                </p>
+                Format: an URI as parsed by Golang net/url.ParseRequestURI.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>analytics_collect_interval</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                    (duration)
+                </p>
+                <p>
+                    The period for analytics data collection and export to the cloud.
+                </p>
+                Format: a duration string like "22s" as parsed by Golang time.ParseDuration.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>audiences</code>&#160;&#160;
+                    <strong>[]string</strong>&#160;
+                </p>
+                <p>
+                    A list of audiences for verifying the signing key.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>authenticateServiceUrl</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                    (uri)
+                </p>
+                <p>
+                    The URL for the authenticate service.
+                </p>
+                Format: an URI as parsed by Golang net/url.ParseRequestURI.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>bootstrapServiceAccount</code>&#160;&#160;
+                    <strong>boolean</strong>&#160;
+                </p>
+                <p>
+                    When true, create the bootstrap service account in the database.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>cacheDirectory</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    The directory to store cache data.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>changesetRequiredApprovalCount</code>&#160;&#160;
+                    <strong>integer</strong>&#160;
+                </p>
+                <p>
+                    How many approvals are required to deploy a changeset.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>customerId</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    The customer ID.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>dangerouslyDisableAllNamespaceChecks</code>&#160;&#160;
+                    <strong>boolean</strong>&#160;
+                </p>
+                <p>
+                    Disables all namespace checks.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>databaseEncryptionKeyFile</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    A file containing the base64-encoded database encryption key.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>databaseEncryptionKeyRawFile</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    A file containing the raw database encryption key.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>databrokerServiceUrls</code>&#160;&#160;
+                    <strong>[]string</strong>&#160;
+                </p>
+                <p>
+                    The databroker service URLs.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>debugAddress</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    The address to expose pprof debug endpoints.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>debugConfigDump</code>&#160;&#160;
+                    <strong>boolean</strong>&#160;
+                </p>
+                <p>
+                    Dumps the databroker configuration. This is a debug option to be used only when specified by Pomerium Support.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>directoryProvider</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    The directory provider for directory sync.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>secret</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                    (namespace/name)
+                </p>
+                <p>
+                    Secret containing enterprise specific parameters. Supported keys: - database_encryption_key - database_url - directory_provider_options - license_key - session_recording_options
+                </p>
+                Format: reference to Kubernetes resource with namespace prefix: <code>namespace/name</code> format.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>sharedSecretFile</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    A file containing the base64-encoded shared secret.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>sharedSecretRawFile</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    A file containing the raw shared secret.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>signingKeyFile</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    A file containing the base64-encoded signing key.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>signingKeyRawFile</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    A file containing the raw signing key.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>tlsCertificateAuthoritySecret</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                    (namespace/name)
+                </p>
+                <p>
+                    Secret containing the enterprise TLS certificate authority.
+                </p>
+                Format: reference to Kubernetes resource with namespace prefix: <code>namespace/name</code> format.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>tlsDerive</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    Derives the TLS certificate for this domain name from the shared secret.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>tlsInsecureSkipVerify</code>&#160;&#160;
+                    <strong>boolean</strong>&#160;
+                </p>
+                <p>
+                    Disables remote hosts' TLS certificate chain and hostname checks.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>tlsSecret</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                    (namespace/name)
+                </p>
+                <p>
+                    Secret containing the enterprise TLS certificate.
+                </p>
+                Format: reference to Kubernetes resource with namespace prefix: <code>namespace/name</code> format.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>url</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                    (uri)
+                </p>
+                <p>
+                    The URL to host the enterprise console at. The enterprise console is only enabled when this is set.
+                </p>
+                Format: an URI as parsed by Golang net/url.ParseRequestURI.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>useStaticAssets</code>&#160;&#160;
+                    <strong>boolean</strong>&#160;
+                </p>
+                <p>
+                    When false, forwards static requests to localhost:3000. Defaults to true.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>validationMode</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    How much validation to perform. Defaults to static.
                 </p>
             </td>
         </tr>

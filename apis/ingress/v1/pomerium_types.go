@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -265,6 +264,162 @@ type DownstreamMTLS struct {
 	MaxVerifyDepth *uint32 `json:"maxVerifyDepth,omitempty"`
 }
 
+// Enterprise defines settings for the embedded enterprise console.
+type Enterprise struct {
+	// A list of user IDs or email addresses to make administrators.
+	// +optional
+	Administrators *[]string `json:"administrators,omitzero"`
+	// The period for analytics data collection and export to the cloud.
+	// +optional
+	// +kubebuilder:validation:Format=duration
+	AnalyticsCollectInterval *metav1.Duration `json:"analyticsCollectInterval,omitzero"`
+	// The analytics URL.
+	// +optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Format=uri
+	AnalyticsURL *string `json:"analyticsUrl,omitzero"`
+	// A list of audiences for verifying the signing key.
+	// +optional
+	Audiences *[]string `json:"audiences,omitzero"`
+	// The URL for the authenticate service.
+	// +optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Format=uri
+	AuthenticateServiceURL *string `json:"authenticateServiceUrl,omitzero"`
+	// When true, create the bootstrap service account in the database.
+	// +optional
+	BootstrapServiceAccount *bool `json:"bootstrapServiceAccount,omitzero"`
+	// The directory to store cache data.
+	// +optional
+	CacheDirectory *string `json:"cacheDirectory,omitzero"`
+	// How many approvals are required to deploy a changeset.
+	// +optional
+	ChangesetRequiredApprovalCount *uint32 `json:"changesetRequiredApprovalCount,omitzero"`
+	// The customer ID.
+	// +optional
+	CustomerID *string `json:"customerId,omitzero"`
+	// Disables all namespace checks.
+	// +optional
+	DangerouslyDisableAllNamespaceChecks *bool `json:"dangerouslyDisableAllNamespaceChecks,omitzero"`
+	// A file containing the base64-encoded database encryption key.
+	// +optional
+	DatabaseEncryptionKeyFile *string `json:"databaseEncryptionKeyFile,omitzero"`
+	// A file containing the raw database encryption key.
+	// +optional
+	DatabaseEncryptionKeyRawFile *string `json:"databaseEncryptionKeyRawFile,omitzero"`
+	// The databroker service URLs.
+	// +optional
+	DatabrokerServiceURLs *[]string `json:"databrokerServiceUrls,omitzero"`
+	// The address to expose pprof debug endpoints.
+	// +optional
+	DebugAddress *string `json:"debugAddress,omitzero"`
+	// Dumps the databroker configuration. This is a debug option to be used
+	// only when specified by Pomerium Support.
+	// +optional
+	DebugConfigDump *bool `json:"debugConfigDump,omitzero"`
+	// The directory provider for directory sync.
+	// +optional
+	DirectoryProvider *string `json:"directoryProvider,omitzero"`
+	// The directory provider refresh interval.
+	// +optional
+	// +kubebuilder:validation:Format=duration
+	DirectoryProviderRefreshInterval *metav1.Duration `json:"directoryProviderRefreshInterval,omitzero"`
+	// The directory provider refresh timeout.
+	// +optional
+	// +kubebuilder:validation:Format=duration
+	DirectoryProviderRefreshTimeout *metav1.Duration `json:"directoryProviderRefreshTimeout,omitzero"`
+	// Disables the feedback widget.
+	// +optional
+	DisableFeedbackWidget *bool `json:"disableFeedbackWidget,omitzero"`
+	// Disables remote diagnostics.
+	// +optional
+	DisableRemoteDiagnostics *bool `json:"disableRemoteDiagnostics,omitzero"`
+	// Indexes remote session recording metadata locally for more efficient
+	// querying.
+	// +optional
+	EnableSessionRecordingQuerierCache *bool `json:"enableSessionRecordingQuerierCache,omitzero"`
+	// Validates the license key offline, without contacting the license server.
+	// +optional
+	LicenseKeyValidateOffline *bool `json:"licenseKeyValidateOffline,omitzero"`
+	// The enterprise console log level. Defaults to info.
+	// +optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Enum=trace;debug;info;warn;error;fatal
+	LogLevel *string `json:"logLevel,omitzero"`
+	// The address to expose console metrics in Prometheus format.
+	// +optional
+	MetricsAddress *string `json:"metricsAddress,omitzero"`
+	// Overrides the certificate name used for the databroker connection.
+	// +optional
+	OverrideCertificateName *string `json:"overrideCertificateName,omitzero"`
+	// The path to Prometheus data.
+	// +optional
+	PrometheusDataDirectory *string `json:"prometheusDataDirectory,omitzero"`
+	// The address the embedded Prometheus listens on, as host:port.
+	// +optional
+	PrometheusListenAddress *string `json:"prometheusListenAddress,omitzero"`
+	// The Prometheus scrape frequency.
+	// +optional
+	// +kubebuilder:validation:Format=duration
+	PrometheusScrapeInterval *metav1.Duration `json:"prometheusScrapeInterval,omitzero"`
+	// Secret containing enterprise specific parameters. Supported keys:
+	//   - database_encryption_key
+	//   - database_url
+	//   - directory_provider_options
+	//   - license_key
+	//   - prometheus_url
+	//   - session_recording_options
+	// +optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Format="namespace/name"
+	Secret *string `json:"secret,omitzero"`
+	// A file containing the base64-encoded shared secret.
+	// +optional
+	SharedSecretFile *string `json:"sharedSecretFile,omitzero"`
+	// A file containing the raw shared secret.
+	// +optional
+	SharedSecretRawFile *string `json:"sharedSecretRawFile,omitzero"`
+	// A file containing the base64-encoded signing key.
+	// +optional
+	SigningKeyFile *string `json:"signingKeyFile,omitzero"`
+	// A file containing the raw signing key.
+	// +optional
+	SigningKeyRawFile *string `json:"signingKeyRawFile,omitzero"`
+	// Secret containing the enterprise TLS certificate authority.
+	// +optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Format="namespace/name"
+	TLSCertificateAuthoritySecret *string `json:"tlsCertificateAuthoritySecret,omitzero"`
+	// Derives the TLS certificate for this domain name from the shared secret.
+	// +optional
+	TLSDerive *string `json:"tlsDerive,omitzero"`
+	// Disables remote hosts' TLS certificate chain and hostname checks.
+	// +optional
+	TLSInsecureSkipVerify *bool `json:"tlsInsecureSkipVerify,omitzero"`
+	// Secret containing the enterprise TLS certificate.
+	// +optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Format="namespace/name"
+	TLSSecret *string `json:"tlsSecret,omitzero"`
+	// The URL to host the enterprise console at. The enterprise console is
+	// only enabled when this is set.
+	// +optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Format=uri
+	URL *string `json:"url,omitzero"`
+	// When false, forwards static requests to localhost:3000. Defaults to true.
+	// +optional
+	UseStaticAssets *bool `json:"useStaticAssets,omitzero"`
+	// How much validation to perform. Defaults to static.
+	// +optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Enum=disabled;static;full
+	ValidationMode *string `json:"validationMode,omitzero"`
+}
+
 // PomeriumSpec defines Pomerium-specific configuration parameters.
 // +kubebuilder:validation:XValidation:rule="!has(self.identityProvider) || has(self.authenticate)",message="authenticate is required if identityProvider is set",reason="FieldValueRequired",fieldPath=".authenticate"
 // +kubebuilder:validation:XValidation:rule="!has(self.authenticate) || has(self.identityProvider)",message="identityProvider is required if authenticate is set",reason="FieldValueRequired",fieldPath=".identityProvider"
@@ -479,7 +634,7 @@ type PomeriumSpec struct {
 	// Enterprise options for the embedded enterprise console.
 	//
 	// +optional
-	Enterprise *apiextensionsv1.JSON `json:"enterprise,omitzero"`
+	Enterprise *Enterprise `json:"enterprise,omitzero"`
 }
 
 // OTEL configures OpenTelemetry.
