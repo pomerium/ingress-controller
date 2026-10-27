@@ -4,13 +4,17 @@ import (
 	"context"
 	"encoding/base64"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/pomerium/pomerium/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/nullable"
 
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
 	"github.com/pomerium/ingress-controller/model"
@@ -126,4 +130,127 @@ func TestApplyAdditional(t *testing.T) {
 		assert.Equal(t, []byte(exampleCert), opts.CertificateData[0].CertBytes)
 		assert.Equal(t, []byte("not-a-real-key"), opts.CertificateData[0].KeyBytes)
 	}
+}
+
+func TestConvertEnterprise(t *testing.T) {
+	t.Parallel()
+
+	dst := new(config.EnterpriseSettings)
+	src := &icsv1.Enterprise{
+		Administrators:                       new([]string{"u1", "u2", "u3"}),
+		AnalyticsCollectInterval:             new(metav1.Duration{Duration: time.Minute}),
+		AnalyticsURL:                         new("https://analytics.example.com"),
+		Audiences:                            new([]string{"a1", "a2"}),
+		AuthenticateServiceURL:               new("https://authenticate.example.com"),
+		BootstrapServiceAccount:              new(true),
+		CacheDirectory:                       new("/cache"),
+		ChangesetRequiredApprovalCount:       new(uint32(2)),
+		CustomerID:                           new("customer-id"),
+		DangerouslyDisableAllNamespaceChecks: new(true),
+		DatabaseEncryptionKeyFile:            new("/database-encryption-key"),
+		DatabaseEncryptionKeyRawFile:         new("/database-encryption-key-raw"),
+		DatabrokerServiceURLs:                new([]string{"https://databroker1.example.com", "https://databroker2.example.com"}),
+		DebugAddress:                         new(":9000"),
+		DebugConfigDump:                      new(true),
+		DirectoryProvider:                    new("okta"),
+		DirectoryProviderRefreshInterval:     new(metav1.Duration{Duration: 2 * time.Minute}),
+		DirectoryProviderRefreshTimeout:      new(metav1.Duration{Duration: 3 * time.Minute}),
+		DisableFeedbackWidget:                new(true),
+		DisableRemoteDiagnostics:             new(true),
+		EnableSessionRecordingQuerierCache:   new(true),
+		LicenseKeyValidateOffline:            new(true),
+		LogLevel:                             new("debug"),
+		MetricsAddress:                       new(":9001"),
+		OverrideCertificateName:              new("console.example.com"),
+		PrometheusDataDirectory:              new("/prometheus"),
+		PrometheusListenAddress:              new(":9002"),
+		PrometheusScrapeInterval:             new(metav1.Duration{Duration: 4 * time.Minute}),
+		Secret:                               new("enterprise"),
+		SharedSecretFile:                     new("/shared-secret"),
+		SharedSecretRawFile:                  new("/shared-secret-raw"),
+		SigningKeyFile:                       new("/signing-key"),
+		SigningKeyRawFile:                    new("/signing-key-raw"),
+		TLSCertificateAuthoritySecret:        new("enterprise-ca"),
+		TLSDerive:                            new("console.example.com"),
+		TLSInsecureSkipVerify:                new(true),
+		TLSSecret:                            new("enterprise-tls"),
+		URL:                                  new("https://console.example.com"),
+		UseStaticAssets:                      new(true),
+		ValidationMode:                       new("static"),
+	}
+	secrets := map[string]*v1.Secret{
+		"enterprise": {
+			Data: map[string][]byte{
+				model.SecretKeyForEnterpriseDatabaseEncryptionKey:    []byte("database-encryption-key"),
+				model.SecretKeyForEnterpriseDatabaseURL:              []byte("postgres://database.example.com"),
+				model.SecretKeyForEnterpriseDirectoryProviderOptions: []byte(`{"k1":"v1"}`),
+				model.SecretKeyForEnterpriseLicenseKey:               []byte("license-key"),
+				model.SecretKeyForEnterprisePrometheusURL:            []byte("https://prometheus.example.com"),
+				model.SecretKeyForEnterpriseSessionRecordingOptions:  []byte(`{"k2":"v2"}`),
+			},
+		},
+		"enterprise-tls": {
+			Data: map[string][]byte{
+				v1.TLSCertKey:       []byte("tls-cert"),
+				v1.TLSPrivateKeyKey: []byte("tls-key"),
+			},
+		},
+		"enterprise-ca": {
+			Data: map[string][]byte{
+				model.CAKey: []byte("tls-ca"),
+			},
+		},
+	}
+	err := ConvertEnterprise(dst, src, secrets)
+	assert.NoError(t, err)
+	assert.Equal(t, &config.EnterpriseSettings{
+		Administrators:                       nullable.From([]string{"u1", "u2", "u3"}),
+		AnalyticsCollectInterval:             nullable.From(time.Minute),
+		AnalyticsURL:                         nullable.From("https://analytics.example.com"),
+		Audience:                             nullable.From([]string{"a1", "a2"}),
+		AuthenticateServiceURL:               nullable.From("https://authenticate.example.com"),
+		BindAddress:                          nullable.From(":8701"),
+		BootstrapServiceAccount:              nullable.From(true),
+		CacheDir:                             nullable.From("/cache"),
+		ChangesetRequiredApprovalCount:       nullable.From(uint32(2)),
+		CustomerID:                           nullable.From("customer-id"),
+		DangerouslyDisableAllNamespaceChecks: nullable.From(true),
+		DatabaseEncryptionKey:                nullable.From([]byte("database-encryption-key")),
+		DatabaseEncryptionKeyFile:            nullable.From("/database-encryption-key"),
+		DatabaseEncryptionKeyRawFile:         nullable.From("/database-encryption-key-raw"),
+		DatabaseURL:                          nullable.From("postgres://database.example.com"),
+		DatabrokerServiceURLs:                nullable.From([]string{"https://databroker1.example.com", "https://databroker2.example.com"}),
+		DebugAddress:                         nullable.From(":9000"),
+		DebugConfigDump:                      nullable.From(true),
+		DirectoryProvider:                    nullable.From("okta"),
+		DirectoryProviderOptions:             nullable.From(map[string]any{"k1": "v1"}),
+		DirectoryProviderRefreshInterval:     nullable.From(2 * time.Minute),
+		DirectoryProviderRefreshTimeout:      nullable.From(3 * time.Minute),
+		DisableFeedbackWidget:                nullable.From(true),
+		DisableRemoteDiagnostics:             nullable.From(true),
+		EnableSessionRecordingQuerierCache:   nullable.From(true),
+		LicenseKey:                           nullable.From("license-key"),
+		LicenseKeyValidateOffline:            nullable.From(true),
+		LogLevel:                             nullable.From("debug"),
+		MetricsAddress:                       nullable.From(":9001"),
+		OverrideCertificateName:              nullable.From("console.example.com"),
+		PrometheusDataDir:                    nullable.From("/prometheus"),
+		PrometheusListenAddress:              nullable.From(":9002"),
+		PrometheusScrapeInterval:             nullable.From(4 * time.Minute),
+		PrometheusURL:                        nullable.From("https://prometheus.example.com"),
+		PublicAddress:                        nullable.From("pomerium-0.pomerium-headless:8701"),
+		SessionRecordingOptions:              nullable.From(map[string]any{"k2": "v2"}),
+		SharedSecretFile:                     nullable.From("/shared-secret"),
+		SharedSecretRawFile:                  nullable.From("/shared-secret-raw"),
+		SigningKeyFile:                       nullable.From("/signing-key"),
+		SigningKeyRawFile:                    nullable.From("/signing-key-raw"),
+		TLSCertificate:                       nullable.From([]byte("tls-cert")),
+		TLSCertificateAuthority:              nullable.From([]byte("tls-ca")),
+		TLSDerive:                            nullable.From("console.example.com"),
+		TLSInsecureSkipVerify:                nullable.From(true),
+		TLSKey:                               nullable.From([]byte("tls-key")),
+		URL:                                  nullable.From("https://console.example.com"),
+		UseStaticAssets:                      nullable.From(true),
+		ValidationMode:                       nullable.From(configpb.EnterpriseValidationMode_ENTERPRISE_VALIDATION_MODE_STATIC),
+	}, dst)
 }
