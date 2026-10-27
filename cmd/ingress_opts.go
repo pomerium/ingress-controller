@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"time"
 
 	validate "github.com/go-playground/validator/v10"
 	"github.com/spf13/pflag"
@@ -19,8 +20,10 @@ type ingressControllerOpts struct {
 	GatewayClassName        string `validate:"required"`
 	AnnotationPrefix        string `validate:"required"`
 	Namespaces              []string
-	UpdateStatusFromService string ``
-	GlobalSettings          string `validate:"required"`
+	UpdateStatusFromService string        ``
+	GlobalSettings          string        `validate:"required"`
+	ReconcileBatchWindow    time.Duration `validate:"gte=0"`
+	ReconcileBatchMaxWait   time.Duration `validate:"gte=0"`
 }
 
 const (
@@ -32,6 +35,8 @@ const (
 	sharedSecret               = "shared-secret"
 	updateStatusFromService    = "update-status-from-service"
 	globalSettings             = "pomerium-config"
+	reconcileBatchWindow       = "reconcile-batch-window"
+	reconcileBatchMaxWait      = "reconcile-batch-max-wait"
 )
 
 func (s *ingressControllerOpts) setupFlags(flags *pflag.FlagSet) {
@@ -43,10 +48,20 @@ func (s *ingressControllerOpts) setupFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&s.UpdateStatusFromService, updateStatusFromService, "", "update ingress status from given service status (pomerium-proxy)")
 	flags.StringVar(&s.GlobalSettings, globalSettings, "",
 		fmt.Sprintf("namespace/name to a resource of type %s/Settings", icsv1.GroupVersion.Group))
+	flags.DurationVar(&s.ReconcileBatchWindow, reconcileBatchWindow, 0,
+		"wait for this quiet period before applying real ingress changes as one batch (disabled by default)")
+	flags.DurationVar(&s.ReconcileBatchMaxWait, reconcileBatchMaxWait, 5*time.Second,
+		"maximum time to delay a batch while ingress changes continue arriving")
 }
 
 func (s *ingressControllerOpts) Validate() error {
-	return validate.New().Struct(s)
+	if err := validate.New().Struct(s); err != nil {
+		return err
+	}
+	if s.ReconcileBatchWindow > 0 && s.ReconcileBatchMaxWait < s.ReconcileBatchWindow {
+		return fmt.Errorf("--%s must be greater than or equal to --%s", reconcileBatchMaxWait, reconcileBatchWindow)
+	}
+	return nil
 }
 
 func (s *ingressControllerOpts) getGlobalSettings() (*types.NamespacedName, error) {
@@ -66,6 +81,12 @@ func (s *ingressControllerOpts) getIngressControllerOptions() ([]ingress.Option,
 		ingress.WithNamespaces(s.Namespaces),
 		ingress.WithAnnotationPrefix(s.AnnotationPrefix),
 		ingress.WithControllerName(s.ClassName),
+	}
+	if s.ReconcileBatchWindow > 0 {
+		opts = append(opts, ingress.WithAdaptiveReconcileBatching(
+			s.ReconcileBatchWindow,
+			s.ReconcileBatchMaxWait,
+		))
 	}
 	if name, err := s.getGlobalSettings(); err != nil {
 		return nil, err

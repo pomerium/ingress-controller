@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -95,7 +96,13 @@ func NewSettingsController(
 	secretKind := generic.GVKForType[*corev1.Secret](mgr.GetScheme()).Kind
 	err := ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
-		For(new(icsv1.Pomerium)).
+		For(
+			new(icsv1.Pomerium),
+			// Ingress reconciliation updates Pomerium.status.routes. The
+			// settings config depends only on spec, so status-only updates must
+			// not trigger another full Envoy validation.
+			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
+		).
 		Watches(
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(deps.GetDependantMapFunc(stc.Registry, secretKind)),
@@ -127,7 +134,12 @@ func (c *settingsController) Reconcile(ctx context.Context, req ctrl.Request) (c
 	cfg, err := FetchConfig(ctx, c.Client, c.key.NamespacedName)
 	logger.Info("fetch", "deps", c.Registry.Deps(c.key), "error", err)
 	if err != nil {
-		c.SettingsRejected(ctx, &cfg.Pomerium, err)
+		if cfg == nil && apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		if cfg != nil {
+			c.SettingsRejected(ctx, &cfg.Pomerium, err)
+		}
 		return ctrl.Result{Requeue: true}, fmt.Errorf("get settings: %w", err)
 	}
 	// bootstrap config must at least construct a valid config once to be considered running

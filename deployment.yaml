@@ -1006,6 +1006,12 @@ spec:
               fieldPath: status.podIP
         image: pomerium/ingress-controller:v0.32.9
         imagePullPolicy: IfNotPresent
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /busybox/sleep
+              - "30"
         livenessProbe:
           failureThreshold: 10
           httpGet:
@@ -1064,7 +1070,7 @@ spec:
       securityContext:
         runAsNonRoot: true
       serviceAccountName: pomerium-controller
-      terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: 60
       volumes:
       - emptyDir: {}
         name: tmp

@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -31,9 +33,20 @@ type IngressStatusReporter interface {
 	IngressDeleted(ctx context.Context, name types.NamespacedName, reason string) error
 }
 
+// IngressStatusPruner removes status entries for Ingresses that no longer
+// exist. It is optional because event and log reporters have nothing to prune.
+type IngressStatusPruner interface {
+	PruneIngressStatuses(ctx context.Context, active map[string]struct{}) error
+}
+
 // IngressSettingsReporter reflects ingress updates in a Pomerium Settings CRD /status section
 type IngressSettingsReporter struct {
 	SettingsReporter
+}
+
+type jsonPatchOperation struct {
+	Op   string `json:"op"`
+	Path string `json:"path"`
 }
 
 // IngressReconciled an ingress was successfully reconciled with Pomerium
@@ -77,15 +90,9 @@ func (r *IngressSettingsReporter) IngressNotReconciled(ctx context.Context, ingr
 
 // IngressDeleted an ingress resource was deleted and Pomerium no longer serves it
 func (r *IngressSettingsReporter) IngressDeleted(ctx context.Context, name types.NamespacedName, _ string) error {
-	patch, err := json.Marshal([]struct {
-		Op   string `json:"op"`
-		Path string `json:"path"`
-	}{{
-		Op: "remove",
-		// https://datatracker.ietf.org/doc/html/rfc6901#section-3
-		// "/"(forward slash) is encoded as "~1"
-		// ¯\_(ツ)_/¯
-		Path: fmt.Sprintf("/status/ingress/%s~1%s", name.Namespace, name.Name),
+	patch, err := json.Marshal([]jsonPatchOperation{{
+		Op:   "remove",
+		Path: ingressStatusJSONPath(name.String()),
 	}})
 	if err != nil {
 		return err
@@ -103,6 +110,53 @@ func (r *IngressSettingsReporter) IngressDeleted(ctx context.Context, name types
 		return fmt.Errorf("failed to patch /status for ingress %v: %w", name, err)
 	}
 	return nil
+}
+
+// PruneIngressStatuses removes entries left behind when an Ingress was
+// deleted while the controller was not running. Active invalid Ingresses are
+// supplied by the controller and deliberately retained.
+func (r *IngressSettingsReporter) PruneIngressStatuses(ctx context.Context, active map[string]struct{}) error {
+	var current icsv1.Pomerium
+	if err := r.Get(ctx, r.NamespacedName, &current); err != nil {
+		return fmt.Errorf("read Pomerium status before pruning: %w", err)
+	}
+
+	stale := make([]string, 0)
+	for key := range current.Status.Routes {
+		if _, ok := active[key]; !ok {
+			stale = append(stale, key)
+		}
+	}
+	if len(stale) == 0 {
+		return nil
+	}
+	sort.Strings(stale)
+
+	operations := make([]jsonPatchOperation, 0, len(stale))
+	for _, key := range stale {
+		operations = append(operations, jsonPatchOperation{
+			Op:   "remove",
+			Path: ingressStatusJSONPath(key),
+		})
+	}
+	patch, err := json.Marshal(operations)
+	if err != nil {
+		return fmt.Errorf("encode stale ingress status patch: %w", err)
+	}
+
+	if err := r.Status().Patch(ctx, &icsv1.Pomerium{
+		ObjectMeta: metav1.ObjectMeta{Name: r.Name},
+	}, client.RawPatch(types.JSONPatchType, patch)); err != nil {
+		return fmt.Errorf("prune %d stale ingress status entries: %w", len(stale), err)
+	}
+	return nil
+}
+
+func ingressStatusJSONPath(key string) string {
+	// JSON Pointer escapes "~" before "/" according to RFC 6901 section 3.
+	escaped := strings.ReplaceAll(key, "~", "~0")
+	escaped = strings.ReplaceAll(escaped, "/", "~1")
+	return "/status/ingress/" + escaped
 }
 
 // IngressEventReporter reflects updates as events posted to the ingress
