@@ -18,10 +18,10 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.21.0
-	github.com/pomerium/pomerium v0.32.5-rc.1.0.20261023152834-e43287b1d2e2
-	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20261023152834-e43287b1d2e2
-	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20261023152834-e43287b1d2e2
-	github.com/pomerium/sdk-go v0.0.10-0.20261023135408-e4eca085164e
+	github.com/pomerium/pomerium v0.32.5-rc.1.0.20261027194504-2c1390bb237c
+	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20261027194504-2c1390bb237c
+	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20261027194504-2c1390bb237c
+	github.com/pomerium/sdk-go v0.0.10-0.20261026170247-559c9cf2f913
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
 	github.com/spf13/cobra v1.10.2
@@ -32,7 +32,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.46.0
 	go.uber.org/mock v0.6.0
 	go.uber.org/zap v1.28.0
-	golang.org/x/net v0.61.0
+	golang.org/x/net v0.62.0
 	golang.org/x/sync v0.24.0
 	google.golang.org/grpc v1.86.0-dev
 	google.golang.org/protobuf v1.36.12
@@ -333,8 +333,8 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/api v0.299.0 // indirect
 	google.golang.org/genproto v0.0.0-20260715232425-e75dac1f907d // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20261019180522-ce908d29299b // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20261019180522-ce908d29299b // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20261026165753-2ffab32bce7e // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20261026165753-2ffab32bce7e // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
