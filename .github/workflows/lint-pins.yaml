@@ -4,18 +4,11 @@ on:
   pull_request:
     paths:
       - ".github/**"
-      - ".pinact.yaml"
       - "**/Dockerfile*"
-      - "**/*.dockerfile"
       - "**/*.yml"
       - "**/*.yaml"
-      - "**/*.env"
-      - "**/*.tf"
-      - "**/*.bzl"
-      - "**/WORKSPACE*"
       - "**/Makefile"
       - "**/*.sh"
-      - "internal/acceptance/**"
 
 permissions:
   contents: read
