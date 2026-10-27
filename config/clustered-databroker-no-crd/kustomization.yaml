@@ -1,6 +1,3 @@
-# CRD-less variant of clustered-databroker: the clustered StatefulSet install
-# without the CRD bases, for clusters where the CRD is owned by a separate
-# installer. Mirrors clustered-databroker but builds on default-no-crd.
 namespace: pomerium
 resources:
   - ../default-no-crd
