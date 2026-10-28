@@ -59,6 +59,7 @@ type allCmdOptions struct {
 	grpcAddr           string   `validate:"required,hostname_port"`
 	services           []string `validate:"dive,oneof=all authenticate authorize databroker proxy"`
 	syncAPIIngress     string
+	signOutRedirectURL string
 
 	CertificateControllerOptions certificateControllerOptions
 	DataBrokerOptions            dataBrokerOptions
@@ -148,6 +149,7 @@ func (s *allCmd) setupFlags() error {
 	flags.StringVar(&s.grpcAddr, "grpc-addr", ":5443", "the address the gRPC server would bind to")
 	flags.StringSliceVar(&s.services, "services", []string{"all"}, "the pomerium services to run")
 	flags.StringVar(&s.syncAPIIngress, syncAPIIngress, "", "unified API sync ingress")
+	flags.StringVar(&s.signOutRedirectURL, "signout-redirect-url", "", "absolute HTTP(S) URL to return to after signing out")
 
 	for _, flag := range hidden {
 		if err := s.PersistentFlags().MarkHidden(flag); err != nil {
@@ -162,6 +164,12 @@ func (s *allCmd) setupFlags() error {
 }
 
 func (s *allCmdOptions) Validate() error {
+	if s.signOutRedirectURL != "" {
+		u, err := url.Parse(s.signOutRedirectURL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil {
+			return fmt.Errorf("--signout-redirect-url must be an absolute HTTP(S) URL without userinfo")
+		}
+	}
 	return validate.New().Struct(s)
 }
 
@@ -264,6 +272,7 @@ func (s *allCmdParam) makeBootstrapConfig(ctx context.Context, opt allCmdOptions
 	s.cfg.Options.Addr = opt.serverAddr
 	s.cfg.Options.GRPCAddr = opt.grpcAddr
 	s.cfg.Options.HTTPRedirectAddr = opt.httpRedirectAddr
+	s.cfg.Options.SignOutRedirectURLString = opt.signOutRedirectURL
 
 	ports, err := netutil.AllocatePorts(9)
 	if err != nil {
