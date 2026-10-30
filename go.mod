@@ -18,9 +18,9 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.21.0
-	github.com/pomerium/pomerium v0.32.5-rc.1.0.20261027194504-2c1390bb237c
-	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20261027194504-2c1390bb237c
-	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20261027194504-2c1390bb237c
+	github.com/pomerium/pomerium v0.32.5-rc.1.0.20261029221554-885e0bd8b24b
+	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20261029221554-885e0bd8b24b
+	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20261029221554-885e0bd8b24b
 	github.com/pomerium/sdk-go v0.0.10-0.20261026170247-559c9cf2f913
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
@@ -286,7 +286,6 @@ require (
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f // indirect
 	github.com/valyala/fastjson v1.6.10 // indirect
 	github.com/vektah/gqlparser/v2 v2.5.58 // indirect
-	github.com/weastur/hclog-zerolog v1.0.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect

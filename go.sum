@@ -791,12 +791,12 @@ github.com/pomerium/datasource v0.18.2-0.20261023135124-1158d9fc2af8 h1:QcVuIV17
 github.com/pomerium/datasource v0.18.2-0.20261023135124-1158d9fc2af8/go.mod h1:xZb+/Gk7Kw1Vwh5o0VRCV0dBVBz7CaK0p0pD4Fozppw=
 github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261001000628-2a7e5f0ae596 h1:toFfFbo6CcwDSWV6idgcZ7EBvF2ISN8uGTkv1XtNA9A=
 github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261001000628-2a7e5f0ae596/go.mod h1:7XX22CuI+iU8rSlMPBHwmbWrz9yvQPEhuOIJSwdKXRE=
-github.com/pomerium/pomerium v0.32.5-rc.1.0.20261027194504-2c1390bb237c h1:W4ADSe61PwSHi3USpXHnC6RDb7hF7dzOeh69TBx93r0=
-github.com/pomerium/pomerium v0.32.5-rc.1.0.20261027194504-2c1390bb237c/go.mod h1:v/rmqeRpv1PGgQazmXMXpoTKsfTal+JWckh/a8liUJo=
-github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20261027194504-2c1390bb237c h1:uWMzl8j1nE4ftcF2TPbuXzutfXasSjSYqxZIR6vQiZQ=
-github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20261027194504-2c1390bb237c/go.mod h1:JHyAyTPkuuSNvdnq/tX23vyh+XOL0HFpxUnVIpMF+Mw=
-github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20261027194504-2c1390bb237c h1:tCuNG5ZnjmMwJ8l0DkxfkD+ojuFwY9ZJGUABt6uAp6c=
-github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20261027194504-2c1390bb237c/go.mod h1:w0LgNZiWYdO/H39vjVugczgCfKP/guOZAW15+tVSvUc=
+github.com/pomerium/pomerium v0.32.5-rc.1.0.20261029221554-885e0bd8b24b h1:2J0cnmI4i4Qmv4KQZHsUNjn2K92Q05iXoAAzAmFCYDU=
+github.com/pomerium/pomerium v0.32.5-rc.1.0.20261029221554-885e0bd8b24b/go.mod h1:QLPB6UjDtsfUKvRMaI1QjSnxUQ4szDDx7OXRrN5ekbU=
+github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20261029221554-885e0bd8b24b h1:B7yoSKflRcrQYhHrLQX8zsk5P2C/s+o/muWY63/5GCA=
+github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20261029221554-885e0bd8b24b/go.mod h1:fO8h58OQuDDqK6PPyrAUyefPkumPCuenWjhuWy6FNzo=
+github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20261029221554-885e0bd8b24b h1:KAZJc/Z3StSzszwUjR3PHS9TygVArBbvoh7bwY8g0GM=
+github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20261029221554-885e0bd8b24b/go.mod h1:EsL6jz/EHLb+MLoY/FBeoXyyKjopzw+p6mtlDEERJiA=
 github.com/pomerium/protoutil v0.0.0-20261023135301-1ce8ef91f9ec h1:hwY5NwGwRQAupLOTUSkQWODPO9bcTclr2HTPjtLmZK0=
 github.com/pomerium/protoutil v0.0.0-20261023135301-1ce8ef91f9ec/go.mod h1:jhc7CuszrQ7DB9w9sb4+MKaEqdDi01gizVk6Mj5lqE4=
 github.com/pomerium/sdk-go v0.0.10-0.20261026170247-559c9cf2f913 h1:Q6eJG2t9bwnGk3+lwCVlcFj6lLjvOOPjOs/LqbbYYKc=
@@ -962,8 +962,6 @@ github.com/vektah/gqlparser/v2 v2.5.58 h1:yHxQ3EjU2OGuDMh6noxxmZova1HkBM3CbdGtL+
 github.com/vektah/gqlparser/v2 v2.5.58/go.mod h1:9O4Ox6Ngd3Y12bMD3w6i3CRQXh8W1oC1q0m6olCymDM=
 github.com/volatiletech/null/v9 v9.0.0 h1:JCdlHEiSRVxOi7/MABiEfdsqmuj9oTV20Ao7VvZ0JkE=
 github.com/volatiletech/null/v9 v9.0.0/go.mod h1:zRFghPVahaiIMRXiUJrc6gsoG83Cm3ZoAfSTw7VHGQc=
-github.com/weastur/hclog-zerolog v1.0.0 h1:WusW/KcdTuIR7fxEPmNOBD8bPFDN6hvIj+VxaQ0yq3Q=
-github.com/weastur/hclog-zerolog v1.0.0/go.mod h1:/87cZTZrNCZepREu47DaQTa6FDAteqNt0V6jOHcrZHE=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
 github.com/x448/float16 v0.8.4/go.mod h1:14CWIYCyZA/cWjXOioeEpHeN/83MdbZDRQHoFcYsOfg=
 github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb h1:zGWFAtiMcyryUHoUjUJX0/lt1H2+i2Ka2n+D3DImSNo=
