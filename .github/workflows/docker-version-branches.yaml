@@ -33,6 +33,14 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha
+          labels: |
+            org.opencontainers.image.title=pomerium-ingress-controller
+            org.opencontainers.image.description=Pomerium Kubernetes Ingress Controller
+            org.opencontainers.image.url=https://www.pomerium.com
+            org.opencontainers.image.documentation=https://www.pomerium.com/docs
+            org.opencontainers.image.source=https://github.com/pomerium/ingress-controller
+            org.opencontainers.image.vendor=Pomerium, Inc.
+            org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-License-1.0
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0

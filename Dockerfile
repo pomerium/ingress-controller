@@ -2,6 +2,7 @@
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/base-nossl-debian13:debug-nonroot@sha256:68f210b8b9d3105847b270a1aef56abfcd8ee1f8bb54921999e451f42d0dad0c
 COPY bin/manager /manager
+COPY LICENSE /LICENSE
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]

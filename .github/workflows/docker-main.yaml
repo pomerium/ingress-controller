@@ -32,6 +32,14 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha
+          labels: |
+            org.opencontainers.image.title=pomerium-ingress-controller
+            org.opencontainers.image.description=Pomerium Kubernetes Ingress Controller
+            org.opencontainers.image.url=https://www.pomerium.com
+            org.opencontainers.image.documentation=https://www.pomerium.com/docs
+            org.opencontainers.image.source=https://github.com/pomerium/ingress-controller
+            org.opencontainers.image.vendor=Pomerium, Inc.
+            org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-License-1.0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
