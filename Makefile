@@ -24,7 +24,10 @@ endif
 # the embedded resources would be supplied externally
 GOTAGS = -tags embed_pomerium
 
-GOLDFLAGS = -X github.com/pomerium/pomerium/internal/version.Version=$(shell go list -f '{{.Module.Version}}' github.com/pomerium/pomerium) \
+POMERIUM_OFFICIAL_BUILD ?= 0
+GOLDFLAGS = -X github.com/pomerium/pomerium/internal/version.officialBuild=$(POMERIUM_OFFICIAL_BUILD) \
+	-X github.com/pomerium/ingress-controller/internal/version.officialBuild=$(POMERIUM_OFFICIAL_BUILD) \
+	-X github.com/pomerium/pomerium/internal/version.Version=$(shell go list -f '{{.Module.Version}}' github.com/pomerium/pomerium) \
 	-X github.com/pomerium/pomerium/internal/version.BuildMeta=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ") \
 	-X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium-ingress-controller \
 	-X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.com \

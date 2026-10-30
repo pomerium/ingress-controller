@@ -15,7 +15,8 @@ func RootCommand() (*cobra.Command, error) {
 	root := cobra.Command{
 		Use:          "ingress-controller",
 		Short:        "pomerium ingress controller",
-		Version:      fmt.Sprintf("%s envoy: %s", version.FullVersion(), files.Lockfile().Version),
+		Long:         "pomerium ingress controller\n\n" + version.LicenseStatement(),
+		Version:      fmt.Sprintf("%s envoy: %s\n%s", version.FullVersion(), files.Lockfile().Version, version.LicenseStatement()),
 		SilenceUsage: true,
 	}
 

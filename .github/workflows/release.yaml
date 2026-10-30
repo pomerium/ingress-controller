@@ -71,7 +71,7 @@ jobs:
           go-version-file: .tool-versions
 
       - name: Build
-        run: make build-ci
+        run: POMERIUM_OFFICIAL_BUILD=1 make build-ci
 
       - name: Docker Publish - Main
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
