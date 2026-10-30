@@ -18,9 +18,9 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.21.0
-	github.com/pomerium/pomerium v0.32.5-rc.1.0.20261030153312-947a3b8ec118
-	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20261030153312-947a3b8ec118
-	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20261030153312-947a3b8ec118
+	github.com/pomerium/pomerium v0.32.5-rc.1.0.20261030201541-42e80cc7af92
+	github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20261030201541-42e80cc7af92
+	github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20261030201541-42e80cc7af92
 	github.com/pomerium/sdk-go v0.0.10-0.20261026170247-559c9cf2f913
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
@@ -146,7 +146,7 @@ require (
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
-	github.com/fxamacker/cbor/v2 v2.9.6 // indirect
+	github.com/fxamacker/cbor/v2 v2.10.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.15 // indirect
 	github.com/gaissmai/bart v0.30.0 // indirect
 	github.com/getsentry/sentry-go v0.27.0 // indirect
