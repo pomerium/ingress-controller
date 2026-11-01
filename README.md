@@ -8,3 +8,9 @@ Use Pomerium as a first-class secure-by-default Ingress Controller. The Pomerium
 - [Global Configuration](https://www.pomerium.com/docs/k8s/configure).
 - [Ingress Configuration](https://www.pomerium.com/docs/k8s/ingress).
 - [Pomerium CRD Reference](https://www.pomerium.com/docs/k8s/reference).
+
+# License
+
+This repository's source code is available under the [Apache License 2.0](./LICENSE). Users compiling from source must comply with the terms of this license.
+
+Official container images that Pomerium publishes are available under the [Pomerium Community Edition License 1.0](./licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt).

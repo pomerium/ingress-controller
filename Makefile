@@ -25,9 +25,9 @@ endif
 GOTAGS = -tags embed_pomerium
 
 GOLDFLAGS = -X github.com/pomerium/pomerium/internal/version.Version=$(shell go list -f '{{.Module.Version}}' github.com/pomerium/pomerium) \
-	-X github.com/pomerium/pomerium/internal/version.BuildMeta=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ") \
+	-X github.com/pomerium/pomerium/internal/version.Timestamp=$(shell date -u +%s) \
 	-X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium-ingress-controller \
-	-X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io \
+	-X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.com \
 	-X github.com/pomerium/ingress-controller/internal/version.PomeriumVersion=$(shell go list -f '{{.Module.Version}}' github.com/pomerium/pomerium) \
 	-X github.com/pomerium/ingress-controller/internal/version.GitCommit=$(GITCOMMIT) \
 	-X github.com/pomerium/ingress-controller/internal/version.Version=$(VERSION)
@@ -100,6 +100,7 @@ build: generated pomerium-ui build-go ## Build manager binary.
 
 # called from github actions to build multi-arch images outside of docker
 .PHONY: build-ci
+build-ci: GOLDFLAGS += -X github.com/pomerium/pomerium/internal/version.officialBuild=1
 build-ci: envoy-ci pomerium-ui
 	@GOOS=linux GOARCH=amd64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-amd64 main.go
 	@GOOS=linux GOARCH=arm64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-arm64 main.go
