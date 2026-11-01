@@ -7,9 +7,11 @@ if [[ -z "${want}" ]]; then
     exit 1
 fi
 
-img=$(yq eval '.spec.template.spec.containers[0].image' config/pomerium/deployment/image.yaml)
-tag=${img#pomerium/ingress-controller:}
-if [[ "${tag}" != "${want}" ]]; then
-    echo "Image tag mismatch: ${tag} != ${want}"
-    exit 1
-fi
+for file in config/pomerium/deployment/image.yaml config/gen_secrets/job.yaml; do
+    img=$(yq eval '.spec.template.spec.containers[0].image' "${file}")
+    tag=${img#pomerium/ingress-controller:}
+    if [[ "${tag}" != "${want}" ]]; then
+        echo "Image tag mismatch in ${file}: ${tag} != ${want}"
+        exit 1
+    fi
+done
