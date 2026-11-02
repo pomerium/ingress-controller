@@ -18,6 +18,7 @@ func RootCommand() (*cobra.Command, error) {
 		Version:      fmt.Sprintf("%s envoy: %s", version.FullVersion(), files.Lockfile().Version),
 		SilenceUsage: true,
 	}
+	root.SetVersionTemplate(versionTemplate())
 
 	for name, fn := range map[string]func() (*cobra.Command, error){
 		"gen-secrets": GenSecretsCommand,
@@ -33,4 +34,17 @@ func RootCommand() (*cobra.Command, error) {
 	}
 
 	return &root, nil
+}
+
+func versionTemplate() string {
+	tmpl := "{{.Version}}\n"
+	if version.IsOfficialBuild() {
+		tmpl += "Licensed under the terms of the Pomerium Community Edition License 1.0: " +
+			"https://github.com/pomerium/ingress-controller/blob/main/licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt"
+	} else {
+		tmpl += "Licensed under the terms of the Apache License 2.0: " +
+			"https://github.com/pomerium/ingress-controller/blob/main/LICENSE"
+	}
+	tmpl += "\n"
+	return tmpl
 }
