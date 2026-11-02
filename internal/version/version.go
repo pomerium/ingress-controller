@@ -20,6 +20,15 @@ func IsOfficialBuild() bool {
 	return officialBuild == "1"
 }
 
+// License returns the name and URL of the license governing this build.
+func License() (name, url string) {
+	if IsOfficialBuild() {
+		return "Pomerium Community Edition License 1.0",
+			"https://github.com/pomerium/ingress-controller/blob/main/licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt"
+	}
+	return "Apache License 2.0", "https://github.com/pomerium/ingress-controller/blob/main/LICENSE"
+}
+
 // FullVersion returns a version string.
 func FullVersion() string {
 	var sb strings.Builder

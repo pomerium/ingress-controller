@@ -37,14 +37,6 @@ func RootCommand() (*cobra.Command, error) {
 }
 
 func versionTemplate() string {
-	tmpl := "{{.Version}}\n"
-	if version.IsOfficialBuild() {
-		tmpl += "Licensed under the terms of the Pomerium Community Edition License 1.0: " +
-			"https://github.com/pomerium/ingress-controller/blob/main/licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt"
-	} else {
-		tmpl += "Licensed under the terms of the Apache License 2.0: " +
-			"https://github.com/pomerium/ingress-controller/blob/main/LICENSE"
-	}
-	tmpl += "\n"
-	return tmpl
+	name, url := version.License()
+	return "{{.Version}}\n" + fmt.Sprintf("Licensed under the terms of the %s: %s\n", name, url)
 }
