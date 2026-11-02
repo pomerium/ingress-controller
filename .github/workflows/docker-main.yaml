@@ -32,6 +32,8 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha
+          labels: |
+            org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -59,6 +61,8 @@ jobs:
           password: ${{ secrets.CLOUDSMITH_API_KEY }}
 
       - name: Build
+        env:
+          POMERIUM_OFFICIAL_BUILD: "1"
         run: make build-ci
 
       - name: Docker Publish - Main
