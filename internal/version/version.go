@@ -11,7 +11,14 @@ var (
 	GitCommit = ""
 	// PomeriumVersion specifies the go.mod dependency version, set by the compiler.
 	PomeriumVersion = ""
+
+	officialBuild = "0"
 )
+
+// IsOfficialBuild returns true if this is an official build.
+func IsOfficialBuild() bool {
+	return officialBuild == "1"
+}
 
 // FullVersion returns a version string.
 func FullVersion() string {

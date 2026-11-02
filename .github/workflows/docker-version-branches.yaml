@@ -63,6 +63,8 @@ jobs:
           password: ${{ secrets.CLOUDSMITH_API_KEY }}
 
       - name: Build
+        env:
+          POMERIUM_OFFICIAL_BUILD: "1"
         run: make build-ci
 
       - name: Docker Publish - Version Branches
