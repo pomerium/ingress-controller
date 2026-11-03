@@ -29,6 +29,9 @@ update-pomerium() {
 	local _core_sha="$(get-commit-sha https://github.com/pomerium/pomerium main)"
 	local _sdk_sha="$(get-commit-sha https://github.com/pomerium/sdk-go main)"
 
+	# Fetch the pinned core commit from GitHub directly, not via the module proxy.
+	export GOPRIVATE="github.com/pomerium/pomerium${GOPRIVATE:+,$GOPRIVATE}"
+
 	go get "github.com/pomerium/pomerium@$_core_sha"
 	go get "github.com/pomerium/pomerium/pkg/grpc/config@$_core_sha"
 	go get "github.com/pomerium/pomerium/pkg/grpc/databroker@$_core_sha"
