@@ -12,15 +12,27 @@ require-command() {
 	fi
 }
 
+get-commit-sha() {
+	local _repo_url="${1?"repo url is required"}"
+	local _branch="${2?"branch is required"}"
+
+	require-command git
+
+	git ls-remote "$_repo_url" "refs/heads/$_branch" | awk '{print $1}'
+}
+
 update-pomerium() {
 	pushd "$_project_root"
 
 	require-command go
 
-	go get -u github.com/pomerium/pomerium@main
-	go get -u github.com/pomerium/pomerium/pkg/grpc/config@main
-	go get -u github.com/pomerium/pomerium/pkg/grpc/databroker@main
-	go get -u github.com/pomerium/sdk-go@main
+	local _core_sha="$(get-commit-sha https://github.com/pomerium/pomerium main)"
+	local _sdk_sha="$(get-commit-sha https://github.com/pomerium/sdk-go main)"
+
+	go get "github.com/pomerium/pomerium@$_core_sha"
+	go get "github.com/pomerium/pomerium/pkg/grpc/config@$_core_sha"
+	go get "github.com/pomerium/pomerium/pkg/grpc/databroker@$_core_sha"
+	go get "github.com/pomerium/sdk-go@$_sdk_sha"
 	go mod tidy
 
 	popd
