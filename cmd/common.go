@@ -58,7 +58,8 @@ func setupLogger(debug bool) {
 // logStartupInfo logs the build version and the license governing this build.
 func logStartupInfo() {
 	license, licenseURL := version.License()
-	ctrl.Log.Info("starting pomerium ingress controller",
+	ctrl.Log.Info(
+		"starting pomerium ingress controller",
 		"version", version.FullVersion(),
 		"envoy-version", files.Lockfile().Version,
 		"license", license,
