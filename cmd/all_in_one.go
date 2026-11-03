@@ -171,6 +171,7 @@ func (s *allCmd) exec(*cobra.Command, []string) error {
 	}
 
 	setupLogger(s.debug)
+	logStartupInfo()
 	ctx := runtime_ctrl.SetupSignalHandler()
 
 	param, err := s.getParam(ctx)
