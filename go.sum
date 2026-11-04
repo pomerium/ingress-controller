@@ -795,10 +795,10 @@ github.com/pomerium/datasource v0.18.2-0.20261102211449-d625e31c8079 h1:eRFKroaf
 github.com/pomerium/datasource v0.18.2-0.20261102211449-d625e31c8079/go.mod h1:+xM8Aw6TzCHqq5dXzbgEmsFvNIrI7XMj4NMfCa8qzmc=
 github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261102191522-e7b75c3a606d h1:L5p7xxVmLi7xbjhc2Ff5RP3a/m6VjBpreEkQW1V4VQ8=
 github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261102191522-e7b75c3a606d/go.mod h1:7XX22CuI+iU8rSlMPBHwmbWrz9yvQPEhuOIJSwdKXRE=
-github.com/pomerium/pomerium v0.32.5-rc.1.0.20261104122925-30a9f80310bb h1:k13WsImFr70cbnjBsRcVnXgYqXrwiYsW6PFAG2GqOJ0=
-github.com/pomerium/pomerium v0.32.5-rc.1.0.20261104122925-30a9f80310bb/go.mod h1:aYPi98nPwbE7PjElkA+QYgOdBajByou1Cb+BXHtlCwU=
-github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20261104122925-30a9f80310bb h1:3nc5yh6cdBvr4mK2/CE8mceDwzwm1pTDgYG8H/i5rwM=
-github.com/pomerium/pomerium/pkg/grpc/config v0.0.0-20261104122925-30a9f80310bb/go.mod h1:BF3tN530yhDn2FDbIYki40Eews4omad7+UxkxzuZZWY=
+github.com/pomerium/pomerium v0.34.0 h1:ZW0/D2if/OClUQwLSQJVpneqDHdbdSnusoVHqmK2PDk=
+github.com/pomerium/pomerium v0.34.0/go.mod h1:Pg9xav9zqpmb7WrmGBVGXqbEZoLToh8kdyP8JNswwBI=
+github.com/pomerium/pomerium/pkg/grpc/config v0.34.0 h1:T/7oHYke4pCiUeTLsR0i5/f30NMPFH6vsIGqVnQpyrM=
+github.com/pomerium/pomerium/pkg/grpc/config v0.34.0/go.mod h1:BF3tN530yhDn2FDbIYki40Eews4omad7+UxkxzuZZWY=
 github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20261104122925-30a9f80310bb h1:kXn8x1rfwTkAlvjwh6Yhwhfx4GkoNsN5IuYrTi27UJ4=
 github.com/pomerium/pomerium/pkg/grpc/databroker v0.0.0-20261104122925-30a9f80310bb/go.mod h1:BMEhYT/fXDX/PKF3ExPneFXrGUM0M0E8RxShajDBJuA=
 github.com/pomerium/protoutil v0.0.0-20261023135301-1ce8ef91f9ec h1:hwY5NwGwRQAupLOTUSkQWODPO9bcTclr2HTPjtLmZK0=
