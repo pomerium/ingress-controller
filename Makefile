@@ -105,14 +105,14 @@ build: generated pomerium-ui build-go ## Build manager binary.
 # called from github actions to build multi-arch images outside of docker
 .PHONY: build-ci
 build-ci: envoy-ci pomerium-ui
-	@GOOS=linux GOARCH=amd64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-amd64 main.go
-	@GOOS=linux GOARCH=arm64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-arm64 main.go
+	@GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-amd64 main.go
+	@GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-arm64 main.go
 
 ##@ Build
 .PHONY: build-go
 build-go: envoy
 	@echo "==> $@"
-	@go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager main.go
+	@CGO_ENABLED=0 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager main.go
 
 .PHONY: envoy-ci
 envoy-ci: envoy
@@ -233,7 +233,7 @@ dev-gen-secrets:
 dev-build:
 	@echo "==> $@"
 	@make -e GOOS=linux envoy
-	@GOOS=linux GOARCH=arm64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-arm64 main.go
+	@GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-arm64 main.go
 
 .PHONY: dev-clean
 dev-clean:
