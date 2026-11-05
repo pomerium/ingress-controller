@@ -233,7 +233,7 @@ dev-gen-secrets:
 dev-build:
 	@echo "==> $@"
 	@make -e GOOS=linux envoy
-	@GOOS=linux GOARCH=arm64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-arm64 main.go
+	@GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-arm64 main.go
 
 .PHONY: dev-clean
 dev-clean:
