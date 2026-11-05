@@ -1,17 +1,9 @@
-FROM golang:1.27.3-bookworm@sha256:d9b6a1beb9474adc2a1ce842573639b44b2a0dd49b6669f51d3821baf9ec37c9 AS build
-
-WORKDIR /app
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=bind,source=.,target=/app,rw=true \
-    make build-ci POMERIUM_OFFICIAL_BUILD=1 LOCALBIN=/bin
-
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/base-nossl-debian13:debug-nonroot@sha256:37b8b2d30e81bf028eae7c1e8c65d775d46b2a21a2b76cde6bf8bf59ef0e3289
 ARG TARGETARCH
 COPY licenses/POMERIUM-COMMUNITY-LICENSE-1.0.txt /pomerium/LICENSE
-COPY --from=build /bin/manager-linux-$TARGETARCH /manager
+COPY bin/manager-linux-$TARGETARCH /manager
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]
