@@ -88,3 +88,33 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  notify-dependencies:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        repo:
+          - pomerium-enterprise
+    steps:
+      - name: Create CI token
+        id: ci-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.POMERIUM_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.POMERIUM_CI_APP_PRIVATE_KEY }}
+          owner: pomerium
+          repositories: ${{ matrix.repo }}
+          permission-actions: write
+
+      - name: Notify
+        uses: benc-uk/workflow-dispatch@d004979be141727c7a17c28f603e2facc40d0855 # v1.3.3
+        with:
+          ref: main
+          repo: pomerium/${{ matrix.repo }}
+          sync-status: true
+          token: ${{ steps.ci-token.outputs.token }}
+          wait-for-completion: true
+          workflow: update-dependencies.yaml
