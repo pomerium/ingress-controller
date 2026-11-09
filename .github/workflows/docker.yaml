@@ -1,0 +1,120 @@
+name: Docker
+permissions:
+  contents: read
+on:
+  push:
+    branches:
+      - main
+      - "[0-9]+-[0-9]+-*"
+      - "experimental/*"
+  release:
+    types:
+      - published
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check image reference
+        if: github.event_name == 'release'
+        # check that docker image reference is the same as the release tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: ./scripts/check-image-tag.sh "$RELEASE_TAG"
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: .tool-versions
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          # list of Docker images to use as base name for tags
+          images: |
+            us-central1-docker.pkg.dev/pomerium-public-prd/ingress-controller/ingress-controller
+            docker.cloudsmith.io/pomerium/ingress-controller/ingress-controller
+          # branch pushes get the branch name; releases get semver tags
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{raw}}
+            type=semver,pattern=v{{major}}.{{minor}}
+            type=sha
+          labels: |
+            org.opencontainers.image.licenses=LicenseRef-Pomerium-Community-Edition-1.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: gcloud authenticate
+        id: gcloud-auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          project_id: ${{ secrets.GCP_PRODUCTION_PROJECT_ID }}
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: gcloud sdk
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          skip_install: true
+
+      - name: gcloud auth configure-docker
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Log in to cloudsmith registry
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: docker.cloudsmith.io
+          username: ${{ secrets.CLOUDSMITH_USER }}
+          password: ${{ secrets.CLOUDSMITH_API_KEY }}
+
+      - name: Build
+        env:
+          POMERIUM_OFFICIAL_BUILD: "1"
+        run: make build-ci
+
+      - name: Docker Publish
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: ./Dockerfile.ci
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  notify-dependencies:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        repo:
+          - pomerium-enterprise
+    steps:
+      - name: Create CI token
+        id: ci-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.POMERIUM_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.POMERIUM_CI_APP_PRIVATE_KEY }}
+          owner: pomerium
+          repositories: ${{ matrix.repo }}
+          permission-actions: write
+
+      - name: Notify
+        uses: benc-uk/workflow-dispatch@d004979be141727c7a17c28f603e2facc40d0855 # v1.3.3
+        with:
+          ref: main
+          repo: pomerium/${{ matrix.repo }}
+          sync-status: true
+          token: ${{ steps.ci-token.outputs.token }}
+          wait-for-completion: true
+          workflow: update-dependencies.yaml

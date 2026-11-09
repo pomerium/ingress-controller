@@ -23,9 +23,11 @@ import (
 	gateway_v1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	"github.com/pomerium/pomerium/pkg/endpoints"
+	"github.com/pomerium/pomerium/pkg/envoy/files"
 
 	icgv1alpha1 "github.com/pomerium/ingress-controller/apis/gateway/v1alpha1"
 	icsv1 "github.com/pomerium/ingress-controller/apis/ingress/v1"
+	"github.com/pomerium/ingress-controller/internal/version"
 )
 
 const (
@@ -51,6 +53,18 @@ func setupLogger(debug bool) {
 		StacktraceLevel: zapcore.DPanicLevel,
 	}
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+}
+
+// logStartupInfo logs the build version and the license governing this build.
+func logStartupInfo() {
+	license, licenseURL := version.License()
+	ctrl.Log.Info(
+		"starting pomerium ingress controller",
+		"version", version.FullVersion(),
+		"envoy-version", files.Lockfile().Version,
+		"license", license,
+		"license-url", licenseURL,
+	)
 }
 
 func getScheme() (*runtime.Scheme, error) {

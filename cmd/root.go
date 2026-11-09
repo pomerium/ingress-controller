@@ -18,6 +18,7 @@ func RootCommand() (*cobra.Command, error) {
 		Version:      fmt.Sprintf("%s envoy: %s", version.FullVersion(), files.Lockfile().Version),
 		SilenceUsage: true,
 	}
+	root.SetVersionTemplate(versionTemplate())
 
 	for name, fn := range map[string]func() (*cobra.Command, error){
 		"gen-secrets": GenSecretsCommand,
@@ -33,4 +34,9 @@ func RootCommand() (*cobra.Command, error) {
 	}
 
 	return &root, nil
+}
+
+func versionTemplate() string {
+	name, url := version.License()
+	return "{{.Version}}\n" + fmt.Sprintf("Licensed under the terms of the %s: %s\n", name, url)
 }

@@ -24,13 +24,17 @@ endif
 # the embedded resources would be supplied externally
 GOTAGS = -tags embed_pomerium
 
-GOLDFLAGS = -X github.com/pomerium/pomerium/internal/version.Version=$(shell go list -f '{{.Module.Version}}' github.com/pomerium/pomerium) \
+POMERIUM_OFFICIAL_BUILD ?= 0
+GOLDFLAGS = \
+	-X github.com/pomerium/pomerium/internal/version.Version=$(shell go list -f '{{.Module.Version}}' github.com/pomerium/pomerium) \
 	-X github.com/pomerium/pomerium/internal/version.BuildMeta=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ") \
 	-X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium-ingress-controller \
 	-X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io \
+	-X github.com/pomerium/pomerium/internal/version.officialBuild=$(POMERIUM_OFFICIAL_BUILD) \
 	-X github.com/pomerium/ingress-controller/internal/version.PomeriumVersion=$(shell go list -f '{{.Module.Version}}' github.com/pomerium/pomerium) \
 	-X github.com/pomerium/ingress-controller/internal/version.GitCommit=$(GITCOMMIT) \
-	-X github.com/pomerium/ingress-controller/internal/version.Version=$(VERSION)
+	-X github.com/pomerium/ingress-controller/internal/version.Version=$(VERSION) \
+	-X github.com/pomerium/ingress-controller/internal/version.officialBuild=$(POMERIUM_OFFICIAL_BUILD)
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
@@ -101,14 +105,14 @@ build: generated pomerium-ui build-go ## Build manager binary.
 # called from github actions to build multi-arch images outside of docker
 .PHONY: build-ci
 build-ci: envoy-ci pomerium-ui
-	@GOOS=linux GOARCH=amd64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-amd64 main.go
-	@GOOS=linux GOARCH=arm64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-arm64 main.go
+	@GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-amd64 main.go
+	@GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-arm64 main.go
 
 ##@ Build
 .PHONY: build-go
 build-go: envoy
 	@echo "==> $@"
-	@go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager main.go
+	@CGO_ENABLED=0 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager main.go
 
 .PHONY: envoy-ci
 envoy-ci: envoy
@@ -229,7 +233,7 @@ dev-gen-secrets:
 dev-build:
 	@echo "==> $@"
 	@make -e GOOS=linux envoy
-	@GOOS=linux GOARCH=arm64 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-arm64 main.go
+	@GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build $(GOTAGS) --ldflags="$(GOLDFLAGS)" -o bin/manager-linux-arm64 main.go
 
 .PHONY: dev-clean
 dev-clean:

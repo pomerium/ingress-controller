@@ -98,6 +98,7 @@ func (s *controllerCmd) setupFlags() error {
 
 func (s *controllerCmd) exec(*cobra.Command, []string) error {
 	setupLogger(s.debug)
+	logStartupInfo()
 	ctx := ctrl.SetupSignalHandler()
 
 	c, err := s.buildController(ctx)

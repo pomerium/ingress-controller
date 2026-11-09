@@ -105,7 +105,8 @@ func waitCompletion(ctx context.Context, done chan error, timeout time.Duration)
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-done:
+	case err := <-done:
+		_ = err
 		return nil
 	}
 }

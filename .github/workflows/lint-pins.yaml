@@ -1,0 +1,51 @@
+name: Lint Pins
+
+on:
+  pull_request:
+    paths:
+      - ".github/**"
+      - "**/Dockerfile*"
+      - "**/*.yml"
+      - "**/*.yaml"
+      - "**/Makefile"
+      - "**/*.sh"
+
+permissions:
+  contents: read
+
+jobs:
+  lint-pins:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check action pins
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PINACT_VERSION: 5.0.2
+          PINACT_SHA256: 7f003d8f51e984c2264d2009d430e3e0e87ae404a0e2dc2a9a277b0f731bf5b7
+        run: |
+          curl -fsSLo "$RUNNER_TEMP/pinact.tar.gz" "https://github.com/suzuki-shunsuke/pinact/releases/download/v${PINACT_VERSION}/pinact_linux_amd64.tar.gz"
+          echo "${PINACT_SHA256}  $RUNNER_TEMP/pinact.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/pinact.tar.gz" -C "$RUNNER_TEMP" pinact
+          "$RUNNER_TEMP/pinact" run --check --verify-comment
+
+      - name: Check image pins
+        shell: bash
+        run: |
+          { git grep -IHnoE '(=")?[-A-Za-z0-9._/:{}$]*@sha256:[0-9a-f]{64}' -- ':!*.lock' ':!*lock.json' ':!*.sum' || test $? -eq 1; } \
+            | awk '
+              {
+                file = $0; sub(/:.*/, "", file)
+                ref = $0; sub(/^[^:]*:[0-9]+:/, "", ref); sub(/@sha256:.*/, "", ref)
+                if (ref ~ /^="/) {
+                  sub(/^="/, "", ref)
+                  if (file ~ /\.env$/ && ref ~ /^[A-Za-z0-9][-A-Za-z0-9._]*$/) next
+                }
+                n = split(ref, part, "/")
+                if (part[n] !~ /:/) { print "image digest without a tag: " $0; bad = 1 }
+              }
+              END { exit bad }
+            '

@@ -33,6 +33,7 @@ import (
 	"github.com/pomerium/ingress-controller/util"
 	health_ctrl "github.com/pomerium/ingress-controller/util/health"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/netutil"
@@ -173,6 +174,7 @@ func (s *allCmd) exec(*cobra.Command, []string) error {
 	}
 
 	setupLogger(s.debug)
+	logStartupInfo()
 	ctx := runtime_ctrl.SetupSignalHandler()
 
 	param, err := s.getParam(ctx)
@@ -261,6 +263,7 @@ func (s *allCmdParam) run(ctx context.Context) error {
 
 func (s *allCmdParam) makeBootstrapConfig(ctx context.Context, opt allCmdOptions) error {
 	s.cfg = *config.New(config.NewDefaultOptions())
+	s.cfg.EnvoyVersion = files.Lockfile().Version
 
 	s.cfg.Options.Services = strings.Join(opt.services, ",")
 	s.cfg.Options.Addr = opt.serverAddr
