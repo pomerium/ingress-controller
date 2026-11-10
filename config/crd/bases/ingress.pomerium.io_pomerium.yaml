@@ -534,6 +534,32 @@ spec:
                   NormalizePath controls whether request URI paths will be normalized
                   according to RFC 3986. Defaults to true.
                 type: boolean
+              oidcBridge:
+                description: |-
+                  OIDCBridge configures the default OIDC bridge settings for all routes.
+                  A route may override these settings entirely with the oidc_bridge,
+                  oidc_bridge_redirect_uris and oidc_bridge_secret Ingress annotations.
+                properties:
+                  enabled:
+                    description: Enabled controls whether the OIDC bridge feature
+                      is enabled for all routes.
+                    type: boolean
+                  redirectUris:
+                    description: |-
+                      List of allowed redirect_uris. By default allows any subpath of the configured
+                      route's `to` address.
+                    items:
+                      type: string
+                    type: array
+                  secretRef:
+                    description: |-
+                      SecretRef references a <namespace/name> secret with the "client_secret" key, which
+                      is the client secret to use for upstream applications that do not support
+                      public clients / PKCE.
+                    format: namespace/name
+                    minLength: 1
+                    type: string
+                type: object
               otel:
                 description: OTEL sets the <a href="https://www.pomerium.com/docs/reference/tracing">OpenTelemetry
                   Tracing</a>.
