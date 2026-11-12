@@ -1,16 +1,50 @@
 name: Update Dependencies
+permissions:
+  contents: read
 
 on:
   schedule:
     - cron: "40 1 * * *"
   workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to update (empty = main and the latest release branch)
+        required: false
+        type: string
 
 jobs:
-  update-dependencies:
+  branches:
     runs-on: ubuntu-latest
+    outputs:
+      branches: ${{ steps.branches.outputs.branches }}
+    steps:
+      - name: Get Branches
+        id: branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_BRANCH: ${{ inputs.branch }}
+        run: |
+          if [ -n "$INPUT_BRANCH" ]; then
+            branches="$(jq -cn --arg b "$INPUT_BRANCH" '[$b]')"
+          else
+            tag="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)"
+            release_branch="$(echo "$tag" | sed -E 's/^v?([0-9]+)[.]([0-9]+)[.].*$/\1-\2-0/')"
+            branches="$(jq -cn --arg b "$release_branch" '["main", $b] | unique')"
+          fi
+          echo "branches=$branches" >> "$GITHUB_OUTPUT"
+
+  update-dependencies:
+    needs: branches
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJSON(needs.branches.outputs.branches) }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ matrix.branch }}
 
       - name: Setup ASDF
         uses: asdf-vm/actions/install@b7bcd026f18772e44fe1026d729e1611cc435d47 # v4.0.1
@@ -18,7 +52,9 @@ jobs:
       - name: Update Tools
         run: ./scripts/update-dependencies tools
 
+      # release branches stay pinned to their pomerium release
       - name: Update Pomerium Dependencies
+        if: matrix.branch == 'main'
         run: ./scripts/update-dependencies pomerium
 
       - name: Generate
@@ -38,10 +74,11 @@ jobs:
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           author: pomerium-ci-bot[bot] <346165314+pomerium-ci-bot[bot]@users.noreply.github.com>
+          base: ${{ matrix.branch }}
           body: "This PR updates dependencies not managed by dependabot."
-          branch: ci/update-core
+          branch: ${{ matrix.branch == 'main' && 'ci/update-core' || format('ci/update-{0}', matrix.branch) }}
           commit-message: "ci: update dependencies"
           delete-branch: true
           labels: ci
-          title: "ci: update dependencies"
+          title: "${{ matrix.branch == 'main' && 'ci: update dependencies' || format('ci: update {0} dependencies', matrix.branch) }}"
           token: ${{ steps.ci-token.outputs.token }}
