@@ -133,6 +133,13 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 			)
 			return applyAll(secrets...)
 		},
+		// oidc bridge secrets
+		func() error {
+			if s.OIDCBridge == nil {
+				return nil
+			}
+			return apply("oidc-bridge secret", optional(s.OIDCBridge.SecretRef), &cfg.OIDCBridgeSecret)()
+		},
 		// ssh secrets
 		func() error {
 			if s.SSH == nil {

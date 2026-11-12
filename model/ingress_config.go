@@ -93,6 +93,14 @@ const (
 	IdentityProviderClientIDKey = "client_id"
 	// IdentityProviderClientSecretKey is the client secret key in the IdentityProviderSecret.
 	IdentityProviderClientSecretKey = "client_secret"
+	// OIDCBridge enables the OIDC bridge feature for the route. Unset defaults to global settings.
+	OIDCBridge = "oidc_bridge"
+	// OIDCBridgeRedirectURIs sets the allowed redirect_uris for the route's OIDC bridge
+	OIDCBridgeRedirectURIs = "oidc_bridge_redirect_uris"
+	// OIDCBridgeSecret should contain a reference to a secret which holds the optional client_secret.
+	OIDCBridgeSecret = "oidc_bridge_secret" //nolint: gosec
+	// OIDCBridgeClientSecretKey is the client secret key in the OIDCBridgeSecret.
+	OIDCBridgeClientSecretKey = "client_secret"
 	// UpstreamTunnel sets the upstream tunnel property.
 	UpstreamTunnel = "upstream_tunnel"
 	// UpstreamTunnelSSHPolicy sets the upstream tunnel ssh policy property.
@@ -168,6 +176,8 @@ type Config struct {
 	IdpSecret *corev1.Secret
 	// IdpServiceAccount is Settings.IdentityProvider.ServiceAccountFromSecret
 	IdpServiceAccount *corev1.Secret
+	// OIDCBridgeSecret is Settings.OIDCBridge.SecretRef
+	OIDCBridgeSecret *corev1.Secret
 	// SSHSecrets are secrets related to ssh.
 	SSHSecrets SSHSecrets
 	// StorageSecrets represent databroker storage settings

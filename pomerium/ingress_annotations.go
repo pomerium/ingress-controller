@@ -74,6 +74,7 @@ var (
 		model.SetResponseHeadersSecret,
 		model.MCPServerUpstreamOAuth2Secret,
 		model.IdentityProviderSecret,
+		model.OIDCBridgeSecret,
 	})
 	mcpServerAnnotations = boolMap([]string{
 		model.MCPServer,
@@ -92,6 +93,10 @@ var (
 	upstreamTunnelAnnotations = boolMap([]string{
 		model.UpstreamTunnel,
 		model.UpstreamTunnelSSHPolicy,
+	})
+	oidcBridgeAnnotations = boolMap([]string{
+		model.OIDCBridge,
+		model.OIDCBridgeRedirectURIs,
 	})
 	handledElsewhere = boolMap([]string{
 		model.PathRegex,
@@ -117,7 +122,7 @@ func boolMap(keys []string) map[string]bool {
 }
 
 type keys struct {
-	Base, Policy, TLS, Etc, Secret, MCPServer, MCPClient, UpstreamTunnel map[string]string
+	Base, Policy, TLS, Etc, Secret, MCPServer, MCPClient, UpstreamTunnel, OIDCBridge map[string]string
 }
 
 func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
@@ -131,6 +136,7 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 		MCPServer:      make(map[string]string),
 		MCPClient:      make(map[string]string),
 		UpstreamTunnel: make(map[string]string),
+		OIDCBridge:     make(map[string]string),
 	}
 
 	for k, v := range src {
@@ -155,6 +161,7 @@ func removeKeyPrefix(src map[string]string, prefix string) (*keys, error) {
 			{mcpServerAnnotations, kv.MCPServer},
 			{mcpClientAnnotations, kv.MCPClient},
 			{upstreamTunnelAnnotations, kv.UpstreamTunnel},
+			{oidcBridgeAnnotations, kv.OIDCBridge},
 			{handledElsewhere, kv.Etc},
 		} {
 			if m.keys[k] {
@@ -184,6 +191,9 @@ func applyAnnotations(
 		return err
 	}
 	if err = applyTLSAnnotations(r, kv.TLS, ic.Secrets, ic.Ingress.Namespace); err != nil {
+		return err
+	}
+	if err = applyOIDCBridgeAnnotations(r, kv.OIDCBridge); err != nil {
 		return err
 	}
 	if err = applySecretAnnotations(r, kv.Secret, ic.Secrets, ic.Ingress.Namespace); err != nil {
@@ -364,6 +374,20 @@ func applySecretAnnotations(
 				return nil
 			},
 		},
+		model.OIDCBridgeSecret: {
+			corev1.SecretTypeOpaque,
+			func(data map[string][]byte) error {
+				clientSecret, ok := data[model.OIDCBridgeClientSecretKey]
+				if !ok || len(clientSecret) == 0 {
+					return fmt.Errorf("secret must have %s key", model.OIDCBridgeClientSecretKey)
+				}
+				if r.OidcBridge == nil {
+					r.OidcBridge = &configpb.OIDCBridge{}
+				}
+				r.OidcBridge.ClientSecret = new(string(clientSecret))
+				return nil
+			},
+		},
 	}
 
 	for key, secretName := range annotations {
@@ -528,6 +552,38 @@ func applyMCPClientAnnotations(r *configpb.Route, kvs map[string]string) error {
 			Client: clientConfig,
 		},
 	}
+	return nil
+}
+
+// applyOIDCBridgeAnnotations sets the route's OIDC bridge settings.
+// The client secret is set separately, from the oidc_bridge_secret annotation.
+func applyOIDCBridgeAnnotations(r *configpb.Route, kvs map[string]string) error {
+	if len(kvs) == 0 {
+		return nil
+	}
+	if r.OidcBridge == nil {
+		r.OidcBridge = &configpb.OIDCBridge{}
+	}
+
+	for k, v := range kvs {
+		switch k {
+		case model.OIDCBridge:
+			enabled, err := strconv.ParseBool(v)
+			if err != nil {
+				return fmt.Errorf("%s annotation should be 'true' or 'false', got %q", k, v)
+			}
+			r.OidcBridge.Enabled = new(enabled)
+		case model.OIDCBridgeRedirectURIs:
+			var uris []string
+			if err := yaml.Unmarshal([]byte(v), &uris); err != nil {
+				return fmt.Errorf("%s annotation should be a list of URIs: %w", k, err)
+			}
+			r.OidcBridge.RedirectUris = uris
+		default:
+			return fmt.Errorf("unknown oidc bridge annotation %s", k)
+		}
+	}
+
 	return nil
 }
 

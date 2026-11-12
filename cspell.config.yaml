@@ -18,6 +18,7 @@ words:
   - oidc
   - otel
   - otlp
+  - pkce
   - pomerium
   - protobuf
   - protojson
