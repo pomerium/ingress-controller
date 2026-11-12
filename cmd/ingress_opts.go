@@ -48,7 +48,7 @@ func (s *ingressControllerOpts) setupFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&s.AnnotationPrefix, annotationPrefix, ingress.DefaultAnnotationPrefix, "Ingress annotation prefix")
 	flags.StringSliceVar(&s.Namespaces, namespaces, nil, "namespaces to watch, or none to watch all namespaces")
 	flags.StringVar(&s.UpdateStatusFromService, updateStatusFromService, "", "update ingress status from given service status (pomerium-proxy)")
-	flags.StringVar(&s.GlobalSettings, globalSettings, "",
+	flags.StringVar(&s.GlobalSettings, globalSettings, "global",
 		fmt.Sprintf("namespace/name to a resource of type %s/Settings", icsv1.GroupVersion.Group))
 	flags.StringVar(&s.SyncAPIURL, syncAPIURL, "", "unified API sync URL")
 	flags.StringVar(&s.SyncAPINamespaceID, syncAPINamespaceID, "", "unified API sync namespace ID")

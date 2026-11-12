@@ -109,6 +109,7 @@ func flatten(key string, src extv1.JSONSchemaProps, objects map[string]*Object) 
 		"boolean": atomicHandler,
 		"integer": atomicHandler,
 		"array":   arrayHandler,
+		"":        atomicHandler,
 	}
 
 	for key, prop := range src.Properties {

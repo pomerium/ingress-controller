@@ -162,6 +162,8 @@ type Config struct {
 	CASecrets []*corev1.Secret
 	// Certs are fetched certs from settings.Certificates
 	Certs map[types.NamespacedName]*corev1.Secret
+	// EnterpriseSecrets are secrets for enterprise settings.
+	EnterpriseSecrets map[string]*corev1.Secret
 	// RequestParams is a secret from Settings.IdentityProvider.RequestParams
 	RequestParams *corev1.Secret
 	// IdpSecret is Settings.IdentityProvider.Secret

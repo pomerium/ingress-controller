@@ -19,7 +19,8 @@ import (
 type dataBrokerOptions struct {
 	ClusterNodeID   string
 	ClusterNodes    dataBrokerClusterNodes
-	RaftBindAddress string   `validate:"omitempty,hostname_port"`
+	RaftBindAddress string `validate:"omitempty,hostname_port"`
+	Replicas        int
 	ServiceURLs     []string `validate:"dive,url"`
 }
 
@@ -38,6 +39,7 @@ func (o *dataBrokerOptions) setupFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&o.ClusterNodeID, "databroker-cluster-node-id", "", "the databroker cluster node id")
 	flags.TextVar(&o.ClusterNodes, "databroker-cluster-nodes", dataBrokerClusterNodes(nil), "the databroker cluster nodes")
 	flags.StringVar(&o.RaftBindAddress, "databroker-raft-bind-address", "", "the databroker raft bind address")
+	flags.IntVar(&o.Replicas, "databroker-replicas", 0, "the number of replicas, populates nodes and leader automatically")
 	flags.StringSliceVar(&o.ServiceURLs, "databroker-service-urls", nil, "the databroker service urls, defaults to localhost")
 }
 
@@ -48,6 +50,19 @@ func (o *dataBrokerOptions) apply(dst *config.Config) {
 	dst.Options.DataBroker.ClusterNodes = config.DataBrokerClusterNodes(o.ClusterNodes)
 	if o.RaftBindAddress != "" {
 		dst.Options.DataBroker.RaftBindAddress = null.StringFrom(o.RaftBindAddress)
+	}
+	if o.Replicas > 0 {
+		dst.Options.DataBroker.ClusterNodes = nil
+		for i := range o.Replicas {
+			dst.Options.DataBroker.ClusterNodes = append(dst.Options.DataBroker.ClusterNodes, config.DataBrokerClusterNode{
+				ID:          fmt.Sprintf("pomerium-%d", i),
+				GRPCAddress: fmt.Sprintf("https://pomerium-%d.pomerium-headless:5443", i),
+				RaftAddress: null.StringFrom(fmt.Sprintf("pomerium-%d.pomerium-headless:5999", i)),
+			})
+		}
+	}
+	if o.Replicas == 1 {
+		dst.Options.DataBroker.ClusterLeaderID = dst.Options.DataBroker.ClusterNodeID
 	}
 	dst.Options.DataBroker.ServiceURLs = o.ServiceURLs
 }

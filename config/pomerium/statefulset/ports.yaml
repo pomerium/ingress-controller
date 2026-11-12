@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: pomerium
 spec:
@@ -19,4 +19,10 @@ spec:
               protocol: TCP
             - name: metrics
               containerPort: 9090
+              protocol: TCP
+            - name: grpc
+              containerPort: 5443
+              protocol: TCP
+            - name: raft
+              containerPort: 5999
               protocol: TCP

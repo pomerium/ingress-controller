@@ -117,6 +117,28 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 			}
 			return nil
 		},
+		// enterprise secrets
+		func() error {
+			cfg.EnterpriseSecrets = map[string]*corev1.Secret{}
+			if cfg.Spec.Enterprise == nil {
+				return nil
+			}
+			for _, secretName := range []*string{
+				cfg.Spec.Enterprise.Secret,
+				cfg.Spec.Enterprise.TLSCertificateAuthoritySecret,
+				cfg.Spec.Enterprise.TLSSecret,
+			} {
+				if secretName == nil {
+					continue
+				}
+				secret, err := get(*secretName)()
+				if err != nil {
+					return fmt.Errorf("error getting enterprise secret %s: %w", *secretName, err)
+				}
+				cfg.EnterpriseSecrets[*secretName] = secret
+			}
+			return nil
+		},
 		// identity provider secrets
 		func() error {
 			if s.IdentityProvider == nil {
@@ -127,7 +149,8 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 				secrets = append(secrets,
 					apply("secret", required(&s.IdentityProvider.Secret), &cfg.IdpSecret))
 			}
-			secrets = append(secrets,
+			secrets = append(
+				secrets,
 				apply("request params", optional(s.IdentityProvider.RequestParamsSecret), &cfg.RequestParams),
 				apply("service account", optional(s.IdentityProvider.ServiceAccountFromSecret), &cfg.IdpServiceAccount),
 			)

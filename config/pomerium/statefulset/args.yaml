@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: pomerium
 spec:
@@ -14,8 +14,6 @@ spec:
             - --metrics-bind-address=$(POD_IP):9090
             - --health-probe-bind-address=$(POD_IP):28080
           env:
-            - name: GOLANG_PROTOBUF_REGISTRATION_CONFLICT
-              value: warn
             - name: POMERIUM_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -25,3 +23,11 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: REPLICAS
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['replicas']

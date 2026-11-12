@@ -63,6 +63,7 @@ type allCmdOptions struct {
 
 	CertificateControllerOptions certificateControllerOptions
 	DataBrokerOptions            dataBrokerOptions
+	DefaultOptions               defaultOptions
 }
 
 type allCmdParam struct {
@@ -76,10 +77,10 @@ type allCmdParam struct {
 	syncAPIToken            string
 	syncAPIBootstrap        bool
 
-	// bootstrapMetricsAddr for bootstrap configuration controller metrics
+	// bootstrapMetricsAddr for controller metrics. Both controller managers
+	// share the global controller-runtime registry, so a single endpoint
+	// served by the always-running bootstrap manager exposes all of them.
 	bootstrapMetricsAddr string
-	// ingressMetricsAddr for ingress+settings reconciliation controller metrics
-	ingressMetricsAddr string
 
 	// configControllerShutdownTimeout is max time to wait for graceful config (ingress & settings) controller shutdown
 	// when re-initialization is required. in case it cannot be shut down gracefully, the entire process would exit
@@ -159,6 +160,7 @@ func (s *allCmd) setupFlags() error {
 	s.ingressControllerOpts.setupFlags(flags)
 	s.CertificateControllerOptions.setupFlags(flags)
 	s.DataBrokerOptions.setupFlags(flags)
+	s.DefaultOptions.setupFlags(flags)
 	return viperWalk(flags)
 }
 
@@ -268,7 +270,7 @@ func (s *allCmdParam) makeBootstrapConfig(ctx context.Context, opt allCmdOptions
 	s.cfg.Options.GRPCAddr = opt.grpcAddr
 	s.cfg.Options.HTTPRedirectAddr = opt.httpRedirectAddr
 
-	ports, err := netutil.AllocatePorts(9)
+	ports, err := netutil.AllocatePorts(8)
 	if err != nil {
 		return fmt.Errorf("allocating ports: %w", err)
 	}
@@ -292,7 +294,6 @@ func (s *allCmdParam) makeBootstrapConfig(ctx context.Context, opt allCmdOptions
 	}
 
 	s.bootstrapMetricsAddr = fmt.Sprintf("localhost:%s", ports[7])
-	s.ingressMetricsAddr = fmt.Sprintf("localhost:%s", ports[8])
 
 	s.cfg.Options.MetricsAddr = opt.metricsBindAddress
 	s.cfg.Options.HealthCheckAddr = opt.healthProbeBindAddress
@@ -307,17 +308,6 @@ func (s *allCmdParam) makeBootstrapConfig(ctx context.Context, opt allCmdOptions
 			},
 			Labels: map[string]string{
 				"service": "bootstrap-controller",
-			},
-		},
-		{
-			Name: "ingress",
-			URL: url.URL{
-				Scheme: "http",
-				Host:   s.ingressMetricsAddr,
-				Path:   "/metrics",
-			},
-			Labels: map[string]string{
-				"service": "ingress-controller",
 			},
 		},
 	}
@@ -340,6 +330,7 @@ func (s *allCmdParam) makeBootstrapConfig(ctx context.Context, opt allCmdOptions
 	s.cfg.Options.SSHAddr = opt.sshAddr
 
 	opt.DataBrokerOptions.apply(&s.cfg)
+	opt.DefaultOptions.apply(&s.cfg)
 
 	if err := s.applyBootstrapIngress(ctx, opt.syncAPIIngress, opt.AnnotationPrefix); err != nil {
 		return err
@@ -445,8 +436,10 @@ func (s *allCmdParam) buildController(ctx context.Context, cfg *config.Config) (
 		DataBrokerServiceClient: client,
 		MgrOpts: runtime_ctrl.Options{
 			Scheme: scheme,
+			// metrics are served by the bootstrap controller manager, which
+			// runs regardless of whether this instance holds the lease
 			Metrics: metricsserver.Options{
-				BindAddress: s.ingressMetricsAddr,
+				BindAddress: "0",
 			},
 			LeaderElection: false,
 			Controller: controllerconfig.Controller{

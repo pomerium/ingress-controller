@@ -1,9 +1,8 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: pomerium
 spec:
-  replicas: 1
   template:
     spec:
       containers:
