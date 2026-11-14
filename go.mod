@@ -18,9 +18,9 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/open-policy-agent/opa v1.22.0
-	github.com/pomerium/pomerium v0.34.1-0.20261110012034-bfab9866f123
-	github.com/pomerium/pomerium/pkg/grpc/config v0.34.1-0.20261110012034-bfab9866f123
-	github.com/pomerium/pomerium/pkg/grpc/databroker v0.34.1-0.20261110012034-bfab9866f123
+	github.com/pomerium/pomerium v0.34.1-0.20261113154913-294482e93c4c
+	github.com/pomerium/pomerium/pkg/grpc/config v0.34.1-0.20261113154913-294482e93c4c
+	github.com/pomerium/pomerium/pkg/grpc/databroker v0.34.1-0.20261113154913-294482e93c4c
 	github.com/pomerium/sdk-go v0.0.10-0.20261110022632-86aa3a97e480
 	github.com/rs/zerolog v1.35.1
 	github.com/sergi/go-diff v1.4.0
@@ -253,7 +253,7 @@ require (
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/pomerium/datasource v0.18.2-0.20261109195214-85402353f8e7 // indirect
-	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261102191522-e7b75c3a606d // indirect
+	github.com/pomerium/envoy-custom v1.37.0-rc3.0.20261110043642-6ea20643e643 // indirect
 	github.com/pomerium/protoutil v0.0.0-20261106200515-d748e6f8aa21 // indirect
 	github.com/pomerium/webauthn v0.0.0-20261102213307-a62a88383d37 // indirect
 	github.com/posthog/posthog-go v1.39.0 // indirect
