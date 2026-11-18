@@ -51,6 +51,7 @@ func ApplyConfig(ctx context.Context, dst *pb.Config, src *model.Config) error {
 		{"dns", applyDNS},
 		{"ssh", applySSH},
 		{"request normalization", applyRequestNormalizationOptions},
+		{"oidc bridge", applyOIDCBridge},
 	}
 	if src.Spec.IdentityProvider != nil {
 		opts = append(opts, []applyOpt{
@@ -450,6 +451,31 @@ func applyCircuitBreakerThresholds(_ context.Context, dst *pb.Config, src *model
 		MaxRetries:         src.Spec.CircuitBreakerThresholds.MaxRetries,
 		MaxConnectionPools: src.Spec.CircuitBreakerThresholds.MaxConnectionPools,
 	}
+	return nil
+}
+
+func applyOIDCBridge(_ context.Context, dst *pb.Config, src *model.Config) error {
+	if src.Spec.OIDCBridge == nil {
+		dst.Settings.OidcBridge = nil
+		return nil
+	}
+
+	dst.Settings.OidcBridge = &pb.OIDCBridge{
+		Enabled:      src.Spec.OIDCBridge.Enabled,
+		RedirectUris: src.Spec.OIDCBridge.RedirectURIs,
+	}
+
+	if src.Spec.OIDCBridge.SecretRef != nil {
+		if src.OIDCBridgeSecret == nil {
+			return fmt.Errorf("secret %s was not fetched. this is a bug", *src.Spec.OIDCBridge.SecretRef)
+		}
+		clientSecret, err := getRequiredString(src.OIDCBridgeSecret.Data, model.OIDCBridgeClientSecretKey)
+		if err != nil {
+			return fmt.Errorf("secret %s: %w", *src.Spec.OIDCBridge.SecretRef, err)
+		}
+		dst.Settings.OidcBridge.ClientSecret = clientSecret
+	}
+
 	return nil
 }
 

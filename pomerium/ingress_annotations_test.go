@@ -815,3 +815,68 @@ func TestBearerTokenFormatAnnotation(t *testing.T) {
 		})
 	}
 }
+
+func TestOIDCBridgeAnnotations(t *testing.T) {
+	newIngressConfig := func(annotations map[string]string, secrets map[types.NamespacedName]*corev1.Secret) *model.IngressConfig {
+		return &model.IngressConfig{
+			AnnotationPrefix: "a",
+			Ingress: &networkingv1.Ingress{
+				Namespace:   "test",
+				Annotations: annotations,
+			},
+			Secrets: secrets,
+		}
+	}
+
+	t.Run("all annotations", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://app.example.com"}}
+		ic := newIngressConfig(map[string]string{
+			"a/oidc_bridge":               "true",
+			"a/oidc_bridge_redirect_uris": `["https://app.example.com/callback", "https://app.example.com/cb?a=1,2"]`,
+			"a/oidc_bridge_secret":        "oidc-bridge",
+		}, map[types.NamespacedName]*corev1.Secret{
+			{Name: "oidc-bridge", Namespace: "test"}: {
+				Type: corev1.SecretTypeOpaque,
+				Data: map[string][]byte{model.OIDCBridgeClientSecretKey: []byte("bridge-secret")},
+			},
+		})
+
+		require.NoError(t, applyAnnotations(r, ic))
+		assert.Empty(t, cmp.Diff(&pb.OIDCBridge{
+			Enabled:      new(true),
+			ClientSecret: new("bridge-secret"),
+			RedirectUris: []string{"https://app.example.com/callback", "https://app.example.com/cb?a=1,2"},
+		}, r.OidcBridge, protocmp.Transform()))
+	})
+
+	t.Run("disabled", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://app.example.com"}}
+		ic := newIngressConfig(map[string]string{"a/oidc_bridge": "false"}, nil)
+
+		require.NoError(t, applyAnnotations(r, ic))
+		assert.Empty(t, cmp.Diff(&pb.OIDCBridge{Enabled: new(false)}, r.OidcBridge, protocmp.Transform()))
+	})
+
+	t.Run("no annotations", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://app.example.com"}}
+		ic := newIngressConfig(map[string]string{}, nil)
+
+		require.NoError(t, applyAnnotations(r, ic))
+		assert.Nil(t, r.OidcBridge)
+	})
+
+	t.Run("secret missing client_secret key", func(t *testing.T) {
+		r := &pb.Route{To: []string{"http://app.example.com"}}
+		ic := newIngressConfig(map[string]string{"a/oidc_bridge_secret": "oidc-bridge"},
+			map[types.NamespacedName]*corev1.Secret{
+				{Name: "oidc-bridge", Namespace: "test"}: {
+					Type: corev1.SecretTypeOpaque,
+					Data: map[string][]byte{"wrong_key": []byte("x")},
+				},
+			})
+
+		err := applyAnnotations(r, ic)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "secret must have client_secret key")
+	})
+}

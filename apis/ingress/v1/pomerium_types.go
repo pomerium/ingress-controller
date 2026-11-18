@@ -474,6 +474,37 @@ type PomeriumSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=allow;reject_request;drop_header
 	HeadersWithUnderscoresAction *string `json:"headersWithUnderscoresAction,omitempty"`
+
+	// OIDCBridge configures the default OIDC bridge settings for all routes.
+	// A route may override these settings entirely with the oidc_bridge,
+	// oidc_bridge_redirect_uris and oidc_bridge_secret Ingress annotations.
+	//
+	// +kubebuilder:validation:Optional
+	OIDCBridge *OIDCBridge `json:"oidcBridge,omitempty"`
+}
+
+// OIDCBridge configures the OIDC bridge, which lets upstream applications
+// authenticate users via OpenID Connect with Pomerium acting as the provider.
+type OIDCBridge struct {
+	// Enabled controls whether the OIDC bridge feature is enabled for all routes.
+	//
+	// +kubebuilder:validation:Optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// SecretRef references a <namespace/name> secret with the "client_secret" key, which
+	// is the client secret to use for upstream applications that do not support
+	// public clients / PKCE.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Format="namespace/name"
+	SecretRef *string `json:"secretRef,omitempty"`
+
+	// List of allowed redirect_uris. By default allows any subpath of the configured
+	// route's `to` address.
+	//
+	// +kubebuilder:validation:Optional
+	RedirectURIs []string `json:"redirectUris,omitempty"`
 }
 
 // OTEL configures OpenTelemetry.
