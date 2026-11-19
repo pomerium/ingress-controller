@@ -541,6 +541,11 @@ func applySSH(_ context.Context, dst *pb.Config, src *model.Config) error {
 		dst.Settings.SshUserCaKey = nil
 	}
 
+	if src.Spec.SSH != nil && src.Spec.SSH.TwoPersonApprovalRequestTimeout != nil {
+		dst.Settings.SshTwoPersonApprovalRequestTimeout = durationpb.New(src.Spec.SSH.TwoPersonApprovalRequestTimeout.Duration)
+	} else {
+		dst.Settings.SshTwoPersonApprovalRequestTimeout = nil
+	}
 	return nil
 }
 
