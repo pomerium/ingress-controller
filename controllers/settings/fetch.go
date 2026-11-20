@@ -140,6 +140,26 @@ func fetchConfigSecrets(ctx context.Context, client client.Client, cfg *model.Co
 			}
 			return apply("oidc-bridge secret", optional(s.OIDCBridge.SecretRef), &cfg.OIDCBridgeSecret)()
 		},
+		// tailscale listener secrets
+		func() error {
+			for i, l := range s.TailscaleListeners {
+				if l.SecretRef == nil {
+					continue
+				}
+				if _, ok := cfg.TailscaleListenerSecrets[*l.SecretRef]; ok {
+					continue
+				}
+				secret, err := get(*l.SecretRef)()
+				if err != nil {
+					return fmt.Errorf("tailscale listener %d (%s) secret: %w", i, l.Hostname, err)
+				}
+				if cfg.TailscaleListenerSecrets == nil {
+					cfg.TailscaleListenerSecrets = make(map[string]*corev1.Secret)
+				}
+				cfg.TailscaleListenerSecrets[*l.SecretRef] = secret
+			}
+			return nil
+		},
 		// ssh secrets
 		func() error {
 			if s.SSH == nil {

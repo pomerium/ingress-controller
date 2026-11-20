@@ -417,6 +417,18 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>tailscaleListeners</code>&#160;&#160;
+                    <strong>[]object</strong>&#160;
+                    (<a href="#tailscalelisteners">tailscaleListeners</a>)
+                </p>
+                <p>
+                    TailscaleListeners configures listeners that expose Pomerium on a Tailscale network.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
                 <code>timeouts</code>&#160;&#160;
                     <strong>object</strong>&#160;
                     (<a href="#timeouts">timeouts</a>)
@@ -1383,6 +1395,154 @@ Storage defines persistent storage for sessions and other data. See <a href="htt
                 </p>
                 <p>
                     Postgres specifies PostgreSQL database connection parameters
+                </p>
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+### `tailscaleListeners`
+
+TailscaleListener configures a Tailscale listener.
+
+<table>
+    <thead>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+                <p>
+                <code>controlUrl</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                    (uri)
+                </p>
+                <p>
+                    ControlURL is the coordination server URL.
+                </p>
+                Format: an URI as parsed by Golang net/url.ParseRequestURI.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>ephemeral</code>&#160;&#160;
+                    <strong>boolean</strong>&#160;
+                </p>
+                <p>
+                    Ephemeral registers the device as an ephemeral node, which is automatically removed on exit.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>hostname</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    <strong>Required.</strong>&#160;
+                    Hostname is the name of the device on the tailnet. It is also used as the subdomain of the Tailscale Funnel.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>idTokenAudience</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    IDTokenAudience is the audience for the <code>id_token</code>.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>listenAddr</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    ListenAddr starts a listener only on the tailscale network.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>listenFunnelAddr</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    ListenFunnelAddr starts a Tailscale Funnel listener.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>listenServiceName</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    ListenServiceName starts a listener for the given Tailscale service.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>listenServicePort</code>&#160;&#160;
+                    <strong>integer</strong>&#160;
+                </p>
+                <p>
+                    ListenServicePort is the port for the Tailscale service.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>oauthClientId</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                </p>
+                <p>
+                    OAuthClientID is an OAuth client used to create a pre-authentication key for the device. The client secret should be provided via the <code>oauth_client_secret</code> key of <code>secretRef</code>.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>secretRef</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                    (namespace/name)
+                </p>
+                <p>
+                    SecretRef references a <namespace/name> secret with optional <code>auth_key</code>, <code>oauth_client_secret</code> and <code>id_token</code> keys. <code>auth_key</code> is a pre-authentication key used to register the node on the tailnet. <code>oauth_client_secret</code> is the client secret for <code>oauthClientId</code>. <code>id_token</code> is an identity provider token used for workload identity federation.
+                </p>
+                Format: reference to Kubernetes resource with namespace prefix: <code>namespace/name</code> format.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>tags</code>&#160;&#160;
+                    <strong>[]string</strong>&#160;
+                </p>
+                <p>
+                    Tags that should be applied to this node.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>terminateTls</code>&#160;&#160;
+                    <strong>boolean</strong>&#160;
+                </p>
+                <p>
+                    TerminateTLS terminates TLS before proxying data to Envoy.
                 </p>
             </td>
         </tr>

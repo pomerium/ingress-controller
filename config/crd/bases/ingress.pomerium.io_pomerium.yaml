@@ -736,6 +736,76 @@ spec:
                     - secret
                     type: object
                 type: object
+              tailscaleListeners:
+                description: TailscaleListeners configures listeners that expose Pomerium
+                  on a Tailscale network.
+                items:
+                  description: TailscaleListener configures a Tailscale listener.
+                  properties:
+                    controlUrl:
+                      description: ControlURL is the coordination server URL.
+                      format: uri
+                      type: string
+                    ephemeral:
+                      description: |-
+                        Ephemeral registers the device as an ephemeral node,
+                        which is automatically removed on exit.
+                      type: boolean
+                    hostname:
+                      description: |-
+                        Hostname is the name of the device on the tailnet.
+                        It is also used as the subdomain of the Tailscale Funnel.
+                      minLength: 1
+                      type: string
+                    idTokenAudience:
+                      description: IDTokenAudience is the audience for the <code>id_token</code>.
+                      type: string
+                    listenAddr:
+                      description: ListenAddr starts a listener only on the tailscale
+                        network.
+                      type: string
+                    listenFunnelAddr:
+                      description: ListenFunnelAddr starts a Tailscale Funnel listener.
+                      type: string
+                    listenServiceName:
+                      description: ListenServiceName starts a listener for the given
+                        Tailscale service.
+                      type: string
+                    listenServicePort:
+                      description: ListenServicePort is the port for the Tailscale
+                        service.
+                      format: int32
+                      maximum: 65535
+                      minimum: 1
+                      type: integer
+                    oauthClientId:
+                      description: |-
+                        OAuthClientID is an OAuth client used to create a pre-authentication key for the device.
+                        The client secret should be provided via the <code>oauth_client_secret</code> key of <code>secretRef</code>.
+                      type: string
+                    secretRef:
+                      description: |-
+                        SecretRef references a <namespace/name> secret with optional
+                        <code>auth_key</code>, <code>oauth_client_secret</code> and <code>id_token</code> keys.
+                        <code>auth_key</code> is a pre-authentication key used to register the node on the tailnet.
+                        <code>oauth_client_secret</code> is the client secret for <code>oauthClientId</code>.
+                        <code>id_token</code> is an identity provider token used for workload identity federation.
+                      format: namespace/name
+                      minLength: 1
+                      type: string
+                    tags:
+                      description: Tags that should be applied to this node.
+                      items:
+                        type: string
+                      type: array
+                    terminateTls:
+                      description: TerminateTLS terminates TLS before proxying data
+                        to Envoy.
+                      type: boolean
+                  required:
+                  - hostname
+                  type: object
+                type: array
               timeouts:
                 description: Timeout specifies the <a href="https://www.pomerium.com/docs/reference/global-timeouts">global
                   timeouts</a> for all routes.

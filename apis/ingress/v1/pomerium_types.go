@@ -481,6 +481,87 @@ type PomeriumSpec struct {
 	//
 	// +kubebuilder:validation:Optional
 	OIDCBridge *OIDCBridge `json:"oidcBridge,omitempty"`
+
+	// TailscaleListeners configures listeners that expose Pomerium on a Tailscale network.
+	//
+	// +kubebuilder:validation:Optional
+	TailscaleListeners []TailscaleListener `json:"tailscaleListeners,omitempty"`
+}
+
+// TailscaleListener configures a Tailscale listener.
+type TailscaleListener struct {
+	// Hostname is the name of the device on the tailnet.
+	// It is also used as the subdomain of the Tailscale Funnel.
+	//
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	Hostname string `json:"hostname"`
+
+	// ListenAddr starts a listener only on the tailscale network.
+	//
+	// +kubebuilder:validation:Optional
+	ListenAddr *string `json:"listenAddr,omitempty"`
+
+	// ListenFunnelAddr starts a Tailscale Funnel listener.
+	//
+	// +kubebuilder:validation:Optional
+	ListenFunnelAddr *string `json:"listenFunnelAddr,omitempty"`
+
+	// ListenServiceName starts a listener for the given Tailscale service.
+	//
+	// +kubebuilder:validation:Optional
+	ListenServiceName *string `json:"listenServiceName,omitempty"`
+
+	// ListenServicePort is the port for the Tailscale service.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	ListenServicePort *int32 `json:"listenServicePort,omitempty"`
+
+	// Ephemeral registers the device as an ephemeral node,
+	// which is automatically removed on exit.
+	//
+	// +kubebuilder:validation:Optional
+	Ephemeral *bool `json:"ephemeral,omitempty"`
+
+	// SecretRef references a <namespace/name> secret with optional
+	// <code>auth_key</code>, <code>oauth_client_secret</code> and <code>id_token</code> keys.
+	// <code>auth_key</code> is a pre-authentication key used to register the node on the tailnet.
+	// <code>oauth_client_secret</code> is the client secret for <code>oauthClientId</code>.
+	// <code>id_token</code> is an identity provider token used for workload identity federation.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Format="namespace/name"
+	SecretRef *string `json:"secretRef,omitempty"`
+
+	// OAuthClientID is an OAuth client used to create a pre-authentication key for the device.
+	// The client secret should be provided via the <code>oauth_client_secret</code> key of <code>secretRef</code>.
+	//
+	// +kubebuilder:validation:Optional
+	OAuthClientID *string `json:"oauthClientId,omitempty"`
+
+	// IDTokenAudience is the audience for the <code>id_token</code>.
+	//
+	// +kubebuilder:validation:Optional
+	IDTokenAudience *string `json:"idTokenAudience,omitempty"`
+
+	// ControlURL is the coordination server URL.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Format=uri
+	ControlURL *string `json:"controlUrl,omitempty"`
+
+	// Tags that should be applied to this node.
+	//
+	// +kubebuilder:validation:Optional
+	Tags []string `json:"tags,omitempty"`
+
+	// TerminateTLS terminates TLS before proxying data to Envoy.
+	//
+	// +kubebuilder:validation:Optional
+	TerminateTLS *bool `json:"terminateTls,omitempty"`
 }
 
 // OIDCBridge configures the OIDC bridge, which lets upstream applications

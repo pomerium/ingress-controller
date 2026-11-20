@@ -415,3 +415,111 @@ func TestApplyConfig_IdentityProvidersRoundTrip(t *testing.T) {
 	assert.Equal(t, pb.BearerTokenFormat_BEARER_TOKEN_FORMAT_JWT, options.BearerTokenFormat.Value)
 	assert.NoError(t, options.Validate())
 }
+
+func TestApplyConfig_TailscaleListeners(t *testing.T) {
+	t.Parallel()
+
+	t.Run("unset", func(t *testing.T) {
+		t.Parallel()
+		dst := new(pb.Config)
+		require.NoError(t, pomerium.ApplyConfig(t.Context(), dst, &model.Config{}))
+		assert.Empty(t, dst.GetSettings().GetTailscaleListeners())
+	})
+	t.Run("full", func(t *testing.T) {
+		t.Parallel()
+		src := &model.Config{
+			Pomerium: v1.Pomerium{
+				Spec: v1.PomeriumSpec{
+					TailscaleListeners: []v1.TailscaleListener{
+						{
+							Hostname:          "pomerium",
+							ListenAddr:        new(":443"),
+							ListenFunnelAddr:  new(":8443"),
+							ListenServiceName: new("svc:pomerium"),
+							ListenServicePort: new(int32(443)),
+							Ephemeral:         new(true),
+							SecretRef:         new("pomerium/tailscale"),
+							OAuthClientID:     new("CLIENT_ID"),
+							IDTokenAudience:   new("AUDIENCE"),
+							ControlURL:        new("https://controlplane.tailscale.com"),
+							Tags:              []string{"tag:a", "tag:b"},
+							TerminateTLS:      new(false),
+						},
+						{Hostname: "minimal"},
+					},
+				},
+			},
+			TailscaleListenerSecrets: map[string]*corev1.Secret{
+				"pomerium/tailscale": {Data: map[string][]byte{
+					model.TailscaleAuthKeyKey:           []byte("AUTH_KEY"),
+					model.TailscaleOAuthClientSecretKey: []byte("CLIENT_SECRET"),
+					model.TailscaleIDTokenKey:           []byte("ID_TOKEN"),
+				}},
+			},
+		}
+		dst := new(pb.Config)
+		require.NoError(t, pomerium.ApplyConfig(t.Context(), dst, src))
+		assert.Empty(t, cmp.Diff([]*pb.TailscaleListenerSettings{
+			{
+				Hostname:          "pomerium",
+				ListenAddr:        new(":443"),
+				ListenFunnelAddr:  new(":8443"),
+				ListenServiceName: new("svc:pomerium"),
+				ListenServicePort: new(uint32(443)),
+				Ephemeral:         new(true),
+				AuthKey:           new("AUTH_KEY"),
+				OauthClientId:     new("CLIENT_ID"),
+				OauthClientSecret: new("CLIENT_SECRET"),
+				IdToken:           new("ID_TOKEN"),
+				IdTokenAudience:   new("AUDIENCE"),
+				ControlUrl:        new("https://controlplane.tailscale.com"),
+				Tags:              []string{"tag:a", "tag:b"},
+				TerminateTls:      new(false),
+			},
+			{Hostname: "minimal"},
+		}, dst.GetSettings().GetTailscaleListeners(), protocmp.Transform()))
+
+		// removing the listeners should clear them
+		src.Spec.TailscaleListeners = nil
+		require.NoError(t, pomerium.ApplyConfig(t.Context(), dst, src))
+		assert.Empty(t, dst.GetSettings().GetTailscaleListeners())
+	})
+	t.Run("partial secret", func(t *testing.T) {
+		t.Parallel()
+		src := &model.Config{
+			Pomerium: v1.Pomerium{
+				Spec: v1.PomeriumSpec{
+					TailscaleListeners: []v1.TailscaleListener{
+						{Hostname: "pomerium", SecretRef: new("pomerium/tailscale")},
+					},
+				},
+			},
+			TailscaleListenerSecrets: map[string]*corev1.Secret{
+				"pomerium/tailscale": {Data: map[string][]byte{
+					model.TailscaleAuthKeyKey: []byte("AUTH_KEY"),
+				}},
+			},
+		}
+		dst := new(pb.Config)
+		require.NoError(t, pomerium.ApplyConfig(t.Context(), dst, src))
+		require.Len(t, dst.GetSettings().GetTailscaleListeners(), 1)
+		l := dst.GetSettings().GetTailscaleListeners()[0]
+		assert.Equal(t, new("AUTH_KEY"), l.AuthKey)
+		assert.Nil(t, l.OauthClientSecret)
+		assert.Nil(t, l.IdToken)
+	})
+	t.Run("missing secret", func(t *testing.T) {
+		t.Parallel()
+		src := &model.Config{
+			Pomerium: v1.Pomerium{
+				Spec: v1.PomeriumSpec{
+					TailscaleListeners: []v1.TailscaleListener{
+						{Hostname: "pomerium", SecretRef: new("pomerium/tailscale")},
+					},
+				},
+			},
+		}
+		assert.ErrorContains(t, pomerium.ApplyConfig(t.Context(), new(pb.Config), src),
+			"secret pomerium/tailscale was not fetched")
+	})
+}

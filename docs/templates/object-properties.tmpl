@@ -17,6 +17,9 @@
                     ({{.Atomic.Format}})
                 {{- else if .Atomic}}
                     <strong>{{.Atomic.Type}}</strong>&#160;
+                {{- else if .Array}}
+                    <strong>[]object</strong>&#160;
+                    (<a href="#{{.Array.ObjectRef | anchor}}">{{.Array.ObjectRef}}</a>)
                 {{- else if .Map.Atomic}}
                     <strong>map[string]{{.Map.Atomic.Type}}</strong>
                 {{- else if .Map.ObjectRef}}

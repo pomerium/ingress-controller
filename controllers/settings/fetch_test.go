@@ -396,3 +396,50 @@ func TestFetchConfigHostedAuthenticate(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "hosted", cfg.Spec.IdentityProvider.Provider)
 }
+
+func TestFetchConfigTailscaleListeners(t *testing.T) {
+	mc := controllers_mock.NewMockClient(gomock.NewController(t))
+	settingsName := types.NamespacedName{Namespace: "pomerium", Name: "settings"}
+
+	ctx := t.Context()
+
+	mc.EXPECT().Get(ctx, settingsName, gomock.AssignableToTypeOf(new(icsv1.Pomerium))).
+		DoAndReturn(func(_ context.Context, _ types.NamespacedName, dst *icsv1.Pomerium, _ ...client.GetOptions) error {
+			*dst = icsv1.Pomerium{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      settingsName.Name,
+					Namespace: settingsName.Namespace,
+				},
+				Spec: icsv1.PomeriumSpec{
+					Secrets: "pomerium/bootstrap-secrets",
+					TailscaleListeners: []icsv1.TailscaleListener{
+						{Hostname: "a", SecretRef: new("pomerium/tailscale")},
+						// the same secret should only be fetched once
+						{Hostname: "b", SecretRef: new("pomerium/tailscale")},
+						{Hostname: "c"},
+					},
+				},
+			}
+			return nil
+		})
+
+	bootstrapName := types.NamespacedName{Namespace: "pomerium", Name: "bootstrap-secrets"}
+	mc.EXPECT().Get(ctx, bootstrapName, gomock.AssignableToTypeOf(new(corev1.Secret))).
+		DoAndReturn(func(_ context.Context, _ types.NamespacedName, dst *corev1.Secret, _ ...client.GetOptions) error {
+			*dst = corev1.Secret{}
+			return nil
+		})
+
+	tailscaleName := types.NamespacedName{Namespace: "pomerium", Name: "tailscale"}
+	mc.EXPECT().Get(ctx, tailscaleName, gomock.AssignableToTypeOf(new(corev1.Secret))).
+		DoAndReturn(func(_ context.Context, _ types.NamespacedName, dst *corev1.Secret, _ ...client.GetOptions) error {
+			*dst = corev1.Secret{Data: map[string][]byte{model.TailscaleAuthKeyKey: []byte("AUTH_KEY")}}
+			return nil
+		}).
+		Times(1)
+
+	cfg, err := settings.FetchConfig(ctx, mc, settingsName)
+	require.NoError(t, err)
+	require.Contains(t, cfg.TailscaleListenerSecrets, "pomerium/tailscale")
+	assert.Equal(t, []byte("AUTH_KEY"), cfg.TailscaleListenerSecrets["pomerium/tailscale"].Data[model.TailscaleAuthKeyKey])
+}

@@ -101,6 +101,12 @@ const (
 	OIDCBridgeSecret = "oidc_bridge_secret" //nolint: gosec
 	// OIDCBridgeClientSecretKey is the client secret key in the OIDCBridgeSecret.
 	OIDCBridgeClientSecretKey = "client_secret"
+	// TailscaleAuthKeyKey is the pre-authentication key in a TailscaleListener secret.
+	TailscaleAuthKeyKey = "auth_key"
+	// TailscaleOAuthClientSecretKey is the oauth client secret key in a TailscaleListener secret.
+	TailscaleOAuthClientSecretKey = "oauth_client_secret" //nolint: gosec
+	// TailscaleIDTokenKey is the id token key in a TailscaleListener secret.
+	TailscaleIDTokenKey = "id_token"
 	// UpstreamTunnel sets the upstream tunnel property.
 	UpstreamTunnel = "upstream_tunnel"
 	// UpstreamTunnelSSHPolicy sets the upstream tunnel ssh policy property.
@@ -178,6 +184,8 @@ type Config struct {
 	IdpServiceAccount *corev1.Secret
 	// OIDCBridgeSecret is Settings.OIDCBridge.SecretRef
 	OIDCBridgeSecret *corev1.Secret
+	// TailscaleListenerSecrets are the Settings.TailscaleListeners[].SecretRef secrets, keyed by reference.
+	TailscaleListenerSecrets map[string]*corev1.Secret
 	// SSHSecrets are secrets related to ssh.
 	SSHSecrets SSHSecrets
 	// StorageSecrets represent databroker storage settings
