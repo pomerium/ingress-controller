@@ -300,6 +300,18 @@ PomeriumSpec defines Pomerium-specific configuration parameters.
         <tr>
             <td>
                 <p>
+                <code>oidcBridge</code>&#160;&#160;
+                    <strong>object</strong>&#160;
+                    (<a href="#oidcbridge">oidcBridge</a>)
+                </p>
+                <p>
+                    OIDCBridge configures the default OIDC bridge settings for all routes. A route may override these settings entirely with the oidc_bridge, oidc_bridge_redirect_uris and oidc_bridge_secret Ingress annotations.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
                 <code>otel</code>&#160;&#160;
                     <strong>object</strong>&#160;
                     (<a href="#otel">otel</a>)
@@ -1054,6 +1066,52 @@ Match Subject Alt Names can be used to add an additional constraint when validat
                 </p>
                 <p>
                 </p>
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+### `oidcBridge`
+
+OIDCBridge configures the default OIDC bridge settings for all routes. A route may override these settings entirely with the oidc_bridge, oidc_bridge_redirect_uris and oidc_bridge_secret Ingress annotations.
+
+<table>
+    <thead>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+                <p>
+                <code>enabled</code>&#160;&#160;
+                    <strong>boolean</strong>&#160;
+                </p>
+                <p>
+                    Enabled controls whether the OIDC bridge feature is enabled for all routes.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>redirectUris</code>&#160;&#160;
+                    <strong>[]string</strong>&#160;
+                </p>
+                <p>
+                    List of allowed redirect_uris. By default allows any subpath of the configured route's `to` address.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
+                <code>secretRef</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                    (namespace/name)
+                </p>
+                <p>
+                    SecretRef references a <namespace/name> secret with the "client_secret" key, which is the client secret to use for upstream applications that do not support public clients / PKCE.
+                </p>
+                Format: reference to Kubernetes resource with namespace prefix: <code>namespace/name</code> format.
             </td>
         </tr>
     </tbody>
