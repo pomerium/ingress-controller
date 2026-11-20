@@ -681,6 +681,9 @@ spec:
                     items:
                       type: string
                     type: array
+                  twoPersonApprovalRequestTimeout:
+                    format: duration
+                    type: string
                   userCaKeySecret:
                     type: string
                 type: object

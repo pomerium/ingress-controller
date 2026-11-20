@@ -1344,6 +1344,18 @@ SSH sets the ssh settings.
         <tr>
             <td>
                 <p>
+                <code>twoPersonApprovalRequestTimeout</code>&#160;&#160;
+                    <strong>string</strong>&#160;
+                    (duration)
+                </p>
+                <p>
+                </p>
+                Format: a duration string like "22s" as parsed by Golang time.ParseDuration.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>
                 <code>userCaKeySecret</code>&#160;&#160;
                     <strong>string</strong>&#160;
                 </p>

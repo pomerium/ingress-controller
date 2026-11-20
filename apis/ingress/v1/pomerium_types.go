@@ -661,6 +661,9 @@ type SSH struct {
 	HostKeySecrets *[]string `json:"hostKeySecrets"`
 	// +kubebuilder:validation:Optional
 	UserCAKeySecret *string `json:"userCaKeySecret"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Format=duration
+	TwoPersonApprovalRequestTimeout *metav1.Duration `json:"twoPersonApprovalRequestTimeout,omitempty"`
 }
 
 // CertificateAutoProvision are the settings for automatically provisioning certificates.
