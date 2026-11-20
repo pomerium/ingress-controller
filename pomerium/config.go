@@ -52,6 +52,7 @@ func ApplyConfig(ctx context.Context, dst *pb.Config, src *model.Config) error {
 		{"ssh", applySSH},
 		{"request normalization", applyRequestNormalizationOptions},
 		{"oidc bridge", applyOIDCBridge},
+		{"tailscale listeners", applyTailscaleListeners},
 	}
 	if src.Spec.IdentityProvider != nil {
 		opts = append(opts, []applyOpt{
@@ -477,6 +478,50 @@ func applyOIDCBridge(_ context.Context, dst *pb.Config, src *model.Config) error
 	}
 
 	return nil
+}
+
+func applyTailscaleListeners(_ context.Context, dst *pb.Config, src *model.Config) error {
+	dst.Settings.TailscaleListeners = nil
+	for i, l := range src.Spec.TailscaleListeners {
+		tl := &pb.TailscaleListenerSettings{
+			Hostname:          l.Hostname,
+			ListenAddr:        l.ListenAddr,
+			ListenFunnelAddr:  l.ListenFunnelAddr,
+			ListenServiceName: l.ListenServiceName,
+			Ephemeral:         l.Ephemeral,
+			OauthClientId:     l.OAuthClientID,
+			IdTokenAudience:   l.IDTokenAudience,
+			ControlUrl:        l.ControlURL,
+			Tags:              l.Tags,
+			TerminateTls:      l.TerminateTLS,
+		}
+		if l.ListenServicePort != nil {
+			if *l.ListenServicePort < 1 || *l.ListenServicePort > 65535 {
+				return fmt.Errorf("tailscale listener %d (%s): invalid listenServicePort %d", i, l.Hostname, *l.ListenServicePort)
+			}
+			tl.ListenServicePort = proto.Uint32(uint32(*l.ListenServicePort))
+		}
+		if l.SecretRef != nil {
+			secret := src.TailscaleListenerSecrets[*l.SecretRef]
+			if secret == nil {
+				return fmt.Errorf("secret %s was not fetched. this is a bug", *l.SecretRef)
+			}
+			tl.AuthKey = getOptionalString(secret.Data, model.TailscaleAuthKeyKey)
+			tl.OauthClientSecret = getOptionalString(secret.Data, model.TailscaleOAuthClientSecretKey)
+			tl.IdToken = getOptionalString(secret.Data, model.TailscaleIDTokenKey)
+		}
+		dst.Settings.TailscaleListeners = append(dst.Settings.TailscaleListeners, tl)
+	}
+	return nil
+}
+
+func getOptionalString(data map[string][]byte, key string) *string {
+	bs, ok := data[key]
+	if !ok || len(bs) == 0 {
+		return nil
+	}
+	txt := string(bs)
+	return &txt
 }
 
 func applyDNS(_ context.Context, dst *pb.Config, src *model.Config) error {

@@ -18,14 +18,15 @@ type Object struct {
 	Properties  map[string]*Property
 }
 
-// Property is an Object property, that may be either an atomic value, reference to an object or a map
+// Property is an Object property, that may be either an atomic value, reference to an object, a map or an array of objects
 type Property struct {
 	ID          string
 	Description string
 	Required    bool
 
 	ObjectOrAtomic
-	Map *ObjectOrAtomic
+	Map   *ObjectOrAtomic
+	Array *ObjectOrAtomic
 }
 
 // Atomic is a base type
@@ -82,7 +83,14 @@ func flatten(key string, src extv1.JSONSchemaProps, objects map[string]*Object) 
 		return &Property{ObjectOrAtomic: ObjectOrAtomic{Atomic: atomic(prop)}}, nil
 	}
 
-	arrayHandler := func(_ string, prop extv1.JSONSchemaProps) (*Property, error) {
+	arrayHandler := func(key string, prop extv1.JSONSchemaProps) (*Property, error) {
+		if prop.Items != nil && prop.Items.Schema != nil && prop.Items.Schema.Type == "object" {
+			// register array item type under the name of this key
+			if err := flatten(key, *prop.Items.Schema, objects); err != nil {
+				return nil, err
+			}
+			return &Property{Array: &ObjectOrAtomic{ObjectRef: &key}}, nil
+		}
 		return &Property{ObjectOrAtomic: ObjectOrAtomic{Atomic: array(prop)}}, nil
 	}
 
