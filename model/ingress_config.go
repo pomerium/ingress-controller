@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -188,9 +189,10 @@ type Config struct {
 type IngressConfig struct {
 	AnnotationPrefix string
 	*networkingv1.Ingress
-	Endpoints map[types.NamespacedName]*corev1.Endpoints
-	Secrets   map[types.NamespacedName]*corev1.Secret
-	Services  map[types.NamespacedName]*corev1.Service
+	// EndpointSlices holds the EndpointSlices of each Service, keyed by the Service name.
+	EndpointSlices map[types.NamespacedName][]*discoveryv1.EndpointSlice
+	Secrets        map[types.NamespacedName]*corev1.Secret
+	Services       map[types.NamespacedName]*corev1.Service
 }
 
 // IsAnnotationSet checks if a boolean annotation is set to true
@@ -275,7 +277,7 @@ func (ic *IngressConfig) Clone() *IngressConfig {
 	dst := &IngressConfig{
 		AnnotationPrefix: ic.AnnotationPrefix,
 		Ingress:          ic.Ingress.DeepCopy(),
-		Endpoints:        make(map[types.NamespacedName]*corev1.Endpoints, len(ic.Endpoints)),
+		EndpointSlices:   make(map[types.NamespacedName][]*discoveryv1.EndpointSlice, len(ic.EndpointSlices)),
 		Secrets:          make(map[types.NamespacedName]*corev1.Secret, len(ic.Secrets)),
 		Services:         make(map[types.NamespacedName]*corev1.Service, len(ic.Services)),
 	}
@@ -286,6 +288,14 @@ func (ic *IngressConfig) Clone() *IngressConfig {
 
 	for k, v := range ic.Services {
 		dst.Services[k] = v.DeepCopy()
+	}
+
+	for k, v := range ic.EndpointSlices {
+		slices := make([]*discoveryv1.EndpointSlice, 0, len(v))
+		for _, slice := range v {
+			slices = append(slices, slice.DeepCopy())
+		}
+		dst.EndpointSlices[k] = slices
 	}
 
 	return dst

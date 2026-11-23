@@ -7,10 +7,12 @@ import (
 	"net"
 	"net/url"
 	"sort"
+	"strconv"
 
 	"github.com/gosimple/slug"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -305,10 +307,7 @@ func getPathServiceHosts(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.
 	} else if ic.UseServiceProxy() {
 		hosts = append(hosts, fmt.Sprintf("%s.%s.svc.cluster.local:%d", backend.Name, ic.Namespace, port))
 	} else {
-		endpoints, ok := ic.Endpoints[ic.GetNamespacedName(backend.Name)]
-		if ok {
-			hosts = getEndpointsURLs(backend.Port, service.Spec.Ports, endpoints.Subsets)
-		}
+		hosts = getEndpointSliceHosts(backend.Port, service.Spec.Ports, ic.EndpointSlices[ic.GetNamespacedName(backend.Name)])
 		// this can happen if no endpoints are ready, or none match, in which case we fallback to the Kubernetes DNS name
 		if len(hosts) == 0 {
 			hosts = append(hosts, fmt.Sprintf("%s.%s.svc.cluster.local:%d", backend.Name, ic.Namespace, port))
@@ -374,17 +373,36 @@ func setServiceURLs(r *pb.Route, p networkingv1.HTTPIngressPath, ic *model.Ingre
 	return nil
 }
 
-func getEndpointsURLs(ingressServicePort networkingv1.ServiceBackendPort, servicePorts []corev1.ServicePort, endpointSubsets []corev1.EndpointSubset) []string {
+// getEndpointSliceHosts returns the host:port of all ready endpoints, across all
+// of a Service's EndpointSlices, that match the Ingress backend port.
+func getEndpointSliceHosts(ingressServicePort networkingv1.ServiceBackendPort, servicePorts []corev1.ServicePort, slices []*discoveryv1.EndpointSlice) []string {
 	portMatch := getEndpointPortMatcher(ingressServicePort, servicePorts)
 	if portMatch == nil {
 		return nil
 	}
 	var hosts []string
-	for _, subset := range endpointSubsets {
-		for _, endpointAddress := range subset.Addresses {
-			for _, endpointPort := range subset.Ports {
-				if portMatch(endpointPort) {
-					hosts = append(hosts, fmt.Sprintf("%s:%d", endpointAddress.IP, endpointPort.Port))
+	seen := make(map[string]struct{})
+	for _, slice := range slices {
+		// FQDN endpoints are not generated for regular Services
+		if slice == nil || (slice.AddressType != discoveryv1.AddressTypeIPv4 && slice.AddressType != discoveryv1.AddressTypeIPv6) {
+			continue
+		}
+		for _, endpoint := range slice.Endpoints {
+			// a nil Ready condition should be interpreted as ready
+			if endpoint.Conditions.Ready != nil && !*endpoint.Conditions.Ready {
+				continue
+			}
+			for _, endpointPort := range slice.Ports {
+				if endpointPort.Port == nil || !portMatch(endpointPort) {
+					continue
+				}
+				for _, address := range endpoint.Addresses {
+					host := net.JoinHostPort(address, strconv.Itoa(int(*endpointPort.Port)))
+					// the same endpoint may transiently show up in more than one slice
+					if _, ok := seen[host]; !ok {
+						seen[host] = struct{}{}
+						hosts = append(hosts, host)
+					}
 				}
 			}
 		}
@@ -392,8 +410,8 @@ func getEndpointsURLs(ingressServicePort networkingv1.ServiceBackendPort, servic
 	return hosts
 }
 
-func getEndpointPortMatcher(ingressServicePort networkingv1.ServiceBackendPort, servicePorts []corev1.ServicePort) func(port corev1.EndpointPort) bool {
-	// Here's an example of a Service and its associated Endpoints:
+func getEndpointPortMatcher(ingressServicePort networkingv1.ServiceBackendPort, servicePorts []corev1.ServicePort) func(port discoveryv1.EndpointPort) bool {
+	// Here's an example of a Service and its associated EndpointSlice:
 	//
 	// kind: Service
 	// spec:
@@ -402,34 +420,33 @@ func getEndpointPortMatcher(ingressServicePort networkingv1.ServiceBackendPort, 
 	//     port: 80
 	//     targetPort: grafana-http
 	//
-	// kind: Endpoints
-	// subsets:
-	// - ports:
-	//   - name: grafana
-	//     port: 3000
+	// kind: EndpointSlice
+	// ports:
+	// - name: grafana
+	//   port: 3000
 	//
 	// An Ingress refers to the Service by name, and to a specific port either by
 	// name or by number.
 	// If by name (`grafana` in the example above), then it's always the same as
-	// the port name on the Endpoints.
+	// the port name on the EndpointSlice.
 	// But if by number (`80` in the example above), then we need to find the
-	// correct Endpoints port by matching the Service targetPort.
+	// correct EndpointSlice port by matching the Service targetPort.
 	if ingressServicePort.Name != "" {
 		// If the Ingress specifies the Service port by name, then simply match the
-		// Endpoint port by name.
-		return func(port corev1.EndpointPort) bool {
-			return port.Name == ingressServicePort.Name
+		// EndpointSlice port by name.
+		return func(port discoveryv1.EndpointPort) bool {
+			return port.Name != nil && *port.Name == ingressServicePort.Name
 		}
 	}
 
 	// Otherwise, the Ingress specifies the Service port number, which doesn't
-	// correspond to the Endpoint port number directly. We need to lookup the
+	// correspond to the EndpointSlice port number directly. We need to lookup the
 	// list of ports on the Service, and get the matching _targetPort_ from
-	// there, which must correspond to the Endpoint port number.
+	// there, which must correspond to the EndpointSlice port number.
 	for _, servicePort := range servicePorts {
 		if ingressServicePort.Number == servicePort.Port {
-			return func(port corev1.EndpointPort) bool {
-				return port.Port == servicePort.TargetPort.IntVal
+			return func(port discoveryv1.EndpointPort) bool {
+				return port.Port != nil && *port.Port == servicePort.TargetPort.IntVal
 			}
 		}
 	}

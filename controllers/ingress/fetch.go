@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,7 +44,7 @@ func FetchIngress(
 		return nil, fmt.Errorf("tls: %w", err)
 	}
 
-	services, endpoints, err := fetchIngressServices(ctx, client, ingress)
+	services, endpointSlices, err := fetchIngressServices(ctx, client, ingress)
 	if err != nil {
 		return nil, fmt.Errorf("services: %w", err)
 	}
@@ -51,7 +52,7 @@ func FetchIngress(
 	return &model.IngressConfig{
 		AnnotationPrefix: annotationPrefix,
 		Ingress:          ingress,
-		Endpoints:        endpoints,
+		EndpointSlices:   endpointSlices,
 		Secrets:          secrets,
 		Services:         services,
 	}, nil
@@ -60,11 +61,11 @@ func FetchIngress(
 // fetchIngressServices returns list of services referred from named port in the ingress path backend spec
 func fetchIngressServices(ctx context.Context, client client.Client, ingress *networkingv1.Ingress) (
 	map[types.NamespacedName]*corev1.Service,
-	map[types.NamespacedName]*corev1.Endpoints,
+	map[types.NamespacedName][]*discoveryv1.EndpointSlice,
 	error,
 ) {
 	sm := make(map[types.NamespacedName]*corev1.Service)
-	em := make(map[types.NamespacedName]*corev1.Endpoints)
+	em := make(map[types.NamespacedName][]*discoveryv1.EndpointSlice)
 
 	for _, rule := range ingress.Spec.Rules {
 		if rule.HTTP == nil {
@@ -100,13 +101,13 @@ func fetchIngressServices(ctx context.Context, client client.Client, ingress *ne
 
 func fetchIngressService(
 	ctx context.Context,
-	client client.Client,
+	c client.Client,
 	servicesDst map[types.NamespacedName]*corev1.Service,
-	endpointsDst map[types.NamespacedName]*corev1.Endpoints,
+	endpointSlicesDst map[types.NamespacedName][]*discoveryv1.EndpointSlice,
 	name types.NamespacedName,
 ) error {
 	service := new(corev1.Service)
-	if err := client.Get(ctx, name, service); err != nil {
+	if err := c.Get(ctx, name, service); err != nil {
 		return err
 	}
 	servicesDst[name] = service
@@ -115,11 +116,23 @@ func fetchIngressService(
 		return nil
 	}
 
-	endpoint := new(corev1.Endpoints)
-	if err := client.Get(ctx, name, endpoint); err != nil {
-		return err
+	// EndpointSlices are named after the Service with a generated suffix, so they
+	// are looked up via the well-known service-name label. A Service may have
+	// many slices (e.g. more than 100 endpoints). A Service with no slices yet
+	// is not an error, routes fall back to the Service DNS name in that case.
+	// The dependency on the EndpointSlices is tracked via the Service, see
+	// getDependantIngressFromEndpointSlice.
+	var slices discoveryv1.EndpointSliceList
+	if err := c.List(ctx, &slices,
+		client.InNamespace(name.Namespace),
+		client.MatchingLabels{discoveryv1.LabelServiceName: name.Name},
+	); err != nil {
+		return fmt.Errorf("list endpoint slices: %w", err)
 	}
-	endpointsDst[name] = endpoint
+	endpointSlicesDst[name] = make([]*discoveryv1.EndpointSlice, 0, len(slices.Items))
+	for i := range slices.Items {
+		endpointSlicesDst[name] = append(endpointSlicesDst[name], &slices.Items[i])
+	}
 
 	return nil
 }
