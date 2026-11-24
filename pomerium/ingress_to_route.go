@@ -427,29 +427,35 @@ func getEndpointPortMatcher(ingressServicePort networkingv1.ServiceBackendPort, 
 	//
 	// An Ingress refers to the Service by name, and to a specific port either by
 	// name or by number.
-	// If by name (`grafana` in the example above), then it's always the same as
-	// the port name on the EndpointSlice.
-	// But if by number (`80` in the example above), then we need to find the
-	// correct EndpointSlice port by matching the Service targetPort.
-	if ingressServicePort.Name != "" {
-		// If the Ingress specifies the Service port by name, then simply match the
-		// EndpointSlice port by name.
-		return func(port discoveryv1.EndpointPort) bool {
-			return port.Name != nil && *port.Name == ingressServicePort.Name
-		}
-	}
-
-	// Otherwise, the Ingress specifies the Service port number, which doesn't
-	// correspond to the EndpointSlice port number directly. We need to lookup the
-	// list of ports on the Service, and get the matching _targetPort_ from
-	// there, which must correspond to the EndpointSlice port number.
-	for _, servicePort := range servicePorts {
-		if ingressServicePort.Number == servicePort.Port {
-			return func(port discoveryv1.EndpointPort) bool {
-				return port.Port != nil && *port.Port == servicePort.TargetPort.IntVal
+	// The EndpointSlice port name is always the name of the Service port it was
+	// created for (and is empty for an unnamed Service port), which is how
+	// kube-proxy associates them as well. The EndpointSlice port number is the
+	// resolved targetPort, which may be a named port that resolves to a
+	// different number on each pod, so it must not be used for matching.
+	//
+	// If the Ingress refers to the port by name (`grafana` in the example above),
+	// match the EndpointSlice port by that name. If by number (`80` in the
+	// example above), first look up the Service port with that number to get its
+	// name.
+	name := ingressServicePort.Name
+	if name == "" {
+		found := false
+		for _, servicePort := range servicePorts {
+			if ingressServicePort.Number == servicePort.Port {
+				name, found = servicePort.Name, true
+				break
 			}
 		}
+		if !found {
+			return nil
+		}
 	}
 
-	return nil
+	return func(port discoveryv1.EndpointPort) bool {
+		endpointPortName := ""
+		if port.Name != nil {
+			endpointPortName = *port.Name
+		}
+		return endpointPortName == name
+	}
 }

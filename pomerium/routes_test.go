@@ -1099,11 +1099,41 @@ func TestServicePortsAndEndpoints(t *testing.T) {
 				TargetPort: intstr.IntOrString{StrVal: "backend-http", Type: intstr.String},
 			}},
 			[]*discoveryv1.EndpointSlice{testEndpointSlice([]string{"192.0.2.1"}, epPort("", 8080))},
-			// In that case we can't easily determine which Endpoints port
-			// corresponds to the Service port, so we need to fallback to using the
-			// Service instead.
+			// The EndpointSlice port carries the name of the Service port (here
+			// empty), so it can be matched even though the targetPort is named.
 			[]string{
-				"http://service.default.svc.cluster.local:80",
+				"http://192.0.2.1:8080",
+			},
+			false,
+		},
+		{
+			"numeric port of a multi-port service with a named target port",
+			networkingv1.ServiceBackendPort{Number: 80},
+			[]corev1.ServicePort{{
+				Name:       "web",
+				Port:       80,
+				TargetPort: intstr.IntOrString{StrVal: "web-http", Type: intstr.String},
+			}, {
+				Name:       "metrics",
+				Port:       81,
+				TargetPort: intstr.IntOrString{IntVal: 8080},
+			}},
+			[]*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4"}, epPort("web", 3000), epPort("metrics", 8080))},
+			[]string{
+				"http://1.2.3.4:3000",
+			},
+			false,
+		},
+		{
+			"numeric port not defined on the service",
+			networkingv1.ServiceBackendPort{Number: 9999},
+			[]corev1.ServicePort{{
+				Port:       80,
+				TargetPort: intstr.IntOrString{IntVal: 8080},
+			}},
+			[]*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4"}, epPort("", 8080))},
+			[]string{
+				"http://service.default.svc.cluster.local:9999",
 			},
 			false,
 		},
