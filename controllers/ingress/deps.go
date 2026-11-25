@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"reflect"
 
+	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -34,6 +37,20 @@ func (r *ingressController) getDependantIngressFn(kind string) handler.MapFunc {
 			Info("watch", "name", fmt.Sprintf("%s/%s", a.GetNamespace(), a.GetName()), "deps", reqs)
 		return reqs
 	}
+}
+
+// getDependantIngressFromEndpointSlice returns the ingresses that depend on the Service
+// the EndpointSlice belongs to. Unlike other objects, EndpointSlices have generated names,
+// and are associated with their Service via the kubernetes.io/service-name label.
+// Ingresses track the Service they refer to as a dependency, so a change to any of its
+// EndpointSlices is a change to the Service endpoints.
+func (r *ingressController) getDependantIngressFromEndpointSlice(ctx context.Context, a client.Object) []reconcile.Request {
+	svcName := a.GetLabels()[discoveryv1.LabelServiceName]
+	if svcName == "" {
+		return nil
+	}
+	svc := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: svcName, Namespace: a.GetNamespace()}}
+	return r.getDependantIngressFn(r.serviceKind)(ctx, svc)
 }
 
 func (r *ingressController) watchIngressClass() handler.MapFunc {

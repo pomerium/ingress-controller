@@ -16,6 +16,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -278,17 +279,8 @@ func TestSecureUpstream(t *testing.T) {
 				}},
 			},
 		},
-		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
-			{Name: "service", Namespace: "default"}: {
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "service",
-					Namespace: "default",
-				},
-				Subsets: []corev1.EndpointSubset{{
-					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-					Ports:     []corev1.EndpointPort{{Name: "https", Port: 443}},
-				}},
-			},
+		EndpointSlices: map[types.NamespacedName][]*discoveryv1.EndpointSlice{
+			{Name: "service", Namespace: "default"}: []*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4"}, epPort("https", 443))},
 		},
 		Services: map[types.NamespacedName]*corev1.Service{
 			{Name: "service", Namespace: "default"}: {
@@ -364,17 +356,8 @@ func TestCustomSecrets(t *testing.T) {
 				}},
 			},
 		},
-		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
-			{Name: "service", Namespace: "default"}: {
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "service",
-					Namespace: "default",
-				},
-				Subsets: []corev1.EndpointSubset{{
-					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-					Ports:     []corev1.EndpointPort{{Name: "http", Port: 80}},
-				}},
-			},
+		EndpointSlices: map[types.NamespacedName][]*discoveryv1.EndpointSlice{
+			{Name: "service", Namespace: "default"}: []*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4"}, epPort("http", 80))},
 		},
 		Services: map[types.NamespacedName]*corev1.Service{
 			{Name: "service", Namespace: "default"}: {
@@ -470,17 +453,8 @@ func TestKubernetesToken(t *testing.T) {
 				}},
 			},
 		},
-		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
-			{Name: "service", Namespace: "default"}: {
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "service",
-					Namespace: "default",
-				},
-				Subsets: []corev1.EndpointSubset{{
-					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-					Ports:     []corev1.EndpointPort{{Name: "http", Port: 80}},
-				}},
-			},
+		EndpointSlices: map[types.NamespacedName][]*discoveryv1.EndpointSlice{
+			{Name: "service", Namespace: "default"}: []*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4"}, epPort("http", 80))},
 		},
 		Services: map[types.NamespacedName]*corev1.Service{
 			{Name: "service", Namespace: "default"}: {
@@ -608,17 +582,8 @@ func TestTCPUpstream(t *testing.T) {
 				}},
 			},
 		},
-		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
-			{Name: "service", Namespace: "default"}: {
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "service",
-					Namespace: "default",
-				},
-				Subsets: []corev1.EndpointSubset{{
-					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-					Ports:     []corev1.EndpointPort{{Name: "app", Port: 12345}},
-				}},
-			},
+		EndpointSlices: map[types.NamespacedName][]*discoveryv1.EndpointSlice{
+			{Name: "service", Namespace: "default"}: []*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4"}, epPort("app", 12345))},
 		},
 		Services: map[types.NamespacedName]*corev1.Service{
 			{Name: "service", Namespace: "default"}: {
@@ -980,17 +945,8 @@ func TestUseServiceProxy(t *testing.T) {
 				}},
 			},
 		},
-		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
-			{Name: "service", Namespace: "default"}: {
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "service",
-					Namespace: "default",
-				},
-				Subsets: []corev1.EndpointSubset{{
-					Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-					Ports:     []corev1.EndpointPort{{Port: 80}},
-				}},
-			},
+		EndpointSlices: map[types.NamespacedName][]*discoveryv1.EndpointSlice{
+			{Name: "service", Namespace: "default"}: []*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4"}, epPort("", 80))},
 		},
 		Services: map[types.NamespacedName]*corev1.Service{
 			{Name: "service", Namespace: "default"}: {
@@ -1087,12 +1043,12 @@ func shuffleRoutes(random *rand.Rand, routes []*pb.Route) {
 // - if there are multiple, then name is required, that would be repeated in the endpoints
 func TestServicePortsAndEndpoints(t *testing.T) {
 	for _, tc := range []struct {
-		name            string
-		ingressPort     networkingv1.ServiceBackendPort
-		svcPorts        []corev1.ServicePort
-		endpointSubsets []corev1.EndpointSubset
-		expectTO        []string
-		expectError     bool
+		name           string
+		ingressPort    networkingv1.ServiceBackendPort
+		svcPorts       []corev1.ServicePort
+		endpointSlices []*discoveryv1.EndpointSlice
+		expectTO       []string
+		expectError    bool
 	}{
 		{
 			"unnamed port",
@@ -1101,10 +1057,7 @@ func TestServicePortsAndEndpoints(t *testing.T) {
 				Port:       8080,
 				TargetPort: intstr.IntOrString{IntVal: 80},
 			}},
-			[]corev1.EndpointSubset{{
-				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-				Ports:     []corev1.EndpointPort{{Port: 80}},
-			}},
+			[]*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4"}, epPort("", 80))},
 			[]string{
 				"http://1.2.3.4:80",
 			},
@@ -1118,10 +1071,7 @@ func TestServicePortsAndEndpoints(t *testing.T) {
 				Port:       8000,
 				TargetPort: intstr.IntOrString{IntVal: 80},
 			}},
-			[]corev1.EndpointSubset{{
-				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-				Ports:     []corev1.EndpointPort{{Name: "http", Port: 80}},
-			}},
+			[]*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4"}, epPort("http", 80))},
 			[]string{
 				"http://1.2.3.4:80",
 			},
@@ -1135,10 +1085,7 @@ func TestServicePortsAndEndpoints(t *testing.T) {
 				Port:       8000,
 				TargetPort: intstr.IntOrString{StrVal: "grafana-http", Type: intstr.String},
 			}},
-			[]corev1.EndpointSubset{{
-				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-				Ports:     []corev1.EndpointPort{{Name: "http", Port: 80}},
-			}},
+			[]*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4"}, epPort("http", 80))},
 			[]string{
 				"http://1.2.3.4:80",
 			},
@@ -1151,15 +1098,42 @@ func TestServicePortsAndEndpoints(t *testing.T) {
 				Port:       80,
 				TargetPort: intstr.IntOrString{StrVal: "backend-http", Type: intstr.String},
 			}},
-			[]corev1.EndpointSubset{{
-				Addresses: []corev1.EndpointAddress{{IP: "192.0.2.1"}},
-				Ports:     []corev1.EndpointPort{{Port: 8080}},
-			}},
-			// In that case we can't easily determine which Endpoints port
-			// corresponds to the Service port, so we need to fallback to using the
-			// Service instead.
+			[]*discoveryv1.EndpointSlice{testEndpointSlice([]string{"192.0.2.1"}, epPort("", 8080))},
+			// The EndpointSlice port carries the name of the Service port (here
+			// empty), so it can be matched even though the targetPort is named.
 			[]string{
-				"http://service.default.svc.cluster.local:80",
+				"http://192.0.2.1:8080",
+			},
+			false,
+		},
+		{
+			"numeric port of a multi-port service with a named target port",
+			networkingv1.ServiceBackendPort{Number: 80},
+			[]corev1.ServicePort{{
+				Name:       "web",
+				Port:       80,
+				TargetPort: intstr.IntOrString{StrVal: "web-http", Type: intstr.String},
+			}, {
+				Name:       "metrics",
+				Port:       81,
+				TargetPort: intstr.IntOrString{IntVal: 8080},
+			}},
+			[]*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4"}, epPort("web", 3000), epPort("metrics", 8080))},
+			[]string{
+				"http://1.2.3.4:3000",
+			},
+			false,
+		},
+		{
+			"numeric port not defined on the service",
+			networkingv1.ServiceBackendPort{Number: 9999},
+			[]corev1.ServicePort{{
+				Port:       80,
+				TargetPort: intstr.IntOrString{IntVal: 8080},
+			}},
+			[]*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4"}, epPort("", 8080))},
+			[]string{
+				"http://service.default.svc.cluster.local:9999",
 			},
 			false,
 		},
@@ -1171,10 +1145,7 @@ func TestServicePortsAndEndpoints(t *testing.T) {
 				Port:       8000,
 				TargetPort: intstr.IntOrString{IntVal: 80},
 			}},
-			[]corev1.EndpointSubset{{
-				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}, {IP: "1.2.3.5"}},
-				Ports:     []corev1.EndpointPort{{Name: "http", Port: 80}},
-			}},
+			[]*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4", "1.2.3.5"}, epPort("http", 80))},
 			[]string{
 				"http://1.2.3.4:80",
 				"http://1.2.3.5:80",
@@ -1193,13 +1164,7 @@ func TestServicePortsAndEndpoints(t *testing.T) {
 				Port:       9090,
 				TargetPort: intstr.IntOrString{IntVal: 8090},
 			}},
-			[]corev1.EndpointSubset{{
-				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}, {IP: "1.2.3.5"}},
-				Ports: []corev1.EndpointPort{
-					{Name: "metrics", Port: 8090},
-					{Name: "http", Port: 80},
-				},
-			}},
+			[]*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4", "1.2.3.5"}, epPort("metrics", 8090), epPort("http", 80))},
 			[]string{
 				"http://1.2.3.4:80",
 				"http://1.2.3.5:80",
@@ -1240,14 +1205,8 @@ func TestServicePortsAndEndpoints(t *testing.T) {
 						}},
 					},
 				},
-				Endpoints: map[types.NamespacedName]*corev1.Endpoints{
-					{Name: "service", Namespace: "default"}: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "service",
-							Namespace: "default",
-						},
-						Subsets: tc.endpointSubsets,
-					},
+				EndpointSlices: map[types.NamespacedName][]*discoveryv1.EndpointSlice{
+					{Name: "service", Namespace: "default"}: tc.endpointSlices,
 				},
 				Services: map[types.NamespacedName]*corev1.Service{
 					{Name: "service", Namespace: "default"}: {
@@ -1288,7 +1247,7 @@ func TestEndpointsHTTPS(t *testing.T) {
 		ingressAnnotations  map[string]string
 		ingressPort         networkingv1.ServiceBackendPort
 		svcPorts            []corev1.ServicePort
-		endpointSubsets     []corev1.EndpointSubset
+		endpointSlices      []*discoveryv1.EndpointSlice
 		expectTO            []string
 		expectTLSServerName string
 	}{
@@ -1303,10 +1262,7 @@ func TestEndpointsHTTPS(t *testing.T) {
 				Port:       443,
 				TargetPort: intstr.IntOrString{IntVal: 443},
 			}},
-			[]corev1.EndpointSubset{{
-				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}, {IP: "1.2.3.5"}},
-				Ports:     []corev1.EndpointPort{{Name: "https", Port: 443}},
-			}},
+			[]*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4", "1.2.3.5"}, epPort("https", 443))},
 			[]string{
 				"https://1.2.3.4:443",
 				"https://1.2.3.5:443",
@@ -1325,10 +1281,7 @@ func TestEndpointsHTTPS(t *testing.T) {
 				Port:       443,
 				TargetPort: intstr.IntOrString{IntVal: 443},
 			}},
-			[]corev1.EndpointSubset{{
-				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}, {IP: "1.2.3.5"}},
-				Ports:     []corev1.EndpointPort{{Name: "https", Port: 443}},
-			}},
+			[]*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4", "1.2.3.5"}, epPort("https", 443))},
 			[]string{
 				"https://1.2.3.4:443",
 				"https://1.2.3.5:443",
@@ -1347,10 +1300,7 @@ func TestEndpointsHTTPS(t *testing.T) {
 				Port:       443,
 				TargetPort: intstr.IntOrString{IntVal: 443},
 			}},
-			[]corev1.EndpointSubset{{
-				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}, {IP: "1.2.3.5"}},
-				Ports:     []corev1.EndpointPort{{Name: "https", Port: 443}},
-			}},
+			[]*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4", "1.2.3.5"}, epPort("https", 443))},
 			[]string{
 				"https://service.default.svc.cluster.local:443",
 			},
@@ -1367,10 +1317,7 @@ func TestEndpointsHTTPS(t *testing.T) {
 				Port:       9090,
 				TargetPort: intstr.IntOrString{IntVal: 9090},
 			}},
-			[]corev1.EndpointSubset{{
-				Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}, {IP: "1.2.3.5"}},
-				Ports:     []corev1.EndpointPort{{Name: "grpc", Port: 9090}},
-			}},
+			[]*discoveryv1.EndpointSlice{testEndpointSlice([]string{"1.2.3.4", "1.2.3.5"}, epPort("grpc", 9090))},
 			[]string{
 				"h2c://1.2.3.4:9090",
 				"h2c://1.2.3.5:9090",
@@ -1412,14 +1359,8 @@ func TestEndpointsHTTPS(t *testing.T) {
 						}},
 					},
 				},
-				Endpoints: map[types.NamespacedName]*corev1.Endpoints{
-					{Name: "service", Namespace: "default"}: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "service",
-							Namespace: "default",
-						},
-						Subsets: tc.endpointSubsets,
-					},
+				EndpointSlices: map[types.NamespacedName][]*discoveryv1.EndpointSlice{
+					{Name: "service", Namespace: "default"}: tc.endpointSlices,
 				},
 				Services: map[types.NamespacedName]*corev1.Service{
 					{Name: "service", Namespace: "default"}: {
@@ -1515,19 +1456,8 @@ func TestEmptyHostRoute(t *testing.T) {
 				},
 			},
 		},
-		Endpoints: map[types.NamespacedName]*corev1.Endpoints{
-			{Name: "service", Namespace: "default"}: {
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "service",
-					Namespace: "default",
-				},
-				Subsets: []corev1.EndpointSubset{
-					{
-						Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-						Ports:     []corev1.EndpointPort{{Name: "http", Port: 80}},
-					},
-				},
-			},
+		EndpointSlices: map[types.NamespacedName][]*discoveryv1.EndpointSlice{
+			{Name: "service", Namespace: "default"}: {testEndpointSlice([]string{"1.2.3.4"}, epPort("http", 80))},
 		},
 		Services: map[types.NamespacedName]*corev1.Service{
 			{Name: "service", Namespace: "default"}: {
@@ -1653,4 +1583,99 @@ func TestCustomRouteName(t *testing.T) {
 
 	// The envoy opts should have the unique slug for stats
 	assert.Equal(t, proto.String("default-test-ingress-service-localhost-pomerium-io"), route.StatName)
+}
+
+// testEndpointSlice returns a ready EndpointSlice of the "service" Service in the "default" namespace.
+func testEndpointSlice(addresses []string, ports ...discoveryv1.EndpointPort) *discoveryv1.EndpointSlice {
+	return &discoveryv1.EndpointSlice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "service-abcde",
+			Namespace: "default",
+			Labels:    map[string]string{discoveryv1.LabelServiceName: "service"},
+		},
+		AddressType: discoveryv1.AddressTypeIPv4,
+		Endpoints:   []discoveryv1.Endpoint{{Addresses: addresses}},
+		Ports:       ports,
+	}
+}
+
+// epPort returns an EndpointSlice port, an empty name results in an unnamed port.
+func epPort(name string, port int32) discoveryv1.EndpointPort {
+	p := discoveryv1.EndpointPort{Port: &port}
+	if name != "" {
+		p.Name = &name
+	}
+	return p
+}
+
+func TestGetEndpointSliceHosts(t *testing.T) {
+	boolPtr := func(b bool) *bool { return &b }
+	svcPorts := []corev1.ServicePort{{Name: "http", Port: 8000, TargetPort: intstr.IntOrString{IntVal: 80}}}
+	port := networkingv1.ServiceBackendPort{Name: "http"}
+
+	for _, tc := range []struct {
+		name   string
+		slices []*discoveryv1.EndpointSlice
+		expect []string
+	}{
+		{"no slices", nil, nil},
+		{
+			"endpoints spread across multiple slices",
+			[]*discoveryv1.EndpointSlice{
+				testEndpointSlice([]string{"1.2.3.4"}, epPort("http", 80)),
+				testEndpointSlice([]string{"1.2.3.5", "1.2.3.6"}, epPort("http", 80)),
+			},
+			[]string{"1.2.3.4:80", "1.2.3.5:80", "1.2.3.6:80"},
+		},
+		{
+			"same endpoint in two slices is returned once",
+			[]*discoveryv1.EndpointSlice{
+				testEndpointSlice([]string{"1.2.3.4"}, epPort("http", 80)),
+				testEndpointSlice([]string{"1.2.3.4"}, epPort("http", 80)),
+			},
+			[]string{"1.2.3.4:80"},
+		},
+		{
+			"only ready endpoints are used, unknown readiness counts as ready",
+			[]*discoveryv1.EndpointSlice{{
+				AddressType: discoveryv1.AddressTypeIPv4,
+				Endpoints: []discoveryv1.Endpoint{
+					{Addresses: []string{"1.2.3.4"}, Conditions: discoveryv1.EndpointConditions{Ready: boolPtr(true)}},
+					{Addresses: []string{"1.2.3.5"}, Conditions: discoveryv1.EndpointConditions{Ready: boolPtr(false)}},
+					{Addresses: []string{"1.2.3.6"}},
+				},
+				Ports: []discoveryv1.EndpointPort{epPort("http", 80)},
+			}},
+			[]string{"1.2.3.4:80", "1.2.3.6:80"},
+		},
+		{
+			"IPv6 addresses are bracketed",
+			[]*discoveryv1.EndpointSlice{{
+				AddressType: discoveryv1.AddressTypeIPv6,
+				Endpoints:   []discoveryv1.Endpoint{{Addresses: []string{"2001:db8::1"}}},
+				Ports:       []discoveryv1.EndpointPort{epPort("http", 80)},
+			}},
+			[]string{"[2001:db8::1]:80"},
+		},
+		{
+			"FQDN slices are ignored",
+			[]*discoveryv1.EndpointSlice{{
+				AddressType: discoveryv1.AddressTypeFQDN,
+				Endpoints:   []discoveryv1.Endpoint{{Addresses: []string{"example.com"}}},
+				Ports:       []discoveryv1.EndpointPort{epPort("http", 80)},
+			}},
+			nil,
+		},
+		{
+			"ports not matching are ignored",
+			[]*discoveryv1.EndpointSlice{
+				testEndpointSlice([]string{"1.2.3.4"}, epPort("metrics", 8090), discoveryv1.EndpointPort{}),
+			},
+			nil,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ElementsMatch(t, tc.expect, getEndpointSliceHosts(port, svcPorts, tc.slices))
+		})
+	}
 }

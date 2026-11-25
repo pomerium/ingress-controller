@@ -25,7 +25,6 @@ func TestManagingIngressClass(t *testing.T) {
 		controllerName:   pomeriumControllerName,
 		annotationPrefix: DefaultAnnotationPrefix,
 		Client:           mc,
-		endpointsKind:    "Endpoints",
 		ingressKind:      "Ingress",
 		ingressClassKind: "IngressClass",
 		secretKind:       "Secret",
