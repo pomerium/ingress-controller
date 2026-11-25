@@ -107,8 +107,53 @@ func (r *DataBrokerReconciler) Set(ctx context.Context, ics []*model.IngressConf
 	if err != nil {
 		return false, fmt.Errorf("get config: %w", err)
 	}
-	next := new(pb.Config)
 
+	// Build the merged config using only cheap (non-envoy) per-ingress validation.
+	// The expensive full-config envoy validation runs a single time, in saveConfig.
+	// This avoids the O(n^2) behavior of validating a growing config once per ingress.
+	next := buildConfigCheap(ctx, ics)
+
+	changed, err := r.saveConfig(ctx, prev, next, r.ConfigID)
+	if err == nil {
+		return changed, nil
+	}
+
+	// The single full-config envoy validation failed. Rather than reject every
+	// ingress, fall back to validating ingresses incrementally to isolate and skip
+	// only the offending one(s). This path performs O(n) envoy validations, but is
+	// only reached when a batch fails to validate as a whole.
+	logger.Error(err, "batch config validation failed; falling back to incremental validation to isolate invalid ingress(es)")
+	next = r.buildConfigIncremental(ctx, ics)
+	return r.saveConfig(ctx, prev, next, r.ConfigID)
+}
+
+// buildConfigCheap merges the routes for all ingresses into a single config, using
+// only cheap (non-envoy) validation to skip individually-invalid ingresses.
+func buildConfigCheap(ctx context.Context, ics []*model.IngressConfig) *pb.Config {
+	logger := log.FromContext(ctx)
+	next := new(pb.Config)
+	for _, ic := range ics {
+		cfg := proto.Clone(next).(*pb.Config)
+		if err := multierror.Append(
+			upsertRoutes(ctx, cfg, ic),
+			validateCheap(ctx, cfg),
+		).ErrorOrNil(); err != nil {
+			logger.Error(err, "skip ingress", "ingress", fmt.Sprintf("%s/%s", ic.Namespace, ic.Name))
+			continue
+		}
+		addCerts(cfg, ic.Secrets)
+		next = cfg
+	}
+	return next
+}
+
+// buildConfigIncremental merges the routes for all ingresses into a single config,
+// running the full envoy validation after each ingress so that an ingress which
+// only fails full validation (not cheap validation) is isolated and skipped. This
+// is the pre-caching behavior, retained as a fallback for the rare batch-failure case.
+func (r *DataBrokerReconciler) buildConfigIncremental(ctx context.Context, ics []*model.IngressConfig) *pb.Config {
+	logger := log.FromContext(ctx)
+	next := new(pb.Config)
 	for _, ic := range ics {
 		cfg := proto.Clone(next).(*pb.Config)
 		if err := multierror.Append(
@@ -121,8 +166,7 @@ func (r *DataBrokerReconciler) Set(ctx context.Context, ics []*model.IngressConf
 		addCerts(cfg, ic.Secrets)
 		next = cfg
 	}
-
-	return r.saveConfig(ctx, prev, next, r.ConfigID)
+	return next
 }
 
 // SetConfig updates just the shared config settings
