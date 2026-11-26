@@ -1109,7 +1109,7 @@ OIDCBridge configures the default OIDC bridge settings for all routes. A route m
                     (namespace/name)
                 </p>
                 <p>
-                    SecretRef references a <namespace/name> secret with the "client_secret" key, which is the client secret to use for upstream applications that do not support public clients / PKCE.
+                    SecretRef references a `namespace/name` secret with the "client_secret" key, which is the client secret to use for upstream applications that do not support public clients / PKCE.
                 </p>
                 Format: reference to Kubernetes resource with namespace prefix: <code>namespace/name</code> format.
             </td>
