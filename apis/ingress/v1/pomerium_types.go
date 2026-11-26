@@ -491,7 +491,7 @@ type OIDCBridge struct {
 	// +kubebuilder:validation:Optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// SecretRef references a <namespace/name> secret with the "client_secret" key, which
+	// SecretRef references a `namespace/name` secret with the "client_secret" key, which
 	// is the client secret to use for upstream applications that do not support
 	// public clients / PKCE.
 	//
